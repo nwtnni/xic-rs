@@ -5,3 +5,4 @@ authors = ["Newton Ni <nwtnni@gmail.com>"]
 edition = "2018"
 
 [dependencies]
+simple-symbol = "1.0.0"
