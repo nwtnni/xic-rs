@@ -1,3 +1,4 @@
+use crate::error;
 use crate::lex;
 use crate::token;
 
@@ -5,7 +6,7 @@ use crate::token;
 /// Converts a stream of source characters into a stream of `Token`s.
 pub struct Lexer<'source> {
     /// Iterator over source characters
-    stream: std::str::Chars<'source>,   
+    stream: std::str::Chars<'source>,
 
     /// Next character in stream
     next: Option<char>,
@@ -27,7 +28,7 @@ impl<'source> Lexer<'source> {
 
 impl<'source> Iterator for Lexer<'source> {
 
-    type Item = Result<token::Token, lex::error::Error>;
+    type Item = Result<token::Token, error::Error>;
 
     fn next(&mut self) -> Option<Self::Item> {
         None
