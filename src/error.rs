@@ -7,6 +7,12 @@ pub struct Error {
     kind: Kind,
 }
 
+impl Error {
+    pub fn lexical(span: span::Span, error: lex::Error) -> Self {
+        Error { span, kind: Kind::Lexical(error) }
+    }
+}
+
 #[derive(Clone, Debug)]
 pub enum Kind {
     Lexical(lex::Error),
