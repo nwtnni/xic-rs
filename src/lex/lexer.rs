@@ -1,3 +1,5 @@
+use std::str::FromStr;
+
 use crate::error;
 use crate::lex;
 use crate::span;
@@ -87,6 +89,18 @@ impl<'source> Lexer<'source> {
             }
         }
     }
+
+    fn take_while<F>(&mut self, start: usize, f: F) -> usize
+        where F: Fn(char) -> bool
+    {
+        let mut end = start;
+        while let Some((i, c)) = self.next {
+            if !f(c) { break }
+            self.skip();
+            end = i;
+        }
+        end
+    }
 }
 
 impl<'source> Iterator for Lexer<'source> {
@@ -107,7 +121,6 @@ impl<'source> Iterator for Lexer<'source> {
         | 'a'..='z' | 'A'..='Z' => unimplemented!(),
         | '\''                  => unimplemented!(),
         | '"'                   => unimplemented!(),
-        | '0'..='9'             => unimplemented!(),
         | '_' => Ok(UNDERSCORE),
         | ',' => Ok(COMMA),
         | ';' => Ok(SEMICOLON),
@@ -123,8 +136,13 @@ impl<'source> Iterator for Lexer<'source> {
         | '+' => Ok(ADD),
         | '%' => Ok(MOD),
         | '/' => Ok(DIV),
+        | '0'..='9'
         | '-' if self.peek().map_or(false, |c| c.is_ascii_digit()) => {
-            unimplemented!()
+            let end = self.take_while(start, |c| c.is_ascii_digit());
+            let span = self.point().into();
+            i64::from_str(&self.source[start..=end])
+                .map_err(|_| error::Error::lexical(span, lex::Error::InvalidInteger))
+                .map(token::Token::INTEGER)
         }
         | '-' => Ok(SUB),
         | '!' if self.peek() == Some('=') => {
