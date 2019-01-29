@@ -21,3 +21,9 @@ impl std::fmt::Display for Span {
         write!(fmt, "{}-{}", self.lo, self.hi)
     }
 }
+
+impl From<Point> for Span {
+    fn from(point: Point) -> Self {
+        Span { lo: point, hi: point }
+    }
+}

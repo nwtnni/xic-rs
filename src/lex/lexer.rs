@@ -101,8 +101,7 @@ impl<'source> Iterator for Lexer<'source> {
         | '*' => Ok(MUL),
         | _ => {
             let error = lex::Error::UnknownCharacter;
-            let point = self.point();
-            let span = span::Span { lo: point, hi: point };
+            let span = self.point().into();
             Err(error::Error::lexical(span, error))
         }
         };
