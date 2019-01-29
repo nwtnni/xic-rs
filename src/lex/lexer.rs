@@ -82,16 +82,31 @@ impl<'source> Iterator for Lexer<'source> {
         | '&' => Ok(LAND),
         | '|' => Ok(LOR),
         | '+' => Ok(ADD),
-        | '-' => Ok(SUB),
         | '%' => Ok(MOD),
         | '/' => Ok(DIV),
-        | '!' if self.peek() == Some('=') => { self.advance(); Ok(NEQ) }
+        | '-' if self.peek().map_or(false, |c| c.is_ascii_digit()) => {
+            unimplemented!()
+        }
+        | '-' => Ok(SUB),
+        | '!' if self.peek() == Some('=') => {
+            self.advance();
+            Ok(NEQ)
+        }
         | '!' => Ok(NOT),
-        | '<' if self.peek() == Some('=') => { self.advance(); Ok(LE) }
+        | '<' if self.peek() == Some('=') => {
+            self.advance();
+            Ok(LE)
+        }
         | '<' => Ok(LT),
-        | '>' if self.peek() == Some('=') => { self.advance(); Ok(GE) }
+        | '>' if self.peek() == Some('=') => {
+            self.advance();
+            Ok(GE)
+        }
         | '>' => Ok(GT),
-        | '=' if self.peek() == Some('=') => { self.advance(); Ok(EQ) }
+        | '=' if self.peek() == Some('=') => {
+            self.advance();
+            Ok(EQ)
+        }
         | '=' => Ok(ASSIGN),
         | '*' if self.peek() == Some('>') && self.peeeek() == Some('>') => {
             self.advance();
