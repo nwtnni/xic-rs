@@ -105,6 +105,24 @@ impl<'source> Lexer<'source> {
     }
 }
 
+fn is_digit(c: char) -> bool {
+    match c {
+    | '0'..='9' => true,
+    | _         => false,
+    }
+}
+
+fn is_ident(c: char) -> bool {
+    match c {
+    | 'a'..='z'
+    | 'A'..='Z'
+    | '0'..='9'
+    | '_'
+    | '\'' => true,
+    | _    => false,
+    }
+}
+
 impl<'source> Iterator for Lexer<'source> {
 
     type Item = Result<token::Token, error::Error>;
@@ -124,29 +142,19 @@ impl<'source> Iterator for Lexer<'source> {
 
         let result = match c {
         | 'a'..='z' | 'A'..='Z' => {
-            let end = self.take_while(start, |c|
-                match c {
-                | 'a'..='z'
-                | 'A'..='Z'
-                | '0'..='9'
-                | '_'
-                | '\'' => true,
-                | _ => false,
-                }
-            );
-
+            let end = self.take_while(start, is_ident);
             match &self.source[start..=end] {
-            | "use" => Ok(USE),
-            | "if" => Ok(IF),
-            | "while" => Ok(WHILE),
-            | "else" => Ok(ELSE),
+            | "use"    => Ok(USE),
+            | "if"     => Ok(IF),
+            | "while"  => Ok(WHILE),
+            | "else"   => Ok(ELSE),
             | "return" => Ok(RETURN),
             | "length" => Ok(LENGTH),
-            | "int" => Ok(INT),
-            | "bool" => Ok(BOOL),
-            | "true" => Ok(TRUE),
-            | "false" => Ok(FALSE),
-            | ident => Ok(IDENT(store(ident))),
+            | "int"    => Ok(INT),
+            | "bool"   => Ok(BOOL),
+            | "true"   => Ok(TRUE),
+            | "false"  => Ok(FALSE),
+            | ident    => Ok(IDENT(store(ident))),
             }
         }
         | '\''                  => unimplemented!(),
@@ -167,8 +175,8 @@ impl<'source> Iterator for Lexer<'source> {
         | '%' => Ok(MOD),
         | '/' => Ok(DIV),
         | '0'..='9'
-        | '-' if self.peek().map_or(false, |c| c.is_ascii_digit()) => {
-            let end = self.take_while(start, |c| c.is_ascii_digit());
+        | '-' if self.peek().map_or(false, is_digit) => {
+            let end = self.take_while(start, is_digit);
             let span = self.point().into();
             i64::from_str(&self.source[start..=end])
                 .map_err(|_| error::Error::lexical(span, lex::Error::InvalidInteger))
