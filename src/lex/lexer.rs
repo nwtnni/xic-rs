@@ -16,8 +16,11 @@ pub struct Lexer<'source> {
     /// Iterator over source characters
     stream: std::iter::Peekable<std::str::CharIndices<'source>>,
 
-    /// Next character in stream
+    /// Next index and character in stream
     next: Option<(usize, char)>,
+
+    /// Current byte index
+    idx: usize,
 
     /// Current row position
     row: usize,
@@ -31,7 +34,7 @@ impl<'source> Lexer<'source> {
     pub fn new(source: &'source str) -> Self {
         let mut stream = source.char_indices().peekable();
         let next = stream.next();
-        Lexer { source, stream, next, row: 0, col: 0 }
+        Lexer { source, stream, next, idx: 0, row: 0, col: 0 }
     }
 
     /// Look at the next character without consuming
@@ -42,6 +45,11 @@ impl<'source> Lexer<'source> {
     /// Look at the next next character without consuming
     fn peeeek(&self) -> Option<char> {
         self.stream.clone().peek().map(|(_, c)| *c)
+    }
+
+    /// Return the current byte index in the source file
+    fn index(&self) -> usize {
+        self.idx
     }
 
     /// Return the current position in the source file
@@ -55,22 +63,25 @@ impl<'source> Lexer<'source> {
     /// Skip the next character in the stream
     fn skip(&mut self) {
         match self.next {
-        | Some((_, '\n')) => { self.col += 1; self.row = 0; },
-        | Some(_)         => { self.row += 1; },
-        | None            => (),
-        };
-        self.next = self.stream.next();
+        | Some((i, '\n')) => {
+            self.col += 1;
+            self.row = 0;
+            self.idx = i;
+            self.next = self.stream.next();
+        }
+        | Some((i, _)) => {
+            self.row += 1;
+            self.idx = i;
+            self.next = self.stream.next();
+        },
+        | None => (),
+        }
     }
 
     /// Read the next character in the stream
-    fn advance(&mut self) -> Option<(usize, char)> {
-        match self.next {
-        | Some((_, '\n')) => { self.col += 1; self.row = 0; },
-        | Some(_)         => { self.row += 1; },
-        | None            => (),
-        };
-        let next = self.next;
-        self.next = self.stream.next();
+    fn advance(&mut self) -> Option<char> {
+        let next = self.next.map(|(_, c)| c);
+        self.skip();
         next
     }
 
@@ -92,16 +103,11 @@ impl<'source> Lexer<'source> {
         }
     }
 
-    fn take_while<F>(&mut self, start: usize, f: F) -> usize
-        where F: Fn(char) -> bool
-    {
-        let mut end = start;
-        while let Some((i, c)) = self.next {
-            if !f(c) { break }
+    fn take_while<F>(&mut self, f: F) where F: Fn(char) -> bool {
+        while let Some((_, c)) = self.next {
+            if !f(c) { return }
             self.skip();
-            end = i;
         }
-        end
     }
 }
 
@@ -136,14 +142,20 @@ impl<'source> Iterator for Lexer<'source> {
 
         use token::Token::*;
 
-        let (start, c) = self
+        let c = self
             .advance()
             .expect("Always safe to unwrap here");
 
+        let start_index = self.index();
+        let start_point = self.point();
+
         let result = match c {
         | 'a'..='z' | 'A'..='Z' => {
-            let end = self.take_while(start, is_ident);
-            match &self.source[start..=end] {
+            self.take_while(is_ident);
+            let end_index = self.index();
+            let end_point = self.point();
+            let span = span::Span { lo: start_point, hi: end_point };
+            match &self.source[start_index..=end_index] {
             | "use"    => Ok(USE),
             | "if"     => Ok(IF),
             | "while"  => Ok(WHILE),
@@ -176,9 +188,11 @@ impl<'source> Iterator for Lexer<'source> {
         | '/' => Ok(DIV),
         | '0'..='9'
         | '-' if self.peek().map_or(false, is_digit) => {
-            let end = self.take_while(start, is_digit);
-            let span = self.point().into();
-            i64::from_str(&self.source[start..=end])
+            self.take_while(is_digit);
+            let end_index = self.index();
+            let end_point = self.point();
+            let span = span::Span { lo: start_point, hi: end_point };
+            i64::from_str(&self.source[start_index..=end_index])
                 .map_err(|_| error::Error::lexical(span, lex::Error::InvalidInteger))
                 .map(token::Token::INTEGER)
         }
