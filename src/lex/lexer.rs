@@ -69,6 +69,24 @@ impl<'source> Lexer<'source> {
         self.next = self.stream.next();
         next
     }
+
+    /// Skip past whitespace and comments
+    fn forward(&mut self) {
+        loop {
+            match self.peek() {
+            | Some('\n') | Some('\t') | Some('\r') | Some(' ') => {
+                self.skip();
+            }
+            | Some('/') if self.peeeek() == Some('/') => {
+                while self.peek().is_some() && self.peek() != Some('\n') { self.skip(); }
+                self.skip();
+            }
+            | None | Some(_) => {
+                return
+            }
+            }
+        }
+    }
 }
 
 impl<'source> Iterator for Lexer<'source> {
@@ -76,6 +94,9 @@ impl<'source> Iterator for Lexer<'source> {
     type Item = Result<token::Token, error::Error>;
 
     fn next(&mut self) -> Option<Self::Item> {
+
+        // Skip past whitespace and comments
+        self.forward();
 
         if let None = self.peek() { return None }
 
