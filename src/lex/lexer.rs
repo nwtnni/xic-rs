@@ -1,5 +1,7 @@
 use std::str::FromStr;
 
+use simple_symbol::store;
+
 use crate::error;
 use crate::lex;
 use crate::span;
@@ -116,9 +118,37 @@ impl<'source> Iterator for Lexer<'source> {
 
         use token::Token::*;
 
-        let (start, c) = self.advance().expect("Always safe to unwrap here");
+        let (start, c) = self
+            .advance()
+            .expect("Always safe to unwrap here");
+
         let result = match c {
-        | 'a'..='z' | 'A'..='Z' => unimplemented!(),
+        | 'a'..='z' | 'A'..='Z' => {
+            let end = self.take_while(start, |c|
+                match c {
+                | 'a'..='z'
+                | 'A'..='Z'
+                | '0'..='9'
+                | '_'
+                | '\'' => true,
+                | _ => false,
+                }
+            );
+
+            match &self.source[start..=end] {
+            | "use" => Ok(USE),
+            | "if" => Ok(IF),
+            | "while" => Ok(WHILE),
+            | "else" => Ok(ELSE),
+            | "return" => Ok(RETURN),
+            | "length" => Ok(LENGTH),
+            | "int" => Ok(INT),
+            | "bool" => Ok(BOOL),
+            | "true" => Ok(TRUE),
+            | "false" => Ok(FALSE),
+            | ident => Ok(IDENT(store(ident))),
+            }
+        }
         | '\''                  => unimplemented!(),
         | '"'                   => unimplemented!(),
         | '_' => Ok(UNDERSCORE),
