@@ -7,6 +7,8 @@ use crate::lex;
 use crate::span;
 use crate::token;
 
+pub type Spanned = (span::Point, token::Token, span::Point);
+
 /// Stateful Xi lexer.
 /// Converts a stream of source characters into a stream of `Token`s.
 pub struct Lexer<'source> {
@@ -27,6 +29,24 @@ pub struct Lexer<'source> {
 
     /// Current column position
     col: usize,
+}
+
+fn is_digit(c: char) -> bool {
+    match c {
+    | '0'..='9' => true,
+    | _         => false,
+    }
+}
+
+fn is_ident(c: char) -> bool {
+    match c {
+    | 'a'..='z'
+    | 'A'..='Z'
+    | '0'..='9'
+    | '_'
+    | '\'' => true,
+    | _    => false,
+    }
 }
 
 impl<'source> Lexer<'source> {
@@ -55,6 +75,7 @@ impl<'source> Lexer<'source> {
     /// Return the current position in the source file
     fn point(&self) -> span::Point {
         span::Point {
+            idx: self.idx,
             row: self.row,
             col: self.col,
         }
@@ -103,35 +124,55 @@ impl<'source> Lexer<'source> {
         }
     }
 
-    fn take_while<F>(&mut self, f: F) where F: Fn(char) -> bool {
+    fn take_while<F>(&mut self, f: F) -> span::Point
+        where F: Fn(char) -> bool
+    {
         while let Some((_, c)) = self.next {
-            if !f(c) { return }
+            if !f(c) { return self.point() }
             self.skip();
         }
+        let end = self.point();
+        span::Point {
+            idx: end.idx + 1,
+            row: end.row,
+            col: end.col + 1
+        }
     }
-}
 
-fn is_digit(c: char) -> bool {
-    match c {
-    | '0'..='9' => true,
-    | _         => false,
+    fn lex_ident(&mut self, start: span::Point) -> Result<Spanned, error::Error> {
+        self.take_while(is_ident);
+        use token::Token::*;
+        let end = self.point();
+        let token = match &self.source[start.idx..end.idx] {
+        | "use"    => USE,
+        | "if"     => IF,
+        | "while"  => WHILE,
+        | "else"   => ELSE,
+        | "return" => RETURN,
+        | "length" => LENGTH,
+        | "int"    => INT,
+        | "bool"   => BOOL,
+        | "true"   => TRUE,
+        | "false"  => FALSE,
+        | ident    => IDENT(store(ident)),
+        };
+        Ok((start, token, end))
     }
-}
 
-fn is_ident(c: char) -> bool {
-    match c {
-    | 'a'..='z'
-    | 'A'..='Z'
-    | '0'..='9'
-    | '_'
-    | '\'' => true,
-    | _    => false,
+    fn lex_integer(&mut self, start: span::Point) -> Result<Spanned, error::Error> {
+        self.take_while(is_digit);
+        let end = self.point();
+        let span = span::Span::new(start, end);
+        i64::from_str(&self.source[start.idx..end.idx])
+            .map_err(|_| error::Error::lexical(span, lex::Error::InvalidInteger))
+            .map(token::Token::INTEGER)
+            .map(|token| (start, token, end))
     }
 }
 
 impl<'source> Iterator for Lexer<'source> {
 
-    type Item = Result<token::Token, error::Error>;
+    type Item = Result<(span::Point, token::Token, span::Point), error::Error>;
 
     fn next(&mut self) -> Option<Self::Item> {
 
@@ -142,94 +183,61 @@ impl<'source> Iterator for Lexer<'source> {
 
         use token::Token::*;
 
-        let c = self
-            .advance()
-            .expect("Always safe to unwrap here");
+        let start = self.point();
+        let ch = self.advance().unwrap();
+        let mut end = self.point();
 
-        let start_index = self.index();
-        let start_point = self.point();
+        macro_rules! eat {
+            ($token:expr) => { { self.skip(); end = self.point(); $token } }
+        }
 
-        let result = match c {
+        let token = match ch {
         | 'a'..='z' | 'A'..='Z' => {
-            self.take_while(is_ident);
-            let end_index = self.index();
-            let end_point = self.point();
-            let span = span::Span { lo: start_point, hi: end_point };
-            match &self.source[start_index..=end_index] {
-            | "use"    => Ok(USE),
-            | "if"     => Ok(IF),
-            | "while"  => Ok(WHILE),
-            | "else"   => Ok(ELSE),
-            | "return" => Ok(RETURN),
-            | "length" => Ok(LENGTH),
-            | "int"    => Ok(INT),
-            | "bool"   => Ok(BOOL),
-            | "true"   => Ok(TRUE),
-            | "false"  => Ok(FALSE),
-            | ident    => Ok(IDENT(store(ident))),
-            }
+            return Some(self.lex_ident(start))
         }
-        | '\''                  => unimplemented!(),
-        | '"'                   => unimplemented!(),
-        | '_' => Ok(UNDERSCORE),
-        | ',' => Ok(COMMA),
-        | ';' => Ok(SEMICOLON),
-        | ':' => Ok(COLON),
-        | '[' => Ok(LBRACE),
-        | ']' => Ok(RBRACE),
-        | '{' => Ok(LBRACK),
-        | '}' => Ok(RBRACK),
-        | '(' => Ok(LPAREN),
-        | ')' => Ok(RPAREN),
-        | '&' => Ok(LAND),
-        | '|' => Ok(LOR),
-        | '+' => Ok(ADD),
-        | '%' => Ok(MOD),
-        | '/' => Ok(DIV),
-        | '0'..='9'
-        | '-' if self.peek().map_or(false, is_digit) => {
-            self.take_while(is_digit);
-            let end_index = self.index();
-            let end_point = self.point();
-            let span = span::Span { lo: start_point, hi: end_point };
-            i64::from_str(&self.source[start_index..=end_index])
-                .map_err(|_| error::Error::lexical(span, lex::Error::InvalidInteger))
-                .map(token::Token::INTEGER)
+        | '0'..='9' | '-' if self.peek().map_or(false, is_digit) => {
+            return Some(self.lex_integer(start))
         }
-        | '-' => Ok(SUB),
-        | '!' if self.peek() == Some('=') => {
-            self.skip();
-            Ok(NEQ)
-        }
-        | '!' => Ok(NOT),
-        | '<' if self.peek() == Some('=') => {
-            self.skip();
-            Ok(LE)
-        }
-        | '<' => Ok(LT),
-        | '>' if self.peek() == Some('=') => {
-            self.skip();
-            Ok(GE)
-        }
-        | '>' => Ok(GT),
-        | '=' if self.peek() == Some('=') => {
-            self.skip();
-            Ok(EQ)
-        }
-        | '=' => Ok(ASSIGN),
+        | '\'' => unimplemented!(),
+        | '"'  => unimplemented!(),
+        | '_' => UNDERSCORE,
+        | ',' => COMMA,
+        | ';' => SEMICOLON,
+        | ':' => COLON,
+        | '[' => LBRACE,
+        | ']' => RBRACE,
+        | '{' => LBRACK,
+        | '}' => RBRACK,
+        | '(' => LPAREN,
+        | ')' => RPAREN,
+        | '&' => LAND,
+        | '|' => LOR,
+        | '+' => ADD,
+        | '-' => SUB,
+        | '%' => MOD,
+        | '/' => DIV,
+        | '!' if self.peek() == Some('=') => eat!(NEQ),
+        | '!' => NOT,
+        | '<' if self.peek() == Some('=') => eat!(LE),
+        | '<' => LT,
+        | '>' if self.peek() == Some('=') => eat!(GE),
+        | '>' => GT,
+        | '=' if self.peek() == Some('=') => eat!(EQ),
+        | '=' => ASSIGN,
         | '*' if self.peek() == Some('>') && self.peeeek() == Some('>') => {
             self.skip();
             self.skip();
-            Ok(HMUL)
+            end = self.point();
+            HMUL
         }
-        | '*' => Ok(MUL),
+        | '*' => MUL,
         | _ => {
             let error = lex::Error::UnknownCharacter;
-            let span = self.point().into();
-            Err(error::Error::lexical(span, error))
+            let span = span::Span::new(start, end);
+            return Some(Err(error::Error::lexical(span, error)))
         }
         };
 
-        Some(result)
+        Some(Ok((start, token, end)))
     }
 }
