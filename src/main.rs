@@ -16,7 +16,16 @@ struct Arguments {
     files: Vec<std::path::PathBuf>,
 }
 
-fn main() {
+fn main() -> Result<(), xic::Error> {
     let args = Arguments::from_args();
-    println!("{:?}", args);
+    for path in &args.files {
+        let source = std::fs::read_to_string(path)?; 
+        let lexer = xic::Lexer::new(&source);
+        println!("\n\n{:?}\n", path);
+        for spanned in lexer {
+            let (start, token, _) = spanned?;
+            println!("{} {}", start, token);
+        }
+    }
+    Ok(())
 }

@@ -47,10 +47,10 @@ pub enum Token {
 impl std::fmt::Display for Token {
     fn fmt(&self, fmt: &mut std::fmt::Formatter) -> std::fmt::Result {
         match self {
-        | Token::IDENT(s)     => write!(fmt, "{}", s),
-        | Token::CHARACTER(c) => write!(fmt, "{}", c),
-        | Token::INTEGER(i)   => write!(fmt, "{}", i),
-        | Token::STRING(s)    => write!(fmt, "{}", s),
+        | Token::IDENT(i)     => write!(fmt, "id {}", i),
+        | Token::CHARACTER(c) => write!(fmt, "character {}", c),
+        | Token::INTEGER(i)   => write!(fmt, "integer {}", i),
+        | Token::STRING(s)    => write!(fmt, "string {}", s),
         | Token::USE          => write!(fmt, "use"),
         | Token::IF           => write!(fmt, "if"),
         | Token::WHILE        => write!(fmt, "while"),
