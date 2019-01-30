@@ -5,6 +5,16 @@ pub struct Point {
     pub col: usize,
 }
 
+impl Point {
+    pub fn bump(&self) -> Self {
+        Point {
+            idx: self.idx + 1,
+            row: self.row,
+            col: self.col + 1,
+        }
+    }
+}
+
 impl std::fmt::Display for Point {
     fn fmt(&self, fmt: &mut std::fmt::Formatter) -> std::fmt::Result {
         write!(fmt, "{}:{}", self.row, self.col)
@@ -31,6 +41,6 @@ impl std::fmt::Display for Span {
 
 impl From<Point> for Span {
     fn from(point: Point) -> Self {
-        Span { lo: point, hi: point }
+        Span { lo: point, hi: point.bump() }
     }
 }

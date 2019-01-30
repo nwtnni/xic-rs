@@ -34,7 +34,16 @@ pub struct Lexer<'source> {
 fn is_digit(c: char) -> bool {
     match c {
     | '0'..='9' => true,
-    | _         => false,
+    | _ => false,
+    }
+}
+
+fn is_hex_digit(c: char) -> bool {
+    match c {
+    | '0'..='9'
+    | 'a'..='f'
+    | 'A'..='F' => true,
+    | _ => false,
     }
 }
 
@@ -45,7 +54,7 @@ fn is_ident(c: char) -> bool {
     | '0'..='9'
     | '_'
     | '\'' => true,
-    | _    => false,
+    | _ => false,
     }
 }
 
@@ -65,11 +74,6 @@ impl<'source> Lexer<'source> {
     /// Look at the next next character without consuming
     fn peeeek(&self) -> Option<char> {
         self.stream.clone().peek().map(|(_, c)| *c)
-    }
-
-    /// Return the current byte index in the source file
-    fn index(&self) -> usize {
-        self.idx
     }
 
     /// Return the current position in the source file
@@ -114,7 +118,7 @@ impl<'source> Lexer<'source> {
                 self.skip();
             }
             | Some('/') if self.peeeek() == Some('/') => {
-                while self.peek().is_some() && self.peek() != Some('\n') { self.skip(); }
+                self.take_while(|c| c != '\n');
                 self.skip();
             }
             | None | Some(_) => {
@@ -124,25 +128,21 @@ impl<'source> Lexer<'source> {
         }
     }
 
-    fn take_while<F>(&mut self, f: F) -> span::Point
-        where F: Fn(char) -> bool
+    /// Advance iterator while predicate holds and return end point
+    fn take_while<F>(&mut self, mut f: F) -> span::Point
+        where F: FnMut(char) -> bool
     {
         while let Some((_, c)) = self.next {
             if !f(c) { return self.point() }
             self.skip();
         }
-        let end = self.point();
-        span::Point {
-            idx: end.idx + 1,
-            row: end.row,
-            col: end.col + 1
-        }
+        self.point().bump()
     }
 
+    /// Lex a single identifier
     fn lex_ident(&mut self, start: span::Point) -> Result<Spanned, error::Error> {
-        self.take_while(is_ident);
+        let end = self.take_while(is_ident);
         use token::Token::*;
-        let end = self.point();
         let token = match &self.source[start.idx..end.idx] {
         | "use"    => USE,
         | "if"     => IF,
@@ -159,14 +159,70 @@ impl<'source> Lexer<'source> {
         Ok((start, token, end))
     }
 
+    /// Lex a single integer literal
     fn lex_integer(&mut self, start: span::Point) -> Result<Spanned, error::Error> {
-        self.take_while(is_digit);
-        let end = self.point();
+        let end = self.take_while(is_digit);
         let span = span::Span::new(start, end);
         i64::from_str(&self.source[start.idx..end.idx])
             .map_err(|_| error::Error::lexical(span, lex::Error::InvalidInteger))
             .map(token::Token::INTEGER)
             .map(|token| (start, token, end))
+    }
+
+    /// Lex and unescape a single char
+    fn lex_char(&mut self) -> Result<char, error::Error> {
+        let start = self.point();
+        match self.advance() {
+        | Some('\\') => {
+            match self.advance() {
+            | Some('n')  => Ok('\n'),
+            | Some('r')  => Ok('\r'),
+            | Some('t')  => Ok('\t'),
+            | Some('\\') => Ok('\\'),
+            | Some('\'') => Ok('\''),
+            | Some('\"') => Ok('\"'),
+            | Some('x')  => {
+                let mut count = 0;
+                let end = self.take_while(|c| { count += 1; is_hex_digit(c) && count <= 4 });
+                let span = span::Span::new(start, end);
+                u32::from_str_radix(&self.source[start.idx..end.idx], 16).ok()
+                    .and_then(std::char::from_u32)
+                    .ok_or_else(|| error::Error::lexical(span, lex::Error::InvalidCharacter))
+            }
+            | _ => Err(error::Error::lexical(start.into(), lex::Error::InvalidEscape)),
+            }
+        }
+        | Some(ch) => Ok(ch),
+        | None => Err(error::Error::lexical(start.into(), lex::Error::UnclosedCharacter)),
+        }
+    }
+
+    /// Lex a single character literal
+    fn lex_character(&mut self, start: span::Point) -> Result<Spanned, error::Error> {
+        let ch = self.lex_char()
+            .map(token::Token::CHARACTER)?;
+
+        if let Some('\'') = self.advance() {
+            Ok((start, ch, self.point()))
+        } else {
+            Err(error::Error::lexical(start.into(), lex::Error::UnclosedCharacter))
+        }
+    }
+
+    /// Lex a single string literal
+    fn lex_string(&mut self, start: span::Point) -> Result<Spanned, error::Error> {
+        let mut buffer = String::new();
+        while self.next.is_some() {
+            if let Some('\"') = self.peek() {
+                self.skip();
+                return Ok((start, token::Token::STRING(buffer), self.point()))
+            } else {
+                buffer.push(self.lex_char()?)
+            }
+        }
+        let end = self.point();
+        let span = span::Span::new(start, end);
+        Err(error::Error::lexical(span, lex::Error::UnclosedString))
     }
 }
 
@@ -192,14 +248,10 @@ impl<'source> Iterator for Lexer<'source> {
         }
 
         let token = match ch {
-        | 'a'..='z' | 'A'..='Z' => {
-            return Some(self.lex_ident(start))
-        }
-        | '0'..='9' | '-' if self.peek().map_or(false, is_digit) => {
-            return Some(self.lex_integer(start))
-        }
-        | '\'' => unimplemented!(),
-        | '"'  => unimplemented!(),
+        | '\'' => return Some(self.lex_character(start)),
+        | '"'  => return Some(self.lex_string(start)),
+        | 'a'..='z' | 'A'..='Z' => return Some(self.lex_ident(start)),
+        | '0'..='9' | '-' if self.peek().map_or(false, is_digit) => return Some(self.lex_integer(start)),
         | '_' => UNDERSCORE,
         | ',' => COMMA,
         | ';' => SEMICOLON,

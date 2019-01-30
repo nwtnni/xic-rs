@@ -42,7 +42,6 @@ pub enum Token {
     SEMICOLON,
     COMMA,
     UNDERSCORE,
-    EOF,
 }
 
 impl std::fmt::Display for Token {
@@ -88,7 +87,6 @@ impl std::fmt::Display for Token {
         | Token::SEMICOLON    => write!(fmt, ";"),
         | Token::COMMA        => write!(fmt, ","),
         | Token::UNDERSCORE   => write!(fmt, "_"),
-        | Token::EOF          => write!(fmt, "EOF"),
         }
     }
 }
