@@ -63,7 +63,7 @@ impl<'source> Lexer<'source> {
     pub fn new(source: &'source str) -> Self {
         let mut stream = source.char_indices().peekable();
         let next = stream.next();
-        Lexer { source, stream, next, idx: 0, row: 0, col: 0 }
+        Lexer { source, stream, next, idx: 0, row: 1, col: 1 }
     }
 
     /// Look at the next character without consuming
@@ -87,19 +87,14 @@ impl<'source> Lexer<'source> {
 
     /// Skip the next character in the stream
     fn skip(&mut self) {
-        match self.next {
-        | Some((i, '\n')) => {
-            self.col += 1;
-            self.row = 0;
-            self.idx = i;
-            self.next = self.stream.next();
-        }
-        | Some((i, _)) => {
+        if let Some((_, '\n')) = self.next {
             self.row += 1;
+            self.col = 0;
+        }
+        self.next = self.stream.next();
+        if let Some((i, _)) = self.next {
+            self.col += 1;
             self.idx = i;
-            self.next = self.stream.next();
-        },
-        | None => (),
         }
     }
 
@@ -136,7 +131,7 @@ impl<'source> Lexer<'source> {
             if !f(c) { return self.point() }
             self.skip();
         }
-        self.point().bump()
+        self.point()
     }
 
     /// Lex a single identifier
@@ -184,6 +179,7 @@ impl<'source> Lexer<'source> {
             | Some('\"') => Ok('\"'),
             | Some('x')  => {
                 let mut count = 0;
+                let start = self.point();
                 let end = self.take_while(|c| { count += 1; is_hex_digit(c) && count <= 4 });
                 let span = span::Span::new(start, end);
                 let ch = u32::from_str_radix(&self.source[start.idx..end.idx], 16).ok()
@@ -232,7 +228,7 @@ impl<'source> Lexer<'source> {
                 buffer.push(self.lex_char()?)
             }
         }
-        let span = span::Span::new(start, self.point().bump());
+        let span = span::Span::new(start, self.point());
         let kind = lex::ErrorKind::UnclosedString;
         Err(lex::Error::new(span, kind).into())
     }
@@ -262,8 +258,9 @@ impl<'source> Iterator for Lexer<'source> {
         let token = match ch {
         | '\'' => return Some(self.lex_character(start)),
         | '"'  => return Some(self.lex_string(start)),
+        | '0'..='9' => return Some(self.lex_integer(start)),
         | 'a'..='z' | 'A'..='Z' => return Some(self.lex_ident(start)),
-        | '0'..='9' | '-' if self.peek().map_or(false, is_digit) => return Some(self.lex_integer(start)),
+        | '-' if self.peek().map_or(false, is_digit) => return Some(self.lex_integer(start)),
         | '_' => UNDERSCORE,
         | ',' => COMMA,
         | ';' => SEMICOLON,
