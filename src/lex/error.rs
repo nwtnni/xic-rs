@@ -1,5 +1,19 @@
+use crate::span;
+
 #[derive(Clone, Debug)]
-pub enum Error {
+pub struct Error {
+    span: span::Span,
+    kind: ErrorKind,
+}
+
+impl Error {
+    pub fn new(span: span::Span, kind: ErrorKind) -> Self {
+        Error { span, kind }
+    }
+}
+
+#[derive(Clone, Debug)]
+pub enum ErrorKind {
     InvalidInteger,
     InvalidCharacter,
     InvalidEscape,
@@ -10,13 +24,14 @@ pub enum Error {
 
 impl std::fmt::Display for Error {
     fn fmt(&self, fmt: &mut std::fmt::Formatter) -> std::fmt::Result {
-        match self {
-        | Error::InvalidInteger => write!(fmt, "invalid integer literal"),
-        | Error::InvalidCharacter => write!(fmt, "invalid character literal"),
-        | Error::InvalidEscape => write!(fmt, "invalid escape sequence"),
-        | Error::UnclosedCharacter => write!(fmt, "unclosed character literal"),
-        | Error::UnknownCharacter => write!(fmt, "unknown character"),
-        | Error::UnclosedString => write!(fmt, "unclosed string literal"),
+        use ErrorKind::*;
+        match self.kind {
+        | InvalidInteger => write!(fmt, "invalid integer literal"),
+        | InvalidCharacter => write!(fmt, "invalid character literal"),
+        | InvalidEscape => write!(fmt, "invalid escape sequence"),
+        | UnclosedCharacter => write!(fmt, "unclosed character literal"),
+        | UnknownCharacter => write!(fmt, "unknown character"),
+        | UnclosedString => write!(fmt, "unclosed string literal"),
         }
     }
 }

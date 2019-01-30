@@ -163,10 +163,11 @@ impl<'source> Lexer<'source> {
     fn lex_integer(&mut self, start: span::Point) -> Result<Spanned, error::Error> {
         let end = self.take_while(is_digit);
         let span = span::Span::new(start, end);
-        i64::from_str(&self.source[start.idx..end.idx])
-            .map_err(|_| error::Error::lexical(span, lex::Error::InvalidInteger))
+        let int = i64::from_str(&self.source[start.idx..end.idx])
+            .map_err(|_| lex::Error::new(span, lex::ErrorKind::InvalidInteger))
             .map(token::Token::INTEGER)
-            .map(|token| (start, token, end))
+            .map(|token| (start, token, end))?;
+        Ok(int)
     }
 
     /// Lex and unescape a single char
@@ -185,15 +186,24 @@ impl<'source> Lexer<'source> {
                 let mut count = 0;
                 let end = self.take_while(|c| { count += 1; is_hex_digit(c) && count <= 4 });
                 let span = span::Span::new(start, end);
-                u32::from_str_radix(&self.source[start.idx..end.idx], 16).ok()
+                let ch = u32::from_str_radix(&self.source[start.idx..end.idx], 16).ok()
                     .and_then(std::char::from_u32)
-                    .ok_or_else(|| error::Error::lexical(span, lex::Error::InvalidCharacter))
+                    .ok_or_else(|| lex::Error::new(span, lex::ErrorKind::InvalidCharacter))?;
+                Ok(ch)
             }
-            | _ => Err(error::Error::lexical(start.into(), lex::Error::InvalidEscape)),
+            | _ => {
+                let span = start.into();
+                let kind = lex::ErrorKind::InvalidEscape;
+                Err(lex::Error::new(span, kind).into())
+            }
             }
         }
         | Some(ch) => Ok(ch),
-        | None => Err(error::Error::lexical(start.into(), lex::Error::UnclosedCharacter)),
+        | None => {
+            let span = start.into();
+            let kind = lex::ErrorKind::UnclosedCharacter;
+            Err(lex::Error::new(span, kind).into())
+        }
         }
     }
 
@@ -205,7 +215,9 @@ impl<'source> Lexer<'source> {
         if let Some('\'') = self.advance() {
             Ok((start, ch, self.point()))
         } else {
-            Err(error::Error::lexical(start.into(), lex::Error::UnclosedCharacter))
+            let span = start.into();
+            let kind = lex::ErrorKind::UnclosedCharacter;
+            Err(lex::Error::new(span, kind).into())
         }
     }
 
@@ -220,9 +232,9 @@ impl<'source> Lexer<'source> {
                 buffer.push(self.lex_char()?)
             }
         }
-        let end = self.point();
-        let span = span::Span::new(start, end);
-        Err(error::Error::lexical(span, lex::Error::UnclosedString))
+        let span = span::Span::new(start, self.point().bump());
+        let kind = lex::ErrorKind::UnclosedString;
+        Err(lex::Error::new(span, kind).into())
     }
 }
 
@@ -284,9 +296,9 @@ impl<'source> Iterator for Lexer<'source> {
         }
         | '*' => MUL,
         | _ => {
-            let error = lex::Error::UnknownCharacter;
             let span = span::Span::new(start, end);
-            return Some(Err(error::Error::lexical(span, error)))
+            let kind = lex::ErrorKind::UnknownCharacter;
+            return Some(Err(lex::Error::new(span, kind).into()))
         }
         };
 

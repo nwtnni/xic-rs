@@ -1,29 +1,30 @@
 use crate::lex;
-use crate::span;
 
-#[derive(Clone, Debug)]
-pub struct Error {
-    span: span::Span,
-    kind: Kind,
-}
-
-impl Error {
-    pub fn lexical(span: span::Span, error: lex::Error) -> Self {
-        Error { span, kind: Kind::Lexical(error) }
-    }
-}
-
-#[derive(Clone, Debug)]
-pub enum Kind {
+#[derive(Debug)]
+pub enum Error {
     Lexical(lex::Error),
+    IO(std::io::Error),
 }
 
 impl std::fmt::Display for Error {
     fn fmt(&self, fmt: &mut std::fmt::Formatter) -> std::fmt::Result {
-        match &self.kind {
-        | Kind::Lexical(error) => write!(fmt, "{}: {}", self.span.lo, error),
+        match self {
+        | Error::Lexical(error) => write!(fmt, "{}", error),
+        | Error::IO(error) => write!(fmt, "{}", error),
         }
     }
 }
 
 impl std::error::Error for Error {}
+
+impl From<std::io::Error> for Error {
+    fn from(error: std::io::Error) -> Self {
+        Error::IO(error)
+    }
+}
+
+impl From<lex::Error> for Error {
+    fn from(error: lex::Error) -> Self {
+        Error::Lexical(error)
+    }
+}
