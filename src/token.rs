@@ -1,8 +1,8 @@
-use simple_symbol::Symbol;
+use crate::symbol;
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Token {
-    IDENT(Symbol),
+    IDENT(symbol::Symbol),
     CHARACTER(char),
     INTEGER(i64),
     STRING(String),
@@ -47,7 +47,7 @@ pub enum Token {
 impl std::fmt::Display for Token {
     fn fmt(&self, fmt: &mut std::fmt::Formatter) -> std::fmt::Result {
         match self {
-        | Token::IDENT(i)     => write!(fmt, "id {}", i),
+        | Token::IDENT(i)     => write!(fmt, "id {}", symbol::resolve(*i)),
         | Token::CHARACTER(c) => write!(fmt, "character {}", c),
         | Token::INTEGER(i)   => write!(fmt, "integer {}", i),
         | Token::STRING(s)    => write!(fmt, "string {}", s),

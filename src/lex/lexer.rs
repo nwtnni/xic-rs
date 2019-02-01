@@ -1,10 +1,9 @@
 use std::str::FromStr;
 
-use simple_symbol::store;
-
 use crate::error;
 use crate::lex;
 use crate::span;
+use crate::symbol;
 use crate::token;
 
 pub type Spanned = (span::Point, token::Token, span::Point);
@@ -149,7 +148,7 @@ impl<'source> Lexer<'source> {
         | "bool"   => BOOL,
         | "true"   => TRUE,
         | "false"  => FALSE,
-        | ident    => IDENT(store(ident)),
+        | ident    => IDENT(symbol::intern(ident)),
         };
         Ok((start, token, end))
     }
