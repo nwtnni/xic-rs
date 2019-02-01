@@ -25,13 +25,14 @@ pub enum ErrorKind {
 impl std::fmt::Display for Error {
     fn fmt(&self, fmt: &mut std::fmt::Formatter) -> std::fmt::Result {
         use ErrorKind::*;
-        match self.kind {
-        | InvalidInteger => write!(fmt, "invalid integer literal"),
-        | InvalidCharacter => write!(fmt, "invalid character literal"),
-        | InvalidEscape => write!(fmt, "invalid escape sequence"),
-        | UnclosedCharacter => write!(fmt, "unclosed character literal"),
-        | UnknownCharacter => write!(fmt, "unknown character"),
-        | UnclosedString => write!(fmt, "unclosed string literal"),
-        }
+        let description = match self.kind {
+        | InvalidInteger    => "Invalid integer literal",
+        | InvalidCharacter  => "Invalid character literal",
+        | InvalidEscape     => "Invalid escape sequence",
+        | UnclosedCharacter => "Unclosed character literal",
+        | UnknownCharacter  => "Unknown character",
+        | UnclosedString    => "Unclosed string literal",
+        };
+        write!(fmt, "{} error:{}", self.span, description)
     }
 }
