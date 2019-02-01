@@ -131,7 +131,7 @@ impl<'source> Lexer<'source> {
             if !f(c) { return self.point() }
             self.skip();
         }
-        self.point()
+        self.point().bump()
     }
 
     /// Lex a single identifier
@@ -182,10 +182,10 @@ impl<'source> Lexer<'source> {
                 let start = self.point();
                 let end = self.take_while(|c| { count += 1; is_hex_digit(c) && count <= 4 });
                 let span = span::Span::new(start, end);
-                let ch = u32::from_str_radix(&self.source[start.idx..end.idx], 16).ok()
+                u32::from_str_radix(&self.source[start.idx..end.idx], 16)
+                    .ok()
                     .and_then(std::char::from_u32)
-                    .ok_or_else(|| lex::Error::new(span, lex::ErrorKind::InvalidCharacter))?;
-                Ok(ch)
+                    .ok_or_else(|| lex::Error::new(span, lex::ErrorKind::InvalidCharacter).into())
             }
             | _ => {
                 let span = start.into();
@@ -205,9 +205,7 @@ impl<'source> Lexer<'source> {
 
     /// Lex a single character literal
     fn lex_character(&mut self, start: span::Point) -> Result<Spanned, error::Error> {
-        let ch = self.lex_char()
-            .map(token::Token::CHARACTER)?;
-
+        let ch = self.lex_char().map(token::Token::CHARACTER)?;
         if let Some('\'') = self.advance() {
             Ok((start, ch, self.point()))
         } else {
