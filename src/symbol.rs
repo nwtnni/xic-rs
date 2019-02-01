@@ -58,7 +58,7 @@ pub fn intern<'a, S>(string: S) -> Symbol where S: Into<Cow<'a, str>> {
     })
 }
 
-/// Resolve `symbol` to its String representation.
+/// Resolve `symbol` to its string representation.
 pub fn resolve(symbol: Symbol) -> &'static str {
     INTERNER.with(|interner| {
         interner.borrow().resolve(symbol)
