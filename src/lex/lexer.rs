@@ -1,12 +1,11 @@
 use std::str::FromStr;
 
-use crate::error;
 use crate::lex;
 use crate::span;
 use crate::symbol;
 use crate::token;
 
-pub type Spanned = (span::Point, token::Token, span::Point);
+pub type Spanned = Result<(span::Point, token::Token, span::Point), lex::Error>;
 
 /// Stateful Xi lexer.
 /// Converts a stream of source characters into a stream of `Token`s.
@@ -134,7 +133,7 @@ impl<'source> Lexer<'source> {
     }
 
     /// Lex a single identifier
-    fn lex_ident(&mut self, start: span::Point) -> Result<Spanned, error::Error> {
+    fn lex_ident(&mut self, start: span::Point) -> Spanned {
         let end = self.take_while(is_ident);
         use token::Token::*;
         let token = match &self.source[start.idx..end.idx] {
@@ -154,7 +153,7 @@ impl<'source> Lexer<'source> {
     }
 
     /// Lex a single integer literal
-    fn lex_integer(&mut self, start: span::Point) -> Result<Spanned, error::Error> {
+    fn lex_integer(&mut self, start: span::Point) -> Spanned {
         let end = self.take_while(is_digit);
         let span = span::Span::new(start, end);
         let int = i64::from_str(&self.source[start.idx..end.idx])
@@ -165,7 +164,7 @@ impl<'source> Lexer<'source> {
     }
 
     /// Lex and unescape a single char
-    fn lex_char(&mut self) -> Result<char, error::Error> {
+    fn lex_char(&mut self) -> Result<char, lex::Error> {
         let start = self.point();
         match self.advance() {
         | Some('\\') => {
@@ -184,12 +183,12 @@ impl<'source> Lexer<'source> {
                 u32::from_str_radix(&self.source[start.idx..end.idx], 16)
                     .ok()
                     .and_then(std::char::from_u32)
-                    .ok_or_else(|| lex::Error::new(span, lex::ErrorKind::InvalidCharacter).into())
+                    .ok_or_else(|| lex::Error::new(span, lex::ErrorKind::InvalidCharacter))
             }
             | _ => {
                 let span = start.into();
                 let kind = lex::ErrorKind::InvalidEscape;
-                Err(lex::Error::new(span, kind).into())
+                Err(lex::Error::new(span, kind))
             }
             }
         }
@@ -197,25 +196,25 @@ impl<'source> Lexer<'source> {
         | None => {
             let span = start.into();
             let kind = lex::ErrorKind::UnclosedCharacter;
-            Err(lex::Error::new(span, kind).into())
+            Err(lex::Error::new(span, kind))
         }
         }
     }
 
     /// Lex a single character literal
-    fn lex_character(&mut self, start: span::Point) -> Result<Spanned, error::Error> {
+    fn lex_character(&mut self, start: span::Point) -> Spanned {
         let ch = self.lex_char().map(token::Token::CHARACTER)?;
         if let Some('\'') = self.advance() {
             Ok((start, ch, self.point()))
         } else {
             let span = start.into();
             let kind = lex::ErrorKind::UnclosedCharacter;
-            Err(lex::Error::new(span, kind).into())
+            Err(lex::Error::new(span, kind))
         }
     }
 
     /// Lex a single string literal
-    fn lex_string(&mut self, start: span::Point) -> Result<Spanned, error::Error> {
+    fn lex_string(&mut self, start: span::Point) -> Spanned {
         let mut buffer = String::new();
         while self.next.is_some() {
             if let Some('\"') = self.peek() {
@@ -227,13 +226,13 @@ impl<'source> Lexer<'source> {
         }
         let span = span::Span::new(start, self.point());
         let kind = lex::ErrorKind::UnclosedString;
-        Err(lex::Error::new(span, kind).into())
+        Err(lex::Error::new(span, kind))
     }
 }
 
 impl<'source> Iterator for Lexer<'source> {
 
-    type Item = Result<(span::Point, token::Token, span::Point), error::Error>;
+    type Item = Spanned;
 
     fn next(&mut self) -> Option<Self::Item> {
 
@@ -292,7 +291,7 @@ impl<'source> Iterator for Lexer<'source> {
         | _ => {
             let span = span::Span::new(start, end);
             let kind = lex::ErrorKind::UnknownCharacter;
-            return Some(Err(lex::Error::new(span, kind).into()))
+            return Some(Err(lex::Error::new(span, kind)))
         }
         };
 
