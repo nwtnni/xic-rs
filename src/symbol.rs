@@ -1,7 +1,6 @@
 use std::borrow::Cow;
 use std::cell::RefCell;
-
-use hashbrown::HashMap as Map;
+use std::collections::HashMap as Map;
 
 thread_local! {
     /// Global cache of interned strings
