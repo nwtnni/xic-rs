@@ -1,11 +1,8 @@
 mod error;
-mod lex;
+pub mod lex;
 mod span;
 mod symbol;
 mod util;
 mod token;
 
 pub use error::Error;
-
-// Temporary
-pub use lex::Lexer;
