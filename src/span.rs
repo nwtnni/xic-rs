@@ -35,7 +35,7 @@ impl Span {
 
 impl std::fmt::Display for Span {
     fn fmt(&self, fmt: &mut std::fmt::Formatter) -> std::fmt::Result {
-        write!(fmt, "{}-{}", self.lo, self.hi)
+        write!(fmt, "{}", self.lo)
     }
 }
 

@@ -164,7 +164,7 @@ impl<'source> Lexer<'source> {
     }
 
     /// Lex and unescape a single char
-    fn lex_char(&mut self) -> Result<char, lex::Error> {
+    fn lex_char(&mut self, string: bool) -> Result<char, lex::Error> {
         let start = self.point();
         match self.advance() {
         | Some('\\') => {
@@ -173,12 +173,15 @@ impl<'source> Lexer<'source> {
             | Some('r')  => Ok('\r'),
             | Some('t')  => Ok('\t'),
             | Some('\\') => Ok('\\'),
-            | Some('\'') => Ok('\''),
-            | Some('\"') => Ok('\"'),
+            | Some('\'') if !string => Ok('\''),
+            | Some('\"') if string  => Ok('\"'),
             | Some('x')  => {
                 let mut count = 0;
                 let start = self.point();
-                let end = self.take_while(|c| { count += 1; is_hex_digit(c) && count <= 4 });
+                let end = self.take_while(|c| {
+                    count += 1;
+                    is_hex_digit(c) && count <= 4
+                });
                 let span = span::Span::new(start, end);
                 u32::from_str_radix(&self.source[start.idx..end.idx], 16)
                     .ok()
@@ -203,7 +206,8 @@ impl<'source> Lexer<'source> {
 
     /// Lex a single character literal
     fn lex_character(&mut self, start: span::Point) -> Spanned {
-        let ch = self.lex_char().map(token::Token::CHARACTER)?;
+        let ch = self.lex_char(false)
+            .map(token::Token::CHARACTER)?;
         if let Some('\'') = self.advance() {
             Ok((start, ch, self.point()))
         } else {
@@ -221,7 +225,7 @@ impl<'source> Lexer<'source> {
                 self.skip();
                 return Ok((start, token::Token::STRING(buffer), self.point()))
             } else {
-                buffer.push(self.lex_char()?)
+                buffer.push(self.lex_char(true)?)
             }
         }
         let span = span::Span::new(start, self.point());
