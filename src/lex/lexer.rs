@@ -156,7 +156,7 @@ impl<'source> Lexer<'source> {
     fn lex_integer(&mut self, start: span::Point) -> Spanned {
         let end = self.take_while(is_digit);
         let span = span::Span::new(start, end);
-        let int = i64::from_str(&self.source[start.idx..end.idx])
+        let int = i128::from_str(&self.source[start.idx..end.idx])
             .map_err(|_| lex::Error::new(span, lex::ErrorKind::InvalidInteger))
             .map(token::Token::INTEGER)
             .map(|token| (start, token, end))?;
@@ -260,7 +260,6 @@ impl<'source> Iterator for Lexer<'source> {
         | '"'  => return Some(self.lex_string(start)),
         | '0'..='9' => return Some(self.lex_integer(start)),
         | 'a'..='z' | 'A'..='Z' => return Some(self.lex_ident(start)),
-        | '-' if self.peek().map_or(false, is_digit) => return Some(self.lex_integer(start)),
         | '_' => UNDERSCORE,
         | ',' => COMMA,
         | ';' => SEMICOLON,
