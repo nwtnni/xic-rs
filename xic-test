@@ -1,0 +1,3 @@
+#! /bin/sh
+
+xth/xth -compilerpath . -testpath xth/tests/pa1/ xth/tests/pa1/xthScript
