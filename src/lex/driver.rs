@@ -2,7 +2,11 @@ use std::io::{BufWriter, Write};
 
 use crate::error;
 use crate::lex;
-use crate::util::Tap;
+use crate::span;
+use crate::token;
+use crate::util::{Conv, Tap, TakeUntil};
+
+type Spanned = Result<(span::Point, token::Token, span::Point), error::Error>;
 
 pub struct Driver<'main> {
     directory: &'main std::path::Path,
@@ -14,40 +18,33 @@ impl<'main> Driver<'main> {
         Driver { directory, diagnostic }
     }
 
-    pub fn drive(&self, path: &std::path::Path) -> Result<Vec<lex::Spanned>, error::Error> {
+    fn format<W: Write>(spanned: &Spanned, mut writer: W) -> Result<(), error::Error> {
+        match spanned {
+        | Ok((l, t, _)) => writeln!(writer, "{} {}", l, t)?,
+        | Err(error)    => writeln!(writer, "{}", error)?,
+        }
+        Ok(())
+    }
+
+    pub fn drive(&self, path: &std::path::Path) -> Result<Vec<Spanned>, error::Error> {
         let source = std::fs::read_to_string(path)?;
         let lexer = lex::Lexer::new(&source);
-        let mut tokens = Vec::new();
-        if !self.diagnostic {
-            for spanned in lexer {
-                if spanned.is_err() {
-                    tokens.push(spanned);
-                    return Ok(tokens)
-                } else {
-                    tokens.push(spanned);
-                }
-            }
-        } else {
+        let tokens = lexer.take_until(Result::is_err)
+            .map(|spanned| spanned.map_err(Conv::conv))
+            .collect::<Vec<_>>();
+
+        if self.diagnostic {
             let mut log = self.directory
                 .join(path)
                 .with_extension("lexed")
                 .tap(std::fs::File::create)
                 .map(BufWriter::new)?;
 
-            for spanned in lexer {
-                match &spanned {
-                | Ok((l, t, _)) => {
-                    writeln!(&mut log, "{} {}", l, t)?;
-                    tokens.push(spanned);
-                }
-                | Err(error) => {
-                    writeln!(&mut log, "{}", error)?;
-                    tokens.push(spanned);
-                    return Ok(tokens)
-                }
-                }
+            for spanned in &tokens {
+                Self::format(spanned, &mut log)?;
             }
         }
+
         Ok(tokens)
     }
 }

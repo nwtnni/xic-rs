@@ -5,8 +5,6 @@ use crate::span;
 use crate::symbol;
 use crate::token;
 
-pub type Spanned = Result<(span::Point, token::Token, span::Point), lex::Error>;
-
 /// Stateful Xi lexer.
 /// Converts a stream of source characters into a stream of `Token`s.
 pub struct Lexer<'source> {
@@ -174,7 +172,7 @@ impl<'source> Lexer<'source> {
             | Some('t')  => Ok('\t'),
             | Some('\\') => Ok('\\'),
             | Some('\'') if !string => Ok('\''),
-            | Some('\"') if string  => Ok('\"'),
+            | Some('\"') if  string => Ok('\"'),
             | Some('x')  => {
                 let mut count = 0;
                 let start = self.point();
@@ -234,6 +232,9 @@ impl<'source> Lexer<'source> {
     }
 }
 
+/// Result of attempting to lex the next token
+type Spanned = Result<(span::Point, token::Token, span::Point), lex::Error>;
+
 impl<'source> Iterator for Lexer<'source> {
 
     type Item = Spanned;
@@ -256,10 +257,11 @@ impl<'source> Iterator for Lexer<'source> {
         }
 
         let token = match ch {
-        | '\'' => return Some(self.lex_character(start)),
-        | '"'  => return Some(self.lex_string(start)),
+        | 'a'..='z'
+        | 'A'..='Z' => return Some(self.lex_ident(start)),
+        | '\''      => return Some(self.lex_character(start)),
+        | '"'       => return Some(self.lex_string(start)),
         | '0'..='9' => return Some(self.lex_integer(start)),
-        | 'a'..='z' | 'A'..='Z' => return Some(self.lex_ident(start)),
         | '_' => UNDERSCORE,
         | ',' => COMMA,
         | ';' => SEMICOLON,
