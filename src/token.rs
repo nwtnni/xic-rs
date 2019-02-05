@@ -4,7 +4,7 @@ use crate::symbol;
 pub enum Token {
     IDENT(symbol::Symbol),
     CHARACTER(char),
-    INTEGER(i128),
+    INTEGER(String),
     STRING(String),
     USE, 
     IF,

@@ -14,7 +14,6 @@ impl Error {
 
 #[derive(Clone, Debug)]
 pub enum ErrorKind {
-    InvalidInteger,
     InvalidCharacter,
     InvalidEscape,
     UnknownCharacter,
@@ -26,7 +25,6 @@ impl std::fmt::Display for Error {
     fn fmt(&self, fmt: &mut std::fmt::Formatter) -> std::fmt::Result {
         use ErrorKind::*;
         let description = match self.kind {
-        | InvalidInteger    => "Invalid integer literal",
         | InvalidCharacter  => "Invalid character literal",
         | InvalidEscape     => "Invalid escape sequence",
         | UnclosedCharacter => "Unclosed character literal",

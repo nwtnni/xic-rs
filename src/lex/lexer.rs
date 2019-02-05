@@ -1,9 +1,8 @@
-use std::str::FromStr;
-
-use crate::lex;
+use crate::lex::{Error, ErrorKind};
 use crate::span;
 use crate::symbol;
-use crate::token;
+use crate::token::Token;
+use crate::util::Tap;
 
 /// Stateful Xi lexer.
 /// Converts a stream of source characters into a stream of `Token`s.
@@ -132,8 +131,8 @@ impl<'source> Lexer<'source> {
 
     /// Lex a single identifier
     fn lex_ident(&mut self, start: span::Point) -> Spanned {
+        use Token::*;
         let end = self.take_while(is_ident);
-        use token::Token::*;
         let token = match &self.source[start.idx..end.idx] {
         | "use"    => USE,
         | "if"     => IF,
@@ -153,16 +152,14 @@ impl<'source> Lexer<'source> {
     /// Lex a single integer literal
     fn lex_integer(&mut self, start: span::Point) -> Spanned {
         let end = self.take_while(is_digit);
-        let span = span::Span::new(start, end);
-        let int = i128::from_str(&self.source[start.idx..end.idx])
-            .map_err(|_| lex::Error::new(span, lex::ErrorKind::InvalidInteger))
-            .map(token::Token::INTEGER)
-            .map(|token| (start, token, end))?;
-        Ok(int)
+        let int = self.source[start.idx..end.idx]
+            .to_string()
+            .tap(Token::INTEGER);
+        Ok((start, int, end))
     }
 
     /// Lex and unescape a single char
-    fn lex_char(&mut self, string: bool) -> Result<char, lex::Error> {
+    fn lex_char(&mut self, string: bool) -> Result<char, Error> {
         let start = self.point();
         match self.advance() {
         | Some('\\') => {
@@ -184,34 +181,33 @@ impl<'source> Lexer<'source> {
                 u32::from_str_radix(&self.source[start.idx..end.idx], 16)
                     .ok()
                     .and_then(std::char::from_u32)
-                    .ok_or_else(|| lex::Error::new(span, lex::ErrorKind::InvalidCharacter))
+                    .ok_or_else(|| Error::new(span, ErrorKind::InvalidCharacter))
             }
             | _ => {
                 let span = start.into();
-                let kind = lex::ErrorKind::InvalidEscape;
-                Err(lex::Error::new(span, kind))
+                let kind = ErrorKind::InvalidEscape;
+                Err(Error::new(span, kind))
             }
             }
         }
         | Some(ch) => Ok(ch),
         | None => {
             let span = start.into();
-            let kind = lex::ErrorKind::UnclosedCharacter;
-            Err(lex::Error::new(span, kind))
+            let kind = ErrorKind::UnclosedCharacter;
+            Err(Error::new(span, kind))
         }
         }
     }
 
     /// Lex a single character literal
     fn lex_character(&mut self, start: span::Point) -> Spanned {
-        let ch = self.lex_char(false)
-            .map(token::Token::CHARACTER)?;
+        let ch = self.lex_char(false).map(Token::CHARACTER)?;
         if let Some('\'') = self.advance() {
             Ok((start, ch, self.point()))
         } else {
             let span = start.into();
-            let kind = lex::ErrorKind::UnclosedCharacter;
-            Err(lex::Error::new(span, kind))
+            let kind = ErrorKind::UnclosedCharacter;
+            Err(Error::new(span, kind))
         }
     }
 
@@ -221,19 +217,19 @@ impl<'source> Lexer<'source> {
         while self.next.is_some() {
             if let Some('\"') = self.peek() {
                 self.skip();
-                return Ok((start, token::Token::STRING(buffer), self.point()))
+                return Ok((start, Token::STRING(buffer), self.point()))
             } else {
                 buffer.push(self.lex_char(true)?)
             }
         }
         let span = span::Span::new(start, self.point());
-        let kind = lex::ErrorKind::UnclosedString;
-        Err(lex::Error::new(span, kind))
+        let kind = ErrorKind::UnclosedString;
+        Err(Error::new(span, kind))
     }
 }
 
 /// Result of attempting to lex the next token
-type Spanned = Result<(span::Point, token::Token, span::Point), lex::Error>;
+type Spanned = Result<(span::Point, Token, span::Point), Error>;
 
 impl<'source> Iterator for Lexer<'source> {
 
@@ -241,12 +237,12 @@ impl<'source> Iterator for Lexer<'source> {
 
     fn next(&mut self) -> Option<Self::Item> {
 
+        use Token::*;
+
         // Skip past whitespace and comments
         self.forward();
 
         if let None = self.peek() { return None }
-
-        use token::Token::*;
 
         let start = self.point();
         let ch = self.advance().unwrap();
@@ -295,8 +291,8 @@ impl<'source> Iterator for Lexer<'source> {
         | '*' => MUL,
         | _ => {
             let span = span::Span::new(start, end);
-            let kind = lex::ErrorKind::UnknownCharacter;
-            return Some(Err(lex::Error::new(span, kind)))
+            let kind = ErrorKind::UnknownCharacter;
+            return Some(Err(Error::new(span, kind)))
         }
         };
 
