@@ -1,3 +1,4 @@
+/// Represents a single point in a source file.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct Point {
     pub idx: usize,
@@ -6,6 +7,8 @@ pub struct Point {
 }
 
 impl Point {
+    /// Constructs the next point in the program.
+    /// Assumes that the current character is ASCII.
     pub fn bump(&self) -> Self {
         Point {
             idx: self.idx + 1,
@@ -21,6 +24,7 @@ impl std::fmt::Display for Point {
     }
 }
 
+/// Represents a span of text in a source file.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct Span {
     pub lo: Point,
