@@ -1,0 +1,57 @@
+use crate::error::Error;
+use crate::symbol::Symbol;
+use crate::span::{Point, Span};
+use crate::token::Token;
+
+grammar;
+
+pub Test: char = {
+    <c: CHR> => c,
+}
+
+extern {
+    type Location = Point;
+    type Error = Error;
+
+    enum Token {
+        ID       => Token::IDENT(<Symbol>),
+        CHR      => Token::CHARACTER(<char>),
+        INT      => Token::INTEGER(<String>),
+        STR      => Token::STRING(<String>),
+        "use"    => Token::USE,
+        "if"     => Token::IF,
+        "while"  => Token::WHILE,
+        "else"   => Token::ELSE,
+        "return" => Token::RETURN,
+        "length" => Token::LENGTH,
+        "int"    => Token::INT,
+        "bool"   => Token::BOOL,
+        "true"   => Token::TRUE,
+        "false"  => Token::FALSE,
+        "="      => Token::ASSIGN,
+        "!"      => Token::NOT,
+        "*"      => Token::MUL,
+        "*>>"    => Token::HMUL,
+        "/"      => Token::DIV,
+        "%"      => Token::MOD,
+        "+"      => Token::ADD,
+        "-"      => Token::SUB,
+        "<"      => Token::LT,
+        "<="     => Token::LE,
+        ">="     => Token::GE,
+        ">"      => Token::GT,
+        "=="     => Token::EQ,
+        "!="     => Token::NEQ,
+        "&"      => Token::LAND,
+        "|"      => Token::LOR,
+        "("      => Token::LPAREN,
+        ")"      => Token::RPAREN,
+        "["      => Token::LBRACK,
+        "]"      => Token::RBRACK,
+        "{"      => Token::LBRACE,
+        "}"      => Token::RBRACE,
+        ":"      => Token::COLON,
+        ";"      => Token::SEMICOLON,
+        "_"      => Token::UNDERSCORE,
+    }
+}

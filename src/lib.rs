@@ -1,6 +1,7 @@
 mod ast;
 mod error;
 pub mod lex;
+pub mod parse;
 mod sexp;
 mod span;
 mod symbol;

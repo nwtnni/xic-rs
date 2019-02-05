@@ -6,6 +6,16 @@ pub struct Point {
     pub col: usize,
 }
 
+impl Default for Point {
+    fn default() -> Self {
+        Point {
+            idx: 0,
+            row: 1,
+            col: 1,
+        }
+    }
+}
+
 impl Point {
     /// Constructs the next point in the program.
     /// Assumes that the current character is ASCII.
