@@ -1,3 +1,4 @@
+mod ast;
 mod error;
 pub mod lex;
 mod sexp;
