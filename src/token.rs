@@ -55,7 +55,7 @@ pub enum Token {
     MUL,
 
     /// `*>>` symbol
-    HMUL,
+    HUL,
 
     /// `/` symbol
     DIV,
@@ -85,13 +85,13 @@ pub enum Token {
     EQ,
 
     /// `!=` symbol
-    NEQ,
+    NE,
 
     /// `&` symbol
-    LAND,
+    AND,
 
     /// `|` symbol
-    LOR,
+    OR,
 
     /// `(` symbol
     LPAREN,
@@ -163,7 +163,7 @@ impl std::fmt::Display for Token {
         | Token::ASSIGN     => write!(fmt, "="),
         | Token::NOT        => write!(fmt, "!"),
         | Token::MUL        => write!(fmt, "*"),
-        | Token::HMUL       => write!(fmt, "*>>"),
+        | Token::HUL        => write!(fmt, "*>>"),
         | Token::DIV        => write!(fmt, "/"),
         | Token::MOD        => write!(fmt, "%"),
         | Token::ADD        => write!(fmt, "+"),
@@ -173,9 +173,9 @@ impl std::fmt::Display for Token {
         | Token::GE         => write!(fmt, ">="),
         | Token::GT         => write!(fmt, ">"),
         | Token::EQ         => write!(fmt, "=="),
-        | Token::NEQ        => write!(fmt, "!="),
-        | Token::LAND       => write!(fmt, "&"),
-        | Token::LOR        => write!(fmt, "|"),
+        | Token::NE         => write!(fmt, "!="),
+        | Token::AND        => write!(fmt, "&"),
+        | Token::OR         => write!(fmt, "|"),
         | Token::LPAREN     => write!(fmt, "("),
         | Token::RPAREN     => write!(fmt, ")"),
         | Token::LBRACK     => write!(fmt, "["),

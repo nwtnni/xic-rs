@@ -283,13 +283,13 @@ impl<'source> Iterator for Lexer<'source> {
         | ']' => RBRACK,
         | '(' => LPAREN,
         | ')' => RPAREN,
-        | '&' => LAND,
-        | '|' => LOR,
+        | '&' => AND,
+        | '|' => OR,
         | '+' => ADD,
         | '-' => SUB,
         | '%' => MOD,
         | '/' => DIV,
-        | '!' if self.peek() == Some('=') => eat!(NEQ),
+        | '!' if self.peek() == Some('=') => eat!(NE),
         | '!' => NOT,
         | '<' if self.peek() == Some('=') => eat!(LE),
         | '<' => LT,
@@ -301,7 +301,7 @@ impl<'source> Iterator for Lexer<'source> {
             self.skip();
             self.skip();
             end = self.point();
-            HMUL
+            HUL
         }
         | '*' => MUL,
         | _ => {
