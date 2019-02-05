@@ -1,3 +1,4 @@
+/// Convenience trait for method-chaining functions.
 pub trait Tap: Sized {
     fn tap<F, T>(self, f: F) -> T where F: FnOnce(Self) -> T {
         f(self)
@@ -6,6 +7,7 @@ pub trait Tap: Sized {
 
 impl<T: Sized> Tap for T {}
 
+/// Convenience trait for applying conversions in method chains.
 pub trait Conv: Sized {
     fn conv<T: From<Self>>(self) -> T {
         self.into()
@@ -14,6 +16,21 @@ pub trait Conv: Sized {
 
 impl<T: Sized> Conv for T {}
 
+/// Advance the underlying iterator up to and including when the provided
+/// predicate returns `true`.
+pub trait TakeUntil: Iterator + Sized {
+    fn take_until<F: FnMut(&Self::Item) -> bool>(self, predicate: F) -> Until<Self, F> {
+        Until {
+            inner: self,
+            predicate,
+            done: false
+        }
+    }
+}
+
+impl<I: Iterator + Sized> TakeUntil for I {}
+
+/// Implementation detail for TakeUntil trait.
 pub struct Until<I, F> {
     inner: I,
     predicate: F,
@@ -33,15 +50,3 @@ impl<T, I: Iterator<Item = T>, F: FnMut(&T) -> bool> Iterator for Until<I, F> {
         }
     }
 }
-
-pub trait TakeUntil: Iterator + Sized {
-    fn take_until<F: FnMut(&Self::Item) -> bool>(self, predicate: F) -> Until<Self, F> {
-        Until {
-            inner: self,
-            predicate,
-            done: false
-        }
-    }
-}
-
-impl<I: Iterator + Sized> TakeUntil for I {}
