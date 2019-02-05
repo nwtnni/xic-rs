@@ -46,10 +46,12 @@ pub enum Token {
 
 fn unescape(c: char, fmt: &mut std::fmt::Formatter) -> std::fmt::Result {
     match c {
-    | '\n' => write!(fmt, "\\n"),
-    | '\r' => write!(fmt, "\\r"),
-    | '\t' => write!(fmt, "\\t"),
-    | _    => write!(fmt, "{}", c),
+    | '\n'   => write!(fmt, "\\n"),
+    | '\r'   => write!(fmt, "\\r"),
+    | '\t'   => write!(fmt, "\\t"),
+    | '\x08' => write!(fmt, "\\b"),
+    | '\x0C' => write!(fmt, "\\f"),
+    | _      => write!(fmt, "{}", c),
     }
 }
 
