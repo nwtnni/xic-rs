@@ -159,8 +159,7 @@ impl<'source> Lexer<'source> {
     }
 
     /// Lex and unescape a single char
-    fn lex_char(&mut self, string: bool) -> Result<char, Error> {
-        let start = self.point();
+    fn lex_char(&mut self, start: span::Point, string: bool) -> Result<char, Error> {
         match self.advance() {
         | Some('\n')
         | Some('\r')
@@ -217,7 +216,7 @@ impl<'source> Lexer<'source> {
 
     /// Lex a single character literal
     fn lex_character(&mut self, start: span::Point) -> Spanned {
-        let ch = self.lex_char(false).map(Token::CHARACTER)?;
+        let ch = self.lex_char(start, false).map(Token::CHARACTER)?;
         if let Some('\'') = self.advance() {
             Ok((start, ch, self.point()))
         } else {
@@ -230,16 +229,12 @@ impl<'source> Lexer<'source> {
     /// Lex a single string literal
     fn lex_string(&mut self, start: span::Point) -> Spanned {
         let mut buffer = String::new();
-        while self.next.is_some() {
-            match self.peek() {
-            | Some('\"') => {
+        while let Some(ch) = self.peek() {
+            if ch == '\"' {
                 self.skip();
                 return Ok((start, Token::STRING(buffer), self.point()))
-            }
-            | Some(_) => {
-                buffer.push(self.lex_char(true)?)
-            }
-            | None => unreachable!(),
+            } else {
+                buffer.push(self.lex_char(start, true)?);
             }
         }
         let span = span::Span::new(start, self.point());
