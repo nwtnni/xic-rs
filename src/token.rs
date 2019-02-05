@@ -1,49 +1,130 @@
 use crate::symbol;
 
+/// Represents a possible lexical token in the Xi language.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Token {
+    /// Identifier
     IDENT(symbol::Symbol),
+
+    /// Character literal
     CHARACTER(char),
+
+    /// Integer literal
     INTEGER(String),
+
+    /// String literal
     STRING(String),
+
+    /// `use` keyword
     USE, 
+
+    /// `if` keyword
     IF,
+
+    /// `while` keyword
     WHILE,
+
+    /// `else` keyword
     ELSE,
+
+    /// `return` keyword
     RETURN,
+
+    /// `length` keyword
     LENGTH,
+
+    /// `int` keyword
     INT,
+
+    /// `bool` keyword
     BOOL,
+
+    /// `true` keyword
     TRUE,
+
+    /// `false` keyword
     FALSE,
+
+    /// `=` symbol
     ASSIGN,
+
+    /// `!` symbol
     NOT,
+
+    /// `*` symbol
     MUL,
+
+    /// `*>>` symbol
     HMUL,
+
+    /// `/` symbol
     DIV,
+
+    /// `%` symbol
     MOD,
+
+    /// `+` symbol
     ADD,
+
+    /// `-` symbol
     SUB,
-    LE,
+
+    /// `<` symbol
     LT,
+
+    /// `<=` symbol
+    LE,
+
+    /// `>=` symbol
     GE,
+
+    /// `>` symbol
     GT,
+
+    /// `==` symbol
     EQ,
+
+    /// `!=` symbol
     NEQ,
+
+    /// `&` symbol
     LAND,
+
+    /// `|` symbol
     LOR,
+
+    /// `(` symbol
     LPAREN,
+
+    /// `)` symbol
     RPAREN,
+
+    /// `[` symbol
     LBRACK,
+
+    /// `]` symbol
     RBRACK,
+
+    /// `{` symbol
     LBRACE,
+
+    /// `}` symbol
     RBRACE,
+
+    /// `:` symbol
     COLON,
+
+    /// `;` symbol
     SEMICOLON,
+
+    /// `,` symbol
     COMMA,
+
+    /// `_` symbol
     UNDERSCORE,
 }
 
+/// Unescapes (some) unprintable characters before writing to `fmt`.
 fn unescape(c: char, fmt: &mut std::fmt::Formatter) -> std::fmt::Result {
     match c {
     | '\n'   => write!(fmt, "\\n"),
@@ -97,10 +178,10 @@ impl std::fmt::Display for Token {
         | Token::LOR        => write!(fmt, "|"),
         | Token::LPAREN     => write!(fmt, "("),
         | Token::RPAREN     => write!(fmt, ")"),
-        | Token::LBRACK     => write!(fmt, "{{"),
-        | Token::RBRACK     => write!(fmt, "}}"),
-        | Token::LBRACE     => write!(fmt, "["),
-        | Token::RBRACE     => write!(fmt, "]"),
+        | Token::LBRACK     => write!(fmt, "["),
+        | Token::RBRACK     => write!(fmt, "]"),
+        | Token::LBRACE     => write!(fmt, "{{"),
+        | Token::RBRACE     => write!(fmt, "}}"),
         | Token::COLON      => write!(fmt, ":"),
         | Token::SEMICOLON  => write!(fmt, ";"),
         | Token::COMMA      => write!(fmt, ","),
