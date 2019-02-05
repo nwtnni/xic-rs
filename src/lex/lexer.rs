@@ -162,6 +162,19 @@ impl<'source> Lexer<'source> {
     fn lex_char(&mut self, string: bool) -> Result<char, Error> {
         let start = self.point();
         match self.advance() {
+        | Some('\n')
+        | Some('\r')
+        | Some('\x08')
+        | Some('\x0C') => {
+            let span = start.into();
+            let kind = if string { ErrorKind::InvalidString } else { ErrorKind::InvalidCharacter };
+            Err(Error::new(span, kind))
+        }
+        | Some('\'') if !string => {
+            let span = start.into();
+            let kind = ErrorKind::InvalidCharacter;
+            Err(Error::new(span, kind))
+        }
         | Some('\\') => {
             match self.advance() {
             | Some('n')  => Ok('\n'),
@@ -218,11 +231,15 @@ impl<'source> Lexer<'source> {
     fn lex_string(&mut self, start: span::Point) -> Spanned {
         let mut buffer = String::new();
         while self.next.is_some() {
-            if let Some('\"') = self.peek() {
+            match self.peek() {
+            | Some('\"') => {
                 self.skip();
                 return Ok((start, Token::STRING(buffer), self.point()))
-            } else {
+            }
+            | Some(_) => {
                 buffer.push(self.lex_char(true)?)
+            }
+            | None => unreachable!(),
             }
         }
         let span = span::Span::new(start, self.point());

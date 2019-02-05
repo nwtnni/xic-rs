@@ -16,6 +16,7 @@ impl Error {
 pub enum ErrorKind {
     InvalidCharacter,
     InvalidEscape,
+    InvalidString,
     UnknownCharacter,
     UnclosedCharacter,
     UnclosedString,
@@ -27,6 +28,7 @@ impl std::fmt::Display for Error {
         let description = match self.kind {
         | InvalidCharacter  => "Invalid character literal",
         | InvalidEscape     => "Invalid escape sequence",
+        | InvalidString     => "Invalid string literal",
         | UnclosedCharacter => "Unclosed character literal",
         | UnknownCharacter  => "Unknown character",
         | UnclosedString    => "Unclosed string literal",
