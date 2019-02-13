@@ -1,12 +1,46 @@
+use std::str::FromStr;
+
+use crate::ast::*;
 use crate::error::Error;
+use crate::parse;
 use crate::symbol::Symbol;
 use crate::span::{Point, Span};
 use crate::token::Token;
+use crate::util::Conv;
 
 grammar;
 
 pub Test: char = {
-    <c: CHR> => c,
+    <Value> => 'a',      
+}
+
+Comma<T>: Vec<T> = {
+    <h: T?> <t: ("," <T>)*> => {
+        match h {
+        | None => t,
+        | Some(e) => {
+            let mut t = t;
+            t.insert(0, e);
+            t
+        }
+        }
+    }
+}
+
+Value: Exp = {
+    <l: @L> "true"   <r: @R> => Exp::Bool(true, Span::new(l, r)),
+    <l: @L> "false"  <r: @R> => Exp::Bool(false, Span::new(l, r)),
+    <l: @L> <v: ID>  <r: @R> => Exp::Var(v, Span::new(l, r)),
+    <l: @L> <c: CHR> <r: @R> => Exp::Chr(c, Span::new(l, r)),
+    <l: @L> <s: STR> <r: @R> => Exp::Str(s, Span::new(l, r)),
+    <l: @L> <i: INT> <r: @R> =>? {
+        let s = Span::new(l, r);
+        let i = i64::from_str(&i)
+            .map_err(|_| parse::Error::Integer(s))
+            .map_err(Conv::conv::<Error>)
+            .map_err(|error| lalrpop_util::ParseError::User { error })?;
+        Ok(Exp::Int(i, s))
+    }
 }
 
 extern {
@@ -52,6 +86,7 @@ extern {
         "}"      => Token::RBRACE,
         ":"      => Token::COLON,
         ";"      => Token::SEMICOLON,
+        ","      => Token::COMMA,
         "_"      => Token::UNDERSCORE,
     }
 }

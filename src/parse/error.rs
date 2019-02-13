@@ -5,31 +5,34 @@ use crate::token;
 type ParseError = lalrpop_util::ParseError<span::Point, token::Token, error::Error>;
 
 #[derive(Debug)]
-pub struct Error {
-    token: Option<(span::Span, token::Token)>,
+pub enum Error {
+    EOF,
+    Integer(span::Span),
+    Token(span::Span, token::Token),
 }
 
 impl std::fmt::Display for Error {
     fn fmt(&self, fmt: &mut std::fmt::Formatter) -> std::fmt::Result {
-        match &self.token {
-        | None => write!(fmt, "error:Unexpected eof"),
-        | Some((span, token)) => write!(fmt, "{} error:Unexpected token {}", span, token),
+        match &self {
+        | Error::EOF                => write!(fmt, "error:Unexpected eof"),
+        | Error::Integer(span)      => write!(fmt, "{} error:Invalid integer literal", span),
+        | Error::Token(span, token) => write!(fmt, "{} error:Unexpected token {}", span, token),
         }
     } 
 }
 
-impl From<ParseError> for Error {
+impl From<ParseError> for error::Error {
     fn from(error: ParseError) -> Self {
         use lalrpop_util::ParseError::*;
         match error {
-        | User { .. }
         | InvalidToken { .. }
         | ExtraToken { .. } => unreachable!(),
+        | User { error } => error,
         | UnrecognizedToken { token: None, .. } => {
-            Error { token: None }
+            error::Error::Syntactic(Error::EOF)
         }
         | UnrecognizedToken { token: Some((start, token, end)), .. } => {
-            Error { token: Some((span::Span::new(start, end), token)) }
+            error::Error::Syntactic(Error::Token(span::Span::new(start, end), token))
         }
         }
     }

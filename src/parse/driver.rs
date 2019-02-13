@@ -21,7 +21,6 @@ impl<'main> Driver<'main> {
     {
         parse::TestParser::new()
             .parse(iter)
-            .map_err(Conv::conv::<parse::Error>)
             .map_err(Conv::conv::<error::Error>)
     }
 }
