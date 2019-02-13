@@ -69,8 +69,17 @@ impl Prexp {
             Ok(ast::Exp::Bin(bin, Box::new(lhs), Box::new(rhs), span))
         }
         | Prexp::Uno(uno, exp, span) => {
-            let exp = (*exp).into()?;
-            Ok(ast::Exp::Uno(uno, Box::new(exp), span))
+            match (*exp).into()? {
+            | ast::Exp::Int(n, _) if n == std::i64::MIN => {
+                Err(parse::Error::Integer(span).into())
+            }
+            | ast::Exp::Int(n, _) => {
+                Ok(ast::Exp::Int(-n, span))
+            }
+            | exp => {
+                Ok(ast::Exp::Uno(uno, Box::new(exp), span))
+            }
+            }
         }
         | Prexp::Idx(arr, idx, span) => {
             let arr = (*arr).into()?;
