@@ -6,7 +6,7 @@ use crate::parse;
 use crate::symbol::Symbol;
 use crate::span::{Point, Span};
 use crate::token::Token;
-use crate::util::Conv;
+use crate::util::{Conv, Tap};
 
 grammar;
 
@@ -33,14 +33,21 @@ Value: Exp = {
     <l: @L> <v: ID>  <r: @R> => Exp::Var(v, Span::new(l, r)),
     <l: @L> <c: CHR> <r: @R> => Exp::Chr(c, Span::new(l, r)),
     <l: @L> <s: STR> <r: @R> => Exp::Str(s, Span::new(l, r)),
+    <l: @L> "-" <i: INT> <r: @R> =>? {
+        let mut i = i; i.insert(0, '-');
+        let s = Span::new(l, r);
+        let i = i64::from_str(&i) 
+            .map_err(|_| parse::Error::Integer(s).into())
+            .map_err(|error| lalrpop_util::ParseError::User { error })?;
+        Ok(Exp::Int(i, s))
+    },
     <l: @L> <i: INT> <r: @R> =>? {
         let s = Span::new(l, r);
         let i = i64::from_str(&i)
-            .map_err(|_| parse::Error::Integer(s))
-            .map_err(Conv::conv::<Error>)
+            .map_err(|_| parse::Error::Integer(s).into())
             .map_err(|error| lalrpop_util::ParseError::User { error })?;
         Ok(Exp::Int(i, s))
-    }
+    },
 }
 
 extern {
