@@ -2,23 +2,27 @@ use crate::span::Span;
 use crate::symbol;
 
 /// Represents a Xi interface file.
+#[derive(Clone, Debug)]
 pub struct Interface {
     sigs: Vec<Sig>,
 }
 
 /// Represents a Xi source file.
+#[derive(Clone, Debug)]
 pub struct Program {
     uses: Vec<Use>,
     funs: Vec<Fun>,
 }
 
 /// Represents a use statement for importing interfaces.
+#[derive(Clone, Debug)]
 pub struct Use {
     name: symbol::Symbol,
     span: Span,
 }
 
 /// Represents a function signature (i.e. without implementation).
+#[derive(Clone, Debug)]
 pub struct Sig {
     name: symbol::Symbol,
     args: Vec<Dec>,
@@ -27,6 +31,7 @@ pub struct Sig {
 }
 
 /// Represents a function definition (i.e. with implementation).
+#[derive(Clone, Debug)]
 pub struct Fun {
     name: symbol::Symbol,
     args: Vec<Dec>,
@@ -36,6 +41,7 @@ pub struct Fun {
 }
 
 /// Represents a primitive type.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub enum Typ {
     Bool(Span),
     Int(Span),
@@ -43,6 +49,7 @@ pub enum Typ {
 }
 
 /// Represents a binary operator.
+#[derive(Copy, Clone, Debug, PartialEq, Eq)]
 pub enum Bin {
     Mul,
     Hul,
@@ -61,12 +68,14 @@ pub enum Bin {
 }
 
 /// Represents a unary operator.
+#[derive(Copy, Clone, Debug, PartialEq, Eq)]
 pub enum Uno {
     Neg,
     Not,
 }
 
 /// Represents an expression (i.e. a term that can be evaluated).
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Exp {
     /// Boolean literal
     Bool(bool, Span),
@@ -92,14 +101,15 @@ pub enum Exp {
     /// Unary operation
     Uno(Uno, Box<Exp>, Span),
 
-    /// Function call
-    Fun(symbol::Symbol, Vec<Exp>, Span),
-
     /// Array index
     Idx(Box<Exp>, Box<Exp>, Span),
+
+    /// Function call
+    Call(symbol::Symbol, Vec<Exp>, Span),
 }
 
 /// Represents a variable declaration.
+#[derive(Clone, Debug)]
 pub struct Dec {
     name: symbol::Symbol,
     typ: Typ,
@@ -107,6 +117,7 @@ pub struct Dec {
 }
 
 /// Represents an imperative statement.
+#[derive(Clone, Debug)]
 pub enum Stm {
     /// Assignment
     Ass(Vec<Option<Dec>>, Exp, Span),
