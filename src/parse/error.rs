@@ -6,17 +6,31 @@ type ParseError = lalrpop_util::ParseError<span::Point, token::Token, error::Err
 
 #[derive(Debug)]
 pub struct Error {
-    span: span::Span,
+    token: Option<(span::Span, token::Token)>,
 }
 
 impl std::fmt::Display for Error {
     fn fmt(&self, fmt: &mut std::fmt::Formatter) -> std::fmt::Result {
-        write!(fmt, "{} error:Unexpected token", self.span)
+        match &self.token {
+        | None => write!(fmt, "error:Unexpected eof"),
+        | Some((span, token)) => write!(fmt, "{} error:Unexpected token {}", span, token),
+        }
     } 
 }
 
 impl From<ParseError> for Error {
     fn from(error: ParseError) -> Self {
-        unimplemented!()
+        use lalrpop_util::ParseError::*;
+        match error {
+        | User { .. }
+        | InvalidToken { .. }
+        | ExtraToken { .. } => unreachable!(),
+        | UnrecognizedToken { token: None, .. } => {
+            Error { token: None }
+        }
+        | UnrecognizedToken { token: Some((start, token, end)), .. } => {
+            Error { token: Some((span::Span::new(start, end), token)) }
+        }
+        }
     }
 }
