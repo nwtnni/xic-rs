@@ -129,7 +129,7 @@ pub enum Stm {
     Dec(Dec, Span),
     
     /// Return statement
-    Ret(Option<Exp>, Span),
+    Ret(Vec<Exp>, Span),
 
     /// Statement block
     Seq(Vec<Stm>, Span),

@@ -28,6 +28,36 @@ Comma<T>: Vec<T> = {
     }
 }
 
+Stm: Stm = {
+    <Return>,
+    <NoReturn>,
+}
+
+Return: Stm = {
+    <l: @L> "return" <rets: Comma<Exp>> ";"? <r: @R> => {
+        Stm::Ret(rets, Span::new(l, r))
+    }
+}
+
+NoReturn: Stm = {
+    <l: @L> <name: ID> "(" <args: Comma<Exp>> ")" ";"? <r: @R> => {
+        Stm::Call(name, args, Span::new(l, r))
+    },
+    <Block>,
+}
+
+Block: Stm = {
+    <l: @L> "{" <stms: NoReturn*> <ret: Return?> "}" ";"? <r: @R> => {
+        let mut stms = stms;
+        if let Some(ret) = ret { stms.push(ret); }
+        Stm::Seq(stms, Span::new(l, r))
+    },
+}
+
+Exp: Exp = {
+    <pre: Prexp> =>? pre.into_exp().map_err(|error| lalrpop_util::ParseError::User { error }),
+}
+
 Binary<Op, Next>: Prexp = {
     <l: @L> <lhs: Binary<Op, Next>> <bin: Op> <rhs: Next> <r: @R> => {
         Prexp::Bin(bin, Box::new(lhs), Box::new(rhs), Span::new(l, r))
