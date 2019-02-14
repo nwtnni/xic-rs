@@ -40,7 +40,21 @@ pub enum Prexp {
 }
 
 impl Prexp {
-    pub fn into(self) -> Result<ast::Exp, error::Error> {
+    pub fn span_mut(&mut self) -> &mut span::Span {
+        match self {
+        | Prexp::Bool(_, span)
+        | Prexp::Chr(_, span)
+        | Prexp::Str(_, span)
+        | Prexp::Int(_, span)
+        | Prexp::Var(_, span)
+        | Prexp::Arr(_, span)
+        | Prexp::Bin(_, _, _, span)
+        | Prexp::Uno(_, _, span)
+        | Prexp::Idx(_, _, span)
+        | Prexp::Call(_, _, span) => span,
+        }
+    }
+    pub fn into_exp(self) -> Result<ast::Exp, error::Error> {
         match self {
         | Prexp::Bool(b, span)   => Ok(ast::Exp::Bool(b, span)),
         | Prexp::Chr(c, span)    => Ok(ast::Exp::Chr(c, span)),
@@ -59,17 +73,17 @@ impl Prexp {
         }
         | Prexp::Arr(exps, span) => {
             let exps = exps.into_iter()
-                .map(Prexp::into)
+                .map(Prexp::into_exp)
                 .collect::<Result<Vec<_>, _>>()?;
             Ok(ast::Exp::Arr(exps, span))
         }
         | Prexp::Bin(bin, lhs, rhs, span) => {
-            let lhs = (*lhs).into()?; 
-            let rhs = (*rhs).into()?; 
+            let lhs = (*lhs).into_exp()?; 
+            let rhs = (*rhs).into_exp()?; 
             Ok(ast::Exp::Bin(bin, Box::new(lhs), Box::new(rhs), span))
         }
         | Prexp::Uno(uno, exp, span) => {
-            match (*exp).into()? {
+            match (*exp).into_exp()? {
             | ast::Exp::Int(n, _) if n == std::i64::MIN => {
                 Err(parse::Error::Integer(span).into())
             }
@@ -82,13 +96,13 @@ impl Prexp {
             }
         }
         | Prexp::Idx(arr, idx, span) => {
-            let arr = (*arr).into()?;
-            let idx = (*idx).into()?;
+            let arr = (*arr).into_exp()?;
+            let idx = (*idx).into_exp()?;
             Ok(ast::Exp::Idx(Box::new(arr), Box::new(idx), span))
         }
         | Prexp::Call(name, args, span) => {
             let args = args.into_iter()
-                .map(Prexp::into)
+                .map(Prexp::into_exp)
                 .collect::<Result<Vec<_>, _>>()?;
             Ok(ast::Exp::Call(name, args, span))
         }

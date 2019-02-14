@@ -3,6 +3,7 @@ use std::str::FromStr;
 use crate::ast::*;
 use crate::error::Error;
 use crate::parse;
+use crate::parse::Prexp;
 use crate::symbol::Symbol;
 use crate::span::{Point, Span};
 use crate::token::Token;
@@ -27,26 +28,95 @@ Comma<T>: Vec<T> = {
     }
 }
 
-Value: Exp = {
-    <l: @L> "true"   <r: @R> => Exp::Bool(true, Span::new(l, r)),
-    <l: @L> "false"  <r: @R> => Exp::Bool(false, Span::new(l, r)),
-    <l: @L> <v: ID>  <r: @R> => Exp::Var(v, Span::new(l, r)),
-    <l: @L> <c: CHR> <r: @R> => Exp::Chr(c, Span::new(l, r)),
-    <l: @L> <s: STR> <r: @R> => Exp::Str(s, Span::new(l, r)),
-    <l: @L> "-" <i: INT> <r: @R> =>? {
-        let mut i = i; i.insert(0, '-');
-        let s = Span::new(l, r);
-        let i = i64::from_str(&i) 
-            .map_err(|_| parse::Error::Integer(s).into())
-            .map_err(|error| lalrpop_util::ParseError::User { error })?;
-        Ok(Exp::Int(i, s))
+Binary<Op, Next>: Prexp = {
+    <l: @L> <lhs: Binary<Op, Next>> <bin: Op> <rhs: Next> <r: @R> => {
+        Prexp::Bin(bin, Box::new(lhs), Box::new(rhs), Span::new(l, r))
     },
-    <l: @L> <i: INT> <r: @R> =>? {
-        let s = Span::new(l, r);
-        let i = i64::from_str(&i)
-            .map_err(|_| parse::Error::Integer(s).into())
-            .map_err(|error| lalrpop_util::ParseError::User { error })?;
-        Ok(Exp::Int(i, s))
+    <Next>
+}
+
+Prexp: Prexp = Or;
+
+OrOp: Bin = {
+    "|" => Bin::Or,
+}
+
+Or: Prexp = Binary<OrOp, And>;
+
+AndOp: Bin = {
+    "&" => Bin::And,
+}
+
+And: Prexp = Binary<AndOp, Equal>;
+
+EqualOp: Bin = {
+    "==" => Bin::Eq,
+    "!=" => Bin::Ne,
+}
+
+Equal: Prexp = Binary<EqualOp, Compare>;
+
+CompareOp: Bin = {
+    "<"  => Bin::Lt,
+    "<=" => Bin::Le,
+    ">=" => Bin::Ge,
+    ">"  => Bin::Gt,
+}
+
+Compare: Prexp = Binary<CompareOp, Add>;
+
+AddOp: Bin = {
+    "+" => Bin::Add,
+    "-" => Bin::Sub,
+}
+
+Add: Prexp = Binary<AddOp, Mul>;
+
+MulOp: Bin = {
+    "*"   => Bin::Mul,
+    "*>>" => Bin::Hul,
+    "/"   => Bin::Div,
+    "%"   => Bin::Mod,
+}
+
+Mul: Prexp = Binary<MulOp, Prefix>;
+
+PrefixOp: Uno = {
+    "-" => Uno::Neg,
+    "!" => Uno::Not,
+}
+
+Prefix: Prexp = {
+    <l: @L> <uno: PrefixOp> <exp: Prefix> <r: @R> => {
+        Prexp::Uno(uno, Box::new(exp), Span::new(l, r))
+    },
+    <Postfix>
+}
+
+Postfix: Prexp = {
+    <l: @L> <arr: Postfix> "[" <idx: Prexp> "]" <r: @R> => {
+        Prexp::Idx(Box::new(arr), Box::new(idx), Span::new(l, r))
+    },
+    <Value>
+}
+
+Value: Prexp = {
+    <l: @L> "true"   <r: @R> => Prexp::Bool(true, Span::new(l, r)),
+    <l: @L> "false"  <r: @R> => Prexp::Bool(false, Span::new(l, r)),
+    <l: @L> <c: CHR> <r: @R> => Prexp::Chr(c, Span::new(l, r)),
+    <l: @L> <s: STR> <r: @R> => Prexp::Str(s, Span::new(l, r)),
+    <l: @L> <i: INT> <r: @R> => Prexp::Int(i, Span::new(l, r)),
+    <l: @L> <v: ID>  <r: @R> => Prexp::Var(v, Span::new(l, r)),
+    <l: @L> "{" <exps: Comma<Prexp>> "}" <r: @R> => {
+        Prexp::Arr(exps, Span::new(l, r))   
+    },
+    <l: @L> <name: ID> "(" <args: Comma<Prexp>> ")" <r: @R> => {
+        Prexp::Call(name, args, Span::new(l, r))
+    },
+    <l: @L> "(" <exp: Prexp> ")" <r: @R> => {
+        let mut exp = exp;
+        *exp.span_mut() = Span::new(l, r);
+        exp
     },
 }
 
