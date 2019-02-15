@@ -4,40 +4,40 @@ use crate::symbol;
 /// Represents a Xi interface file.
 #[derive(Clone, Debug)]
 pub struct Interface {
-    sigs: Vec<Sig>,
+    pub sigs: Vec<Sig>,
 }
 
 /// Represents a Xi source file.
 #[derive(Clone, Debug)]
 pub struct Program {
-    uses: Vec<Use>,
-    funs: Vec<Fun>,
+    pub uses: Vec<Use>,
+    pub funs: Vec<Fun>,
 }
 
 /// Represents a use statement for importing interfaces.
 #[derive(Clone, Debug)]
 pub struct Use {
-    name: symbol::Symbol,
-    span: Span,
+    pub name: symbol::Symbol,
+    pub span: Span,
 }
 
 /// Represents a function signature (i.e. without implementation).
 #[derive(Clone, Debug)]
 pub struct Sig {
-    name: symbol::Symbol,
-    args: Vec<Dec>,
-    rets: Vec<Typ>,
-    span: Span,
+    pub name: symbol::Symbol,
+    pub args: Vec<Dec>,
+    pub rets: Vec<Typ>,
+    pub span: Span,
 }
 
 /// Represents a function definition (i.e. with implementation).
 #[derive(Clone, Debug)]
 pub struct Fun {
-    name: symbol::Symbol,
-    args: Vec<Dec>,
-    rets: Vec<Typ>,
-    body: Stm,
-    span: Span,
+    pub name: symbol::Symbol,
+    pub args: Vec<Dec>,
+    pub rets: Vec<Typ>,
+    pub body: Stm,
+    pub span: Span,
 }
 
 /// Represents a primitive type.
@@ -124,9 +124,9 @@ pub enum Exp {
 /// Represents a variable declaration.
 #[derive(Clone, Debug)]
 pub struct Dec {
-    name: symbol::Symbol,
-    typ: Typ,
-    span: Span,
+    pub name: symbol::Symbol,
+    pub typ: Typ,
+    pub span: Span,
 }
 
 /// Represents an imperative statement.

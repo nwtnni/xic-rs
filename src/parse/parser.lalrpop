@@ -29,17 +29,17 @@ Comma<T>: Vec<T> = {
 }
 
 Stm: Stm = {
-    <Return>,
-    <NoReturn>,
+    <RetStm>,
+    <NoRetStm>,
 }
 
-Return: Stm = {
+RetStm: Stm = {
     <l: @L> "return" <rets: Comma<Exp>> ";"? <r: @R> => {
         Stm::Ret(rets, Span::new(l, r))
     }
 }
 
-NoReturn: Stm = {
+NoRetStm: Stm = {
     <l: @L> <name: ID> "(" <args: Comma<Exp>> ")" ";"? <r: @R> => {
         Stm::Call(name, args, Span::new(l, r))
     },
@@ -47,11 +47,46 @@ NoReturn: Stm = {
 }
 
 Block: Stm = {
-    <l: @L> "{" <stms: NoReturn*> <ret: Return?> "}" ";"? <r: @R> => {
+    <l: @L> "{" <stms: NoRetStm*> <ret: RetStm?> "}" ";"? <r: @R> => {
         let mut stms = stms;
         if let Some(ret) = ret { stms.push(ret); }
         Stm::Seq(stms, Span::new(l, r))
     },
+}
+
+StmDec: Dec = {
+    <l: @L> <name: ID> ":" <typ: DecTyp> <r: @R> => {
+        Dec { name, typ, span: Span::new(l, r) }
+    }
+}
+
+PrimTyp: Typ = {
+    <l: @L> "bool" <r: @R> => Typ::Bool(Span::new(l, r)),
+    <l: @L> "int"  <r: @R> => Typ::Int(Span::new(l, r)),
+}
+
+ArgTyp: Typ = {
+    <PrimTyp>,
+    <l: @L> <typ: ArgTyp> "[" "]" <r: @R> => {
+        Typ::Arr(Box::new(typ), None, Span::new(l, r))
+    },
+}
+
+DecTyp: Typ = {
+    <PrimTyp>,
+    <l: @L> <typ: PrimTyp> <arrs: ArrTyp+> <r: @R> => {
+        let mut arrs = arrs;
+        let mut typ = typ;
+        let (len, r) = arrs.remove(0);
+        for (len, r) in arrs.into_iter().rev() {
+            typ = Typ::Arr(Box::new(typ), len, Span::new(l, r));
+        }
+        Typ::Arr(Box::new(typ), len, Span::new(l, r))
+    },
+}
+
+ArrTyp: (Option<Exp>, Point) = {
+    "[" <len: Exp?> "]" <r: @R> => (len, r),
 }
 
 Exp: Exp = {
