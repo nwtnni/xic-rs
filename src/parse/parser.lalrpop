@@ -28,11 +28,6 @@ Comma<T>: Vec<T> = {
     }
 }
 
-Stm: Stm = {
-    <RetStm>,
-    <NoRetStm>,
-}
-
 RetStm: Stm = {
     <l: @L> "return" <rets: Comma<Exp>> ";"? <r: @R> => {
         Stm::Ret(rets, Span::new(l, r))
@@ -61,15 +56,20 @@ NoRetStm: Stm = {
         Stm::Mint(decs, call, Span::new(l, r))
     },
 
+    // If statement
+    <l: @L> "if" <cond: Exp> <pass: Block> <fail: Else?> <r: @R> => {
+        Stm::If(cond, Box::new(pass), fail.map(Box::new), Span::new(l, r))
+    },
+
+    // While statement
+    <l: @L> "while" <cond: Exp> <body: Block> <r: @R> => {
+        Stm::While(cond, Box::new(body), Span::new(l, r))
+    },
+
     <Block>,
 }
 
-Loc: Exp = {
-    <l: @L> <name: ID> <r: @R> => Exp::Var(name, Span::new(l, r)),
-    <l: @L> <arr: Loc> "[" <idx: Exp> "]" <r: @R> => {
-        Exp::Idx(Box::new(arr), Box::new(idx), Span::new(l, r))
-    },
-}
+Else: Stm = { "else" <Block> }
 
 Block: Stm = {
     <l: @L> "{" <stms: NoRetStm*> <ret: RetStm?> "}" ";"? <r: @R> => {
@@ -82,6 +82,13 @@ Block: Stm = {
 Call: Call = {
     <l: @L> <name: ID> "(" <args: Comma<Exp>> ")" <r: @R> => {
         Call { name, args, span: Span::new(l, r) }
+    },
+}
+
+Loc: Exp = {
+    <l: @L> <name: ID> <r: @R> => Exp::Var(name, Span::new(l, r)),
+    <l: @L> <arr: Loc> "[" <idx: Exp> "]" <r: @R> => {
+        Exp::Idx(Box::new(arr), Box::new(idx), Span::new(l, r))
     },
 }
 
