@@ -118,7 +118,7 @@ pub enum Exp {
     Idx(Box<Exp>, Box<Exp>, Span),
 
     /// Function call
-    Call(symbol::Symbol, Vec<Exp>, Span),
+    Call(Call),
 }
 
 /// Represents a variable declaration.
@@ -129,14 +129,28 @@ pub struct Dec {
     pub span: Span,
 }
 
+/// Represents a function call.
+#[derive(Clone, Debug)]
+pub struct Call {
+    pub name: symbol::Symbol,
+    pub args: Vec<Exp>,
+    pub span: Span,
+}
+
 /// Represents an imperative statement.
 #[derive(Clone, Debug)]
 pub enum Stm {
     /// Assignment
-    Ass(Vec<Option<Dec>>, Exp, Span),
+    Ass(Exp, Exp, Span),
+
+    /// Multiple initialization
+    Mint(Vec<Option<Dec>>, Call, Span),
 
     /// Procedure call
-    Call(symbol::Symbol, Vec<Exp>, Span),
+    Call(Call),
+
+    /// Single initialization
+    Init(Dec, Exp, Span),
 
     /// Variable declaration
     Dec(Dec, Span),

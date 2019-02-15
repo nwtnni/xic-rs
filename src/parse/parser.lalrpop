@@ -3,7 +3,7 @@ use std::str::FromStr;
 use crate::ast::*;
 use crate::error::Error;
 use crate::parse;
-use crate::parse::Prexp;
+use crate::parse::PreExp;
 use crate::symbol::Symbol;
 use crate::span::{Point, Span};
 use crate::token::Token;
@@ -12,7 +12,7 @@ use crate::util::{Conv, Tap};
 grammar;
 
 pub Test: char = {
-    <Value> => 'a',      
+    <Value> => 'a',
 }
 
 Comma<T>: Vec<T> = {
@@ -40,10 +40,35 @@ RetStm: Stm = {
 }
 
 NoRetStm: Stm = {
-    <l: @L> <name: ID> "(" <args: Comma<Exp>> ")" ";"? <r: @R> => {
-        Stm::Call(name, args, Span::new(l, r))
+    // Procedure call
+    <call: Call> ";"? => Stm::Call(call),
+
+    // Single declaration
+    <l: @L> <dec: StmDec> ";"? <r: @R> => Stm::Dec(dec, Span::new(l, r)),
+
+    // Single initialization
+    <l: @L> <dec: StmDec> "=" <exp: Exp> ";"? <r: @R> => {
+        Stm::Init(dec, exp, Span::new(l, r))
     },
+
+    // Single assignment
+    <l: @L> <lhs: Loc> "=" <exp: Exp> ";"? <r: @R> => {
+        Stm::Ass(lhs, exp, Span::new(l, r))
+    },
+
+    // Multiple initialization
+    <l: @L> <decs: OptDec+> "=" <call: Call> ";"? <r: @R> => {
+        Stm::Mint(decs, call, Span::new(l, r))
+    },
+
     <Block>,
+}
+
+Loc: Exp = {
+    <l: @L> <name: ID> <r: @R> => Exp::Var(name, Span::new(l, r)),
+    <l: @L> <arr: Loc> "[" <idx: Exp> "]" <r: @R> => {
+        Exp::Idx(Box::new(arr), Box::new(idx), Span::new(l, r))
+    },
 }
 
 Block: Stm = {
@@ -52,6 +77,17 @@ Block: Stm = {
         if let Some(ret) = ret { stms.push(ret); }
         Stm::Seq(stms, Span::new(l, r))
     },
+}
+
+Call: Call = {
+    <l: @L> <name: ID> "(" <args: Comma<Exp>> ")" <r: @R> => {
+        Call { name, args, span: Span::new(l, r) }
+    },
+}
+
+OptDec: Option<Dec> = {
+    "_"           => None,
+    <dec: StmDec> => Some(dec),
 }
 
 StmDec: Dec = {
@@ -90,36 +126,36 @@ ArrTyp: (Option<Exp>, Point) = {
 }
 
 Exp: Exp = {
-    <pre: Prexp> =>? pre.into_exp().map_err(|error| lalrpop_util::ParseError::User { error }),
+    <pre: PreExp> =>? pre.into_exp().map_err(|error| lalrpop_util::ParseError::User { error }),
 }
 
-Binary<Op, Next>: Prexp = {
+Binary<Op, Next>: PreExp = {
     <l: @L> <lhs: Binary<Op, Next>> <bin: Op> <rhs: Next> <r: @R> => {
-        Prexp::Bin(bin, Box::new(lhs), Box::new(rhs), Span::new(l, r))
+        PreExp::Bin(bin, Box::new(lhs), Box::new(rhs), Span::new(l, r))
     },
     <Next>
 }
 
-Prexp: Prexp = Or;
+PreExp: PreExp = Or;
 
 OrOp: Bin = {
     "|" => Bin::Or,
 }
 
-Or: Prexp = Binary<OrOp, And>;
+Or: PreExp = Binary<OrOp, And>;
 
 AndOp: Bin = {
     "&" => Bin::And,
 }
 
-And: Prexp = Binary<AndOp, Equal>;
+And: PreExp = Binary<AndOp, Equal>;
 
 EqualOp: Bin = {
     "==" => Bin::Eq,
     "!=" => Bin::Ne,
 }
 
-Equal: Prexp = Binary<EqualOp, Compare>;
+Equal: PreExp = Binary<EqualOp, Compare>;
 
 CompareOp: Bin = {
     "<"  => Bin::Lt,
@@ -128,14 +164,14 @@ CompareOp: Bin = {
     ">"  => Bin::Gt,
 }
 
-Compare: Prexp = Binary<CompareOp, Add>;
+Compare: PreExp = Binary<CompareOp, Add>;
 
 AddOp: Bin = {
     "+" => Bin::Add,
     "-" => Bin::Sub,
 }
 
-Add: Prexp = Binary<AddOp, Mul>;
+Add: PreExp = Binary<AddOp, Mul>;
 
 MulOp: Bin = {
     "*"   => Bin::Mul,
@@ -144,41 +180,39 @@ MulOp: Bin = {
     "%"   => Bin::Mod,
 }
 
-Mul: Prexp = Binary<MulOp, Prefix>;
+Mul: PreExp = Binary<MulOp, Prefix>;
 
 PrefixOp: Uno = {
     "-" => Uno::Neg,
     "!" => Uno::Not,
 }
 
-Prefix: Prexp = {
+Prefix: PreExp = {
     <l: @L> <uno: PrefixOp> <exp: Prefix> <r: @R> => {
-        Prexp::Uno(uno, Box::new(exp), Span::new(l, r))
+        PreExp::Uno(uno, Box::new(exp), Span::new(l, r))
     },
     <Postfix>
 }
 
-Postfix: Prexp = {
-    <l: @L> <arr: Postfix> "[" <idx: Prexp> "]" <r: @R> => {
-        Prexp::Idx(Box::new(arr), Box::new(idx), Span::new(l, r))
+Postfix: PreExp = {
+    <l: @L> <arr: Postfix> "[" <idx: PreExp> "]" <r: @R> => {
+        PreExp::Idx(Box::new(arr), Box::new(idx), Span::new(l, r))
     },
     <Value>
 }
 
-Value: Prexp = {
-    <l: @L> "true"   <r: @R> => Prexp::Bool(true, Span::new(l, r)),
-    <l: @L> "false"  <r: @R> => Prexp::Bool(false, Span::new(l, r)),
-    <l: @L> <c: CHR> <r: @R> => Prexp::Chr(c, Span::new(l, r)),
-    <l: @L> <s: STR> <r: @R> => Prexp::Str(s, Span::new(l, r)),
-    <l: @L> <i: INT> <r: @R> => Prexp::Int(i, Span::new(l, r)),
-    <l: @L> <v: ID>  <r: @R> => Prexp::Var(v, Span::new(l, r)),
-    <l: @L> "{" <exps: Comma<Prexp>> "}" <r: @R> => {
-        Prexp::Arr(exps, Span::new(l, r))   
+Value: PreExp = {
+    <call: Call>             => PreExp::Call(call),
+    <l: @L> "true"   <r: @R> => PreExp::Bool(true, Span::new(l, r)),
+    <l: @L> "false"  <r: @R> => PreExp::Bool(false, Span::new(l, r)),
+    <l: @L> <c: CHR> <r: @R> => PreExp::Chr(c, Span::new(l, r)),
+    <l: @L> <s: STR> <r: @R> => PreExp::Str(s, Span::new(l, r)),
+    <l: @L> <i: INT> <r: @R> => PreExp::Int(i, Span::new(l, r)),
+    <l: @L> <v: ID>  <r: @R> => PreExp::Var(v, Span::new(l, r)),
+    <l: @L> "{" <exps: Comma<PreExp>> "}" <r: @R> => {
+        PreExp::Arr(exps, Span::new(l, r))
     },
-    <l: @L> <name: ID> "(" <args: Comma<Prexp>> ")" <r: @R> => {
-        Prexp::Call(name, args, Span::new(l, r))
-    },
-    <l: @L> "(" <exp: Prexp> ")" <r: @R> => {
+    <l: @L> "(" <exp: PreExp> ")" <r: @R> => {
         let mut exp = exp;
         *exp.span_mut() = Span::new(l, r);
         exp

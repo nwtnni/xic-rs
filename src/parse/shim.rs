@@ -7,7 +7,7 @@ use crate::span;
 use crate::symbol;
 
 #[derive(Clone, Debug)]
-pub enum Prexp {
+pub enum PreExp {
     /// Boolean literal
     Bool(bool, span::Span),
 
@@ -24,65 +24,65 @@ pub enum Prexp {
     Var(symbol::Symbol, span::Span),
 
     /// Array literal
-    Arr(Vec<Prexp>, span::Span),
+    Arr(Vec<PreExp>, span::Span),
 
     /// Binary operation
-    Bin(ast::Bin, Box<Prexp>, Box<Prexp>, span::Span),
+    Bin(ast::Bin, Box<PreExp>, Box<PreExp>, span::Span),
 
     /// Unary operation
-    Uno(ast::Uno, Box<Prexp>, span::Span),
+    Uno(ast::Uno, Box<PreExp>, span::Span),
 
     /// Array index
-    Idx(Box<Prexp>, Box<Prexp>, span::Span),
+    Idx(Box<PreExp>, Box<PreExp>, span::Span),
 
     /// Function call
-    Call(symbol::Symbol, Vec<Prexp>, span::Span),
+    Call(ast::Call),
 }
 
-impl Prexp {
+impl PreExp {
     pub fn span_mut(&mut self) -> &mut span::Span {
         match self {
-        | Prexp::Bool(_, span)
-        | Prexp::Chr(_, span)
-        | Prexp::Str(_, span)
-        | Prexp::Int(_, span)
-        | Prexp::Var(_, span)
-        | Prexp::Arr(_, span)
-        | Prexp::Bin(_, _, _, span)
-        | Prexp::Uno(_, _, span)
-        | Prexp::Idx(_, _, span)
-        | Prexp::Call(_, _, span) => span,
+        | PreExp::Bool(_, span)
+        | PreExp::Chr(_, span)
+        | PreExp::Str(_, span)
+        | PreExp::Int(_, span)
+        | PreExp::Var(_, span)
+        | PreExp::Arr(_, span)
+        | PreExp::Bin(_, _, _, span)
+        | PreExp::Uno(_, _, span)
+        | PreExp::Idx(_, _, span)
+        | PreExp::Call(ast::Call { span, .. }) => span,
         }
     }
     pub fn into_exp(self) -> Result<ast::Exp, error::Error> {
         match self {
-        | Prexp::Bool(b, span)   => Ok(ast::Exp::Bool(b, span)),
-        | Prexp::Chr(c, span)    => Ok(ast::Exp::Chr(c, span)),
-        | Prexp::Str(s, span)    => Ok(ast::Exp::Str(s, span)),
-        | Prexp::Var(name, span) => Ok(ast::Exp::Var(name, span)),
-        | Prexp::Uno(ast::Uno::Neg, box Prexp::Int(mut n, _), span) => {
+        | PreExp::Bool(b, span)   => Ok(ast::Exp::Bool(b, span)),
+        | PreExp::Chr(c, span)    => Ok(ast::Exp::Chr(c, span)),
+        | PreExp::Str(s, span)    => Ok(ast::Exp::Str(s, span)),
+        | PreExp::Var(name, span) => Ok(ast::Exp::Var(name, span)),
+        | PreExp::Uno(ast::Uno::Neg, box PreExp::Int(mut n, _), span) => {
             n.insert(0, '-'); 
             i64::from_str(&n)
                 .map_err(|_| parse::Error::Integer(span).into())
                 .map(|n| ast::Exp::Int(n, span))
         }
-        | Prexp::Int(n, span) => {
+        | PreExp::Int(n, span) => {
             i64::from_str(&n)
                 .map_err(|_| parse::Error::Integer(span).into())
                 .map(|n| ast::Exp::Int(n, span))
         }
-        | Prexp::Arr(exps, span) => {
+        | PreExp::Arr(exps, span) => {
             let exps = exps.into_iter()
-                .map(Prexp::into_exp)
+                .map(PreExp::into_exp)
                 .collect::<Result<Vec<_>, _>>()?;
             Ok(ast::Exp::Arr(exps, span))
         }
-        | Prexp::Bin(bin, lhs, rhs, span) => {
+        | PreExp::Bin(bin, lhs, rhs, span) => {
             let lhs = (*lhs).into_exp()?; 
             let rhs = (*rhs).into_exp()?; 
             Ok(ast::Exp::Bin(bin, Box::new(lhs), Box::new(rhs), span))
         }
-        | Prexp::Uno(uno, exp, span) => {
+        | PreExp::Uno(uno, exp, span) => {
             match (*exp).into_exp()? {
             | ast::Exp::Int(n, _) if n == std::i64::MIN => {
                 Err(parse::Error::Integer(span).into())
@@ -95,16 +95,13 @@ impl Prexp {
             }
             }
         }
-        | Prexp::Idx(arr, idx, span) => {
+        | PreExp::Idx(arr, idx, span) => {
             let arr = (*arr).into_exp()?;
             let idx = (*idx).into_exp()?;
             Ok(ast::Exp::Idx(Box::new(arr), Box::new(idx), span))
         }
-        | Prexp::Call(name, args, span) => {
-            let args = args.into_iter()
-                .map(Prexp::into_exp)
-                .collect::<Result<Vec<_>, _>>()?;
-            Ok(ast::Exp::Call(name, args, span))
+        | PreExp::Call(call) => {
+            Ok(ast::Exp::Call(call))
         }
         }
     }
