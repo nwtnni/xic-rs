@@ -41,12 +41,25 @@ pub struct Fun {
 }
 
 /// Represents a primitive type.
-#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+#[derive(Clone, Debug)]
 pub enum Typ {
     Bool(Span),
     Int(Span),
-    Arr(Box<Typ>, Span),
+    Arr(Box<Typ>, Option<Exp>, Span),
 }
+
+impl PartialEq for Typ {
+    fn eq(&self, other: &Self) -> bool {
+        match (self, other) {
+        | (Typ::Bool(_), Typ::Bool(_))
+        | (Typ::Int(_), Typ::Int(_)) => true,
+        | (Typ::Arr(lhs, _, _), Typ::Arr(rhs, _, _)) => lhs == rhs,
+        | _ => false,
+        }
+    }
+}
+
+impl Eq for Typ {}
 
 /// Represents a binary operator.
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
@@ -75,7 +88,7 @@ pub enum Uno {
 }
 
 /// Represents an expression (i.e. a term that can be evaluated).
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug)]
 pub enum Exp {
     /// Boolean literal
     Bool(bool, Span),
