@@ -4,7 +4,7 @@ use crate::ast::*;
 use crate::error::Error;
 use crate::parse;
 use crate::parse::PreExp;
-use crate::symbol::Symbol;
+use crate::symbol::{Symbol, intern};
 use crate::span::{Point, Span};
 use crate::token::Token;
 use crate::util::{Conv, Tap};
@@ -258,7 +258,7 @@ Value: PreExp = {
     <l: @L> <s: STR> <r: @R> => PreExp::Str(s, Span::new(l, r)),
     <l: @L> <i: INT> <r: @R> => PreExp::Int(i, Span::new(l, r)),
     <l: @L> <v: ID>  <r: @R> => PreExp::Var(v, Span::new(l, r)),
-    <l: @L> "{" <exps: Comma<PreExp>> "}" <r: @R> => {
+    <l: @L> "{" <exps: Comma<PreExp>> ","? "}" <r: @R> => {
         PreExp::Arr(exps, Span::new(l, r))
     },
     <l: @L> "(" <exp: PreExp> ")" <r: @R> => {
@@ -266,8 +266,16 @@ Value: PreExp = {
         *exp.span_mut() = Span::new(l, r);
         exp
     },
+    <l: @L> "length" "(" <arg: Exp> ")" <r: @R> => {
+        PreExp::Call(Call {
+            name: intern("length"),
+            args: vec![arg],
+            span: Span::new(l, r)
+        })
+    },
 }
 
+#[inline]
 Comma<T>: Vec<T> = {
     <h: T?> <t: ("," <T>)*> => {
         match h {
@@ -302,6 +310,7 @@ extern {
         "if"     => Token::IF,
         "while"  => Token::WHILE,
         "else"   => Token::ELSE,
+        "length" => Token::LENGTH,
         "return" => Token::RETURN,
         "int"    => Token::INT,
         "bool"   => Token::BOOL,
