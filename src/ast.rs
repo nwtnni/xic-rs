@@ -143,14 +143,11 @@ pub enum Stm {
     /// Assignment
     Ass(Exp, Exp, Span),
 
-    /// Multiple initialization
-    Mint(Vec<Option<Dec>>, Call, Span),
-
     /// Procedure call
     Call(Call),
 
-    /// Single initialization
-    Init(Dec, Exp, Span),
+    /// Initialization
+    Init(Vec<Option<Dec>>, Exp, Span),
 
     /// Variable declaration
     Dec(Dec, Span),
