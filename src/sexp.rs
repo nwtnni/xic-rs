@@ -1,5 +1,7 @@
 use std::borrow::Cow;
 
+use pretty::{BoxDoc, Doc};
+
 use crate::symbol;
 use crate::util::Tap;
 
@@ -7,6 +9,32 @@ use crate::util::Tap;
 pub enum Sexp {
     Atom(Cow<'static, str>),
     List(Vec<Sexp>), 
+}
+
+impl Sexp {
+    fn to_doc(&self) -> Doc<BoxDoc<()>> {
+        match self {
+        | Sexp::Atom(s) => Doc::as_string(s),
+        | Sexp::List(l) => {
+            Doc::text("(")
+                .append(
+                    Doc::intersperse(
+                        l.iter().map(Sexp::to_doc),
+                        Doc::space(),
+                    )
+                    .nest(1)
+                    .group()
+                )
+                .append(Doc::text(")"))
+        }
+        }
+    }
+
+    pub fn to_pretty(&self, width: usize) -> String {
+        let mut buffer = Vec::new();
+        self.to_doc().render(width, &mut buffer).unwrap();
+        String::from_utf8(buffer).unwrap()
+    }
 }
 
 pub trait Serialize: Sized {
