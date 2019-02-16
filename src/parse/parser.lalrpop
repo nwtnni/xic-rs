@@ -120,6 +120,10 @@ Call: Call = {
 
 Loc: Exp = {
     <l: @L> <name: ID> <r: @R> => Exp::Var(name, Span::new(l, r)),
+    <l: @L> <call: Call> "[" <idx: Exp> "]" <r: @R> => {
+        let call = Exp::Call(call);
+        Exp::Idx(Box::new(call), Box::new(idx), Span::new(l, r))
+    },
     <l: @L> <arr: Loc> "[" <idx: Exp> "]" <r: @R> => {
         Exp::Idx(Box::new(arr), Box::new(idx), Span::new(l, r))
     },
