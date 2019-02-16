@@ -20,8 +20,7 @@ struct Arguments {
     files: Vec<std::path::PathBuf>,
 }
 
-fn main() -> Result<(), xic::Error> {
-    let args = Arguments::from_args();
+fn run(args: Arguments) -> Result<(), xic::Error> {
     let directory = args.output_dir.unwrap_or_else(|| "".into());
     let lexer = xic::lex::Driver::new(&directory, args.lex_output);
     let parser = xic::parse::Driver::new(&directory, args.parse_output);
@@ -30,4 +29,11 @@ fn main() -> Result<(), xic::Error> {
         parser.drive(path, tokens)?;
     }
     Ok(())
+}
+
+fn main() {
+    let args = Arguments::from_args();
+    if let Err(error) = run(args) {
+        println!("{}", error);
+    }
 }
