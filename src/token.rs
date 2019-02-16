@@ -1,4 +1,7 @@
+use std::io::Write;
+
 use crate::symbol;
+use crate::util;
 
 /// Represents a possible lexical token in the Xi language.
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -124,30 +127,16 @@ pub enum Token {
     UNDERSCORE,
 }
 
-/// Unescapes (some) unprintable characters before writing to `fmt`.
-fn unescape(c: char, fmt: &mut std::fmt::Formatter) -> std::fmt::Result {
-    match c {
-    | '\n'   => write!(fmt, "\\n"),
-    | '\r'   => write!(fmt, "\\r"),
-    | '\t'   => write!(fmt, "\\t"),
-    | '\x08' => write!(fmt, "\\b"),
-    | '\x0C' => write!(fmt, "\\f"),
-    | _      => write!(fmt, "{}", c),
-    }
-}
-
 impl std::fmt::Display for Token {
     fn fmt(&self, fmt: &mut std::fmt::Formatter) -> std::fmt::Result {
         match self {
         | Token::CHARACTER(c) => {
-            write!(fmt, "character ")?;
-            unescape(*c, fmt)
+            match util::unescape_char(*c) {
+            | Some(s) => write!(fmt, "character {}", s),
+            | None => write!(fmt, "character {}", c),
+            }
         }
-        | Token::STRING(s) => {
-            write!(fmt, "string ")?;
-            for c in s.chars() { unescape(c, fmt)?; }
-            Ok(())
-        },
+        | Token::STRING(s)  => write!(fmt, "string {}", util::unescape_str(s)),
         | Token::IDENT(i)   => write!(fmt, "id {}", symbol::resolve(*i)),
         | Token::INTEGER(i) => write!(fmt, "integer {}", i),
         | Token::USE        => write!(fmt, "use"),

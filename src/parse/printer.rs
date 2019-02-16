@@ -94,8 +94,13 @@ impl Serialize for ast::Exp {
         match self {
         | Bool(false, _) => "false".sexp(),
         | Bool(true, _) => "true".sexp(),
-        | Chr(c, _) => c.to_string().sexp(),
-        | Str(s, _) => s.to_string().sexp(),
+        | Chr(c, _) => {
+            match unescape_char(*c) {
+            | Some(s) => format!("\'{}\'", s).sexp_move(),
+            | None => format!("\'{}\'", c).sexp_move(),
+            }
+        }
+        | Str(s, _) => format!("\"{}\"", s).sexp_move(),
         | Int(i, _) => i.to_string().sexp(),
         | Var(v, _) => v.sexp(),
         | Arr(exps, _) => exps.sexp(),
