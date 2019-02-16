@@ -34,6 +34,18 @@ impl From<&Box<ast::Exp>> for Sexp {
     fn from(e: &Box<ast::Exp>) -> Sexp { Sexp::from(&**e) }
 }
 
+impl From<&ast::Typ> for Sexp {
+    fn from(typ: &ast::Typ) -> Sexp {
+        use ast::Typ::*;
+        match typ {
+        | Bool(_) => "bool".into(),
+        | Int(_) => "int".into(),
+        | Arr(typ, None, _) => vec!["[]".into(), (&**typ).into()].into(),
+        | Arr(typ, Some(exp), _) => vec!["[]".into(), (&**typ).into(), exp.into()].into(),
+        }
+    }
+}
+
 impl From<&ast::Bin> for Sexp {
     fn from(bin: &ast::Bin) -> Sexp {
         use ast::Bin::*;
