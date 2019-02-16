@@ -11,20 +11,37 @@ use crate::util::{Conv, Tap};
 
 grammar;
 
-pub Test: char = {
-    <Value> => 'a',
+pub Program: Program = {
+    <uses: Use*> <funs: Fun*> => Program { uses, funs },
 }
 
-Comma<T>: Vec<T> = {
-    <h: T?> <t: ("," <T>)*> => {
-        match h {
-        | None => t,
-        | Some(e) => {
-            let mut t = t;
-            t.insert(0, e);
-            t
-        }
-        }
+// pub Interface: Interface = {
+//     <sigs: Sig*> => Interface { sigs },
+// }
+
+Use: Use = {
+    <l: @L> "use" <name: ID> ";"? <r: @R> => Use { name, span: Span::new(l, r) },
+}
+
+// Sig: Sig = {
+//     <l: @L> <name: ID> "(" <args: ArgDec*> ")" <rets: RetTyp?> <r: @R> => {
+//         let rets = if let Some(rets) = rets { rets } else { Vec::new() };
+//         Sig { name, args, rets, span: Span::new(l, r) }
+//     }
+// }
+
+Fun: Fun = {
+    <l: @L> <name: ID> "(" <args: Comma<ArgDec>> ")" <rets: RetTyp?> <body: Block> <r: @R> => {
+        let rets = if let Some(rets) = rets { rets } else { Vec::new() };
+        Fun { name, args, rets, body, span: Span::new(l, r) }
+    }
+}
+
+RetTyp: Vec<Typ> = {
+    ":" <h: ArgTyp> <t: ("," <ArgTyp>)*> => {
+        let mut t = t;
+        t.insert(0, h);
+        t
     }
 }
 
@@ -34,7 +51,30 @@ RetStm: Stm = {
     }
 }
 
+// Refer to http://www.parsifalsoft.com/ifelse.html
 NoRetStm: Stm = {
+    <OpenStm>,
+    <ClosedStm>,
+}
+
+OpenStm: Stm = {
+    // If statement
+    <l: @L> "if" <cond: Exp> <pass: NoRetStm> <r: @R> => {
+        Stm::If(cond, Box::new(pass), None, Span::new(l, r))
+    },
+
+    // If-else statement
+    <l: @L> "if" <cond: Exp> <pass: ClosedStm> "else" <fail: OpenStm> <r: @R> => {
+        Stm::If(cond, Box::new(pass), Some(Box::new(fail)), Span::new(l, r))
+    },
+}
+
+ClosedStm: Stm = {
+    // If-else statement
+    <l: @L> "if" <cond: Exp> <pass: ClosedStm> "else" <fail: ClosedStm> <r: @R> => {
+        Stm::If(cond, Box::new(pass), Some(Box::new(fail)), Span::new(l, r))
+    },
+
     // Procedure call
     <call: Call> ";"? => Stm::Call(call),
 
@@ -51,28 +91,21 @@ NoRetStm: Stm = {
         Stm::Ass(lhs, exp, Span::new(l, r))
     },
 
-    // Multiple initialization
-    <l: @L> <decs: OptDec+> "=" <call: Call> ";"? <r: @R> => {
-        Stm::Mint(decs, call, Span::new(l, r))
-    },
-
-    // If statement
-    <l: @L> "if" <cond: Exp> <pass: Block> <fail: Else?> <r: @R> => {
-        Stm::If(cond, Box::new(pass), fail.map(Box::new), Span::new(l, r))
-    },
+    // // Multiple initialization
+    // <l: @L> <decs: OptDec+> "=" <call: Call> ";"? <r: @R> => {
+    //     Stm::Mint(decs, call, Span::new(l, r))
+    // },
 
     // While statement
-    <l: @L> "while" <cond: Exp> <body: Block> <r: @R> => {
+    <l: @L> "while" <cond: Exp> <body: ClosedStm> <r: @R> => {
         Stm::While(cond, Box::new(body), Span::new(l, r))
     },
 
-    <Block>,
+    <Block> ";"?,
 }
 
-Else: Stm = { "else" <Block> }
-
 Block: Stm = {
-    <l: @L> "{" <stms: NoRetStm*> <ret: RetStm?> "}" ";"? <r: @R> => {
+    <l: @L> "{" <stms: NoRetStm*> <ret: RetStm?> "}" <r: @R> => {
         let mut stms = stms;
         if let Some(ret) = ret { stms.push(ret); }
         Stm::Seq(stms, Span::new(l, r))
@@ -95,6 +128,12 @@ Loc: Exp = {
 OptDec: Option<Dec> = {
     "_"           => None,
     <dec: StmDec> => Some(dec),
+}
+
+ArgDec: Dec = {
+    <l: @L> <name: ID> ":" <typ: ArgTyp> <r: @R> => {
+        Dec { name, typ, span: Span::new(l, r) }
+    }
 }
 
 StmDec: Dec = {
@@ -209,21 +248,34 @@ Postfix: PreExp = {
 }
 
 Value: PreExp = {
-    <call: Call>             => PreExp::Call(call),
+    // <call: Call>             => PreExp::Call(call),
     <l: @L> "true"   <r: @R> => PreExp::Bool(true, Span::new(l, r)),
     <l: @L> "false"  <r: @R> => PreExp::Bool(false, Span::new(l, r)),
     <l: @L> <c: CHR> <r: @R> => PreExp::Chr(c, Span::new(l, r)),
     <l: @L> <s: STR> <r: @R> => PreExp::Str(s, Span::new(l, r)),
     <l: @L> <i: INT> <r: @R> => PreExp::Int(i, Span::new(l, r)),
     <l: @L> <v: ID>  <r: @R> => PreExp::Var(v, Span::new(l, r)),
-    <l: @L> "{" <exps: Comma<PreExp>> "}" <r: @R> => {
-        PreExp::Arr(exps, Span::new(l, r))
-    },
-    <l: @L> "(" <exp: PreExp> ")" <r: @R> => {
-        let mut exp = exp;
-        *exp.span_mut() = Span::new(l, r);
-        exp
-    },
+    // <l: @L> "{" <exps: Comma<PreExp>> "}" <r: @R> => {
+    //     PreExp::Arr(exps, Span::new(l, r))
+    // },
+    // <l: @L> "(" <exp: PreExp> ")" <r: @R> => {
+    //     let mut exp = exp;
+    //     *exp.span_mut() = Span::new(l, r);
+    //     exp
+    // },
+}
+
+Comma<T>: Vec<T> = {
+    <h: T?> <t: ("," <T>)*> => {
+        match h {
+        | None => t,
+        | Some(e) => {
+            let mut t = t;
+            t.insert(0, e);
+            t
+        }
+        }
+    }
 }
 
 extern {
