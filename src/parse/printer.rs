@@ -100,7 +100,7 @@ impl Serialize for ast::Exp {
             | None => format!("\'{}\'", c).sexp_move(),
             }
         }
-        | Str(s, _) => format!("\"{}\"", s).sexp_move(),
+        | Str(s, _) => format!("\"{}\"", unescape_str(s)).sexp_move(),
         | Int(i, _) => i.to_string().sexp(),
         | Var(v, _) => v.sexp(),
         | Arr(exps, _) => exps.sexp(),

@@ -35,7 +35,7 @@ impl<'main> Driver<'main> {
                 .map(BufWriter::new)?;
 
             match &program {
-            | Ok(program) => program.sexp().write(50, &mut log)?,
+            | Ok(program) => program.sexp().write(80, &mut log)?,
             | Err(error) => write!(&mut log, "{}", error)?,
             };
         }
