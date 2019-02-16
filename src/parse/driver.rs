@@ -17,10 +17,10 @@ impl<'main> Driver<'main> {
         Driver { directory, diagnostic }
     }
 
-    // pub fn drive<I>(&self, iter: I) -> Result<char, error::Error> where I: IntoIterator<Item = Spanned>
-    // {
-    //     parse::TestParser::new()
-    //         .parse(iter)
-    //         .map_err(Conv::conv::<error::Error>)
-    // }
+    pub fn drive<I>(&self, iter: I) -> Result<ast::Program, error::Error> where I: IntoIterator<Item = Spanned>
+    {
+        parse::ProgramParser::new()
+            .parse(iter)
+            .map_err(Conv::conv)
+    }
 }
