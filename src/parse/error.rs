@@ -9,6 +9,7 @@ pub enum Error {
     EOF,
     Integer(span::Span),
     Array(span::Span),
+    Length(span::Span),
     Token(span::Span, token::Token),
 }
 
@@ -18,6 +19,7 @@ impl std::fmt::Display for Error {
         | Error::EOF                => write!(fmt, "error:Unexpected eof"),
         | Error::Integer(span)      => write!(fmt, "{} error:Invalid integer literal", span),
         | Error::Array(span)        => write!(fmt, "{} error:Invalid array initialization", span),
+        | Error::Length(span)       => write!(fmt, "{} error:Undeclared length before declared length", span),
         | Error::Token(span, token) => write!(fmt, "{} error:Unexpected token {}", span, token),
         }
     } 

@@ -132,6 +132,23 @@ pub enum Exp {
     Call(Call),
 }
 
+impl Exp {
+    pub fn span(&self) -> Span {
+        match self {
+        | Exp::Bool(_, span)
+        | Exp::Chr(_, span)
+        | Exp::Str(_, span)
+        | Exp::Int(_, span)
+        | Exp::Var(_, span)
+        | Exp::Arr(_, span)
+        | Exp::Bin(_, _, _, span)
+        | Exp::Uno(_, _, span)
+        | Exp::Idx(_, _, span) => *span,
+        | Exp::Call(call) => call.span,
+        }
+    }
+}
+
 /// Represents a variable declaration.
 #[derive(Clone, Debug)]
 pub struct Dec {

@@ -1,5 +1,3 @@
-use std::io::Write;
-
 use crate::symbol;
 use crate::util;
 
