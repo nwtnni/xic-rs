@@ -2,7 +2,7 @@ use std::borrow::Cow;
 
 use crate::ast;
 use crate::symbol;
-use crate::util::{Conv, Tap};
+use crate::util::Tap;
 
 #[derive(Clone, Debug)]
 pub enum Sexp {
@@ -10,91 +10,103 @@ pub enum Sexp {
     List(Vec<Sexp>), 
 }
 
-impl From<&symbol::Symbol> for Sexp {
-    fn from(s: &symbol::Symbol) -> Sexp { Sexp::Atom(Cow::from(symbol::resolve(*s))) }
+pub trait Serialize: Sized {
+    fn sexp(&self) -> Sexp;
+    fn sexp_move(self) -> Sexp { self.sexp() }
 }
 
-impl From<&'static str> for Sexp {
-    fn from(s: &'static str) -> Sexp { Sexp::Atom(Cow::from(s)) }
+impl Serialize for Sexp {
+    fn sexp(&self) -> Sexp { self.clone() }
+    fn sexp_move(self) -> Sexp { self }
 }
 
-impl From<&String> for Sexp {
-    fn from(s: &String) -> Sexp { Sexp::Atom(Cow::from(s.clone())) }
+impl Serialize for symbol::Symbol {
+    fn sexp(&self) -> Sexp { Sexp::Atom(Cow::from(symbol::resolve(*self))) }
 }
 
-impl From<String> for Sexp {
-    fn from(s: String) -> Sexp { Sexp::Atom(Cow::from(s)) }
+impl Serialize for &'static str {
+    fn sexp(&self) -> Sexp { Sexp::Atom(Cow::from(*self)) }
 }
 
-impl From<Vec<Sexp>> for Sexp {
-    fn from(v: Vec<Sexp>) -> Sexp { Sexp::List(v) }
+impl Serialize for String {
+    fn sexp(&self) -> Sexp { Sexp::Atom(Cow::from(self.clone())) }
+    fn sexp_move(self) -> Sexp { Sexp::Atom(Cow::from(self)) }
 }
 
-impl From<&Box<ast::Exp>> for Sexp {
-    fn from(e: &Box<ast::Exp>) -> Sexp { Sexp::from(&**e) }
-}
-
-impl From<&ast::Interface> for Sexp {
-    fn from(interface: &ast::Interface) -> Sexp {
-        interface.sigs.iter()
-            .map(Conv::conv)
+impl<T: Serialize> Serialize for Vec<T> {
+    fn sexp(&self) -> Sexp {
+        self.iter()
+            .map(Serialize::sexp)
             .collect::<Vec<_>>()
-            .into()
+            .tap(Sexp::List)
+    }
+
+    fn sexp_move(self) -> Sexp {
+        self.into_iter()
+            .map(Serialize::sexp_move)
+            .collect::<Vec<_>>()
+            .tap(Sexp::List)
     }
 }
 
-impl From<&ast::Program> for Sexp {
-    fn from(program: &ast::Program) -> Sexp {
+impl Serialize for ast::Interface {
+    fn sexp(&self) -> Sexp {
+        self.sigs.sexp()
+    }
+}
+
+impl Serialize for ast::Program {
+    fn sexp(&self) -> Sexp {
         vec![
-            program.uses.iter().map(Conv::conv).collect::<Vec<_>>().into(),
-            program.funs.iter().map(Conv::conv).collect::<Vec<_>>().into(),
-        ].into()
+            self.uses.sexp(),
+            self.funs.sexp(),
+        ].sexp_move()
     }
 }
 
-impl From<&ast::Use> for Sexp {
-    fn from(uses: &ast::Use) -> Sexp {
-        vec!["use".into(), (&uses.name).into()].into()
+impl Serialize for ast::Use {
+    fn sexp(&self) -> Sexp {
+        vec!["use".sexp(), self.name.sexp()].sexp_move()
     }
 }
 
-impl From<&ast::Sig> for Sexp {
-    fn from(sig: &ast::Sig) -> Sexp {
+impl Serialize for ast::Sig {
+    fn sexp(&self) -> Sexp {
         vec![
-            (&sig.name).into(),
-            sig.args.iter().map(Conv::conv).collect::<Vec<_>>().into(),
-            sig.rets.iter().map(Conv::conv).collect::<Vec<_>>().into(),
-        ].into()
+            self.name.sexp(),
+            self.args.sexp(),
+            self.rets.sexp(),
+        ].sexp_move()
     }
 }
 
-impl From<&ast::Fun> for Sexp {
-    fn from(fun: &ast::Fun) -> Sexp {
+impl Serialize for ast::Fun {
+    fn sexp(&self) -> Sexp {
         vec![
-            (&fun.name).into(),
-            fun.args.iter().map(Conv::conv).collect::<Vec<_>>().into(),
-            fun.rets.iter().map(Conv::conv).collect::<Vec<_>>().into(),
-            (&fun.body).into(),
-        ].into()
+            self.name.sexp(),
+            self.args.sexp(),
+            self.rets.sexp(),
+            self.body.sexp(),
+        ].sexp_move()
     }
 }
 
-impl From<&ast::Typ> for Sexp {
-    fn from(typ: &ast::Typ) -> Sexp {
+impl Serialize for ast::Typ {
+    fn sexp(&self) -> Sexp {
         use ast::Typ::*;
-        match typ {
-        | Bool(_) => "bool".into(),
-        | Int(_) => "int".into(),
-        | Arr(typ, None, _) => vec!["[]".into(), (&**typ).into()].into(),
-        | Arr(typ, Some(exp), _) => vec!["[]".into(), (&**typ).into(), exp.into()].into(),
+        match self {
+        | Bool(_) => "bool".sexp(),
+        | Int(_) => "int".sexp(),
+        | Arr(typ, None, _) => vec!["[]".sexp(), typ.sexp()].sexp_move(),
+        | Arr(typ, Some(exp), _) => vec!["[]".sexp(), typ.sexp(), exp.sexp()].sexp_move(),
         }
     }
 }
 
-impl From<&ast::Bin> for Sexp {
-    fn from(bin: &ast::Bin) -> Sexp {
+impl Serialize for ast::Bin {
+    fn sexp(&self) -> Sexp {
         use ast::Bin::*;
-        match bin {
+        match self {
         | Mul => "*",
         | Hul => "*>>",
         | Div => "/",
@@ -109,89 +121,83 @@ impl From<&ast::Bin> for Sexp {
         | Ne => "!=",
         | And => "&",
         | Or => "|",
-        }.into()
+        }.sexp()
     }
 }
 
-impl From<&ast::Uno> for Sexp {
-    fn from(uno: &ast::Uno) -> Sexp {
+impl Serialize for ast::Uno {
+    fn sexp(&self) -> Sexp {
         use ast::Uno::*;
-        match uno {
+        match self {
         | Neg => "-",
         | Not => "!",
-        }.into()
+        }.sexp()
     }
 }
 
-impl From<&ast::Exp> for Sexp {
-    fn from(exp: &ast::Exp) -> Sexp {
+impl Serialize for ast::Exp {
+    fn sexp(&self) -> Sexp {
         use ast::Exp::*;
-        match exp {
-        | Bool(false, _) => "false".into(),
-        | Bool(true, _) => "true".into(),
-        | Chr(c, _) => c.to_string().into(),
-        | Str(s, _) => s.to_string().into(),
-        | Int(i, _) => i.to_string().into(),
-        | Var(v, _) => v.into(),
-        | Arr(exps, _) => exps.iter().map(Conv::conv).collect::<Vec<_>>().into(),
-        | Bin(bin, lhs, rhs, _) => vec![bin.into(), lhs.into(), rhs.into()].into(),
-        | Uno(uno, exp, _) => vec![uno.into(), exp.into()].into(),
-        | Idx(arr, idx, _) => vec!["[]".into(), arr.into(), idx.into()].into(),
-        | Call(call) => call.into(),
+        match self {
+        | Bool(false, _) => "false".sexp(),
+        | Bool(true, _) => "true".sexp(),
+        | Chr(c, _) => c.to_string().sexp(),
+        | Str(s, _) => s.to_string().sexp(),
+        | Int(i, _) => i.to_string().sexp(),
+        | Var(v, _) => v.sexp(),
+        | Arr(exps, _) => exps.sexp(),
+        | Bin(bin, lhs, rhs, _) => vec![bin.sexp(), lhs.sexp(), rhs.sexp()].sexp_move(),
+        | Uno(uno, exp, _) => vec![uno.sexp(), exp.sexp()].sexp_move(),
+        | Idx(arr, idx, _) => vec!["[]".sexp(), arr.sexp(), idx.sexp()].sexp_move(),
+        | Call(call) => call.sexp(),
         }
     }
 }
 
-impl From<&ast::Dec> for Sexp {
-    fn from(dec: &ast::Dec) -> Sexp {
-        vec![(&dec.name).into(), (&dec.typ).into()].into()
+impl Serialize for ast::Dec {
+    fn sexp(&self) -> Sexp {
+        vec![self.name.sexp(), self.typ.sexp()].sexp_move()
     }
 }
 
-impl From<&ast::Call> for Sexp {
-    fn from(call: &ast::Call) -> Sexp {
-        let mut args: Vec<Sexp> = call.args.iter()
-            .map(Conv::conv)
-            .collect::<Vec<_>>()
-            .into();
-        args.insert(0, (&call.name).into());
-        args.into()
+impl Serialize for ast::Call {
+    fn sexp(&self) -> Sexp {
+        let mut args = self.args.iter()
+            .map(Serialize::sexp)
+            .collect::<Vec<_>>();
+        args.insert(0, self.name.sexp());
+        args.sexp_move()
     }
 }
 
-impl From<&ast::Stm> for Sexp {
-    fn from(stm: &ast::Stm) -> Sexp {
+impl Serialize for ast::Stm {
+    fn sexp(&self) -> Sexp {
         use ast::Stm::*;
-        match stm {
-        | Ass(lhs, rhs, _) => vec!["=".into(), lhs.into(), rhs.into()].into(),
-        | Call(call) => call.into(),
+        match self {
+        | Ass(lhs, rhs, _) => vec!["=".sexp(), lhs.sexp(), rhs.sexp()].sexp_move(),
+        | Call(call) => call.sexp(),
         | Init(decs, call, _) => {
             let decs = decs.iter()
-                .map(|dec| dec.as_ref().map(Conv::conv::<Sexp>).unwrap_or_else(|| "_".into()))
+                .map(|dec| dec.as_ref().map(Serialize::sexp).unwrap_or_else(|| "_".sexp()))
                 .collect::<Vec<_>>();
-            vec!["=".into(), decs.into(), call.into()].into()
+            vec!["=".sexp(), decs.sexp(), call.sexp()].sexp_move()
         }
-        | Dec(dec, _) => dec.into(),
+        | Dec(dec, _) => dec.sexp(),
         | Ret(exps, _) => {
-            std::iter::once("return".into())
-                .chain(exps.iter().map(Conv::conv))
+            std::iter::once("return".sexp())
+                .chain(exps.iter().map(Serialize::sexp))
                 .collect::<Vec<_>>()
-                .tap(Conv::conv)
+                .tap(Sexp::List)
         }
-        | Seq(stms, _) => {
-            stms.iter()
-                .map(Conv::conv)
-                .collect::<Vec<_>>()
-                .tap(Conv::conv)
-        }
+        | Seq(stms, _) => stms.sexp(),
         | If(cond, pass, Some(fail), _) => {
-            vec!["if".into(), cond.into(), (&**pass).into(), (&**fail).into()].into()
+            vec!["if".sexp(), cond.sexp(), pass.sexp(), fail.sexp()].sexp_move()
         }
         | If(cond, pass, None, _) => {
-            vec!["if".into(), cond.into(), (&**pass).into()].into()
+            vec!["if".sexp(), cond.sexp(), pass.sexp()].sexp_move()
         }
         | While(cond, body, _) => {
-            vec!["while".into(), cond.into(), (&**body).into()].into()
+            vec!["while".sexp(), cond.sexp(), body.sexp()].sexp_move()
         }
         }
     }
