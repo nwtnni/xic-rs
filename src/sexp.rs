@@ -2,6 +2,7 @@ use std::borrow::Cow;
 
 use pretty::{BoxDoc, Doc};
 
+use crate::error;
 use crate::symbol;
 use crate::util::Tap;
 
@@ -30,10 +31,9 @@ impl Sexp {
         }
     }
 
-    pub fn to_pretty(&self, width: usize) -> String {
-        let mut buffer = Vec::new();
-        self.to_doc().render(width, &mut buffer).unwrap();
-        String::from_utf8(buffer).unwrap()
+    pub fn write<W: std::io::Write>(&self, width: usize, writer: &mut W) -> Result<(), error::Error> {
+        self.to_doc().render(width, writer)?;
+        Ok(())
     }
 }
 
