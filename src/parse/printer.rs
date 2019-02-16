@@ -101,7 +101,8 @@ impl Serialize for ast::Exp {
             }
         }
         | Str(s, _) => format!("\"{}\"", unescape_str(s)).sexp_move(),
-        | Int(i, _) => i.to_string().sexp(),
+        | Int(i, _) if *i < 0 => vec!["-".sexp(), (-(*i as i128)).to_string().sexp_move()].sexp_move(),
+        | Int(i, _) => i.to_string().sexp_move(),
         | Var(v, _) => v.sexp(),
         | Arr(exps, _) => exps.sexp(),
         | Bin(bin, lhs, rhs, _) => vec![bin.sexp(), lhs.sexp(), rhs.sexp()].sexp_move(),
