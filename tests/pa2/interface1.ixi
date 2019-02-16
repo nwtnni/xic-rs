@@ -1,0 +1,17 @@
+// simple interface
+
+// procedures
+foo()
+foo(x: int)
+foo(x: int[])
+foo(x: int[][])
+foo(x: int, y: bool)
+foo(a: int, b: bool[])
+
+// functions
+bar() : int
+bar(x: int) : int, bool
+bar(x: int[]) : bool[]
+bar(x: int[][]) : int[][]
+bar(x: int, y: bool) : int[], bool[]
+bar(a: int, b: bool[]) : int[][][]

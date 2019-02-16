@@ -1,0 +1,64 @@
+// build
+
+xic ("Test --parse") "--parse" {
+    ex2.xi;
+    gcd.xi;
+    mdarrays.xi;
+
+    assign03-1.xi;
+    assign04-1.xi;
+    codedecl01-1.xi;
+    codedecl03-1.xi;
+    codedecl04-1.xi;
+    codedecl05-1.xi;
+    codedecl06-1.xi;
+    codedecl07-1.xi;
+    expr05-1.xi;
+    expr06-1.xi;
+    if01-1.xi;
+    if02-1.xi;
+    if04-1.xi;
+    prec07-1.xi;
+    return02-1.xi;
+    use01-1.xi;
+    use02-1.xi;
+    use03-1.xi;
+    vardecl02-1.xi;
+    while01-1.xi;
+
+    assign04-2.xi;
+    block02-2.xi;
+    empty-2.xi;
+    length01-2.xi;
+    length02-2.xi;
+    length03-2.xi;
+    use01-2.xi;
+    use02-1.xi;
+    use02-2.xi;
+    vardecl01-2.xi;
+    vardecl02-2.xi;
+    vardecl06-2.xi;
+    vardecl07-2.xi;
+    vardecl08-2.xi;
+
+    group_of_anonymous01_01-3.xi;
+    group_of_anonymous01_02-3.xi;
+    group_of_anonymous01_03-3.xi;
+    group_of_anonymous03_01-3.xi;
+    group_of_anonymous04_01-3.xi;
+    group_of_anonymous04_02-3.xi;
+    group_of_anonymous06_01-3.xi;
+    group_of_anonymous06_02-3.xi;
+    group_of_anonymous07_01-3.xi;
+    group_of_anonymous07_02-3.xi;
+    group_of_anonymous08_01-3.xi;
+    group_of_anonymous08_03-3.xi;
+    group_of_anonymous09_02-3.xi;
+    
+    group_of_anonymous01_19-4.xi;
+    group_of_anonymous03_01-4.xi;
+    group_of_anonymous08_01-4.xi;
+    group_of_anonymous09_01-4.xi;
+
+
+}

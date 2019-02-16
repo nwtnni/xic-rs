@@ -1,0 +1,12 @@
+f1() {}
+f2(): int {
+    return 0
+}
+f3() {}
+f4(): bool {
+    return true
+}
+f5(): bool {
+    return false
+}
+f6() {}

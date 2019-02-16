@@ -1,0 +1,5 @@
+f(): int[] {
+  {
+    return "hello"
+  }
+}

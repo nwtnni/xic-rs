@@ -1,0 +1,4 @@
+f1(x1: int, x2: bool, x3: int[]) {}
+f2(x1: int, x2: bool, x3: int[]): int {
+    return 0
+}

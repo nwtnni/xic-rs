@@ -1,0 +1,2 @@
+f(): int, bool, int[] {
+}
