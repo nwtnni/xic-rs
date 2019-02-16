@@ -33,9 +33,6 @@ pub enum Token {
     /// `return` keyword
     RETURN,
 
-    /// `length` keyword
-    LENGTH,
-
     /// `int` keyword
     INT,
 
@@ -144,7 +141,6 @@ impl std::fmt::Display for Token {
         | Token::WHILE      => write!(fmt, "while"),
         | Token::ELSE       => write!(fmt, "else"),
         | Token::RETURN     => write!(fmt, "return"),
-        | Token::LENGTH     => write!(fmt, "length"),
         | Token::INT        => write!(fmt, "int"),
         | Token::BOOL       => write!(fmt, "bool"),
         | Token::TRUE       => write!(fmt, "true"),

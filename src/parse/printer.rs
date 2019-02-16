@@ -135,9 +135,14 @@ impl Serialize for ast::Stm {
         | Ass(lhs, rhs, _) => vec!["=".sexp(), lhs.sexp(), rhs.sexp()].sexp_move(),
         | Call(call) => call.sexp(),
         | Init(decs, call, _) => {
-            let decs = decs.iter()
+            let mut decs = decs.iter()
                 .map(|dec| dec.as_ref().map(Serialize::sexp).unwrap_or_else(|| "_".sexp()))
                 .collect::<Vec<_>>();
+            let decs = if decs.len() == 1 {
+                decs.remove(0)
+            } else {
+                Sexp::List(decs)
+            };
             vec!["=".sexp(), decs.sexp(), call.sexp()].sexp_move()
         }
         | Dec(dec, _) => dec.sexp(),

@@ -12,11 +12,11 @@ use crate::util::{Conv, Tap};
 grammar;
 
 pub Program: Program = {
-    <uses: Use*> <funs: Fun*> => Program { uses, funs },
+    <uses: Use*> <funs: Fun+> => Program { uses, funs },
 }
 
 pub Interface: Interface = {
-    <sigs: Sig*> => Interface { sigs },
+    <sigs: Sig+> => Interface { sigs },
 }
 
 Use: Use = {
@@ -303,7 +303,6 @@ extern {
         "while"  => Token::WHILE,
         "else"   => Token::ELSE,
         "return" => Token::RETURN,
-        "length" => Token::LENGTH,
         "int"    => Token::INT,
         "bool"   => Token::BOOL,
         "true"   => Token::TRUE,

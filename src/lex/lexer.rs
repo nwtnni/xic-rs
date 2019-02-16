@@ -139,7 +139,6 @@ impl<'source> Lexer<'source> {
         | "while"  => WHILE,
         | "else"   => ELSE,
         | "return" => RETURN,
-        | "length" => LENGTH,
         | "int"    => INT,
         | "bool"   => BOOL,
         | "true"   => TRUE,
