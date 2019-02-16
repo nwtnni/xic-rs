@@ -2,7 +2,7 @@ use std::borrow::Cow;
 
 use crate::ast;
 use crate::symbol;
-use crate::util::Conv;
+use crate::util::{Conv, Tap};
 
 #[derive(Clone, Debug)]
 pub enum Sexp {
@@ -32,6 +32,51 @@ impl From<Vec<Sexp>> for Sexp {
 
 impl From<&Box<ast::Exp>> for Sexp {
     fn from(e: &Box<ast::Exp>) -> Sexp { Sexp::from(&**e) }
+}
+
+impl From<&ast::Interface> for Sexp {
+    fn from(interface: &ast::Interface) -> Sexp {
+        interface.sigs.iter()
+            .map(Conv::conv)
+            .collect::<Vec<_>>()
+            .into()
+    }
+}
+
+impl From<&ast::Program> for Sexp {
+    fn from(program: &ast::Program) -> Sexp {
+        vec![
+            program.uses.iter().map(Conv::conv).collect::<Vec<_>>().into(),
+            program.funs.iter().map(Conv::conv).collect::<Vec<_>>().into(),
+        ].into()
+    }
+}
+
+impl From<&ast::Use> for Sexp {
+    fn from(uses: &ast::Use) -> Sexp {
+        vec!["use".into(), (&uses.name).into()].into()
+    }
+}
+
+impl From<&ast::Sig> for Sexp {
+    fn from(sig: &ast::Sig) -> Sexp {
+        vec![
+            (&sig.name).into(),
+            sig.args.iter().map(Conv::conv).collect::<Vec<_>>().into(),
+            sig.rets.iter().map(Conv::conv).collect::<Vec<_>>().into(),
+        ].into()
+    }
+}
+
+impl From<&ast::Fun> for Sexp {
+    fn from(fun: &ast::Fun) -> Sexp {
+        vec![
+            (&fun.name).into(),
+            fun.args.iter().map(Conv::conv).collect::<Vec<_>>().into(),
+            fun.rets.iter().map(Conv::conv).collect::<Vec<_>>().into(),
+            (&fun.body).into(),
+        ].into()
+    }
 }
 
 impl From<&ast::Typ> for Sexp {
@@ -92,10 +137,61 @@ impl From<&ast::Exp> for Sexp {
         | Bin(bin, lhs, rhs, _) => vec![bin.into(), lhs.into(), rhs.into()].into(),
         | Uno(uno, exp, _) => vec![uno.into(), exp.into()].into(),
         | Idx(arr, idx, _) => vec!["[]".into(), arr.into(), idx.into()].into(),
-        | Call(ast::Call { name, args, .. }) => {
-            let mut args: Vec<Sexp> = args.into_iter().map(Conv::conv).collect::<Vec<_>>().into();
-            args.insert(0, name.into());
-            args.into()
+        | Call(call) => call.into(),
+        }
+    }
+}
+
+impl From<&ast::Dec> for Sexp {
+    fn from(dec: &ast::Dec) -> Sexp {
+        vec![(&dec.name).into(), (&dec.typ).into()].into()
+    }
+}
+
+impl From<&ast::Call> for Sexp {
+    fn from(call: &ast::Call) -> Sexp {
+        let mut args: Vec<Sexp> = call.args.iter()
+            .map(Conv::conv)
+            .collect::<Vec<_>>()
+            .into();
+        args.insert(0, (&call.name).into());
+        args.into()
+    }
+}
+
+impl From<&ast::Stm> for Sexp {
+    fn from(stm: &ast::Stm) -> Sexp {
+        use ast::Stm::*;
+        match stm {
+        | Ass(lhs, rhs, _) => vec!["=".into(), lhs.into(), rhs.into()].into(),
+        | Call(call) => call.into(),
+        | Init(decs, call, _) => {
+            let decs = decs.iter()
+                .map(|dec| dec.as_ref().map(Conv::conv::<Sexp>).unwrap_or_else(|| "_".into()))
+                .collect::<Vec<_>>();
+            vec!["=".into(), decs.into(), call.into()].into()
+        }
+        | Dec(dec, _) => dec.into(),
+        | Ret(exps, _) => {
+            std::iter::once("return".into())
+                .chain(exps.iter().map(Conv::conv))
+                .collect::<Vec<_>>()
+                .tap(Conv::conv)
+        }
+        | Seq(stms, _) => {
+            stms.iter()
+                .map(Conv::conv)
+                .collect::<Vec<_>>()
+                .tap(Conv::conv)
+        }
+        | If(cond, pass, Some(fail), _) => {
+            vec!["if".into(), cond.into(), (&**pass).into(), (&**fail).into()].into()
+        }
+        | If(cond, pass, None, _) => {
+            vec!["if".into(), cond.into(), (&**pass).into()].into()
+        }
+        | While(cond, body, _) => {
+            vec!["while".into(), cond.into(), (&**body).into()].into()
         }
         }
     }
