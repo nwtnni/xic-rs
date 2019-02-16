@@ -7,6 +7,10 @@ struct Arguments {
     #[structopt(short = "l", long = "lex")]
     lex_output: bool,  
 
+    /// Generate output from syntactic analysis
+    #[structopt(short = "p", long = "parse")]
+    parse_output: bool,
+
     /// Specify where to place generated diagnostic files
     #[structopt(short = "D", parse(from_os_str))]
     output_dir: Option<std::path::PathBuf>,
@@ -20,8 +24,10 @@ fn main() -> Result<(), xic::Error> {
     let args = Arguments::from_args();
     let directory = args.output_dir.unwrap_or_else(|| "".into());
     let lexer = xic::lex::Driver::new(&directory, args.lex_output);
+    let parser = xic::parse::Driver::new(&directory, args.parse_output);
     for path in &args.files {
-        lexer.drive(path)?;
+        let tokens = lexer.drive(path)?;
+        parser.drive(path, tokens)?;
     }
     Ok(())
 }

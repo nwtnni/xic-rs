@@ -1,9 +1,12 @@
+use std::io::BufWriter;
+
 use crate::ast;
 use crate::error;
 use crate::parse;
+use crate::sexp::Serialize;
 use crate::span;
 use crate::token;
-use crate::util::Conv;
+use crate::util::Tap;
 
 pub struct Driver<'main> {
     directory: &'main std::path::Path,
@@ -17,10 +20,21 @@ impl<'main> Driver<'main> {
         Driver { directory, diagnostic }
     }
 
-    pub fn drive<I>(&self, iter: I) -> Result<ast::Program, error::Error> where I: IntoIterator<Item = Spanned>
+    pub fn drive<I>(&self, path: &std::path::Path, iter: I) -> Result<ast::Program, error::Error>
+    where I: IntoIterator<Item = Spanned>
     {
-        parse::ProgramParser::new()
-            .parse(iter)
-            .map_err(Conv::conv)
+        let program = parse::ProgramParser::new().parse(iter)?;
+
+        if self.diagnostic {
+            let mut log = self.directory
+                .join(path)
+                .with_extension("parsed")
+                .tap(std::fs::File::create)
+                .map(BufWriter::new)?;
+
+            program.sexp().write(50, &mut log)?;
+        }
+
+        Ok(program)
     }
 }
