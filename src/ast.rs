@@ -48,6 +48,17 @@ pub enum Typ {
     Arr(Box<Typ>, Option<Exp>, Span),
 }
 
+impl Typ {
+    pub fn has_len(&self) -> bool {
+        match self {
+        | Typ::Bool(_)
+        | Typ::Int(_) => false,
+        | Typ::Arr(_, Some(_), _) => true,
+        | Typ::Arr(typ, _, _) => typ.has_len(),
+        }
+    }
+}
+
 impl PartialEq for Typ {
     fn eq(&self, other: &Self) -> bool {
         match (self, other) {

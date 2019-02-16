@@ -74,8 +74,9 @@ ClosedStm: Stm = {
     <l: @L> <dec: StmDec> ";"? <r: @R> => Stm::Dec(dec, Span::new(l, r)),
 
     // Single initialization
-    <l: @L> <dec: StmDec> "=" <exp: Exp> ";"? <r: @R> => {
-        Stm::Init(vec![Some(dec)], exp, Span::new(l, r))
+    <l: @L> <dec: StmDec> <la: @L> "=" <lr: @R> <exp: Exp> ";"? <r: @R> =>? {
+        if dec.typ.has_len() { Err(parse::Error::Array(Span::new(la, lr)))? }
+        Ok(Stm::Init(vec![Some(dec)], exp, Span::new(l, r)))
     },
 
     // Single assignment
