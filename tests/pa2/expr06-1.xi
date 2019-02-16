@@ -1,5 +1,5 @@
 f(x:int, y:int[]) {
-  x = -0
+  x = 0
   x = -'a'
   x = -x
   x = -i()
