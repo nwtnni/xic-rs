@@ -2,6 +2,7 @@
 
 mod ast;
 mod error;
+pub mod check;
 pub mod lex;
 pub mod parse;
 mod sexp;
