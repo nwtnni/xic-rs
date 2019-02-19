@@ -5,6 +5,7 @@ use crate::parse;
 pub enum Error {
     Lexical(lex::Error),
     Syntactic(parse::Error),
+    Semantic(check::Error),
     IO(std::io::Error),
 }
 
@@ -13,6 +14,7 @@ impl std::fmt::Display for Error {
         match self {
         | Error::Lexical(error) => write!(fmt, "{}", error),
         | Error::Syntactic(error) => write!(fmt, "{}", error),
+        | Error::Semantic(error) => write!(fmt, "{}", error),
         | Error::IO(error) => write!(fmt, "{}", error),
         }
     }
@@ -34,6 +36,12 @@ impl From<lex::Error> for Error {
 
 impl From<parse::Error> for Error {
     fn from(error: parse::Error) -> Self {
+        Error::Syntactic(error)
+    }
+}
+
+impl From<check::Error> for Error {
+    fn from(error: check::Error) -> Self {
         Error::Syntactic(error)
     }
 }
