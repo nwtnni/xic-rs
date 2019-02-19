@@ -1,4 +1,4 @@
-use crate::span;
+use crate::util::span;
 
 #[derive(Clone, Debug)]
 pub struct Error {

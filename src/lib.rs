@@ -1,14 +1,10 @@
 #![feature(box_patterns)]
 
-mod ast;
-mod error;
-pub mod check;
+pub mod data;
 pub mod lex;
 pub mod parse;
-mod sexp;
-mod span;
-mod symbol;
+pub mod check;
+mod error;
 mod util;
-mod token;
 
 pub use error::Error;

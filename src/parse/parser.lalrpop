@@ -1,10 +1,10 @@
-use crate::ast::*;
+use crate::data::ast::*;
 use crate::error::Error;
 use crate::parse;
 use crate::parse::PreExp;
-use crate::symbol::{Symbol, intern};
-use crate::span::{Point, Span};
-use crate::token::Token;
+use crate::util::symbol::{Symbol, intern};
+use crate::util::span::{Point, Span};
+use crate::data::token::Token;
 
 grammar;
 

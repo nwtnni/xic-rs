@@ -1,5 +1,5 @@
-use crate::symbol;
 use crate::util;
+use crate::util::symbol;
 
 /// Represents a possible lexical token in the Xi language.
 #[derive(Clone, Debug, PartialEq, Eq)]

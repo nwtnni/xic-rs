@@ -1,5 +1,5 @@
-use crate::span::Span;
-use crate::symbol;
+use crate::util::span;
+use crate::util::symbol;
 
 /// Represents a Xi interface file.
 #[derive(Clone, Debug)]
@@ -18,7 +18,7 @@ pub struct Program {
 #[derive(Clone, Debug)]
 pub struct Use {
     pub name: symbol::Symbol,
-    pub span: Span,
+    pub span: span::Span,
 }
 
 /// Represents a function signature (i.e. without implementation).
@@ -27,7 +27,7 @@ pub struct Sig {
     pub name: symbol::Symbol,
     pub args: Vec<Dec>,
     pub rets: Vec<Typ>,
-    pub span: Span,
+    pub span: span::Span,
 }
 
 /// Represents a function definition (i.e. with implementation).
@@ -37,15 +37,15 @@ pub struct Fun {
     pub args: Vec<Dec>,
     pub rets: Vec<Typ>,
     pub body: Stm,
-    pub span: Span,
+    pub span: span::Span,
 }
 
 /// Represents a primitive type.
 #[derive(Clone, Debug)]
 pub enum Typ {
-    Bool(Span),
-    Int(Span),
-    Arr(Box<Typ>, Option<Exp>, Span),
+    Bool(span::Span),
+    Int(span::Span),
+    Arr(Box<Typ>, Option<Exp>, span::Span),
 }
 
 impl Typ {
@@ -102,38 +102,38 @@ pub enum Uno {
 #[derive(Clone, Debug)]
 pub enum Exp {
     /// Boolean literal
-    Bool(bool, Span),
+    Bool(bool, span::Span),
 
     /// Char literal
-    Chr(char, Span),
+    Chr(char, span::Span),
 
     /// String literal
-    Str(String, Span),
+    Str(String, span::Span),
 
     /// Integer literal
-    Int(i64, Span),
+    Int(i64, span::Span),
 
     /// Variable
-    Var(symbol::Symbol, Span),
+    Var(symbol::Symbol, span::Span),
 
     /// Array literal
-    Arr(Vec<Exp>, Span),
+    Arr(Vec<Exp>, span::Span),
 
     /// Binary operation
-    Bin(Bin, Box<Exp>, Box<Exp>, Span),
+    Bin(Bin, Box<Exp>, Box<Exp>, span::Span),
 
     /// Unary operation
-    Uno(Uno, Box<Exp>, Span),
+    Uno(Uno, Box<Exp>, span::Span),
 
     /// Array index
-    Idx(Box<Exp>, Box<Exp>, Span),
+    Idx(Box<Exp>, Box<Exp>, span::Span),
 
     /// Function call
     Call(Call),
 }
 
 impl Exp {
-    pub fn span(&self) -> Span {
+    pub fn span(&self) -> span::Span {
         match self {
         | Exp::Bool(_, span)
         | Exp::Chr(_, span)
@@ -154,7 +154,7 @@ impl Exp {
 pub struct Dec {
     pub name: symbol::Symbol,
     pub typ: Typ,
-    pub span: Span,
+    pub span: span::Span,
 }
 
 /// Represents a function call.
@@ -162,33 +162,33 @@ pub struct Dec {
 pub struct Call {
     pub name: symbol::Symbol,
     pub args: Vec<Exp>,
-    pub span: Span,
+    pub span: span::Span,
 }
 
 /// Represents an imperative statement.
 #[derive(Clone, Debug)]
 pub enum Stm {
     /// Assignment
-    Ass(Exp, Exp, Span),
+    Ass(Exp, Exp, span::Span),
 
     /// Procedure call
     Call(Call),
 
     /// Initialization
-    Init(Vec<Option<Dec>>, Exp, Span),
+    Init(Vec<Option<Dec>>, Exp, span::Span),
 
     /// Variable declaration
-    Dec(Dec, Span),
+    Dec(Dec, span::Span),
     
     /// Return statement
-    Ret(Vec<Exp>, Span),
+    Ret(Vec<Exp>, span::Span),
 
     /// Statement block
-    Seq(Vec<Stm>, Span),
+    Seq(Vec<Stm>, span::Span),
 
     /// If-else block
-    If(Exp, Box<Stm>, Option<Box<Stm>>, Span),
+    If(Exp, Box<Stm>, Option<Box<Stm>>, span::Span),
 
     /// While block
-    While(Exp, Box<Stm>, Span),
+    While(Exp, Box<Stm>, span::Span),
 }

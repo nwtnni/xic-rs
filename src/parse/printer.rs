@@ -1,6 +1,7 @@
-use crate::sexp::{Sexp, Serialize};
-use crate::ast;
-use crate::util::*;
+use crate::data::ast;
+use crate::util;
+use crate::util::Tap;
+use crate::util::sexp::{Sexp, Serialize};
 
 impl Serialize for ast::Interface {
     fn sexp(&self) -> Sexp {
@@ -95,12 +96,12 @@ impl Serialize for ast::Exp {
         | Bool(false, _) => "false".sexp(),
         | Bool(true, _) => "true".sexp(),
         | Chr(c, _) => {
-            match unescape_char(*c) {
+            match util::unescape_char(*c) {
             | Some(s) => format!("\'{}\'", s).sexp_move(),
             | None => format!("\'{}\'", c).sexp_move(),
             }
         }
-        | Str(s, _) => format!("\"{}\"", unescape_str(s)).sexp_move(),
+        | Str(s, _) => format!("\"{}\"", util::unescape_str(s)).sexp_move(),
         | Int(i, _) if *i < 0 => vec!["-".sexp(), (-(*i as i128)).to_string().sexp_move()].sexp_move(),
         | Int(i, _) => i.to_string().sexp_move(),
         | Var(v, _) => v.sexp(),

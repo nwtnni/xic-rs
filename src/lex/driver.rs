@@ -2,8 +2,8 @@ use std::io::{BufWriter, Write};
 
 use crate::error;
 use crate::lex;
-use crate::span;
-use crate::token;
+use crate::data::token;
+use crate::util::span;
 use crate::util::{Conv, Tap, TakeUntil};
 
 type Spanned = Result<(span::Point, token::Token, span::Point), error::Error>;

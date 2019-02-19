@@ -1,11 +1,11 @@
 use std::io::{BufWriter, Write};
 
-use crate::ast;
 use crate::error;
 use crate::parse;
-use crate::sexp::Serialize;
-use crate::span;
-use crate::token;
+use crate::data::ast;
+use crate::data::token;
+use crate::util::sexp::Serialize;
+use crate::util::span;
 use crate::util::{Conv, Tap};
 
 pub struct Driver<'main> {

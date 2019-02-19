@@ -3,7 +3,7 @@ use std::borrow::Cow;
 use pretty::{BoxDoc, Doc};
 
 use crate::error;
-use crate::symbol;
+use crate::util::symbol;
 use crate::util::Tap;
 
 #[derive(Clone, Debug)]

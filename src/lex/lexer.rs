@@ -1,7 +1,7 @@
 use crate::lex::{Error, ErrorKind};
-use crate::span;
-use crate::symbol;
-use crate::token::Token;
+use crate::util::span;
+use crate::util::symbol;
+use crate::data::token;
 use crate::util::Tap;
 
 /// Stateful Xi lexer.
@@ -131,7 +131,7 @@ impl<'source> Lexer<'source> {
 
     /// Lex a single identifier
     fn lex_ident(&mut self, start: span::Point) -> Spanned {
-        use Token::*;
+        use token::Token::*;
         let end = self.take_while(is_ident);
         let token = match &self.source[start.idx..end.idx] {
         | "use"    => USE,
@@ -154,7 +154,7 @@ impl<'source> Lexer<'source> {
         let end = self.take_while(is_digit);
         let int = self.source[start.idx..end.idx]
             .to_string()
-            .tap(Token::INTEGER);
+            .tap(token::Token::INTEGER);
         Ok((start, int, end))
     }
 
@@ -216,7 +216,7 @@ impl<'source> Lexer<'source> {
 
     /// Lex a single character literal
     fn lex_character(&mut self, start: span::Point) -> Spanned {
-        let ch = self.lex_char(start, false).map(Token::CHARACTER)?;
+        let ch = self.lex_char(start, false).map(token::Token::CHARACTER)?;
         if let Some('\'') = self.advance() {
             Ok((start, ch, self.point()))
         } else {
@@ -232,7 +232,7 @@ impl<'source> Lexer<'source> {
         while let Some(ch) = self.peek() {
             if ch == '\"' {
                 self.skip();
-                return Ok((start, Token::STRING(buffer), self.point()))
+                return Ok((start, token::Token::STRING(buffer), self.point()))
             } else {
                 buffer.push(self.lex_char(start, true)?);
             }
@@ -244,7 +244,7 @@ impl<'source> Lexer<'source> {
 }
 
 /// Result of attempting to lex the next token
-type Spanned = Result<(span::Point, Token, span::Point), Error>;
+type Spanned = Result<(span::Point, token::Token, span::Point), Error>;
 
 impl<'source> Iterator for Lexer<'source> {
 
@@ -252,7 +252,7 @@ impl<'source> Iterator for Lexer<'source> {
 
     fn next(&mut self) -> Option<Self::Item> {
 
-        use Token::*;
+        use token::Token::*;
 
         // Skip past whitespace and comments
         self.forward();

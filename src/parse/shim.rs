@@ -1,10 +1,10 @@
 use std::str::FromStr;
 
-use crate::ast;
 use crate::error;
 use crate::parse;
-use crate::span;
-use crate::symbol;
+use crate::data::ast;
+use crate::util::span;
+use crate::util::symbol;
 
 #[derive(Clone, Debug)]
 pub enum PreExp {
