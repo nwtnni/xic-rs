@@ -30,7 +30,7 @@ impl Env {
     }
 
     pub fn insert(&mut self, symbol: symbol::Symbol, entry: Entry) {
-        self.stack.last()
+        self.stack.last_mut()
             .expect("[INTERNAL ERROR]: missing top-level environment")
             .insert(symbol, entry);
     }

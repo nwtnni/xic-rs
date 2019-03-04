@@ -65,9 +65,7 @@ impl Checker {
     }
 
     pub fn check_exp(&mut self, exp: &ast::Exp) -> Result<typ::Exp, error::Error> {
-
-        use ast::{Bin, Exp};
-
+        use ast::{Exp, Uno};
         match exp {
         | Exp::Bool(_, _) => Ok(typ::Exp::Bool),
         | Exp::Chr(_, _) => Ok(typ::Exp::Int),
@@ -101,6 +99,19 @@ impl Checker {
         | Exp::Bin(_, l, r, _) => {
             self.check_bin(l, r, typ::Exp::Bool, typ::Exp::Bool)
         }
+        | Exp::Uno(Uno::Neg, exp, _) => {
+            match self.check_exp(exp)? {
+            | typ::Exp::Int => Ok(typ::Exp::Int),
+            | typ => expected!(exp.span(), typ::Exp::Int, typ),
+            }
+        }
+        | Exp::Uno(Uno::Not, exp, _) => {
+            match self.check_exp(exp)? {
+            | typ::Exp::Bool => Ok(typ::Exp::Bool),
+            | typ => expected!(exp.span(), typ::Exp::Bool, typ),
+            }
+        }
+
         | _ => unimplemented!(),
         }
     }
@@ -108,8 +119,8 @@ impl Checker {
     fn check_bin(&mut self, lhs: &ast::Exp, rhs: &ast::Exp, i: typ::Exp, o: typ::Exp) -> Result<typ::Exp, error::Error> {
         match (self.check_exp(lhs)?, self.check_exp(rhs)?) {
         | (ref l, ref r) if l.subtypes(&i) && r.subtypes(&i) => Ok(o),
-        | (ref l, ref r) if l.subtypes(&i) => expected!(rhs.span(), r.clone(), i),
-        | (l, _) => expected!(lhs.span(), l, i),
+        | (ref l, ref r) if l.subtypes(&i) => expected!(rhs.span(), i, r.clone()),
+        | (l, _) => expected!(lhs.span(), i, l),
         }
     }
 
