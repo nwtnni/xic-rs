@@ -1,4 +1,5 @@
 use crate::util::span;
+use crate::data::typ;
 
 #[derive(Clone, Debug)]
 pub struct Error {
@@ -16,6 +17,10 @@ impl Error {
 pub enum ErrorKind {
     UnboundVar,
     NotVarTyp,
+    Mismatch {
+        expected: typ::Typ,
+        found: typ::Typ,
+    },
 }
 
 impl std::fmt::Display for Error {

@@ -55,6 +55,14 @@ impl Checker {
     }
 
     pub fn check_exp(&mut self, exp: &ast::Exp) -> Result<typ::Exp, error::Error> {
+
+        macro_rules! expected {
+            ($span:expr, $expected:expr, $found:expr) => {{
+                let kind = check::ErrorKind::Mismatch { expected: $expected, found: $found };
+                return Err(check::Error::new($span, kind).into())
+            }}
+        }
+
         match exp {
         | ast::Exp::Bool(_, _) => Ok(typ::Exp::Bool),
         | ast::Exp::Chr(_, _) => Ok(typ::Exp::Int),
@@ -66,6 +74,15 @@ impl Checker {
             | Some(_) => Err(check::Error::new(*span, check::ErrorKind::NotVarTyp))?,
             | None => Err(check::Error::new(*span, check::ErrorKind::UnboundVar))?,
             }
+        }
+        | ast::Exp::Arr(exps, _) => {
+            let mut all = typ::Exp::Any;
+            for exp in exps {
+                let typ = self.check_exp(exp)?;
+                if all.subtypes(&typ) { all = typ; }
+                else { expected!(exp.span(), typ::Typ::Exp(all), typ::Typ::Exp(typ)) }
+            }
+            Ok(typ::Exp::Arr(Box::new(all)))
         }
         | _ => unimplemented!(),
         }
