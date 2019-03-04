@@ -21,19 +21,22 @@ impl Checker {
             let source = std::fs::read_to_string(path)?;
             let lexer = lex::Lexer::new(&source);
             let interface = parse::InterfaceParser::new().parse(lexer)?;
-            self.check_interface(&interface);
+            self.load_interface(&interface);
         }
-        for fun in &program.funs {
-            self.check_fun(fun)?;
-        }
+        for fun in &program.funs { self.load_fun(fun)?; }
+        for fun in &program.funs { self.check_fun(fun)?; }
         Ok(())
     }
 
-    pub fn check_interface(&mut self, interface: &ast::Interface) {
+    pub fn load_interface(&mut self, interface: &ast::Interface) {
         unimplemented!()
     }
 
-    pub fn check_sig(&mut self, sig: &ast::Sig) -> Result<(), error::Error> {
+    pub fn load_sig(&mut self, sig: &ast::Sig) -> Result<(), error::Error> {
+        unimplemented!()
+    }
+
+    pub fn load_fun(&mut self, fun: &ast::Fun) -> Result<(), error::Error> {
         unimplemented!()
     }
 
