@@ -17,6 +17,7 @@ impl Error {
 pub enum ErrorKind {
     UnboundVar,
     NotVarTyp,
+    IndexEmpty,
     Mismatch {
         expected: typ::Typ,
         found: typ::Typ,

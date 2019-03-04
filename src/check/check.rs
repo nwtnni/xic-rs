@@ -111,6 +111,20 @@ impl Checker {
             | typ => expected!(exp.span(), typ::Exp::Bool, typ),
             }
         }
+        | Exp::Idx(arr, idx, span) => {
+            match (self.check_exp(arr)?, self.check_exp(idx)?) {
+            | (typ::Exp::Arr(typ), typ::Exp::Int) => {
+                if *typ == typ::Exp::Any {
+                    let kind = check::ErrorKind::IndexEmpty;
+                    Err(check::Error::new(*span, kind).into())
+                } else {
+                    Ok(*typ)
+                }
+            }
+            | (typ::Exp::Arr(_), typ) => expected!(idx.span(), typ::Exp::Int, typ),
+            | (typ, _) => expected!(arr.span(), typ::Exp::Any, typ),
+            }
+        }
 
         | _ => unimplemented!(),
         }
