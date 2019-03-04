@@ -14,7 +14,8 @@ impl Error {
 
 #[derive(Clone, Debug)]
 pub enum ErrorKind {
-
+    UnboundVar,
+    NotVarTyp,
 }
 
 impl std::fmt::Display for Error {

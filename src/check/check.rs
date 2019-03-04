@@ -2,6 +2,8 @@ use crate::check::Env;
 use crate::data::ast;
 use crate::data::typ;
 use crate::error;
+use crate::check;
+use crate::check::env;
 use crate::lex;
 use crate::parse;
 use crate::util::symbol;
@@ -52,8 +54,21 @@ impl Checker {
         unimplemented!()
     }
 
-    pub fn check_exp(&mut self, exp: &ast::Exp) -> Result<typ::Typ, error::Error> {
-        unimplemented!()
+    pub fn check_exp(&mut self, exp: &ast::Exp) -> Result<typ::Exp, error::Error> {
+        match exp {
+        | ast::Exp::Bool(_, _) => Ok(typ::Exp::Bool),
+        | ast::Exp::Chr(_, _) => Ok(typ::Exp::Int),
+        | ast::Exp::Str(_, _) => Ok(typ::Exp::Arr(Box::new(typ::Exp::Int))),
+        | ast::Exp::Int(_, _) => Ok(typ::Exp::Int),
+        | ast::Exp::Var(v, span) => {
+            match self.env.get(*v) {
+            | Some(env::Entry::Var(typ)) => Ok(typ.clone()),
+            | Some(_) => Err(check::Error::new(*span, check::ErrorKind::NotVarTyp))?,
+            | None => Err(check::Error::new(*span, check::ErrorKind::UnboundVar))?,
+            }
+        }
+        | _ => unimplemented!(),
+        }
     }
 
     pub fn check_stm(&mut self, stm: &ast::Stm) -> Result<typ::Stm, error::Error> {
