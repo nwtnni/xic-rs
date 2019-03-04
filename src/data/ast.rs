@@ -91,6 +91,33 @@ pub enum Bin {
     Or,
 }
 
+impl Bin {
+    pub fn is_numeric(&self) -> bool {
+        match self {
+        | Bin::Mul | Bin::Hul
+        | Bin::Div | Bin::Div
+        | Bin::Add | Bin::Sub => true,
+        | _ => false,
+        }
+    }
+
+    pub fn is_compare(&self) -> bool {
+        match self {
+        | Bin::Lt | Bin::Le
+        | Bin::Ge | Bin::Gt
+        | Bin::Ne | Bin::Eq => true,
+        | _ => false,
+        }
+    }
+
+    pub fn is_logical(&self) -> bool {
+        match self {
+        | Bin::And | Bin::Or => true,
+        | _ => false,
+        }
+    }
+}
+
 /// Represents a unary operator.
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
 pub enum Uno {

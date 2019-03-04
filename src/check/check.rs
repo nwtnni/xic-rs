@@ -8,6 +8,16 @@ use crate::lex;
 use crate::parse;
 use crate::util::symbol;
 
+macro_rules! expected {
+    ($span:expr, $expected:expr, $found:expr) => {{
+        let kind = check::ErrorKind::Mismatch {
+            expected: typ::Typ::Exp($expected),
+            found: typ::Typ::Exp($found),
+        };
+        return Err(check::Error::new($span, kind).into())
+    }}
+}
+
 pub struct Checker {
     env: Env,
 }
@@ -56,35 +66,50 @@ impl Checker {
 
     pub fn check_exp(&mut self, exp: &ast::Exp) -> Result<typ::Exp, error::Error> {
 
-        macro_rules! expected {
-            ($span:expr, $expected:expr, $found:expr) => {{
-                let kind = check::ErrorKind::Mismatch { expected: $expected, found: $found };
-                return Err(check::Error::new($span, kind).into())
-            }}
-        }
+        use ast::{Bin, Exp};
 
         match exp {
-        | ast::Exp::Bool(_, _) => Ok(typ::Exp::Bool),
-        | ast::Exp::Chr(_, _) => Ok(typ::Exp::Int),
-        | ast::Exp::Str(_, _) => Ok(typ::Exp::Arr(Box::new(typ::Exp::Int))),
-        | ast::Exp::Int(_, _) => Ok(typ::Exp::Int),
-        | ast::Exp::Var(v, span) => {
+        | Exp::Bool(_, _) => Ok(typ::Exp::Bool),
+        | Exp::Chr(_, _) => Ok(typ::Exp::Int),
+        | Exp::Str(_, _) => Ok(typ::Exp::Arr(Box::new(typ::Exp::Int))),
+        | Exp::Int(_, _) => Ok(typ::Exp::Int),
+        | Exp::Var(v, span) => {
             match self.env.get(*v) {
             | Some(env::Entry::Var(typ)) => Ok(typ.clone()),
             | Some(_) => Err(check::Error::new(*span, check::ErrorKind::NotVarTyp))?,
             | None => Err(check::Error::new(*span, check::ErrorKind::UnboundVar))?,
             }
         }
-        | ast::Exp::Arr(exps, _) => {
+        | Exp::Arr(exps, _) => {
             let mut all = typ::Exp::Any;
             for exp in exps {
                 let typ = self.check_exp(exp)?;
-                if all.subtypes(&typ) { all = typ; }
-                else { expected!(exp.span(), typ::Typ::Exp(all), typ::Typ::Exp(typ)) }
+                if all.subtypes(&typ) {
+                    all = typ;
+                } else {
+                    expected!(exp.span(), all, typ)
+                }
             }
             Ok(typ::Exp::Arr(Box::new(all)))
         }
+        | Exp::Bin(bin, l, r, _) if bin.is_numeric() => {
+            self.check_bin(l, r, typ::Exp::Int, typ::Exp::Int)
+        }
+        | Exp::Bin(bin, l, r, _) if bin.is_compare() => {
+            self.check_bin(l, r, typ::Exp::Int, typ::Exp::Bool)
+        }
+        | Exp::Bin(_, l, r, _) => {
+            self.check_bin(l, r, typ::Exp::Bool, typ::Exp::Bool)
+        }
         | _ => unimplemented!(),
+        }
+    }
+
+    fn check_bin(&mut self, lhs: &ast::Exp, rhs: &ast::Exp, i: typ::Exp, o: typ::Exp) -> Result<typ::Exp, error::Error> {
+        match (self.check_exp(lhs)?, self.check_exp(rhs)?) {
+        | (ref l, ref r) if l.subtypes(&i) && r.subtypes(&i) => Ok(o),
+        | (ref l, ref r) if l.subtypes(&i) => expected!(rhs.span(), r.clone(), i),
+        | (l, _) => expected!(lhs.span(), l, i),
         }
     }
 
