@@ -2,6 +2,7 @@ use crate::lex::{Error, ErrorKind};
 use crate::util::span;
 use crate::util::symbol;
 use crate::data::token;
+use crate::error;
 use crate::util::Tap;
 
 /// Stateful Xi lexer.
@@ -159,7 +160,7 @@ impl<'source> Lexer<'source> {
     }
 
     /// Lex and unescape a single char
-    fn lex_char(&mut self, start: span::Point, string: bool) -> Result<char, Error> {
+    fn lex_char(&mut self, start: span::Point, string: bool) -> Result<char, error::Error> {
         match self.advance() {
         | Some('\n')
         | Some('\r')
@@ -167,12 +168,12 @@ impl<'source> Lexer<'source> {
         | Some('\x0C') => {
             let span = start.into();
             let kind = if string { ErrorKind::InvalidString } else { ErrorKind::InvalidCharacter };
-            Err(Error::new(span, kind))
+            Err(Error::new(span, kind).into())
         }
         | Some('\'') if !string => {
             let span = start.into();
             let kind = ErrorKind::InvalidCharacter;
-            Err(Error::new(span, kind))
+            Err(Error::new(span, kind).into())
         }
         | Some('\\') => {
             match self.advance() {
@@ -196,12 +197,12 @@ impl<'source> Lexer<'source> {
                 u32::from_str_radix(&self.source[start.idx..end.idx], 16)
                     .ok()
                     .and_then(std::char::from_u32)
-                    .ok_or_else(|| Error::new(span, ErrorKind::InvalidCharacter))
+                    .ok_or_else(|| Error::new(span, ErrorKind::InvalidCharacter).into())
             }
             | _ => {
                 let span = start.into();
                 let kind = ErrorKind::InvalidEscape;
-                Err(Error::new(span, kind))
+                Err(Error::new(span, kind).into())
             }
             }
         }
@@ -209,7 +210,7 @@ impl<'source> Lexer<'source> {
         | None => {
             let span = start.into();
             let kind = ErrorKind::UnclosedCharacter;
-            Err(Error::new(span, kind))
+            Err(Error::new(span, kind).into())
         }
         }
     }
@@ -222,7 +223,7 @@ impl<'source> Lexer<'source> {
         } else {
             let span = start.into();
             let kind = ErrorKind::UnclosedCharacter;
-            Err(Error::new(span, kind))
+            Err(Error::new(span, kind).into())
         }
     }
 
@@ -239,12 +240,12 @@ impl<'source> Lexer<'source> {
         }
         let span = span::Span::new(start, self.point());
         let kind = ErrorKind::UnclosedString;
-        Err(Error::new(span, kind))
+        Err(Error::new(span, kind).into())
     }
 }
 
 /// Result of attempting to lex the next token
-type Spanned = Result<(span::Point, token::Token, span::Point), Error>;
+type Spanned = Result<(span::Point, token::Token, span::Point), error::Error>;
 
 impl<'source> Iterator for Lexer<'source> {
 
@@ -307,7 +308,7 @@ impl<'source> Iterator for Lexer<'source> {
         | _ => {
             let span = span::Span::new(start, end);
             let kind = ErrorKind::UnknownCharacter;
-            return Some(Err(Error::new(span, kind)))
+            return Some(Err(Error::new(span, kind).into()))
         }
         };
 

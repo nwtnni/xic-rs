@@ -30,7 +30,6 @@ impl<'main> Driver<'main> {
         let source = std::fs::read_to_string(path)?;
         let lexer = lex::Lexer::new(&source);
         let tokens = lexer.take_until(Result::is_err)
-            .map(|spanned| spanned.map_err(Conv::conv))
             .collect::<Vec<_>>();
 
         if self.diagnostic {

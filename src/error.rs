@@ -1,5 +1,6 @@
 use crate::lex;
 use crate::parse;
+use crate::check;
 
 #[derive(Debug)]
 pub enum Error {
@@ -42,6 +43,6 @@ impl From<parse::Error> for Error {
 
 impl From<check::Error> for Error {
     fn from(error: check::Error) -> Self {
-        Error::Syntactic(error)
+        Error::Semantic(error)
     }
 }
