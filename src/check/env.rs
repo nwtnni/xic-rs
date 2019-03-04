@@ -1,4 +1,4 @@
-use std::collections::HashMap as Map;
+use std::collections::HashMap;
 
 use crate::data::typ;
 use crate::util::symbol;
@@ -12,5 +12,34 @@ pub enum Entry {
 
 #[derive(Clone, Debug)]
 pub struct Env {
-    stack: Vec<Map<symbol::Symbol, Entry>>,
+    stack: Vec<HashMap<symbol::Symbol, Entry>>,
+}
+
+impl Env {
+    pub fn new() -> Self {
+        Env { stack: vec![HashMap::default()] }
+    }
+
+    pub fn get(&self, symbol: symbol::Symbol) -> Option<&Entry> {
+        for map in self.stack.iter().rev() {
+            if let Some(entry) = map.get(&symbol) {
+                return Some(entry)
+            }
+        }
+        None
+    }
+
+    pub fn insert(&mut self, symbol: symbol::Symbol, entry: Entry) {
+        self.stack.last()
+            .expect("[INTERNAL ERROR]: missing top-level environment")
+            .insert(symbol, entry);
+    }
+
+    pub fn push(&mut self) {
+        self.stack.push(HashMap::default());
+    }
+
+    pub fn pop(&mut self) {
+        self.stack.pop();
+    }
 }
