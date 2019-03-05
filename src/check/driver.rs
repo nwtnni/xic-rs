@@ -6,13 +6,13 @@ use crate::check;
 use crate::util::Tap;
 
 pub struct Driver<'main> {
-    lib: Option<&'main std::path::Path>,
+    lib: Option<&'main std::path::PathBuf>,
     directory: &'main std::path::Path,
     diagnostic: bool, 
 }
 
 impl<'main> Driver<'main> {
-    pub fn new(directory: &'main std::path::Path, diagnostic: bool, lib: Option<&'main std::path::Path>) -> Self {
+    pub fn new(directory: &'main std::path::Path, diagnostic: bool, lib: Option<&'main std::path::PathBuf>) -> Self {
         Driver { lib, directory, diagnostic }
     }
 
