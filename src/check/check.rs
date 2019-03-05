@@ -52,6 +52,23 @@ impl Checker {
         unimplemented!()
     }
 
+    fn check_typ(&self, typ: &ast::Typ) -> Result<typ::Exp, error::Error> {
+        match typ {
+        | ast::Typ::Bool(_) => Ok(typ::Exp::Bool),
+        | ast::Typ::Int(_) => Ok(typ::Exp::Int),
+        | ast::Typ::Arr(typ, None, _) => {
+            Ok(typ::Exp::Arr(Box::new(self.check_typ(typ)?)))
+        }
+        | ast::Typ::Arr(typ, Some(len), _) => {
+            let typ = self.check_typ(typ)?;
+            match self.check_exp(len)? {
+            | typ::Typ::Exp(typ::Exp::Int) => Ok(typ::Exp::Arr(Box::new(typ))),
+            | typ => expected!(len.span(), typ::Typ::int(), typ),
+            }
+        }
+        }
+    }
+
     pub fn check_fun(&mut self, fun: &ast::Fun) -> Result<(), error::Error> {
         unimplemented!()
     }
@@ -64,7 +81,7 @@ impl Checker {
         unimplemented!()
     }
 
-    pub fn check_exp(&mut self, exp: &ast::Exp) -> Result<typ::Typ, error::Error> {
+    pub fn check_exp(&self, exp: &ast::Exp) -> Result<typ::Typ, error::Error> {
         use ast::{Call, Exp, Uno};
         match exp {
         | Exp::Bool(_, _) => Ok(typ::Typ::boolean()),
@@ -175,7 +192,7 @@ impl Checker {
         }
     }
 
-    fn check_bin(&mut self, lhs: &ast::Exp, rhs: &ast::Exp, i: typ::Typ, o: typ::Typ) -> Result<typ::Typ, error::Error> {
+    fn check_bin(&self, lhs: &ast::Exp, rhs: &ast::Exp, i: typ::Typ, o: typ::Typ) -> Result<typ::Typ, error::Error> {
         match (self.check_exp(lhs)?, self.check_exp(rhs)?) {
         | (ref l, ref r) if l.subtypes(&i) && r.subtypes(&i) => Ok(o),
         | (ref l, ref r) if l.subtypes(&i) => expected!(rhs.span(), i, r.clone()),
