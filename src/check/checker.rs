@@ -40,6 +40,10 @@ pub struct Checker {
 }
 
 impl Checker {
+    pub fn new() -> Self {
+        Checker { env: Env::new() }
+    }
+
     pub fn check_program(
         &mut self,
         lib: &std::path::Path,
