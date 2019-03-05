@@ -349,10 +349,10 @@ impl Checker {
             self.env.push();
             let mut typ = typ::Stm::Unit;
             for stm in stms {
-                if self.check_stm(stm)? == typ::Stm::Void {
-                    typ = typ::Stm::Void;
-                } else if typ == typ::Stm::Void {
+                if typ == typ::Stm::Void {
                     bail!(stm.span(), ErrorKind::Unreachable)
+                } else if self.check_stm(stm)? == typ::Stm::Void {
+                    typ = typ::Stm::Void;
                 }
             }
             self.env.pop();
