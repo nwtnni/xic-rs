@@ -325,7 +325,12 @@ impl Checker {
         | Stm::Ret(rets, span) => {
             let ret = match rets.len() {
             | 0 => typ::Typ::Unit,
-            | 1 => self.check_exp(&rets[0])?,
+            | 1 => {
+                match self.check_exp(&rets[0])? {
+                | typ::Typ::Exp(typ) => typ::Typ::Exp(typ),
+                | _ => bail!(*span, ErrorKind::NotExp),
+                }
+            }
             | _ => {
                 let mut typs = Vec::new();
                 for ret in rets {
