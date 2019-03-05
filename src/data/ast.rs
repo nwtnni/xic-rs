@@ -21,6 +21,22 @@ pub struct Use {
     pub span: span::Span,
 }
 
+pub trait Callable {
+    fn name(&self) -> symbol::Symbol;
+    fn args(&self) -> &[Dec];
+    fn rets(&self) -> &[Typ];
+}
+
+macro_rules! impl_callable {
+    ($type:ty) => {
+        impl Callable for $type {
+            fn name(&self) -> symbol::Symbol { self.name }
+            fn args(&self) -> &[Dec] { &self.args }
+            fn rets(&self) -> &[Typ] { &self.rets }
+        }
+    }
+}
+
 /// Represents a function signature (i.e. without implementation).
 #[derive(Clone, Debug)]
 pub struct Sig {
@@ -29,6 +45,8 @@ pub struct Sig {
     pub rets: Vec<Typ>,
     pub span: span::Span,
 }
+
+impl_callable!(Sig); 
 
 /// Represents a function definition (i.e. with implementation).
 #[derive(Clone, Debug)]
@@ -40,16 +58,7 @@ pub struct Fun {
     pub span: span::Span,
 }
 
-impl AsRef<Sig> for Fun {
-    fn as_ref(&self) -> &Sig {
-        &Sig {
-            name: self.name,
-            args: self.args,
-            rets: self.rets,
-            span: self.span,
-        }
-    }
-}
+impl_callable!(Fun);
 
 /// Represents a primitive type.
 #[derive(Clone, Debug)]

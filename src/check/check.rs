@@ -1,5 +1,6 @@
 use crate::check::Env;
 use crate::data::ast;
+use crate::data::ast::Callable;
 use crate::data::typ;
 use crate::error;
 use crate::check::{Error, ErrorKind};
@@ -72,7 +73,7 @@ impl Checker {
     }
 
     fn load_fun(&mut self, fun: &ast::Fun) -> Result<(), error::Error> {
-        let (name, args, rets) = self.check_sig(fun.as_ref())?;
+        let (name, args, rets) = self.check_sig(fun)?;
         match self.env.remove(name) {
         | Some(env::Entry::Sig(i, o)) => {
             if args.len() != i.len() {
@@ -97,13 +98,13 @@ impl Checker {
         }
     }
 
-    fn check_sig(&self, sig: &ast::Sig) -> Result<(symbol::Symbol, Vec<typ::Exp>, typ::Typ), error::Error> {
-        let args = sig.args.iter()
+    fn check_sig<C: ast::Callable>(&self, sig: &C) -> Result<(symbol::Symbol, Vec<typ::Exp>, typ::Typ), error::Error> {
+        let args = sig.args().iter()
             .map(|dec| &dec.typ)
             .map(|typ| self.check_typ(typ))
             .collect::<Result<Vec<_>, _>>()?;
 
-        let mut rets = sig.rets.iter()
+        let mut rets = sig.rets().iter()
             .map(|typ| self.check_typ(&typ))
             .collect::<Result<Vec<_>, _>>()?;
 
@@ -113,7 +114,7 @@ impl Checker {
         | _ => typ::Typ::Tup(rets),
         };
 
-        Ok((sig.name, args, rets))
+        Ok((sig.name(), args, rets))
     }
 
     fn check_typ(&self, typ: &ast::Typ) -> Result<typ::Exp, error::Error> {
