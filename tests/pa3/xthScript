@@ -1,4 +1,4 @@
-xic ("Valid tests") "--typecheck" {
+xic ("Valid tests") "--libpath $(testpath) --typecheck" {
     array_literals_1.xi;
     array_literals_2.xi;
     array_with_dims1.xi;
@@ -17,7 +17,7 @@ xic ("Valid tests") "--typecheck" {
     underscore_array.xi;
 }
 
-xic ("Error tests") "--typecheck" {
+xic ("Error tests") "--libpath $(testpath) --typecheck" {
     bad_add1.xi;
     bad_add2.xi;
     bad_add3.xi;
@@ -61,7 +61,7 @@ xic ("Error tests") "--typecheck" {
     bad-use-conflict.xi;
 }
 
-xic ("Manual tests") "--typecheck" {
+xic ("Manual tests") "--libpath $(testpath) --typecheck" {
     pa3-1.xi;
     pa3-2.xi;
     pa3-3.xi;
