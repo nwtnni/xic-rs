@@ -74,15 +74,54 @@ impl Checker {
     }
 
     pub fn check_call(&mut self, call: &ast::Call) -> Result<typ::Typ, error::Error> {
-        unimplemented!()
+        let (i, o) = match self.env.get(call.name) {
+        | Some(env::Entry::Fun(i, o)) => (i, o),
+        | Some(_) => return Err(Error::new(call.span, ErrorKind::NotFun).into()),
+        | None => return Err(Error::new(call.span, ErrorKind::UnboundFun).into()),
+        };
+        
+        // Type check each argument to an expression type
+        let mut typs = Vec::new();
+        for arg in &call.args {
+            match self.check_exp(arg)? {
+            | typ::Typ::Exp(typ) => typs.push((typ, arg.span())),
+            | _ => return Err(Error::new(arg.span(), ErrorKind::NotExp).into()),
+            }
+        }
+        
+        match i {
+        | typ::Typ::Exp(i) => {
+            if typs.len() != 1 {
+                Err(Error::new(call.span, ErrorKind::CallLength).into())
+            } else if !typs[0].0.subtypes(i) {
+                expected!(typs[0].1, typ::Typ::Exp(i.clone()), typ::Typ::Exp(typs[0].0))
+            } else {
+                Ok(o.clone())
+            }
+        }
+        | typ::Typ::Tup(is) => {
+            if typs.len() != is.len() {
+                return Err(Error::new(call.span, ErrorKind::CallLength).into())
+            }
+            for ((typ, span), i) in typs.into_iter().zip(is.iter()) {
+                if !typ.subtypes(i) {
+                    expected!(span, typ::Typ::Exp(i.clone()), typ::Typ::Exp(typ))
+                }
+            }
+            Ok(o.clone())
+        }
+        | _ => unreachable!(),
+        }
     }
 
     pub fn check_dec(&mut self, dec: &ast::Dec) -> Result<(), error::Error> {
-        unimplemented!()
+        let typ = self.check_typ(&dec.typ)?;
+        self.env.insert(dec.name, env::Entry::Var(typ));
+        Ok(())
     }
 
     pub fn check_exp(&self, exp: &ast::Exp) -> Result<typ::Typ, error::Error> {
-        use ast::{Call, Exp, Uno};
+        use ast::{Exp, Uno};
         match exp {
         | Exp::Bool(_, _) => Ok(typ::Typ::boolean()),
         | Exp::Chr(_, _) => Ok(typ::Typ::int()),
@@ -149,46 +188,7 @@ impl Checker {
             }
             }
         }
-        | Exp::Call(Call { name, args, span }) => {
-            let (i, o) = match self.env.get(*name) {
-            | Some(env::Entry::Fun(i, o)) => (i, o),
-            | Some(_) => return Err(Error::new(*span, ErrorKind::NotFun).into()),
-            | None => return Err(Error::new(*span, ErrorKind::UnboundFun).into()),
-            };
-            
-            // Type check each argument to an expression type
-            let mut typs = Vec::new();
-            for arg in args {
-                match self.check_exp(arg)? {
-                | typ::Typ::Exp(typ) => typs.push((typ, arg.span())),
-                | _ => return Err(Error::new(arg.span(), ErrorKind::NotExp).into()),
-                }
-            }
-            
-            match i {
-            | typ::Typ::Exp(i) => {
-                if typs.len() != 1 {
-                    Err(Error::new(*span, ErrorKind::CallLength).into())
-                } else if !typs[0].0.subtypes(i) {
-                    expected!(typs[0].1, typ::Typ::Exp(i.clone()), typ::Typ::Exp(typs[0].0))
-                } else {
-                    Ok(o.clone())
-                }
-            }
-            | typ::Typ::Tup(is) => {
-                if typs.len() != is.len() {
-                    return Err(Error::new(*span, ErrorKind::CallLength).into())
-                }
-                for ((typ, span), i) in typs.into_iter().zip(is.iter()) {
-                    if !typ.subtypes(i) {
-                        expected!(span, typ::Typ::Exp(i.clone()), typ::Typ::Exp(typ))
-                    }
-                }
-                Ok(o.clone())
-            }
-            | _ => unreachable!(),
-            }
-        }
+        | Exp::Call(call) => self.check_call(call),
         }
     }
 
