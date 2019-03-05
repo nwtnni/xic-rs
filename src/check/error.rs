@@ -25,6 +25,7 @@ pub enum ErrorKind {
     WrongInit,
     WrongReturn,
     InitLength,
+    Unreachable,
     Mismatch {
         expected: typ::Typ,
         found: typ::Typ,

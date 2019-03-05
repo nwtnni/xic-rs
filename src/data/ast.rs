@@ -219,3 +219,18 @@ pub enum Stm {
     /// While block
     While(Exp, Box<Stm>, span::Span),
 }
+
+impl Stm {
+    pub fn span(&self) -> span::Span {
+        match self {
+        | Stm::Call(call) => call.span,
+        | Stm::Ass(_, _, span)
+        | Stm::Init(_, _, span)
+        | Stm::Dec(_, span)
+        | Stm::Ret(_, span)
+        | Stm::Seq(_, span)
+        | Stm::If(_, _, _, span)
+        | Stm::While(_, _, span) => *span,
+        }
+    }
+}
