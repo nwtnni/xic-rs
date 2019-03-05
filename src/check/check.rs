@@ -73,7 +73,7 @@ impl Checker {
         unimplemented!()
     }
 
-    pub fn check_call(&mut self, call: &ast::Call) -> Result<typ::Typ, error::Error> {
+    pub fn check_call(&self, call: &ast::Call) -> Result<typ::Typ, error::Error> {
         let (i, o) = match self.env.get(call.name) {
         | Some(env::Entry::Fun(i, o)) => (i, o),
         | Some(_) => return Err(Error::new(call.span, ErrorKind::NotFun).into()),
@@ -201,7 +201,25 @@ impl Checker {
     }
 
     pub fn check_stm(&mut self, stm: &ast::Stm) -> Result<typ::Stm, error::Error> {
-        unimplemented!()
+        use ast::Stm;
+        match stm {
+        | Stm::Ass(lhs, rhs, _) => {
+            let l = self.check_exp(lhs)?;
+            let r = self.check_exp(rhs)?;
+            if l.subtypes(&r) {
+                Ok(typ::Stm::Unit)
+            } else {
+                expected!(rhs.span(), l, r)
+            }
+        }
+        | Stm::Call(call) => {
+            match self.check_call(call)? {
+            | typ::Typ::Unit => Ok(typ::Stm::Unit),
+            | typ => expected!(call.span, typ::Typ::Unit, typ)
+            }
+        }
+        | _ => unimplemented!(),
+        }
     }
 
 }

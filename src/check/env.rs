@@ -17,7 +17,10 @@ pub struct Env {
 
 impl Env {
     pub fn new() -> Self {
-        Env { stack: vec![HashMap::default()] }
+        Env {
+            stack: vec![HashMap::default()],
+            ret: None,
+        }
     }
 
     pub fn get(&self, symbol: symbol::Symbol) -> Option<&Entry> {
