@@ -26,6 +26,15 @@ macro_rules! expected {
     }}
 }
 
+macro_rules! zip {
+    ($lhs:expr, $rhs:expr, $span:expr, $err:expr) => {{
+        if $lhs.len() != $rhs.len() {
+            bail!($span, $err)
+        }
+        $lhs.iter().zip($rhs.iter())
+    }}
+}
+
 pub struct Checker {
     env: Env,
 }
@@ -53,10 +62,7 @@ impl Checker {
             let (name, args, rets) = self.check_sig(sig)?;
             match self.env.get(name) {
             | Some(env::Entry::Sig(i, o)) => {
-                if args.len() != i.len() {
-                    bail!(sig.span, ErrorKind::NameClash)
-                }
-                for (arg, param) in args.iter().zip(i.iter()) {
+                for (arg, param) in zip!(args, i, sig.span, ErrorKind::NameClash) {
                     if arg != param {
                         bail!(sig.span, ErrorKind::NameClash)
                     }
@@ -157,11 +163,7 @@ impl Checker {
         | None => bail!(call.span, ErrorKind::UnboundFun),
         };
 
-        if call.args.len() != params.len() {
-            bail!(call.span, ErrorKind::CallLength)
-        }
-
-        for (arg, param) in call.args.iter().zip(params.iter()) {
+        for (arg, param) in zip!(call.args, params, call.span, ErrorKind::CallLength) {
             match self.check_exp(arg)? {
             | typ::Typ::Exp(ref typ) if !typ.subtypes(param) => {
                 expected!(arg.span(), typ::Typ::Exp(param.clone()), typ::Typ::Exp(typ.clone()))
@@ -174,10 +176,10 @@ impl Checker {
         Ok(rets.clone())
     }
 
-    fn check_dec(&mut self, dec: &ast::Dec) -> Result<typ::Typ, error::Error> {
+    fn check_dec(&mut self, dec: &ast::Dec) -> Result<typ::Exp, error::Error> {
         let typ = self.check_typ(&dec.typ)?;
         self.env.insert(dec.name, env::Entry::Var(typ.clone()));
-        Ok(typ::Typ::Exp(typ))
+        Ok(typ)
     }
 
     fn check_exp(&self, exp: &ast::Exp) -> Result<typ::Typ, error::Error> {
@@ -281,6 +283,24 @@ impl Checker {
             self.check_dec(dec)?;
             Ok(typ::Stm::Unit)
         }
+        | Stm::Init(decs, exp, span) => {
+            let inits = match self.check_exp(exp)? {
+            | typ::Typ::Unit => bail!(exp.span(), ErrorKind::InitProcedure),
+            | typ::Typ::Exp(rhs) => { vec![rhs] }
+            | typ::Typ::Tup(typs) => { typs }
+            };
+
+            for (dec, init) in zip!(decs, inits, *span, ErrorKind::InitLength) {
+                if let Some(dec) = dec {
+                    let typ = self.check_dec(dec)?;
+                    if !init.subtypes(&typ) {
+                        expected!(dec.span, typ::Typ::Exp(init.clone()), typ::Typ::Exp(typ))
+                    }
+                }
+            }
+
+            Ok(typ::Stm::Unit)
+        }
         | Stm::Ret(rets, span) => {
             let ret = match rets.len() {
             | 0 => typ::Typ::Unit,
@@ -347,7 +367,6 @@ impl Checker {
             self.env.pop();
             Ok(typ::Stm::Unit)
         }
-        | _ => unimplemented!(),
         }
     }
 }

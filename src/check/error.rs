@@ -25,6 +25,7 @@ pub enum ErrorKind {
     WrongInit,
     WrongReturn,
     InitLength,
+    InitProcedure,
     Unreachable,
     NameClash,
     SigMismatch,
