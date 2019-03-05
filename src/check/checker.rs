@@ -84,10 +84,7 @@ impl Checker {
         let (name, args, rets) = self.check_sig(fun)?;
         match self.env.remove(name) {
         | Some(env::Entry::Sig(i, o)) => {
-            if args.len() != i.len() {
-                bail!(fun.span, ErrorKind::SigMismatch)
-            }
-            for (arg, param) in args.iter().zip(i.iter()) {
+            for (arg, param) in zip!(args, i, fun.span, ErrorKind::SigMismatch) {
                 if !arg.subtypes(param) {
                     bail!(fun.span, ErrorKind::SigMismatch)
                 }
@@ -143,15 +140,13 @@ impl Checker {
     }
 
     fn check_fun(&mut self, fun: &ast::Fun) -> Result<(), error::Error> {
-        let (params, rets) = match self.env.get(fun.name) {
-        | Some(env::Entry::Fun(i, o)) => (i.clone(), o.clone()),
+        let rets = match self.env.get(fun.name) {
+        | Some(env::Entry::Fun(_, o)) => o.clone(),
         | _ => panic!("[INTERNAL ERROR]: function should be bound in first pass"),
         };
         self.env.push();
         self.env.set_return(rets.clone());
-        for (arg, typ) in fun.args.iter().zip(params.iter()) {
-            self.env.insert(arg.name, env::Entry::Var(typ.clone())); 
-        }
+        for arg in &fun.args { self.check_dec(arg)?; }
         match (rets, self.check_stm(&fun.body)?) {
         | (typ::Typ::Unit, _) => (),
         | (_, typ::Stm::Void) => (),

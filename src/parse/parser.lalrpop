@@ -21,7 +21,7 @@ Use: Use = {
 }
 
 Sig: Sig = {
-    <l: @L> <name: ID> "(" <args: ArgDec*> ")" <rets: (":" <CommaPlus<ArgTyp>>)?> <r: @R> => {
+    <l: @L> <name: ID> "(" <args: Comma<ArgDec>> ")" <rets: (":" <CommaPlus<ArgTyp>>)?> <r: @R> => {
         let rets = if let Some(rets) = rets { rets } else { Vec::new() };
         Sig { name, args, rets, span: Span::new(l, r) }
     }
