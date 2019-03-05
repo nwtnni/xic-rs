@@ -18,6 +18,17 @@ impl Exp {
     }
 }
 
+impl std::fmt::Display for Exp {
+    fn fmt(&self, fmt: &mut std::fmt::Formatter) -> std::fmt::Result {
+        match self {
+        | Exp::Int => write!(fmt, "int"),
+        | Exp::Bool => write!(fmt, "bool"),
+        | Exp::Any => write!(fmt, "null"), // Panic?
+        | Exp::Arr(typ) => write!(fmt, "{}[]", typ),
+        }
+    }
+}
+
 #[derive(Copy, Clone, Debug, PartialEq, Eq, Hash)]
 pub enum Stm {
     Unit,
@@ -29,6 +40,28 @@ pub enum Typ {
     Exp(Exp),
     Tup(Vec<Exp>),
     Unit,
+}
+
+impl std::fmt::Display for Typ {
+    fn fmt(&self, fmt: &mut std::fmt::Formatter) -> std::fmt::Result {
+        match self {
+        | Typ::Unit => write!(fmt, "unit"),
+        | Typ::Exp(typ) => write!(fmt, "{}", typ),
+        | Typ::Tup(typs) => {
+            write!(fmt, "(")?;
+            if typs.len() > 0 {
+                let mut iter = typs.iter();
+                if let Some(typ) = iter.next() {
+                    write!(fmt, "{}", typ)?;
+                }
+                for typ in iter {
+                    write!(fmt, ", {}", typ)?;
+                }
+            }
+            write!(fmt, ")")
+        }
+        }
+    }
 }
 
 impl Typ {
