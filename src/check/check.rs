@@ -260,6 +260,18 @@ impl Checker {
             }
             Ok(typ)
         }
+        | Stm::If(cond, pass, fail, _) => {
+            match self.check_exp(cond)? {
+            | typ::Typ::Exp(typ::Exp::Bool) => (),
+            | typ => expected!(cond.span(), typ::Typ::boolean(), typ),
+            };
+            let pass = self.check_stm(pass)?;
+            if let None = fail { return Ok(pass) }
+            match (pass, self.check_stm(fail.as_ref().unwrap())?) {
+            | (typ::Stm::Void, typ::Stm::Void) => Ok(typ::Stm::Void),
+            | _ => Ok(typ::Stm::Unit),
+            }
+        }
         | _ => unimplemented!(),
         }
     }
