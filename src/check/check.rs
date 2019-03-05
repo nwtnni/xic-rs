@@ -135,7 +135,18 @@ impl Checker {
     }
 
     fn check_fun(&mut self, fun: &ast::Fun) -> Result<(), error::Error> {
-        unimplemented!()
+        let (params, rets) = match self.env.get(fun.name) {
+        | Some(env::Entry::Fun(i, o)) => (i.clone(), o.clone()),
+        | _ => panic!("[INTERNAL ERROR]: function should be bound in first pass"),
+        };
+        self.env.push();
+        self.env.set_return(rets);
+        for (arg, typ) in fun.args.iter().zip(params.iter()) {
+            self.env.insert(arg.name, env::Entry::Var(typ.clone())); 
+        }
+        self.check_stm(&fun.body)?;
+        self.env.pop();
+        Ok(())
     }
 
     fn check_call(&self, call: &ast::Call) -> Result<typ::Typ, error::Error> {
