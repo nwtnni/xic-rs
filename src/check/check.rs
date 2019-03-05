@@ -272,6 +272,14 @@ impl Checker {
             | _ => Ok(typ::Stm::Unit),
             }
         }
+        | Stm::While(cond, body, _) => {
+            match self.check_exp(cond)? {
+            | typ::Typ::Exp(typ::Exp::Bool) => (),
+            | typ => expected!(cond.span(), typ::Typ::boolean(), typ),
+            };
+            self.check_stm(body)?;
+            Ok(typ::Stm::Unit)
+        }
         | _ => unimplemented!(),
         }
     }
