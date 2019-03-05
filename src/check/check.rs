@@ -159,8 +159,8 @@ impl Checker {
         let (params, rets) = match self.env.get(call.name) {
         | Some(env::Entry::Sig(i, o))
         | Some(env::Entry::Fun(i, o)) => (i, o),
-        | Some(_) => bail!(call.span, ErrorKind::NotFun),
-        | None => bail!(call.span, ErrorKind::UnboundFun),
+        | Some(_) => bail!(call.span, ErrorKind::NotFun(call.name)),
+        | None => bail!(call.span, ErrorKind::UnboundFun(call.name)),
         };
 
         for (arg, param) in zip!(call.args, params, call.span, ErrorKind::CallLength) {
@@ -192,8 +192,8 @@ impl Checker {
         | Exp::Var(v, span) => {
             match self.env.get(*v) {
             | Some(env::Entry::Var(typ)) => Ok(typ::Typ::Exp(typ.clone())),
-            | Some(_) => bail!(*span, ErrorKind::NotVar),
-            | None => bail!(*span, ErrorKind::UnboundVar),
+            | Some(_) => bail!(*span, ErrorKind::NotVar(*v)),
+            | None => bail!(*span, ErrorKind::UnboundVar(*v)),
             }
         }
         | Exp::Arr(exps, _) => {
@@ -317,10 +317,11 @@ impl Checker {
             }
             };
 
-            if ret.subtypes(self.env.get_return()) {
+            let expected = self.env.get_return();
+            if ret.subtypes(expected) {
                 Ok(typ::Stm::Void)
             } else {
-                bail!(*span, ErrorKind::WrongReturn)
+                expected!(*span, expected.clone(), ret)
             }
         }
         | Stm::Seq(stms, _) => {
