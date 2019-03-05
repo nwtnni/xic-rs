@@ -186,20 +186,21 @@ impl Checker {
 
     fn check_exp(&self, exp: &ast::Exp) -> Result<typ::Typ, error::Error> {
         use ast::{Exp, Uno};
+        use typ::{Typ, Exp::*};
         match exp {
-        | Exp::Bool(_, _) => Ok(typ::Typ::boolean()),
-        | Exp::Chr(_, _) => Ok(typ::Typ::int()),
-        | Exp::Str(_, _) => Ok(typ::Typ::array(typ::Exp::Int)),
-        | Exp::Int(_, _) => Ok(typ::Typ::int()),
+        | Exp::Bool(_, _) => Ok(Typ::boolean()),
+        | Exp::Chr(_, _) => Ok(Typ::int()),
+        | Exp::Str(_, _) => Ok(Typ::array(Int)),
+        | Exp::Int(_, _) => Ok(Typ::int()),
         | Exp::Var(v, span) => {
             match self.env.get(*v) {
-            | Some(env::Entry::Var(typ)) => Ok(typ::Typ::Exp(typ.clone())),
+            | Some(env::Entry::Var(typ)) => Ok(Typ::Exp(typ.clone())),
             | Some(_) => bail!(*span, ErrorKind::NotVar(*v)),
             | None => bail!(*span, ErrorKind::UnboundVar(*v)),
             }
         }
         | Exp::Arr(exps, _) => {
-            let mut all = typ::Typ::any();
+            let mut all = Typ::any();
             for exp in exps {
                 let typ = self.check_exp(exp)?;
                 if let Some(lub) = all.lub(&typ) {
@@ -209,56 +210,56 @@ impl Checker {
                 }
             }
             match all {
-            | typ::Typ::Exp(typ) => Ok(typ::Typ::array(typ)),
+            | Typ::Exp(typ) => Ok(Typ::array(typ)),
             | _ => unreachable!(),
             }
         }
         | Exp::Bin(ast::Bin::Add, l, r, _) => {
             match (self.check_exp(l)?, self.check_exp(r)?) {
-            | (typ::Typ::Exp(typ::Exp::Arr(lhs)), typ::Typ::Exp(typ::Exp::Arr(rhs))) => {
+            | (Typ::Exp(Arr(lhs)), Typ::Exp(Arr(rhs))) => {
                 if let Some(lub) = lhs.lub(&*rhs) {
-                    return Ok(typ::Typ::array(lub))
+                    return Ok(Typ::array(lub))
                 }
             }
             | _ => (),
             }
-            self.check_bin(l, r, typ::Typ::int(), typ::Typ::int())
+            self.check_bin(l, r, Typ::int(), Typ::int())
         }
         | Exp::Bin(bin, l, r, _) if bin.is_numeric() => {
-            self.check_bin(l, r, typ::Typ::int(), typ::Typ::int())
+            self.check_bin(l, r, Typ::int(), Typ::int())
         }
         | Exp::Bin(bin, l, r, _) if bin.is_compare() => {
-            self.check_bin(l, r, typ::Typ::int(), typ::Typ::boolean())
+            self.check_bin(l, r, Typ::int(), Typ::boolean())
         }
         | Exp::Bin(_, l, r, _) => {
-            self.check_bin(l, r, typ::Typ::boolean(), typ::Typ::boolean())
+            self.check_bin(l, r, Typ::boolean(), Typ::boolean())
         }
         | Exp::Uno(Uno::Neg, exp, _) => {
             match self.check_exp(exp)? {
-            | typ::Typ::Exp(typ::Exp::Int) => Ok(typ::Typ::int()),
-            | typ => expected!(exp.span(), typ::Typ::int(), typ),
+            | Typ::Exp(Int) => Ok(Typ::int()),
+            | typ => expected!(exp.span(), Typ::int(), typ),
             }
         }
         | Exp::Uno(Uno::Not, exp, _) => {
             match self.check_exp(exp)? {
-            | typ::Typ::Exp(typ::Exp::Bool) => Ok(typ::Typ::boolean()),
-            | typ => expected!(exp.span(), typ::Typ::boolean(), typ),
+            | Typ::Exp(Bool) => Ok(Typ::boolean()),
+            | typ => expected!(exp.span(), Typ::boolean(), typ),
             }
         }
         | Exp::Idx(arr, idx, span) => {
             match (self.check_exp(arr)?, self.check_exp(idx)?) {
-            | (typ::Typ::Exp(typ::Exp::Arr(typ)), typ::Typ::Exp(typ::Exp::Int)) => {
-                if *typ == typ::Exp::Any {
+            | (Typ::Exp(Arr(typ)), Typ::Exp(Int)) => {
+                if *typ == Any {
                     bail!(*span, ErrorKind::IndexEmpty)
                 } else {
-                    Ok(typ::Typ::Exp(*typ))
+                    Ok(Typ::Exp(*typ))
                 }
             }
-            | (typ::Typ::Exp(typ::Exp::Arr(_)), typ) => {
-                expected!(idx.span(), typ::Typ::int(), typ)
+            | (Typ::Exp(Arr(_)), typ) => {
+                expected!(idx.span(), Typ::int(), typ)
             }
             | (typ, _) => {
-                expected!(arr.span(), typ::Typ::any(), typ)
+                expected!(arr.span(), Typ::any(), typ)
             }
             }
         }
@@ -268,8 +269,8 @@ impl Checker {
             }
 
             match self.check_exp(&call.args[0])? {
-            | typ::Typ::Exp(typ::Exp::Arr(_)) => Ok(typ::Typ::int()),
-            | typ => expected!(call.span, typ::Typ::array(typ::Exp::Any), typ),
+            | Typ::Exp(Arr(_)) => Ok(Typ::int()),
+            | typ => expected!(call.span, Typ::array(Any), typ),
             }
         }
         | Exp::Call(call) => self.check_call(call),
@@ -286,50 +287,51 @@ impl Checker {
 
     fn check_stm(&mut self, stm: &ast::Stm) -> Result<typ::Stm, error::Error> {
         use ast::Stm;
+        use typ::{Typ, Stm::*};
         match stm {
         | Stm::Ass(lhs, rhs, _) => {
             let l = self.check_exp(lhs)?;
             let r = self.check_exp(rhs)?;
             if r.subtypes(&l) {
-                Ok(typ::Stm::Unit)
+                Ok(Unit)
             } else {
                 expected!(rhs.span(), l, r)
             }
         }
         | Stm::Call(call) => {
             match self.check_call(call)? {
-            | typ::Typ::Unit => Ok(typ::Stm::Unit),
-            | typ => expected!(call.span, typ::Typ::Unit, typ)
+            | Typ::Unit => Ok(Unit),
+            | typ => expected!(call.span, Typ::Unit, typ)
             }
         }
         | Stm::Dec(dec, _) => {
             self.check_dec(dec)?;
-            Ok(typ::Stm::Unit)
+            Ok(Unit)
         }
         | Stm::Init(decs, exp, span) => {
             let inits = match self.check_exp(exp)? {
-            | typ::Typ::Unit => bail!(exp.span(), ErrorKind::InitProcedure),
-            | typ::Typ::Exp(rhs) => { vec![rhs] }
-            | typ::Typ::Tup(typs) => { typs }
+            | Typ::Unit => bail!(exp.span(), ErrorKind::InitProcedure),
+            | Typ::Exp(rhs) => { vec![rhs] }
+            | Typ::Tup(typs) => { typs }
             };
 
             for (dec, init) in zip!(decs, inits, *span, ErrorKind::InitLength) {
                 if let Some(dec) = dec {
                     let typ = self.check_dec(dec)?;
                     if !init.subtypes(&typ) {
-                        expected!(dec.span, typ::Typ::Exp(init.clone()), typ::Typ::Exp(typ))
+                        expected!(dec.span, Typ::Exp(init.clone()), Typ::Exp(typ))
                     }
                 }
             }
 
-            Ok(typ::Stm::Unit)
+            Ok(Unit)
         }
         | Stm::Ret(rets, span) => {
             let ret = match rets.len() {
-            | 0 => typ::Typ::Unit,
+            | 0 => Typ::Unit,
             | 1 => {
                 match self.check_exp(&rets[0])? {
-                | typ::Typ::Exp(typ) => typ::Typ::Exp(typ),
+                | Typ::Exp(typ) => Typ::Exp(typ),
                 | _ => bail!(*span, ErrorKind::NotExp),
                 }
             }
@@ -337,29 +339,28 @@ impl Checker {
                 let mut typs = Vec::new();
                 for ret in rets {
                     match self.check_exp(ret)? {
-                    | typ::Typ::Exp(typ) => typs.push(typ),
+                    | Typ::Exp(typ) => typs.push(typ),
                     | _ => bail!(ret.span(), ErrorKind::NotExp),
                     }
                 }
-                typ::Typ::Tup(typs)
+                Typ::Tup(typs)
             }
             };
-
             let expected = self.env.get_return();
             if ret.subtypes(expected) {
-                Ok(typ::Stm::Void)
+                Ok(Void)
             } else {
                 expected!(*span, expected.clone(), ret)
             }
         }
         | Stm::Seq(stms, _) => {
             self.env.push();
-            let mut typ = typ::Stm::Unit;
+            let mut typ = Unit;
             for stm in stms {
-                if typ == typ::Stm::Void {
+                if typ == Void {
                     bail!(stm.span(), ErrorKind::Unreachable)
-                } else if self.check_stm(stm)? == typ::Stm::Void {
-                    typ = typ::Stm::Void;
+                } else if self.check_stm(stm)? == Void {
+                    typ = Void;
                 }
             }
             self.env.pop();
@@ -367,34 +368,34 @@ impl Checker {
         }
         | Stm::If(cond, pass, fail, _) => {
             match self.check_exp(cond)? {
-            | typ::Typ::Exp(typ::Exp::Bool) => (),
-            | typ => expected!(cond.span(), typ::Typ::boolean(), typ),
+            | Typ::Exp(typ::Exp::Bool) => (),
+            | typ => expected!(cond.span(), Typ::boolean(), typ),
             };
 
             self.env.push();
             let pass = self.check_stm(pass)?;
             self.env.pop();
 
-            if let None = fail { return Ok(typ::Stm::Unit) }
+            if let None = fail { return Ok(Unit) }
 
             self.env.push();
             let fail = self.check_stm(fail.as_ref().unwrap())?;
             self.env.pop();
 
             match (pass, fail) {
-            | (typ::Stm::Void, typ::Stm::Void) => Ok(typ::Stm::Void),
-            | _ => Ok(typ::Stm::Unit),
+            | (Void, Void) => Ok(Void),
+            | _ => Ok(Unit),
             }
         }
         | Stm::While(cond, body, _) => {
             match self.check_exp(cond)? {
-            | typ::Typ::Exp(typ::Exp::Bool) => (),
-            | typ => expected!(cond.span(), typ::Typ::boolean(), typ),
+            | Typ::Exp(typ::Exp::Bool) => (),
+            | typ => expected!(cond.span(), Typ::boolean(), typ),
             };
             self.env.push();
             self.check_stm(body)?;
             self.env.pop();
-            Ok(typ::Stm::Unit)
+            Ok(Unit)
         }
         }
     }
