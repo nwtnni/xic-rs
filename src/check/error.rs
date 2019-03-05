@@ -22,6 +22,9 @@ pub enum ErrorKind {
     NotExp,
     IndexEmpty,
     CallLength,
+    WrongInit,
+    WrongReturn,
+    InitLength,
     Mismatch {
         expected: typ::Typ,
         found: typ::Typ,

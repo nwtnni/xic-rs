@@ -12,14 +12,14 @@ pub enum Entry {
 #[derive(Clone, Debug)]
 pub struct Env {
     stack: Vec<HashMap<symbol::Symbol, Entry>>,
-    ret: Option<typ::Typ>,
+    ret: typ::Typ,
 }
 
 impl Env {
     pub fn new() -> Self {
         Env {
             stack: vec![HashMap::default()],
-            ret: None,
+            ret: typ::Typ::Unit,
         }
     }
 
@@ -46,11 +46,11 @@ impl Env {
         self.stack.pop();
     }
 
-    pub fn set_return(&mut self, typ: typ::Typ) {
-        self.ret = Some(typ);
+    pub fn get_return(&self) -> &typ::Typ {
+        &self.ret
     }
 
-    pub fn unset_return(&mut self) {
-        self.ret = None;
+    pub fn set_return(&mut self, typ: typ::Typ) {
+        self.ret = typ;
     }
 }

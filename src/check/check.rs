@@ -114,10 +114,10 @@ impl Checker {
         }
     }
 
-    pub fn check_dec(&mut self, dec: &ast::Dec) -> Result<(), error::Error> {
+    pub fn check_dec(&mut self, dec: &ast::Dec) -> Result<typ::Typ, error::Error> {
         let typ = self.check_typ(&dec.typ)?;
-        self.env.insert(dec.name, env::Entry::Var(typ));
-        Ok(())
+        self.env.insert(dec.name, env::Entry::Var(typ.clone()));
+        Ok(typ::Typ::Exp(typ))
     }
 
     pub fn check_exp(&self, exp: &ast::Exp) -> Result<typ::Typ, error::Error> {
@@ -216,6 +216,32 @@ impl Checker {
             match self.check_call(call)? {
             | typ::Typ::Unit => Ok(typ::Stm::Unit),
             | typ => expected!(call.span, typ::Typ::Unit, typ)
+            }
+        }
+        | Stm::Dec(dec, _) => {
+            self.check_dec(dec)?;
+            Ok(typ::Stm::Unit)
+        }
+        | Stm::Ret(rets, span) => {
+            let ret = match rets.len() {
+            | 0 => typ::Typ::Unit,
+            | 1 => self.check_exp(&rets[0])?,
+            | _ => {
+                let mut typs = Vec::new();
+                for ret in rets {
+                    match self.check_exp(ret)? {
+                    | typ::Typ::Exp(typ) => typs.push(typ),
+                    | _ => return Err(Error::new(ret.span(), ErrorKind::NotExp).into())
+                    }
+                }
+                typ::Typ::Tup(typs)
+            }
+            };
+
+            if ret.subtypes(self.env.get_return()) {
+                Ok(typ::Stm::Void)
+            } else {
+                Err(Error::new(*span, ErrorKind::WrongReturn).into())
             }
         }
         | _ => unimplemented!(),
