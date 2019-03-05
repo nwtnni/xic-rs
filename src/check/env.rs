@@ -6,7 +6,7 @@ use crate::util::symbol;
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Entry {
     Var(typ::Exp),
-    Fun(typ::Typ, typ::Typ),
+    Fun(Vec<typ::Exp>, typ::Typ),
 }
 
 #[derive(Clone, Debug)]

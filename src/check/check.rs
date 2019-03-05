@@ -55,7 +55,25 @@ impl Checker {
     }
 
     fn load_fun(&mut self, fun: &ast::Fun) -> Result<(), error::Error> {
-        unimplemented!()
+        let mut args = fun.args.iter()
+            .map(|dec| dec.typ)
+            .map(|typ| self.check_typ(&typ))
+            .collect::<Result<Vec<_>, _>>()?;
+
+        let mut rets = fun.rets.iter()
+            .map(|typ| self.check_typ(&typ))
+            .collect::<Result<Vec<_>, _>>()?;
+
+        let rets = match rets.len() {
+        | 0 => typ::Typ::Unit,
+        | 1 => typ::Typ::Exp(rets.pop().unwrap()),
+        | _ => typ::Typ::Tup(rets),
+        };
+
+        let entry = env::Entry::Fun(args, rets);
+        self.env.insert(fun.name, entry);
+        Ok(())
+
     }
 
     fn check_typ(&self, typ: &ast::Typ) -> Result<typ::Exp, error::Error> {
@@ -80,44 +98,27 @@ impl Checker {
     }
 
     fn check_call(&self, call: &ast::Call) -> Result<typ::Typ, error::Error> {
-        let (i, o) = match self.env.get(call.name) {
+        let (params, rets) = match self.env.get(call.name) {
         | Some(env::Entry::Fun(i, o)) => (i, o),
         | Some(_) => bail!(call.span, ErrorKind::NotFun),
         | None => bail!(call.span, ErrorKind::UnboundFun),
         };
-        
-        // Type check each argument to an expression type
-        let mut typs = Vec::new();
-        for arg in &call.args {
+
+        if call.args.len() != params.len() {
+            bail!(call.span, ErrorKind::CallLength)
+        }
+
+        for (arg, param) in call.args.iter().zip(params.iter()) {
             match self.check_exp(arg)? {
-            | typ::Typ::Exp(typ) => typs.push((typ, arg.span())),
+            | typ::Typ::Exp(typ) if !typ.subtypes(param) => {
+                expected!(arg.span(), typ::Typ::Exp(param.clone()), typ::Typ::Exp(typ))
+            }
+            | typ::Typ::Exp(_) => (),
             | _ => bail!(arg.span(), ErrorKind::NotExp),
             }
         }
-        
-        match i {
-        | typ::Typ::Exp(i) => {
-            if typs.len() != 1 {
-                bail!(call.span, ErrorKind::CallLength)
-            } else if !typs[0].0.subtypes(i) {
-                expected!(typs[0].1, typ::Typ::Exp(i.clone()), typ::Typ::Exp(typs[0].0.clone()))
-            } else {
-                Ok(o.clone())
-            }
-        }
-        | typ::Typ::Tup(is) => {
-            if typs.len() != is.len() {
-                bail!(call.span, ErrorKind::CallLength)
-            }
-            for ((typ, span), i) in typs.into_iter().zip(is.iter()) {
-                if !typ.subtypes(i) {
-                    expected!(span, typ::Typ::Exp(i.clone()), typ::Typ::Exp(typ))
-                }
-            }
-            Ok(o.clone())
-        }
-        | _ => unreachable!(),
-        }
+
+        Ok(rets.clone())
     }
 
     fn check_dec(&mut self, dec: &ast::Dec) -> Result<typ::Typ, error::Error> {
