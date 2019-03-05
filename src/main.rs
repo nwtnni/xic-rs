@@ -20,11 +20,11 @@ struct Arguments {
     output_dir: Option<std::path::PathBuf>,
 
     /// Specify where to search for library files
-    #[structopt(short = "sourcepath", parse(from_os_str))]
+    #[structopt(long = "sourcepath", parse(from_os_str))]
     source_dir: Option<std::path::PathBuf>,
 
     /// Specify where to search for library files
-    #[structopt(short = "libpath", parse(from_os_str))]
+    #[structopt(long = "libpath", parse(from_os_str))]
     lib_dir: Option<std::path::PathBuf>,
 
     /// Source files to compile

@@ -4,7 +4,7 @@ use crate::error;
 use crate::lex;
 use crate::data::token;
 use crate::util::span;
-use crate::util::{Conv, Tap, TakeUntil};
+use crate::util::{Tap, TakeUntil};
 
 type Spanned = Result<(span::Point, token::Token, span::Point), error::Error>;
 

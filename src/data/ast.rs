@@ -115,7 +115,7 @@ impl Bin {
     pub fn is_numeric(&self) -> bool {
         match self {
         | Bin::Mul | Bin::Hul
-        | Bin::Div | Bin::Div
+        | Bin::Div | Bin::Mod
         | Bin::Add | Bin::Sub => true,
         | _ => false,
         }

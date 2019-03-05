@@ -1,13 +1,11 @@
 use crate::check::Env;
 use crate::data::ast;
-use crate::data::ast::Callable;
 use crate::data::typ;
 use crate::error;
 use crate::check::{Error, ErrorKind};
 use crate::check::env;
 use crate::lex;
 use crate::parse;
-use crate::util::span;
 use crate::util::symbol;
 
 macro_rules! bail {
@@ -54,7 +52,7 @@ impl Checker {
             let source = std::fs::read_to_string(path)?;
             let lexer = lex::Lexer::new(&source);
             let interface = parse::InterfaceParser::new().parse(lexer)?;
-            self.load_interface(&interface);
+            self.load_interface(&interface)?;
         }
         for fun in &program.funs { self.load_fun(fun)?; }
         for fun in &program.funs { self.check_fun(fun)?; }
