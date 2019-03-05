@@ -202,8 +202,8 @@ impl Checker {
             let mut all = typ::Typ::any();
             for exp in exps {
                 let typ = self.check_exp(exp)?;
-                if all.subtypes(&typ) {
-                    all = typ;
+                if let Some(lub) = all.lub(&typ) {
+                    all = lub;
                 } else {
                     expected!(exp.span(), all, typ)
                 }
@@ -215,8 +215,10 @@ impl Checker {
         }
         | Exp::Bin(ast::Bin::Add, l, r, _) => {
             match (self.check_exp(l)?, self.check_exp(r)?) {
-            | (typ::Typ::Exp(typ::Exp::Arr(ref lt)), typ::Typ::Exp(typ::Exp::Arr(ref rt))) if lt == rt => {
-                return Ok(typ::Typ::Exp(typ::Exp::Arr(lt.clone())))
+            | (typ::Typ::Exp(typ::Exp::Arr(lhs)), typ::Typ::Exp(typ::Exp::Arr(rhs))) => {
+                if let Some(lub) = lhs.lub(&*rhs) {
+                    return Ok(typ::Typ::array(lub))
+                }
             }
             | _ => (),
             }
@@ -373,7 +375,7 @@ impl Checker {
             let pass = self.check_stm(pass)?;
             self.env.pop();
 
-            if let None = fail { return Ok(pass) }
+            if let None = fail { return Ok(typ::Stm::Unit) }
 
             self.env.push();
             let fail = self.check_stm(fail.as_ref().unwrap())?;

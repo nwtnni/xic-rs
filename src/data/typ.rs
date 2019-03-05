@@ -11,9 +11,27 @@ impl Exp {
         match (self, rhs) {
         | (Exp::Any, _)
         | (Exp::Int, Exp::Int)
-        | (Exp::Bool, Exp::Bool) => true,
+        | (Exp::Bool, Exp::Bool)
+        | (Exp::Arr(box Exp::Any), Exp::Arr(_)) => true,
         | (Exp::Arr(l), Exp::Arr(r)) => l.subtypes(r),
         | _ => false,
+        }
+    }
+
+    pub fn lub(&self, rhs: &Exp) -> Option<Self> {
+        match (self, rhs) {
+        | (Exp::Any, typ)
+        | (typ, Exp::Any) => Some(typ.clone()),
+        | (Exp::Int, Exp::Int) => Some(Exp::Int),
+        | (Exp::Bool, Exp::Bool) => Some(Exp::Bool),
+        | (Exp::Arr(lhs), Exp::Arr(rhs)) => {
+            if let Some(lub) = lhs.lub(rhs) {
+                Some(Exp::Arr(Box::new(lub)))
+            } else {
+                None
+            }
+        }
+        | (_, _) => None,
         }
     }
 }
@@ -87,11 +105,19 @@ impl Typ {
 
     pub fn subtypes(&self, rhs: &Typ) -> bool {
         match (self, rhs) {
+        | (Typ::Unit, Typ::Unit) => true,
         | (Typ::Exp(l), Typ::Exp(r)) => l.subtypes(r),
         | (Typ::Tup(l), Typ::Tup(r)) if l.len() == r.len() => {
             l.iter().zip(r.iter()).all(|(l, r)| l.subtypes(r))
         }
         | _ => false,
+        }
+    }
+
+    pub fn lub(&self, rhs: &Self) -> Option<Self> {
+        match (self, rhs) {
+        | (Typ::Exp(lhs), Typ::Exp(rhs)) => lhs.lub(rhs).map(Typ::Exp),
+        | _ => None,
         }
     }
 }
