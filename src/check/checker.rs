@@ -218,6 +218,15 @@ impl Checker {
             | _ => unreachable!(),
             }
         }
+        | Exp::Bin(ast::Bin::Add, l, r, _) => {
+            match (self.check_exp(l)?, self.check_exp(r)?) {
+            | (typ::Typ::Exp(typ::Exp::Arr(ref lt)), typ::Typ::Exp(typ::Exp::Arr(ref rt))) if lt == rt => {
+                return Ok(typ::Typ::Exp(typ::Exp::Arr(lt.clone())))
+            }
+            | _ => (),
+            }
+            self.check_bin(l, r, typ::Typ::int(), typ::Typ::int())
+        }
         | Exp::Bin(bin, l, r, _) if bin.is_numeric() => {
             self.check_bin(l, r, typ::Typ::int(), typ::Typ::int())
         }
