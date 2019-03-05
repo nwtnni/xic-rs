@@ -150,11 +150,15 @@ impl Checker {
         | _ => panic!("[INTERNAL ERROR]: function should be bound in first pass"),
         };
         self.env.push();
-        self.env.set_return(rets);
+        self.env.set_return(rets.clone());
         for (arg, typ) in fun.args.iter().zip(params.iter()) {
             self.env.insert(arg.name, env::Entry::Var(typ.clone())); 
         }
-        self.check_stm(&fun.body)?;
+        match (rets, self.check_stm(&fun.body)?) {
+        | (typ::Typ::Unit, _) => (),
+        | (_, typ::Stm::Void) => (),
+        | _ => bail!(fun.span, ErrorKind::MissingReturn),
+        }
         self.env.pop();
         Ok(())
     }

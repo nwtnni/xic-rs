@@ -26,6 +26,7 @@ pub enum ErrorKind {
     InitLength,
     InitProcedure,
     Unreachable,
+    MissingReturn,
     NameClash,
     SigMismatch,
     Mismatch {
@@ -47,6 +48,7 @@ impl std::fmt::Display for Error {
         | ErrorKind::InitLength => format!("Initialization mismatch"),
         | ErrorKind::InitProcedure => format!("Cannot initialize with a procedure"),
         | ErrorKind::Unreachable => format!("Unreachable statement"),
+        | ErrorKind::MissingReturn => format!("Missing return statement"),
         | ErrorKind::NameClash => format!("Name already bound in environment"),
         | ErrorKind::SigMismatch => format!("Implementation does not match signature"),
         | ErrorKind::Mismatch { expected, found } => format!("Expected {} but found {}", expected, found),
