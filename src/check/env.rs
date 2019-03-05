@@ -7,6 +7,7 @@ use crate::util::symbol;
 pub enum Entry {
     Var(typ::Exp),
     Fun(Vec<typ::Exp>, typ::Typ),
+    Sig(Vec<typ::Exp>, typ::Typ),
 }
 
 #[derive(Clone, Debug)]
@@ -36,6 +37,15 @@ impl Env {
         self.stack.last_mut()
             .expect("[INTERNAL ERROR]: missing top-level environment")
             .insert(symbol, entry);
+    }
+
+    pub fn remove(&mut self, name: symbol::Symbol) -> Option<Entry> {
+        for map in self.stack.iter_mut().rev() {
+            if let Some(entry) = map.remove(&name) {
+                return Some(entry)
+            }
+        }
+        None
     }
 
     pub fn push(&mut self) {

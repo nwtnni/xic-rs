@@ -40,6 +40,17 @@ pub struct Fun {
     pub span: span::Span,
 }
 
+impl AsRef<Sig> for Fun {
+    fn as_ref(&self) -> &Sig {
+        &Sig {
+            name: self.name,
+            args: self.args,
+            rets: self.rets,
+            span: self.span,
+        }
+    }
+}
+
 /// Represents a primitive type.
 #[derive(Clone, Debug)]
 pub enum Typ {

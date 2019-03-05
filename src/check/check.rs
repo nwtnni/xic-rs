@@ -50,17 +50,39 @@ impl Checker {
         unimplemented!()
     }
 
-    fn load_sig(&mut self, sig: &ast::Sig) -> Result<(), error::Error> {
-        unimplemented!()
+    fn load_fun(&mut self, fun: &ast::Fun) -> Result<(), error::Error> {
+        let (name, args, rets) = self.check_sig(fun.as_ref())?;
+        match self.env.remove(name) {
+        | Some(env::Entry::Sig(i, o)) => {
+            if args.len() != i.len() {
+                bail!(fun.span, ErrorKind::SigMismatch)
+            }
+            for (arg, param) in args.iter().zip(i.iter()) {
+                if !arg.subtypes(param) {
+                    bail!(fun.span, ErrorKind::SigMismatch)
+                }
+            }
+            if !rets.subtypes(&o) {
+                bail!(fun.span, ErrorKind::SigMismatch)
+            }
+            self.env.insert(name, env::Entry::Fun(i, o));
+            Ok(())
+        }
+        | None => {
+            self.env.insert(name, env::Entry::Fun(args, rets));
+            Ok(())
+        },
+        | Some(_) => bail!(fun.span, ErrorKind::NameClash),
+        }
     }
 
-    fn load_fun(&mut self, fun: &ast::Fun) -> Result<(), error::Error> {
-        let mut args = fun.args.iter()
+    fn check_sig(&self, sig: &ast::Sig) -> Result<(symbol::Symbol, Vec<typ::Exp>, typ::Typ), error::Error> {
+        let mut args = sig.args.iter()
             .map(|dec| dec.typ)
             .map(|typ| self.check_typ(&typ))
             .collect::<Result<Vec<_>, _>>()?;
 
-        let mut rets = fun.rets.iter()
+        let mut rets = sig.rets.iter()
             .map(|typ| self.check_typ(&typ))
             .collect::<Result<Vec<_>, _>>()?;
 
@@ -70,10 +92,7 @@ impl Checker {
         | _ => typ::Typ::Tup(rets),
         };
 
-        let entry = env::Entry::Fun(args, rets);
-        self.env.insert(fun.name, entry);
-        Ok(())
-
+        Ok((sig.name, args, rets))
     }
 
     fn check_typ(&self, typ: &ast::Typ) -> Result<typ::Exp, error::Error> {
@@ -99,6 +118,7 @@ impl Checker {
 
     fn check_call(&self, call: &ast::Call) -> Result<typ::Typ, error::Error> {
         let (params, rets) = match self.env.get(call.name) {
+        | Some(env::Entry::Sig(i, o))
         | Some(env::Entry::Fun(i, o)) => (i, o),
         | Some(_) => bail!(call.span, ErrorKind::NotFun),
         | None => bail!(call.span, ErrorKind::UnboundFun),
