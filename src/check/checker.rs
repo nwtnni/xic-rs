@@ -185,6 +185,7 @@ impl Checker {
     }
 
     fn check_dec(&mut self, dec: &ast::Dec) -> Result<typ::Exp, error::Error> {
+        if self.env.get(dec.name).is_some() { bail!(dec.span, ErrorKind::NameClash) }
         let typ = self.check_typ(&dec.typ)?;
         self.env.insert(dec.name, env::Entry::Var(typ.clone()));
         Ok(typ)
