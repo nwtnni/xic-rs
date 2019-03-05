@@ -48,7 +48,7 @@ impl Checker {
         program: &ast::Program
     ) -> Result<(), error::Error> {
         for path in &program.uses {
-            let path = lib.join(symbol::resolve(path.name));
+            let path = lib.join(symbol::resolve(path.name).to_string() + ".ixi");
             let source = std::fs::read_to_string(path)?;
             let lexer = lex::Lexer::new(&source);
             let interface = parse::InterfaceParser::new().parse(lexer)?;
