@@ -46,15 +46,15 @@ impl Checker {
         Ok(())
     }
 
-    pub fn load_interface(&mut self, interface: &ast::Interface) {
+    fn load_interface(&mut self, interface: &ast::Interface) {
         unimplemented!()
     }
 
-    pub fn load_sig(&mut self, sig: &ast::Sig) -> Result<(), error::Error> {
+    fn load_sig(&mut self, sig: &ast::Sig) -> Result<(), error::Error> {
         unimplemented!()
     }
 
-    pub fn load_fun(&mut self, fun: &ast::Fun) -> Result<(), error::Error> {
+    fn load_fun(&mut self, fun: &ast::Fun) -> Result<(), error::Error> {
         unimplemented!()
     }
 
@@ -75,11 +75,11 @@ impl Checker {
         }
     }
 
-    pub fn check_fun(&mut self, fun: &ast::Fun) -> Result<(), error::Error> {
+    fn check_fun(&mut self, fun: &ast::Fun) -> Result<(), error::Error> {
         unimplemented!()
     }
 
-    pub fn check_call(&self, call: &ast::Call) -> Result<typ::Typ, error::Error> {
+    fn check_call(&self, call: &ast::Call) -> Result<typ::Typ, error::Error> {
         let (i, o) = match self.env.get(call.name) {
         | Some(env::Entry::Fun(i, o)) => (i, o),
         | Some(_) => bail!(call.span, ErrorKind::NotFun),
@@ -120,13 +120,13 @@ impl Checker {
         }
     }
 
-    pub fn check_dec(&mut self, dec: &ast::Dec) -> Result<typ::Typ, error::Error> {
+    fn check_dec(&mut self, dec: &ast::Dec) -> Result<typ::Typ, error::Error> {
         let typ = self.check_typ(&dec.typ)?;
         self.env.insert(dec.name, env::Entry::Var(typ.clone()));
         Ok(typ::Typ::Exp(typ))
     }
 
-    pub fn check_exp(&self, exp: &ast::Exp) -> Result<typ::Typ, error::Error> {
+    fn check_exp(&self, exp: &ast::Exp) -> Result<typ::Typ, error::Error> {
         use ast::{Exp, Uno};
         match exp {
         | Exp::Bool(_, _) => Ok(typ::Typ::boolean()),
@@ -205,13 +205,13 @@ impl Checker {
         }
     }
 
-    pub fn check_stm(&mut self, stm: &ast::Stm) -> Result<typ::Stm, error::Error> {
+    fn check_stm(&mut self, stm: &ast::Stm) -> Result<typ::Stm, error::Error> {
         use ast::Stm;
         match stm {
         | Stm::Ass(lhs, rhs, _) => {
             let l = self.check_exp(lhs)?;
             let r = self.check_exp(rhs)?;
-            if l.subtypes(&r) {
+            if r.subtypes(&l) {
                 Ok(typ::Stm::Unit)
             } else {
                 expected!(rhs.span(), l, r)
@@ -283,5 +283,4 @@ impl Checker {
         | _ => unimplemented!(),
         }
     }
-
 }
