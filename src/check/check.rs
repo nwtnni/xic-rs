@@ -8,13 +8,19 @@ use crate::lex;
 use crate::parse;
 use crate::util::symbol;
 
+macro_rules! bail {
+    ($span:expr, $kind:expr) => {
+        return Err(Error::new($span, $kind).into())
+    }
+}
+
 macro_rules! expected {
     ($span:expr, $expected:expr, $found:expr) => {{
         let kind = ErrorKind::Mismatch {
             expected: $expected,
             found: $found,
         };
-        return Err(Error::new($span, kind).into())
+        bail!($span, kind)
     }}
 }
 
@@ -76,8 +82,8 @@ impl Checker {
     pub fn check_call(&self, call: &ast::Call) -> Result<typ::Typ, error::Error> {
         let (i, o) = match self.env.get(call.name) {
         | Some(env::Entry::Fun(i, o)) => (i, o),
-        | Some(_) => return Err(Error::new(call.span, ErrorKind::NotFun).into()),
-        | None => return Err(Error::new(call.span, ErrorKind::UnboundFun).into()),
+        | Some(_) => bail!(call.span, ErrorKind::NotFun),
+        | None => bail!(call.span, ErrorKind::UnboundFun),
         };
         
         // Type check each argument to an expression type
@@ -85,23 +91,23 @@ impl Checker {
         for arg in &call.args {
             match self.check_exp(arg)? {
             | typ::Typ::Exp(typ) => typs.push((typ, arg.span())),
-            | _ => return Err(Error::new(arg.span(), ErrorKind::NotExp).into()),
+            | _ => bail!(arg.span(), ErrorKind::NotExp),
             }
         }
         
         match i {
         | typ::Typ::Exp(i) => {
             if typs.len() != 1 {
-                Err(Error::new(call.span, ErrorKind::CallLength).into())
+                bail!(call.span, ErrorKind::CallLength)
             } else if !typs[0].0.subtypes(i) {
-                expected!(typs[0].1, typ::Typ::Exp(i.clone()), typ::Typ::Exp(typs[0].0))
+                expected!(typs[0].1, typ::Typ::Exp(i.clone()), typ::Typ::Exp(typs[0].0.clone()))
             } else {
                 Ok(o.clone())
             }
         }
         | typ::Typ::Tup(is) => {
             if typs.len() != is.len() {
-                return Err(Error::new(call.span, ErrorKind::CallLength).into())
+                bail!(call.span, ErrorKind::CallLength)
             }
             for ((typ, span), i) in typs.into_iter().zip(is.iter()) {
                 if !typ.subtypes(i) {
@@ -130,8 +136,8 @@ impl Checker {
         | Exp::Var(v, span) => {
             match self.env.get(*v) {
             | Some(env::Entry::Var(typ)) => Ok(typ::Typ::Exp(typ.clone())),
-            | Some(_) => Err(Error::new(*span, ErrorKind::NotVar))?,
-            | None => Err(Error::new(*span, ErrorKind::UnboundVar))?,
+            | Some(_) => bail!(*span, ErrorKind::NotVar),
+            | None => bail!(*span, ErrorKind::UnboundVar),
             }
         }
         | Exp::Arr(exps, _) => {
@@ -174,8 +180,7 @@ impl Checker {
             match (self.check_exp(arr)?, self.check_exp(idx)?) {
             | (typ::Typ::Exp(typ::Exp::Arr(typ)), typ::Typ::Exp(typ::Exp::Int)) => {
                 if *typ == typ::Exp::Any {
-                    let kind = ErrorKind::IndexEmpty;
-                    Err(Error::new(*span, kind).into())
+                    bail!(*span, ErrorKind::IndexEmpty)
                 } else {
                     Ok(typ::Typ::Exp(*typ))
                 }
@@ -231,7 +236,7 @@ impl Checker {
                 for ret in rets {
                     match self.check_exp(ret)? {
                     | typ::Typ::Exp(typ) => typs.push(typ),
-                    | _ => return Err(Error::new(ret.span(), ErrorKind::NotExp).into())
+                    | _ => bail!(ret.span(), ErrorKind::NotExp),
                     }
                 }
                 typ::Typ::Tup(typs)
@@ -241,7 +246,7 @@ impl Checker {
             if ret.subtypes(self.env.get_return()) {
                 Ok(typ::Stm::Void)
             } else {
-                Err(Error::new(*span, ErrorKind::WrongReturn).into())
+                bail!(*span, ErrorKind::WrongReturn)
             }
         }
         | _ => unimplemented!(),
