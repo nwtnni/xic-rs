@@ -5,7 +5,7 @@ import subprocess
 
 def run_xth(path):
     script = path + "/xthScript"
-    subprocess.run(["xth/xth", "-testpath", path, script])
+    subprocess.run(["xth/xth", "-compilerpath", ".", "-workpath", ".", "-testpath", path, script])
 
 
 def run_staff(project):

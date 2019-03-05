@@ -79,7 +79,6 @@ xic ("Test --typecheck") "--libpath $(testpath) --typecheck" {
     ex06.xi (Semantic, "Name .* cannot be resolved");
     ex07.xi (Semantic, "Expected .*, but found .*");
     ex08.xi (Semantic, "Missing return");
-    ex09.xi (Semantic, "Expected function call");
     ex10.xi (Semantic, "Mismatched number of values");
     ex11.xi (Semantic, "Expected .*, but found .*");
     ex12.xi (Semantic, "not a function");

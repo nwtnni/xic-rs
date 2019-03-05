@@ -70,7 +70,6 @@ xic ("Manual tests") "--typecheck" {
     bad_pa3-6.xi;
     bad_pa3-7.xi;
     bad_pa3-8.xi;
-    bad_pa3-9.xi;
     bad_pa3-10.xi;
     bad_pa3-11.xi;
     bad_pa3-12.xi;
