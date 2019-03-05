@@ -265,6 +265,16 @@ impl Checker {
             }
             }
         }
+        | Exp::Call(call) if call.name == symbol::intern("length") => {
+            if call.args.len() != 1 {
+                bail!(call.span, ErrorKind::CallLength)
+            }
+
+            match self.check_exp(&call.args[0])? {
+            | typ::Typ::Exp(typ::Exp::Arr(_)) => Ok(typ::Typ::int()),
+            | typ => expected!(call.span, typ::Typ::array(typ::Exp::Any), typ),
+            }
+        }
         | Exp::Call(call) => self.check_call(call),
         }
     }

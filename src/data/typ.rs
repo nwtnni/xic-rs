@@ -23,7 +23,7 @@ impl std::fmt::Display for Exp {
         match self {
         | Exp::Int => write!(fmt, "int"),
         | Exp::Bool => write!(fmt, "bool"),
-        | Exp::Any => write!(fmt, "null"), // Panic?
+        | Exp::Any => write!(fmt, "any"), // Panic?
         | Exp::Arr(typ) => write!(fmt, "{}[]", typ),
         }
     }
