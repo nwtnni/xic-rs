@@ -250,6 +250,7 @@ impl Checker {
             }
         }
         | Stm::Seq(stms, _) => {
+            self.env.push();
             let mut typ = typ::Stm::Unit;
             for stm in stms {
                 if self.check_stm(stm)? == typ::Stm::Void {
@@ -258,6 +259,7 @@ impl Checker {
                     bail!(stm.span(), ErrorKind::Unreachable)
                 }
             }
+            self.env.pop();
             Ok(typ)
         }
         | Stm::If(cond, pass, fail, _) => {
@@ -265,9 +267,18 @@ impl Checker {
             | typ::Typ::Exp(typ::Exp::Bool) => (),
             | typ => expected!(cond.span(), typ::Typ::boolean(), typ),
             };
+
+            self.env.push();
             let pass = self.check_stm(pass)?;
+            self.env.pop();
+
             if let None = fail { return Ok(pass) }
-            match (pass, self.check_stm(fail.as_ref().unwrap())?) {
+
+            self.env.push();
+            let fail = self.check_stm(fail.as_ref().unwrap())?;
+            self.env.pop();
+
+            match (pass, fail) {
             | (typ::Stm::Void, typ::Stm::Void) => Ok(typ::Stm::Void),
             | _ => Ok(typ::Stm::Unit),
             }
@@ -277,7 +288,9 @@ impl Checker {
             | typ::Typ::Exp(typ::Exp::Bool) => (),
             | typ => expected!(cond.span(), typ::Typ::boolean(), typ),
             };
+            self.env.push();
             self.check_stm(body)?;
+            self.env.pop();
             Ok(typ::Stm::Unit)
         }
         | _ => unimplemented!(),
