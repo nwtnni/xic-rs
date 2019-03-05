@@ -6,13 +6,13 @@ use crate::util::symbol;
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Entry {
     Var(typ::Exp),
-    Ret(typ::Typ),
     Fun(typ::Typ, typ::Typ),
 }
 
 #[derive(Clone, Debug)]
 pub struct Env {
     stack: Vec<HashMap<symbol::Symbol, Entry>>,
+    ret: Option<typ::Typ>,
 }
 
 impl Env {
@@ -41,5 +41,13 @@ impl Env {
 
     pub fn pop(&mut self) {
         self.stack.pop();
+    }
+
+    pub fn set_return(&mut self, typ: typ::Typ) {
+        self.ret = Some(typ);
+    }
+
+    pub fn unset_return(&mut self) {
+        self.ret = None;
     }
 }

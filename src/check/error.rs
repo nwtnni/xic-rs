@@ -16,8 +16,12 @@ impl Error {
 #[derive(Clone, Debug)]
 pub enum ErrorKind {
     UnboundVar,
-    NotVarTyp,
+    UnboundFun,
+    NotVar,
+    NotFun,
+    NotExp,
     IndexEmpty,
+    CallLength,
     Mismatch {
         expected: typ::Typ,
         found: typ::Typ,

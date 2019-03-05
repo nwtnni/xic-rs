@@ -32,6 +32,26 @@ pub enum Typ {
 }
 
 impl Typ {
+    #[inline(always)]
+    pub fn any() -> Self {
+        Typ::Exp(Exp::Any)
+    }
+
+    #[inline(always)]
+    pub fn int() -> Self {
+        Typ::Exp(Exp::Int)
+    }
+
+    #[inline(always)]
+    pub fn boolean() -> Self {
+        Typ::Exp(Exp::Bool)
+    }
+
+    #[inline(always)]
+    pub fn array(typ: Exp) -> Self {
+        Typ::Exp(Exp::Arr(Box::new(typ)))
+    }
+
     pub fn subtypes(&self, rhs: &Typ) -> bool {
         match (self, rhs) {
         | (Typ::Exp(l), Typ::Exp(r)) => l.subtypes(r),
