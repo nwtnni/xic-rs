@@ -6,6 +6,7 @@ use crate::check::{Error, ErrorKind};
 use crate::check::env;
 use crate::lex;
 use crate::parse;
+use crate::util::span;
 use crate::util::symbol;
 
 macro_rules! bail {
@@ -46,8 +47,28 @@ impl Checker {
         Ok(())
     }
 
-    fn load_interface(&mut self, interface: &ast::Interface) {
-        unimplemented!()
+    fn load_interface(&mut self, interface: &ast::Interface) -> Result<(), error::Error> {
+        for sig in &interface.sigs {
+            let (name, args, rets) = self.check_sig(sig)?;
+            match self.env.get(name) {
+            | Some(env::Entry::Sig(i, o)) => {
+                if args.len() != i.len() {
+                    bail!(sig.span, ErrorKind::NameClash)
+                }
+                for (arg, param) in args.iter().zip(i.iter()) {
+                    if arg != param {
+                        bail!(sig.span, ErrorKind::NameClash)
+                    }
+                }
+                if rets != *o {
+                    bail!(sig.span, ErrorKind::NameClash)
+                }
+            }
+            | Some(_) => bail!(sig.span, ErrorKind::NameClash),
+            | None => self.env.insert(name, env::Entry::Sig(args, rets)),
+            }
+        }
+        Ok(())
     }
 
     fn load_fun(&mut self, fun: &ast::Fun) -> Result<(), error::Error> {
@@ -77,9 +98,9 @@ impl Checker {
     }
 
     fn check_sig(&self, sig: &ast::Sig) -> Result<(symbol::Symbol, Vec<typ::Exp>, typ::Typ), error::Error> {
-        let mut args = sig.args.iter()
-            .map(|dec| dec.typ)
-            .map(|typ| self.check_typ(&typ))
+        let args = sig.args.iter()
+            .map(|dec| &dec.typ)
+            .map(|typ| self.check_typ(typ))
             .collect::<Result<Vec<_>, _>>()?;
 
         let mut rets = sig.rets.iter()
@@ -130,8 +151,8 @@ impl Checker {
 
         for (arg, param) in call.args.iter().zip(params.iter()) {
             match self.check_exp(arg)? {
-            | typ::Typ::Exp(typ) if !typ.subtypes(param) => {
-                expected!(arg.span(), typ::Typ::Exp(param.clone()), typ::Typ::Exp(typ))
+            | typ::Typ::Exp(ref typ) if !typ.subtypes(param) => {
+                expected!(arg.span(), typ::Typ::Exp(param.clone()), typ::Typ::Exp(typ.clone()))
             }
             | typ::Typ::Exp(_) => (),
             | _ => bail!(arg.span(), ErrorKind::NotExp),
