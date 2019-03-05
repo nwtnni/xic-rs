@@ -1,0 +1,2 @@
+max(a:int, b:int) : int
+min(a: int, b:int) : int

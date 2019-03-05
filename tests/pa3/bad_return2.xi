@@ -1,0 +1,3 @@
+foo(): int {
+    return true
+}
