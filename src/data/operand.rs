@@ -17,10 +17,26 @@ pub enum Label {
     Gen(symbol::Symbol, usize),
 }
 
+impl Label {
+    pub fn new(label: &'static str) -> Self {
+        let idx = LABELS.fetch_add(1, Ordering::SeqCst);
+        let sym = symbol::intern(label);
+        Label::Gen(sym, idx)
+    }
+}
+
 #[derive(Copy, Clone, Debug, PartialEq, Eq, Hash)]
 pub enum Temp {
     Reg(Reg),
     Gen(symbol::Symbol, usize),
+}
+
+impl Temp {
+    pub fn new(label: &'static str) -> Self {
+        let idx = TEMPS.fetch_add(1, Ordering::SeqCst);
+        let sym = symbol::intern(label);
+        Temp::Gen(sym, idx)
+    }
 }
 
 impl std::fmt::Display for Temp {
