@@ -1,11 +1,16 @@
+use std::collections::HashMap;
+
 use crate::check;
 use crate::data::ast;
 use crate::data::ir;
 use crate::data::hir;
+use crate::data::operand;
+use crate::util::symbol;
 
 #[derive(Debug)]
 pub struct Emitter {
     env: check::Env,
+    data: HashMap<symbol::Symbol, operand::Label>,
 }
 
 const XI_ALLOC: &'static str = "_xi_alloc";

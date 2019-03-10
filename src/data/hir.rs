@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use crate::data::ir;
 use crate::data::operand;
 

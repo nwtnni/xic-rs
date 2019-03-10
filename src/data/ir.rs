@@ -9,6 +9,7 @@ use crate::util::symbol;
 pub struct Unit<F: IR>  {
     pub name: symbol::Symbol,
     pub funs: HashMap<operand::Label, F>,
+    pub data: HashMap<symbol::Symbol, operand::Label>,
 }
 
 pub trait IR {}
