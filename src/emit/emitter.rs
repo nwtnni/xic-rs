@@ -27,21 +27,21 @@ impl Emitter {
         unimplemented!()
     }
 
-    fn emit_exp(&mut self, exp: &ast::Exp) -> hir::Exp {
+    fn emit_exp(&mut self, exp: &ast::Exp) -> hir::Tree {
         use ast::Exp::*;
         match exp {
-        | Bool(false, _) => hir::Exp::Int(0),
-        | Bool(true, _) => hir::Exp::Int(1),
-        | Int(i, _) => hir::Exp::Int(*i),
-        | Chr(c, _) => hir::Exp::Int(*c as i64),
+        | Bool(false, _) => hir::Exp::Int(0).into(),
+        | Bool(true, _) => hir::Exp::Int(1).into(),
+        | Int(i, _) => hir::Exp::Int(*i).into(),
+        | Chr(c, _) => hir::Exp::Int(*c as i64).into(),
         | Str(s, _) => {
             let symbol = symbol::intern(s);
             let label = *self.data
                 .entry(symbol)
                 .or_insert_with(|| operand::Label::new("STR"));
-            hir::Exp::Name(label)
+            hir::Exp::Name(label).into()
         }
-        | Var(v, _) => hir::Exp::Temp(self.vars[v]),
+        | Var(v, _) => hir::Exp::Temp(self.vars[v]).into(),
         | Arr(vs, _) => {
 
             let alloc = Self::emit_alloc(vs.len());
@@ -52,7 +52,7 @@ impl Emitter {
             seq.push(hir::Stm::Move(base.clone(), hir::Exp::Int(vs.len() as i64)));
 
             for (i, v) in vs.iter().enumerate() {
-                let entry = self.emit_exp(v);
+                let entry = self.emit_exp(v).into();
                 let offset = hir::Exp::Int(((i + 1) * WORD_SIZE) as i64);
                 let address = hir::Exp::Mem(Box::new(
                     hir::Exp::Bin(
@@ -67,7 +67,65 @@ impl Emitter {
             hir::Exp::ESeq(
                 Box::new(hir::Stm::Seq(seq)),
                 Box::new(base)
-            )
+            ).into()
+        }
+        | Bin(bin, lhs, rhs, _) => {
+            let lhs = self.emit_exp(lhs);
+            let rhs = self.emit_exp(rhs);
+
+            if let Some(binop) = match bin {
+            | ast::Bin::Mul => Some(ir::Bin::Mul),
+            | ast::Bin::Hul => Some(ir::Bin::Hul),
+            | ast::Bin::Mod => Some(ir::Bin::Mod),
+            | ast::Bin::Div => Some(ir::Bin::Div),
+            | ast::Bin::Add => Some(ir::Bin::Add),
+            | ast::Bin::Sub => Some(ir::Bin::Sub),
+            | _ => None,
+            } {
+                return hir::Exp::Bin(
+                    binop,
+                    Box::new(lhs.into()),
+                    Box::new(rhs.into()),
+                ).into()
+            }
+
+            if let Some(relop) = match bin {
+            | ast::Bin::Lt => Some(ir::Rel::Lt),
+            | ast::Bin::Le => Some(ir::Rel::Le),
+            | ast::Bin::Ge => Some(ir::Rel::Ge),
+            | ast::Bin::Gt => Some(ir::Rel::Gt),
+            | ast::Bin::Ne => Some(ir::Rel::Ne),
+            | ast::Bin::Eq => Some(ir::Rel::Eq),
+            | _ => None,
+            } {
+                return hir::Tree::Cx(Box::new(move |t, f| {
+                    hir::Stm::CJump(relop, lhs.into(), rhs.into(), t, f)
+                }))
+            }
+
+            match bin {
+            | ast::Bin::And => {
+                hir::Tree::Cx(Box::new(move |t, f| {
+                    let and = operand::Label::new("AND");
+                    hir::Stm::Seq(vec![
+                        hir::Con::from(lhs)(and, f),
+                        hir::Stm::Label(and),
+                        hir::Con::from(rhs)(t, f),
+                    ])
+                }))
+            }
+            | ast::Bin::Or => {
+                hir::Tree::Cx(Box::new(move |t, f| {
+                    let or = operand::Label::new("OR");
+                    hir::Stm::Seq(vec![
+                        hir::Con::from(lhs)(t, or),
+                        hir::Stm::Label(or),
+                        hir::Con::from(rhs)(t, f),
+                    ])
+                }))
+            }
+            | _ => panic!("[INTERNAL ERROR]: missing binary operator in IR emission"),
+            }
         }
         | _ => unimplemented!(),
         }
