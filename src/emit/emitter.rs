@@ -177,12 +177,18 @@ impl Emitter {
                 Box::new(offset)
             ).into()
         }
-        // | Call(ast::Call { name, args, .. }) => {
-            
-
-
-        // }
-        | _ => unimplemented!(),
+        | Call(ast::Call { name, args, ..}) if *name == symbol::intern("length") => {
+            let address = self.emit_exp(&args[0]).into();
+            hir::Exp::Mem(Box::new(address)).into()
+        }
+        | Call(ast::Call { name, args, .. }) => {
+            hir::Exp::Call(
+                Box::new(hir::Exp::Name(operand::Label::Fix(self.mangle_fun(*name)))),
+                args.iter()
+                    .map(|arg| self.emit_exp(arg).into())
+                    .collect(),
+            ).into()
+        }
         }
     }
 
