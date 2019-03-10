@@ -127,6 +127,20 @@ impl Emitter {
             | _ => panic!("[INTERNAL ERROR]: missing binary operator in IR emission"),
             }
         }
+        | Uno(ast::Uno::Neg, exp, _) => {
+            hir::Exp::Bin(
+                ir::Bin::Sub, 
+                Box::new(hir::Exp::Int(0)),
+                Box::new(self.emit_exp(exp).into()),
+            ).into()
+        }
+        | Uno(ast::Uno::Not, exp, _) => {
+            hir::Exp::Bin(
+                ir::Bin::Xor,
+                Box::new(hir::Exp::Int(1)),
+                Box::new(self.emit_exp(exp).into()),
+            ).into()
+        }
         | _ => unimplemented!(),
         }
     }
