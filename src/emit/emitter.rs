@@ -141,6 +141,40 @@ impl Emitter {
                 Box::new(self.emit_exp(exp).into()),
             ).into()
         }
+        | Idx(arr, idx, _) => {
+            let address = hir::Exp::from(self.emit_exp(&*arr));
+            let memory = hir::Exp::Mem(Box::new(address.clone()));
+            let index = hir::Exp::Temp(operand::Temp::new("INDEX"));
+            let offset = hir::Exp::Bin(
+                ir::Bin::Add,
+                Box::new(address),
+                Box::new(hir::Exp::Bin(
+                    ir::Bin::Mul,
+                    Box::new(hir::Exp::Int(WORD_SIZE as i64)),
+                    Box::new(hir::Exp::Bin(
+                        ir::Bin::Add,
+                        Box::new(hir::Exp::Int(1)),
+                        Box::new(index.clone()),
+                    )),
+                )),
+            );
+
+            let lo = operand::Label::new("LOW_BOUND");
+            let hi = operand::Label::new("HIGH_BOUND");
+            let fail = operand::Label::Fix(symbol::intern(XI_OUT_OF_BOUNDS));
+
+            let mut seq = Vec::new();
+            seq.push(hir::Stm::Move(index.clone(), self.emit_exp(&*idx).into()));
+            seq.push(hir::Stm::CJump(ir::Rel::Ge, index.clone(), hir::Exp::Int(0), lo, fail));
+            seq.push(hir::Stm::Label(lo));
+            seq.push(hir::Stm::CJump(ir::Rel::Lt, index.clone(), memory.clone(), hi, fail));
+            seq.push(hir::Stm::Label(hi));
+
+            hir::Exp::ESeq(
+                Box::new(hir::Stm::Seq(seq)),
+                Box::new(offset)
+            ).into()
+        }
         | _ => unimplemented!(),
         }
     }
