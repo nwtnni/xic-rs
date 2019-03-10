@@ -4,6 +4,7 @@ use crate::check;
 use crate::data::ast;
 use crate::data::ir;
 use crate::data::hir;
+use crate::data::typ;
 use crate::data::operand;
 use crate::util::symbol;
 
@@ -12,6 +13,7 @@ pub struct Emitter {
     env: check::Env,
     data: HashMap<symbol::Symbol, operand::Label>,
     vars: HashMap<symbol::Symbol, operand::Temp>,
+    funs: HashMap<symbol::Symbol, symbol::Symbol>,
 }
 
 const XI_ALLOC: &'static str = "_xi_alloc";
@@ -175,6 +177,11 @@ impl Emitter {
                 Box::new(offset)
             ).into()
         }
+        // | Call(ast::Call { name, args, .. }) => {
+            
+
+
+        // }
         | _ => unimplemented!(),
         }
     }
@@ -188,5 +195,52 @@ impl Emitter {
 
     fn emit_stm(&mut self, stm: &ast::Stm) -> hir::Stm {
         unimplemented!()
+    }
+
+    fn mangle_fun(&mut self, fun: symbol::Symbol) -> symbol::Symbol {
+        if let Some(mangled) = self.funs.get(&fun) {
+            return *mangled
+        }
+
+        let (is, os) = match self.env.get(fun) {
+        | Some(check::Entry::Fun(is, os))
+        | Some(check::Entry::Sig(is, os)) => (is, os),
+        | _ => panic!("[INTERNAL ERROR]: type checking failed"),
+        };
+
+        let mut mangled = format!(
+            "_I{}_",
+            symbol::resolve(fun).replace("_", "__"),
+        );
+
+        match os {
+        | typ::Typ::Unit => mangled.push('p'),
+        | typ::Typ::Exp(typ) => {
+            Self::mangle_typ(typ, &mut mangled);
+        }
+        | typ::Typ::Tup(typs) => {
+            mangled.push('t');
+            mangled.push_str(&typs.len().to_string());
+            for typ in typs { Self::mangle_typ(typ, &mut mangled); }
+        }
+        }
+
+        for typ in is { Self::mangle_typ(typ, &mut mangled); }
+
+        let mangled = symbol::intern(mangled);
+        self.funs.insert(fun, mangled);
+        mangled
+    }
+
+    fn mangle_typ(typ: &typ::Exp, mangled: &mut String) {
+        match typ {
+        | typ::Exp::Any => panic!("[INTERNAL ERROR]: any type in IR"),
+        | typ::Exp::Int => mangled.push('i'),
+        | typ::Exp::Bool => mangled.push('b'),
+        | typ::Exp::Arr(typ) => {
+            mangled.push('a');
+            Self::mangle_typ(&*typ, mangled);
+        }
+        }
     }
 }

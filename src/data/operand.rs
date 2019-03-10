@@ -28,6 +28,8 @@ impl Label {
 #[derive(Copy, Clone, Debug, PartialEq, Eq, Hash)]
 pub enum Temp {
     Reg(Reg),
+    Arg(usize),
+    Ret(usize),
     Gen(symbol::Symbol, usize),
 }
 
