@@ -1,5 +1,8 @@
 #![feature(box_patterns)]
 
+#[macro_use]
+extern crate maplit;
+
 pub mod data;
 pub mod lex;
 pub mod parse;
