@@ -20,12 +20,27 @@ const XI_OUT_OF_BOUNDS: &'static str = "_xi_out_of_bounds";
 const WORD_SIZE: usize = 8;
 
 impl Emitter {
-    pub fn emit_program(self, ast: &ast::Program) -> ir::Unit<hir::Fun> {
-        unimplemented!()
+    pub fn emit_program(mut self, ast: &ast::Program) -> ir::Unit<hir::Fun> {
+        let mut funs = HashMap::with_capacity(ast.funs.len());
+        for fun in &ast.funs {
+            let ir = self.emit_fun(fun);
+            let id = self.mangle_fun(fun.name);
+            funs.insert(id, ir);
+        }
+        ir::Unit {
+            name: symbol::intern("program"),
+            funs: funs,
+            data: self.data,
+        }
     }
 
     fn emit_fun(&mut self, fun: &ast::Fun) -> hir::Fun {
-        unimplemented!()
+        let mut vars = HashMap::default();
+        hir::Fun {
+            name: self.mangle_fun(fun.name),
+            body: self.emit_stm(&fun.body, &mut vars),
+            vars: vars,
+        }
     }
 
     fn emit_exp(&mut self, exp: &ast::Exp, vars: &HashMap<symbol::Symbol, operand::Temp>) -> hir::Tree {

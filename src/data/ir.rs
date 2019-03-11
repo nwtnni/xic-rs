@@ -8,7 +8,7 @@ use crate::util::symbol;
 #[derive(Clone, Debug)]
 pub struct Unit<F: IR>  {
     pub name: symbol::Symbol,
-    pub funs: HashMap<operand::Label, F>,
+    pub funs: HashMap<symbol::Symbol, F>,
     pub data: HashMap<symbol::Symbol, operand::Label>,
 }
 

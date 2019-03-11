@@ -7,7 +7,7 @@ use crate::util::symbol;
 
 #[derive(Clone, Debug)]
 pub struct Fun {
-    pub name: operand::Label,
+    pub name: symbol::Symbol,
     pub body: Stm,
     pub vars: HashMap<symbol::Symbol, operand::Temp>,
 }
