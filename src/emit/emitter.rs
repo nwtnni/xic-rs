@@ -236,7 +236,57 @@ impl Emitter {
 
             hir::Stm::Seq(seq)
         }
-        | _ => unimplemented!(),
+        | Dec(dec, _) => hir::Stm::Move(self.emit_dec(dec, vars), hir::Exp::Int(0)),
+        | Ret(exps, _) => {
+            hir::Stm::Return(
+                exps.iter()
+                    .map(|exp| self.emit_exp(exp, vars).into())
+                    .collect()
+            )
+        }
+        | Seq(stms, _) => {
+            hir::Stm::Seq(
+                stms.iter()
+                    .map(|stm| self.emit_stm(stm, vars))
+                    .collect()
+            )
+        }
+        | If(cond, pass, None, _) => {
+            let t = operand::Label::new("TRUE");
+            let f = operand::Label::new("FALSE");
+            hir::Stm::Seq(vec![
+                hir::Con::from(self.emit_exp(cond, vars))(t, f),
+                hir::Stm::Label(t),
+                self.emit_stm(pass, vars),
+                hir::Stm::Label(f),
+            ])
+        }
+        | If(cond, pass, Some(fail), _) => {
+            let t = operand::Label::new("TRUE");
+            let f = operand::Label::new("FALSE");
+            let done = operand::Label::new("DONE");
+            hir::Stm::Seq(vec![
+                hir::Con::from(self.emit_exp(cond, vars))(t, f),
+                hir::Stm::Label(t),
+                self.emit_stm(pass, vars),
+                hir::Stm::Jump(hir::Exp::Name(done)),
+                hir::Stm::Label(f),
+                self.emit_stm(fail, vars),
+                hir::Stm::Label(done),
+            ])
+        }
+        | While(cond, body, _) => {
+            let h = operand::Label::new("WHILE");
+            let t = operand::Label::new("TRUE");
+            let f = operand::Label::new("FALSE");
+            hir::Stm::Seq(vec![
+                hir::Stm::Label(h),
+                hir::Con::from(self.emit_exp(cond, vars))(t, f),
+                self.emit_stm(body, vars),
+                hir::Stm::Jump(hir::Exp::Name(h)),
+                hir::Stm::Label(f),
+            ])
+        }
         }
     }
 
