@@ -180,15 +180,17 @@ impl Emitter {
             let address = self.emit_exp(&args[0], vars).into();
             hir::Exp::Mem(Box::new(address)).into()
         }
-        | Call(ast::Call { name, args, .. }) => {
-            hir::Exp::Call(
-                Box::new(hir::Exp::Name(operand::Label::Fix(self.mangle_fun(*name)))),
-                args.iter()
-                    .map(|arg| self.emit_exp(arg, vars).into())
-                    .collect(),
-            ).into()
+        | Call(call) => self.emit_call(call, vars).into(),
         }
-        }
+    }
+
+    fn emit_call(&mut self, call: &ast::Call, vars: &HashMap<symbol::Symbol, operand::Temp>) -> hir::Exp {
+        hir::Exp::Call(
+            Box::new(hir::Exp::Name(operand::Label::Fix(self.mangle_fun(call.name)))),
+            call.args.iter()
+                .map(|arg| self.emit_exp(arg, vars).into())
+                .collect(),
+        )
     }
 
     fn emit_alloc(length: usize) -> hir::Exp {
@@ -198,8 +200,18 @@ impl Emitter {
         hir::Exp::Call(Box::new(alloc), vec![size])
     }
 
-    fn emit_stm(&mut self, stm: &ast::Stm) -> hir::Stm {
-        unimplemented!()
+    fn emit_stm(&mut self, stm: &ast::Stm, vars: &mut HashMap<symbol::Symbol, operand::Temp>) -> hir::Stm {
+        use ast::Stm::*;
+        match stm {
+        | Ass(lhs, rhs, _) => {
+            let lhs = self.emit_exp(lhs, vars).into();
+            let rhs = self.emit_exp(rhs, vars).into();
+            hir::Stm::Move(lhs, rhs).into()
+        }
+        | Call(call) => hir::Stm::Exp(self.emit_call(call, vars)).into(),
+        | _ => unimplemented!(),
+
+        }
     }
 
     fn mangle_fun(&mut self, fun: symbol::Symbol) -> symbol::Symbol {
