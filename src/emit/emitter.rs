@@ -200,6 +200,12 @@ impl Emitter {
         hir::Exp::Call(Box::new(alloc), vec![size])
     }
 
+    fn emit_dec(&mut self, dec: &ast::Dec, vars: &mut HashMap<symbol::Symbol, operand::Temp>) -> hir::Exp {
+        let temp = operand::Temp::new("TEMP");
+        vars.insert(dec.name, temp);
+        hir::Exp::Temp(temp)
+    }
+
     fn emit_stm(&mut self, stm: &ast::Stm, vars: &mut HashMap<symbol::Symbol, operand::Temp>) -> hir::Stm {
         use ast::Stm::*;
         match stm {
@@ -209,8 +215,28 @@ impl Emitter {
             hir::Stm::Move(lhs, rhs).into()
         }
         | Call(call) => hir::Stm::Exp(self.emit_call(call, vars)).into(),
-        | _ => unimplemented!(),
+        | Init(decs, exp, _) if decs.len() == 1 && decs[0].is_some() => {
+            let dec = decs[0].as_ref().unwrap();
+            let exp = self.emit_exp(exp, vars).into();
+            let var = self.emit_dec(dec, vars);
+            hir::Stm::Move(var, exp)
+        }
+        | Init(decs, exp, _) => {
+            let mut seq = Vec::new();
 
+            seq.push(hir::Stm::Exp(self.emit_exp(exp, vars).into()));
+
+            for (i, dec) in decs.iter().enumerate() {
+                if let Some(dec) = dec {
+                    let var = self.emit_dec(dec, vars);
+                    let ret = hir::Exp::Temp(operand::Temp::Ret(i));
+                    seq.push(hir::Stm::Move(var, ret));
+                }
+            }
+
+            hir::Stm::Seq(seq)
+        }
+        | _ => unimplemented!(),
         }
     }
 
