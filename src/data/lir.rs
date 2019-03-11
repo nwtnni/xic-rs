@@ -1,10 +1,14 @@
+use std::collections::HashMap;
+
 use crate::data::ir;
 use crate::data::operand;
+use crate::util::symbol;
 
 #[derive(Clone, Debug)]
 pub struct Fun {
     pub name: operand::Label,
     pub body: Vec<Stm>,
+    pub vars: HashMap<symbol::Symbol, operand::Temp>,
 }
 
 #[derive(Clone, Debug)]

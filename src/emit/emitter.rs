@@ -12,7 +12,6 @@ use crate::util::symbol;
 pub struct Emitter {
     env: check::Env,
     data: HashMap<symbol::Symbol, operand::Label>,
-    vars: HashMap<symbol::Symbol, operand::Temp>,
     funs: HashMap<symbol::Symbol, symbol::Symbol>,
 }
 
@@ -29,7 +28,7 @@ impl Emitter {
         unimplemented!()
     }
 
-    fn emit_exp(&mut self, exp: &ast::Exp) -> hir::Tree {
+    fn emit_exp(&mut self, exp: &ast::Exp, vars: &HashMap<symbol::Symbol, operand::Temp>) -> hir::Tree {
         use ast::Exp::*;
         match exp {
         | Bool(false, _) => hir::Exp::Int(0).into(),
@@ -43,7 +42,7 @@ impl Emitter {
                 .or_insert_with(|| operand::Label::new("STR"));
             hir::Exp::Name(label).into()
         }
-        | Var(v, _) => hir::Exp::Temp(self.vars[v]).into(),
+        | Var(v, _) => hir::Exp::Temp(vars[v]).into(),
         | Arr(vs, _) => {
 
             let alloc = Self::emit_alloc(vs.len());
@@ -54,7 +53,7 @@ impl Emitter {
             seq.push(hir::Stm::Move(base.clone(), hir::Exp::Int(vs.len() as i64)));
 
             for (i, v) in vs.iter().enumerate() {
-                let entry = self.emit_exp(v).into();
+                let entry = self.emit_exp(v, vars).into();
                 let offset = hir::Exp::Int(((i + 1) * WORD_SIZE) as i64);
                 let address = hir::Exp::Mem(Box::new(
                     hir::Exp::Bin(
@@ -72,8 +71,8 @@ impl Emitter {
             ).into()
         }
         | Bin(bin, lhs, rhs, _) => {
-            let lhs = self.emit_exp(lhs);
-            let rhs = self.emit_exp(rhs);
+            let lhs = self.emit_exp(lhs, vars);
+            let rhs = self.emit_exp(rhs, vars);
 
             if let Some(binop) = match bin {
             | ast::Bin::Mul => Some(ir::Bin::Mul),
@@ -133,18 +132,18 @@ impl Emitter {
             hir::Exp::Bin(
                 ir::Bin::Sub, 
                 Box::new(hir::Exp::Int(0)),
-                Box::new(self.emit_exp(exp).into()),
+                Box::new(self.emit_exp(exp, vars).into()),
             ).into()
         }
         | Uno(ast::Uno::Not, exp, _) => {
             hir::Exp::Bin(
                 ir::Bin::Xor,
                 Box::new(hir::Exp::Int(1)),
-                Box::new(self.emit_exp(exp).into()),
+                Box::new(self.emit_exp(exp, vars).into()),
             ).into()
         }
         | Idx(arr, idx, _) => {
-            let address = hir::Exp::from(self.emit_exp(&*arr));
+            let address = hir::Exp::from(self.emit_exp(&*arr, vars));
             let memory = hir::Exp::Mem(Box::new(address.clone()));
             let index = hir::Exp::Temp(operand::Temp::new("INDEX"));
             let offset = hir::Exp::Bin(
@@ -166,7 +165,7 @@ impl Emitter {
             let fail = operand::Label::Fix(symbol::intern(XI_OUT_OF_BOUNDS));
 
             let mut seq = Vec::new();
-            seq.push(hir::Stm::Move(index.clone(), self.emit_exp(&*idx).into()));
+            seq.push(hir::Stm::Move(index.clone(), self.emit_exp(&*idx, vars).into()));
             seq.push(hir::Stm::CJump(ir::Rel::Ge, index.clone(), hir::Exp::Int(0), lo, fail));
             seq.push(hir::Stm::Label(lo));
             seq.push(hir::Stm::CJump(ir::Rel::Lt, index.clone(), memory.clone(), hi, fail));
@@ -178,14 +177,14 @@ impl Emitter {
             ).into()
         }
         | Call(ast::Call { name, args, ..}) if *name == symbol::intern("length") => {
-            let address = self.emit_exp(&args[0]).into();
+            let address = self.emit_exp(&args[0], vars).into();
             hir::Exp::Mem(Box::new(address)).into()
         }
         | Call(ast::Call { name, args, .. }) => {
             hir::Exp::Call(
                 Box::new(hir::Exp::Name(operand::Label::Fix(self.mangle_fun(*name)))),
                 args.iter()
-                    .map(|arg| self.emit_exp(arg).into())
+                    .map(|arg| self.emit_exp(arg, vars).into())
                     .collect(),
             ).into()
         }

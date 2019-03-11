@@ -1,12 +1,15 @@
 use std::boxed::FnBox;
+use std::collections::HashMap;
 
 use crate::data::ir;
 use crate::data::operand;
+use crate::util::symbol;
 
 #[derive(Clone, Debug)]
 pub struct Fun {
     pub name: operand::Label,
     pub body: Stm,
+    pub vars: HashMap<symbol::Symbol, operand::Temp>,
 }
 
 pub enum Tree {
