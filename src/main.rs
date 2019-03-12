@@ -56,7 +56,7 @@ fn run(args: Arguments) -> Result<(), xic::Error> {
         let tokens = lexer.drive(&path)?;
         let program = parser.drive(&path, tokens)?;
         let env = checker.drive(&path, &program)?;
-        emitter.drive(&program, &env);
+        emitter.drive(&path, &program, &env)?;
     }
     Ok(())
 }
