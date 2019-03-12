@@ -237,12 +237,6 @@ impl Emitter {
             hir::Stm::Move(lhs, rhs).into()
         }
         | Call(call) => hir::Stm::Exp(self.emit_call(call, vars)).into(),
-        | Init(decs, exp, _) if decs.len() == 1 && decs[0].is_some() => {
-            let dec = decs[0].as_ref().unwrap();
-            let exp = self.emit_exp(exp, vars).into();
-            let var = self.emit_dec(dec, vars);
-            hir::Stm::Move(var, exp)
-        }
         | Init(decs, exp, _) => {
             let mut seq = Vec::new();
 
