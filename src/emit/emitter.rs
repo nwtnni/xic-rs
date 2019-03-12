@@ -31,8 +31,8 @@ impl<'env> Emitter<'env> {
     pub fn emit_program(mut self, ast: &ast::Program) -> ir::Unit<hir::Fun> {
         let mut funs = HashMap::with_capacity(ast.funs.len());
         for fun in &ast.funs {
-            let ir = self.emit_fun(fun);
             let id = self.mangle_fun(fun.name);
+            let ir = self.emit_fun(fun);
             funs.insert(id, ir);
         }
         ir::Unit {
