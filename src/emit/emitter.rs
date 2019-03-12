@@ -28,7 +28,7 @@ impl<'env> Emitter<'env> {
         }
     }
 
-    pub fn emit_program(mut self, ast: &ast::Program) -> ir::Unit<hir::Fun> {
+    pub fn emit_unit(mut self, path: &std::path::Path, ast: &ast::Program) -> ir::Unit<hir::Fun> {
         let mut funs = HashMap::with_capacity(ast.funs.len());
         for fun in &ast.funs {
             let id = self.mangle_fun(fun.name);
@@ -36,7 +36,7 @@ impl<'env> Emitter<'env> {
             funs.insert(id, ir);
         }
         ir::Unit {
-            name: symbol::intern("program"),
+            name: symbol::intern(path.to_string_lossy()),
             funs: funs,
             data: self.data,
         }
