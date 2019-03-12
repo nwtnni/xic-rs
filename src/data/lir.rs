@@ -24,7 +24,7 @@ pub enum Exp {
 pub enum Stm {
     Jump(Exp),
     CJump(Exp, operand::Label, operand::Label),
-    Call(Box<Exp>, Vec<Exp>),
+    Call(Exp, Vec<Exp>),
     Label(operand::Label),
     Move(Exp, Exp),
     Return(Vec<Exp>),

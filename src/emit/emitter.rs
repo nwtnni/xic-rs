@@ -243,7 +243,7 @@ impl<'env> Emitter<'env> {
 
     fn emit_call(&mut self, call: &ast::Call, vars: &HashMap<symbol::Symbol, operand::Temp>) -> hir::Stm {
         hir::Stm::Call(
-            Box::new(hir::Exp::Name(operand::Label::Fix(self.mangle_fun(call.name)))),
+            hir::Exp::Name(operand::Label::Fix(self.mangle_fun(call.name))),
             call.args.iter()
                 .map(|arg| self.emit_exp(arg, vars).into())
                 .collect(),
@@ -254,7 +254,7 @@ impl<'env> Emitter<'env> {
         let label = operand::Label::Fix(symbol::intern(XI_ALLOC));
         let alloc = hir::Exp::Name(label);
         let size = hir::Exp::Int(((length + 1) * WORD_SIZE) as i64);
-        hir::Stm::Call(Box::new(alloc), vec![size])
+        hir::Stm::Call(alloc, vec![size])
     }
 
     fn emit_dec(&mut self, dec: &ast::Dec, vars: &mut HashMap<symbol::Symbol, operand::Temp>) -> hir::Exp {

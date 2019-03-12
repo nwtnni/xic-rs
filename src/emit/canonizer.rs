@@ -38,7 +38,6 @@ impl Canonizer {
                 lir::Exp::Bin(*b, Box::new(save), Box::new(r))
             }
         }
-        | _ => unimplemented!(),
         }
     }
 
@@ -93,6 +92,53 @@ impl Canonizer {
                 self.canonized.insert(i, into);
                 self.canonized.push(lir::Stm::Move(save, s)); 
             }
+            self.purity = false;
+        }
+        | Call(f, args) => {
+            let f = self.canonize_exp(f);            
+            let i = self.canonized.len();
+
+            let mut purity = Vec::new();
+            let mut canonized = Vec::new();
+            let mut indices = Vec::new();
+
+            for arg in args {
+                self.purity = true;
+                canonized.push(self.canonize_exp(arg));
+                indices.push(self.canonized.len());
+                purity.push(self.purity);
+            }
+
+            // Find last impure argument
+            if let Some(j) = purity.iter().rposition(|purity| !purity) {
+
+                // Move previous arguments into temps
+                let saved = (0..j)
+                    .map(|_| operand::Temp::new("SAVE"))
+                    .collect::<Vec<_>>();
+
+                for k in (0..j).rev() {
+                    let save = lir::Exp::Temp(saved[k]);
+                    let into = lir::Stm::Move(save, canonized.remove(k));
+                    self.canonized.insert(indices[k], into);
+                }
+
+                // Move function address into temp
+                let save = lir::Exp::Temp(operand::Temp::new("SAVE"));
+                let into = lir::Stm::Move(save.clone(), f);
+                self.canonized.insert(i, into);
+
+                // Collect saved temps
+                let args = saved.into_iter()
+                    .map(lir::Exp::Temp)
+                    .chain(canonized.into_iter())
+                    .collect::<Vec<_>>();
+
+                self.canonized.push(lir::Stm::Call(save, args));
+            } else {
+                self.canonized.push(lir::Stm::Call(f, canonized));
+            }
+
             self.purity = false;
         }
         | _ => unreachable!(),
