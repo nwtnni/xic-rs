@@ -109,7 +109,7 @@ impl Serialize for lir::Stm {
                 .sexp_move()
         }
         | Jump(e) => vec!["JUMP".sexp(), e.sexp()].sexp_move(),
-        | CJump(e, t) => vec!["CJUMP".sexp(), e.sexp(), t.sexp()].sexp_move(),
+        | CJump(e, t, _) => vec!["CJUMP".sexp(), e.sexp(), t.sexp()].sexp_move(),
         | Label(l) => vec!["LABEL".sexp(), l.sexp()].sexp_move(),
         | Move(d, s) => vec!["MOVE".sexp(), d.sexp(), s.sexp()].sexp_move(),
         | Return(exps) => {
