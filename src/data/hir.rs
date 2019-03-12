@@ -13,7 +13,6 @@ pub struct Fun {
 }
 
 pub enum Tree {
-    Nx(Stm),
     Ex(Exp),
     Cx(Con),
 }
@@ -29,7 +28,6 @@ impl From<Con> for Tree {
 impl From<Tree> for Con {
     fn from(tree: Tree) -> Self {
         match tree {
-        | Tree::Nx(_) => unreachable!(),
         | Tree::Cx(con) => con,
         | Tree::Ex(exp) => {
             Box::new(move |t, f| {
@@ -60,7 +58,6 @@ impl From<Exp> for Tree {
 impl From<Tree> for Exp {
     fn from(tree: Tree) -> Self {
         match tree {
-        | Tree::Nx(stm) => Exp::ESeq(Box::new(stm), Box::new(Exp::Int(0))),
         | Tree::Ex(exp) => exp,
         | Tree::Cx(cond) => {
             let t = operand::Label::new("TRUE");
@@ -87,23 +84,4 @@ pub enum Stm {
     Move(Exp, Exp),
     Return(Vec<Exp>),
     Seq(Vec<Stm>),
-}
-
-impl From<Stm> for Tree {
-    fn from(stm: Stm) -> Self {
-        Tree::Nx(stm)
-    }
-}
-
-impl From<Tree> for Stm {
-    fn from(tree: Tree) -> Self {
-        match tree {
-        | Tree::Nx(stm) => stm,
-        | Tree::Ex(exp) => Stm::Exp(exp),
-        | Tree::Cx(cond) => {
-            let label = operand::Label::new("STM");
-            (cond)(label, label)
-        }
-        }
-    }
 }
