@@ -22,12 +22,10 @@ pub enum Exp {
 
 #[derive(Clone, Debug)]
 pub enum Stm {
-    Exp(Exp),
     Jump(Exp),
     CJump(ir::Rel, Exp, Exp, operand::Label),
     Call(Box<Exp>, Vec<Exp>),
     Label(operand::Label),
     Move(Exp, Exp),
     Return(Vec<Exp>),
-    Seq(Vec<Stm>),
 }

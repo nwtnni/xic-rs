@@ -47,6 +47,10 @@ impl Serialize for Sexp {
     fn sexp_move(self) -> Sexp { self }
 }
 
+impl Serialize for i64 {
+    fn sexp(&self) -> Sexp { Sexp::Atom(Cow::from(self.to_string())) }
+}
+
 impl Serialize for symbol::Symbol {
     fn sexp(&self) -> Sexp { Sexp::Atom(Cow::from(symbol::resolve(*self))) }
 }
