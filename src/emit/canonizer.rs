@@ -14,7 +14,7 @@ impl Canonizer {
         unimplemented!()
     }
 
-    pub fn canonize_exp(&mut self, exp: &hir::Exp) -> lir::Exp {
+    fn canonize_exp(&mut self, exp: &hir::Exp) -> lir::Exp {
         use hir::Exp::*;
         match exp {
         | Int(i) => lir::Exp::Int(*i),
@@ -41,7 +41,7 @@ impl Canonizer {
         }
     }
 
-    pub fn canonize_stm(&mut self, stm: &hir::Stm) {
+    fn canonize_stm(&mut self, stm: &hir::Stm) {
         use hir::Stm::*;
         match stm {
         | Exp(e) => { self.canonize_exp(e); },
@@ -141,7 +141,47 @@ impl Canonizer {
 
             self.purity = false;
         }
-        | _ => unreachable!(),
+        | Return(exps) => {
+
+            let mut purity = Vec::new();
+            let mut canonized = Vec::new();
+            let mut indices = Vec::new();
+
+            for exp in exps {
+                self.purity = true;
+                canonized.push(self.canonize_exp(exp));
+                indices.push(self.canonized.len());
+                purity.push(self.purity);
+            }
+
+            // Find last impure argument
+            if let Some(j) = purity.iter().rposition(|purity| !purity) {
+
+                // Move previous arguments into temps
+                let saved = (0..j)
+                    .map(|_| operand::Temp::new("SAVE"))
+                    .collect::<Vec<_>>();
+
+                for k in (0..j).rev() {
+                    let save = lir::Exp::Temp(saved[k]);
+                    let into = lir::Stm::Move(save, canonized.remove(k));
+                    self.canonized.insert(indices[k], into);
+                }
+
+                // Collect saved temps
+                let exps = saved.into_iter()
+                    .map(lir::Exp::Temp)
+                    .chain(canonized.into_iter())
+                    .collect::<Vec<_>>();
+
+                self.canonized.push(lir::Stm::Return(exps));
+            } else {
+                self.canonized.push(lir::Stm::Return(canonized));
+            }
+
+            // Does this matter?
+            self.purity = true;
+        }
         }
     }
 
