@@ -5,12 +5,14 @@ use crate::data::lir;
 use crate::data::hir;
 use crate::data::operand;
 
+#[derive(Debug, Default)]
 pub struct Canonizer {
     canonized: Vec<lir::Stm>,
     purity: bool,
 }
 
 impl Canonizer {
+    pub fn new() -> Self { Canonizer::default() }
 
     pub fn canonize_unit(mut self, unit: ir::Unit<hir::Fun>) -> ir::Unit<lir::Fun> {
         let mut funs = HashMap::default();
