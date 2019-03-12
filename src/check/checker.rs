@@ -43,10 +43,10 @@ impl Checker {
     }
 
     pub fn check_program(
-        &mut self,
+        mut self,
         lib: &std::path::Path,
         program: &ast::Program
-    ) -> Result<(), error::Error> {
+    ) -> Result<env::Env, error::Error> {
         for path in &program.uses {
             let path = lib.join(symbol::resolve(path.name).to_string() + ".ixi");
             let source = std::fs::read_to_string(path)?;
@@ -56,7 +56,7 @@ impl Checker {
         }
         for fun in &program.funs { self.load_fun(fun)?; }
         for fun in &program.funs { self.check_fun(fun)?; }
-        Ok(())
+        Ok(self.env)
     }
 
     fn load_interface(&mut self, interface: &ast::Interface) -> Result<(), error::Error> {

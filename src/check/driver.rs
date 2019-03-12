@@ -16,9 +16,9 @@ impl<'main> Driver<'main> {
         Driver { lib, directory, diagnostic }
     }
 
-    pub fn drive(&self, path: &std::path::Path, ast: &ast::Program) -> Result<(), error::Error> {
+    pub fn drive(&self, path: &std::path::Path, ast: &ast::Program) -> Result<check::Env, error::Error> {
         let lib = if let Some(path) = self.lib { path } else { path.parent().unwrap() };
-        let mut checker = check::Checker::new();
+        let checker = check::Checker::new();
         let checked = checker.check_program(lib, ast);
 
         if self.diagnostic {
@@ -29,7 +29,7 @@ impl<'main> Driver<'main> {
                 .map(BufWriter::new)?;
 
             match &checked {
-            | Ok(()) => write!(&mut log, "Valid Xi Program")?,
+            | Ok(_) => write!(&mut log, "Valid Xi Program")?,
             | Err(error) => write!(&mut log, "{}", error)?,
             }
         }

@@ -9,8 +9,8 @@ use crate::data::operand;
 use crate::util::symbol;
 
 #[derive(Debug)]
-pub struct Emitter {
-    env: check::Env,
+pub struct Emitter<'env> {
+    env: &'env check::Env,
     data: HashMap<symbol::Symbol, operand::Label>,
     funs: HashMap<symbol::Symbol, symbol::Symbol>,
 }
@@ -19,7 +19,15 @@ const XI_ALLOC: &'static str = "_xi_alloc";
 const XI_OUT_OF_BOUNDS: &'static str = "_xi_out_of_bounds";
 const WORD_SIZE: usize = 8;
 
-impl Emitter {
+impl<'env> Emitter<'env> {
+    pub fn new(env: &'env check::Env) -> Self {
+        Emitter {
+            env,
+            data: HashMap::new(),
+            funs: HashMap::new(),
+        }
+    }
+
     pub fn emit_program(mut self, ast: &ast::Program) -> ir::Unit<hir::Fun> {
         let mut funs = HashMap::with_capacity(ast.funs.len());
         for fun in &ast.funs {
