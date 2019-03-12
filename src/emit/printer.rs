@@ -52,14 +52,7 @@ impl Serialize for hir::Stm {
         match self {
         | Exp(e) => vec!["EXP".sexp(), e.sexp()].sexp_move(),
         | Jump(e) => vec!["JUMP".sexp(), e.sexp()].sexp_move(),
-        | CJump(b, l, r, t, f) => {
-            vec![
-                "CJUMP".sexp(),
-                vec![b.sexp(), l.sexp(), r.sexp()].sexp_move(),
-                t.sexp(),
-                f.sexp(),
-            ].sexp_move()
-        }
+        | CJump(e, t, f) => vec!["CJUMP".sexp(), e.sexp(), t.sexp(), f.sexp()].sexp_move(),
         | Label(l) => vec!["LABEL".sexp(), l.sexp()].sexp_move(),
         | Move(d, s) => vec!["MOVE".sexp(), d.sexp(), s.sexp()].sexp_move(),
         | Return(exps) => {
@@ -116,13 +109,7 @@ impl Serialize for lir::Stm {
                 .sexp_move()
         }
         | Jump(e) => vec!["JUMP".sexp(), e.sexp()].sexp_move(),
-        | CJump(b, l, r, t) => {
-            vec![
-                "CJUMP".sexp(),
-                vec![b.sexp(), l.sexp(), r.sexp()].sexp_move(),
-                t.sexp(),
-            ].sexp_move()
-        }
+        | CJump(e, t) => vec!["CJUMP".sexp(), e.sexp(), t.sexp()].sexp_move(),
         | Label(l) => vec!["LABEL".sexp(), l.sexp()].sexp_move(),
         | Move(d, s) => vec!["MOVE".sexp(), d.sexp(), s.sexp()].sexp_move(),
         | Return(exps) => {
@@ -145,26 +132,18 @@ impl Serialize for ir::Bin {
         | Hul => "HMUL".sexp(),
         | Div => "DIV".sexp(),
         | Mod => "MOD".sexp(),
-        | And => "AND".sexp(),
-        | Or  => "OR".sexp(),
         | Xor => "XOR".sexp(),
         | Ls  => "LSHIFT".sexp(),
         | Rs  => "RSHIFT".sexp(),
         | ARs => "ARSHIFT".sexp(),
-        }
-    }
-}
-
-impl Serialize for ir::Rel {
-    fn sexp(&self) -> Sexp {
-        use ir::Rel::*;
-        match self {
-        | Lt => "LT".sexp(),
-        | Le => "LEQ".sexp(),
-        | Ge => "GEQ".sexp(),
-        | Gt => "GT".sexp(),
-        | Ne => "NEQ".sexp(),
-        | Eq => "EQ".sexp(),
+        | And => "AND".sexp(),
+        | Or  => "OR".sexp(),
+        | Lt  => "LT".sexp(),
+        | Le  => "LEQ".sexp(),
+        | Ge  => "GEQ".sexp(),
+        | Gt  => "GT".sexp(),
+        | Ne  => "NEQ".sexp(),
+        | Eq  => "EQ".sexp(),
         }
     }
 }

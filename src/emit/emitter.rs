@@ -123,16 +123,21 @@ impl<'env> Emitter<'env> {
             }
 
             if let Some(relop) = match bin {
-            | ast::Bin::Lt => Some(ir::Rel::Lt),
-            | ast::Bin::Le => Some(ir::Rel::Le),
-            | ast::Bin::Ge => Some(ir::Rel::Ge),
-            | ast::Bin::Gt => Some(ir::Rel::Gt),
-            | ast::Bin::Ne => Some(ir::Rel::Ne),
-            | ast::Bin::Eq => Some(ir::Rel::Eq),
+            | ast::Bin::Lt => Some(ir::Bin::Lt),
+            | ast::Bin::Le => Some(ir::Bin::Le),
+            | ast::Bin::Ge => Some(ir::Bin::Ge),
+            | ast::Bin::Gt => Some(ir::Bin::Gt),
+            | ast::Bin::Ne => Some(ir::Bin::Ne),
+            | ast::Bin::Eq => Some(ir::Bin::Eq),
             | _ => None,
             } {
                 return hir::Tree::Cx(Box::new(move |t, f| {
-                    hir::Stm::CJump(relop, lhs.into(), rhs.into(), t, f)
+                    let exp = hir::Exp::Bin(
+                        relop,
+                        Box::new(lhs.into()),
+                        Box::new(rhs.into()),
+                    );
+                    hir::Stm::CJump(exp, t, f)
                 }))
             }
 
@@ -196,11 +201,23 @@ impl<'env> Emitter<'env> {
             let hi = operand::Label::new("HIGH_BOUND");
             let fail = operand::Label::Fix(symbol::intern(XI_OUT_OF_BOUNDS));
 
+            let lt = hir::Exp::Bin(
+                ir::Bin::Lt,
+                Box::new(index.clone()),
+                Box::new(hir::Exp::Int(0)),
+            );
+
+            let ge = hir::Exp::Bin(
+                ir::Bin::Ge,
+                Box::new(index.clone()),
+                Box::new(memory),
+            );
+
             let bounds = hir::Stm::Seq(vec![
                 hir::Stm::Move(index.clone(), self.emit_exp(&*idx, vars).into()),
-                hir::Stm::CJump(ir::Rel::Lt, index.clone(), hir::Exp::Int(0), fail, lo),
+                hir::Stm::CJump(lt, fail, lo),
                 hir::Stm::Label(lo),
-                hir::Stm::CJump(ir::Rel::Ge, index.clone(), memory.clone(), fail, hi),
+                hir::Stm::CJump(ge, fail, hi),
                 hir::Stm::Label(hi),
             ]);
 

@@ -24,20 +24,16 @@ pub enum Bin {
     Hul,
     Div,
     Mod,
-    And,
-    Or,
     Xor,
     Ls,
     Rs,
     ARs,
-}
-
-#[derive(Copy, Clone, Debug, PartialEq, Eq)]
-pub enum Rel {
     Lt,
     Le,
     Ge,
     Gt,
     Ne,
     Eq,
+    And,
+    Or,
 }

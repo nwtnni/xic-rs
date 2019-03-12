@@ -31,7 +31,12 @@ impl From<Tree> for Con {
         | Tree::Cx(con) => con,
         | Tree::Ex(exp) => {
             Box::new(move |t, f| {
-                Stm::CJump(ir::Rel::Eq, Exp::Int(1), exp, t, f)
+                let exp = Exp::Bin(
+                    ir::Bin::Eq,
+                    Box::new(exp),
+                    Box::new(Exp::Int(1)),
+                );
+                Stm::CJump(exp, t, f)
             })
         }
         }
@@ -79,7 +84,7 @@ impl From<Tree> for Exp {
 pub enum Stm {
     Exp(Exp),
     Jump(Exp),
-    CJump(ir::Rel, Exp, Exp, operand::Label, operand::Label),
+    CJump(Exp, operand::Label, operand::Label),
     Label(operand::Label),
     Move(Exp, Exp),
     Return(Vec<Exp>),
