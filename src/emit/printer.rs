@@ -33,13 +33,6 @@ impl Serialize for hir::Exp {
         | Mem(e) => vec!["MEM".sexp(), e.sexp()].sexp_move(),
         | Bin(b, l, r) => vec![b.sexp(), l.sexp(), r.sexp()].sexp_move(),
         | Name(l) => vec!["NAME".sexp(), l.sexp()].sexp_move(),
-        | Call(f, args) => {
-            std::iter::once("CALL".sexp())
-                .chain(std::iter::once(f.sexp()))
-                .chain(args.iter().map(|arg| arg.sexp()))
-                .collect::<Vec<_>>()
-                .sexp_move()
-        }
         | Temp(t) => vec!["TEMP".sexp(), t.sexp()].sexp_move(),
         | ESeq(s, e) => vec!["ESEQ".sexp(), s.sexp(), e.sexp()].sexp_move(),
         }
@@ -54,6 +47,13 @@ impl Serialize for hir::Stm {
         | Jump(e) => vec!["JUMP".sexp(), e.sexp()].sexp_move(),
         | CJump(e, t, f) => vec!["CJUMP".sexp(), e.sexp(), t.sexp(), f.sexp()].sexp_move(),
         | Label(l) => vec!["LABEL".sexp(), l.sexp()].sexp_move(),
+        | Call(f, args) => {
+            std::iter::once("CALL".sexp())
+                .chain(std::iter::once(f.sexp()))
+                .chain(args.iter().map(|arg| arg.sexp()))
+                .collect::<Vec<_>>()
+                .sexp_move()
+        }
         | Move(d, s) => vec!["MOVE".sexp(), d.sexp(), s.sexp()].sexp_move(),
         | Return(exps) => {
             std::iter::once("RETURN".sexp())

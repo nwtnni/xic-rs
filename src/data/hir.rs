@@ -49,7 +49,6 @@ pub enum Exp {
     Mem(Box<Exp>),
     Bin(ir::Bin, Box<Exp>, Box<Exp>),    
     Name(operand::Label),
-    Call(Box<Exp>, Vec<Exp>),
     Temp(operand::Temp),
     ESeq(Box<Stm>, Box<Exp>),
 }
@@ -86,6 +85,7 @@ pub enum Stm {
     Jump(Exp),
     CJump(Exp, operand::Label, operand::Label),
     Label(operand::Label),
+    Call(Box<Exp>, Vec<Exp>),
     Move(Exp, Exp),
     Return(Vec<Exp>),
     Seq(Vec<Stm>),
