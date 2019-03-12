@@ -36,10 +36,19 @@ impl Emitter {
 
     fn emit_fun(&mut self, fun: &ast::Fun) -> hir::Fun {
         let mut vars = HashMap::default();
+        let mut seq = Vec::new();
+        for (i, arg) in fun.args.iter().enumerate() {
+            let reg = hir::Exp::Temp(operand::Temp::Arg(i));
+            let dec = self.emit_dec(arg, &mut vars);
+            seq.push(hir::Stm::Move(dec, reg));
+        }
+        let name = self.mangle_fun(fun.name);
+        let body = self.emit_stm(&fun.body, &mut vars);
+        seq.push(body);
         hir::Fun {
-            name: self.mangle_fun(fun.name),
-            body: self.emit_stm(&fun.body, &mut vars),
-            vars: vars,
+            name,
+            body: hir::Stm::Seq(seq),
+            vars,
         }
     }
 
