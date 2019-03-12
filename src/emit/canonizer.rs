@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use crate::data::ir;
 use crate::data::lir;
 use crate::data::hir;
@@ -10,8 +12,25 @@ pub struct Canonizer {
 
 impl Canonizer {
 
-    pub fn canonize_unit(self, unit: &ir::Unit<hir::Fun>) -> ir::Unit<lir::Fun> {
-        unimplemented!()
+    pub fn canonize_unit(mut self, unit: ir::Unit<hir::Fun>) -> ir::Unit<lir::Fun> {
+        let mut funs = HashMap::default();
+        for (name, fun) in unit.funs {
+            funs.insert(name, self.canonize_fun(&fun));
+        }
+        ir::Unit {
+            name: unit.name,
+            funs: funs,
+            data: unit.data,
+        }
+    }
+
+    fn canonize_fun(&mut self, fun: &hir::Fun) -> lir::Fun {
+        self.canonize_stm(&fun.body);
+        let canonized = std::mem::replace(&mut self.canonized, Vec::new());
+        lir::Fun {
+            name: fun.name,
+            body: canonized,
+        }
     }
 
     fn canonize_exp(&mut self, exp: &hir::Exp) -> lir::Exp {

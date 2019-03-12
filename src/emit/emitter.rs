@@ -56,7 +56,6 @@ impl<'env> Emitter<'env> {
         hir::Fun {
             name,
             body: hir::Stm::Seq(seq),
-            vars,
         }
     }
 

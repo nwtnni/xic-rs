@@ -1,5 +1,4 @@
 use std::boxed::FnBox;
-use std::collections::HashMap;
 
 use crate::data::ir;
 use crate::data::operand;
@@ -9,7 +8,6 @@ use crate::util::symbol;
 pub struct Fun {
     pub name: symbol::Symbol,
     pub body: Stm,
-    pub vars: HashMap<symbol::Symbol, operand::Temp>,
 }
 
 pub enum Tree {
