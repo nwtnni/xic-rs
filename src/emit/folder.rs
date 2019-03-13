@@ -101,12 +101,18 @@ impl Foldable for hir::Stm {
         match self {
         | Exp(e) => Exp(e.fold()),
         | Jump(e) => Jump(e.fold()),
-        | CJump(e, t, f) => CJump(e.fold(), t, f),
         | Label(l) => Label(l),
         | Call(f, es) => Call(f.fold(), es.into_iter().map(Foldable::fold).collect()),
         | Move(d, s) => Move(d.fold(), s.fold()),
         | Return(es) => Return(es.into_iter().map(Foldable::fold).collect()),
         | Seq(ss) => Seq(ss.into_iter().map(Foldable::fold).collect()),
+        | CJump(e, t, f) => {
+            match e.fold() {
+            | hir::Exp::Int(1) => Jump(hir::Exp::Name(t)),
+            | hir::Exp::Int(0) => Jump(hir::Exp::Name(f)),
+            | e => CJump(e, t, f),
+            }
+        }
         }
     }
 }
@@ -202,11 +208,17 @@ impl Foldable for lir::Stm {
         use lir::Stm::*;
         match self {
         | Jump(e) => Jump(e.fold()),
-        | CJump(e, t, f) => CJump(e.fold(), t, f),
         | Call(f, es) => Call(f.fold(), es.into_iter().map(Foldable::fold).collect()),
         | Move(d, s) => Move(d.fold(), s.fold()),
         | Return(es) => Return(es.into_iter().map(Foldable::fold).collect()),
         | Label(l) => Label(l),
+        | CJump(e, t, f) => {
+            match e.fold() {
+            | lir::Exp::Int(1) => Jump(lir::Exp::Name(t)),
+            | lir::Exp::Int(0) => Jump(lir::Exp::Name(f)),
+            | e => CJump(e, t, f),
+            }
+        }
         }
     }
 }
