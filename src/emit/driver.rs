@@ -22,7 +22,8 @@ impl<'main> Driver<'main> {
     pub fn drive(&self, path: &std::path::Path, ast: &ast::Program, env: &check::Env) -> Result<(), error::Error> {
         let canonizer = emit::Canonizer::new();
         let emitter = emit::Emitter::new(env);
-        let hir = emitter.emit_unit(path, ast);
+        let mut hir = emitter.emit_unit(path, ast);
+        if self.fold { hir = emit::Folder::fold_hir_unit(hir); }
         let lir = canonizer.canonize_unit(hir);
 
         if self.diagnostic {
