@@ -8,7 +8,7 @@ pub struct Fun {
     pub body: Vec<Stm>,
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Exp {
     Int(i64), 
     Mem(Box<Exp>),

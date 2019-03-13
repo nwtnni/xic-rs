@@ -25,7 +25,8 @@ impl<'main> Driver<'main> {
         let emitter = emit::Emitter::new(env);
         let mut hir = emitter.emit_unit(path, ast);
         if self.fold { hir = hir.fold(); }
-        let lir = canonizer.canonize_unit(hir);
+        let mut lir = canonizer.canonize_unit(hir);
+        if self.fold { lir = lir.fold(); }
 
         if self.diagnostic {
             let mut log = self.directory
