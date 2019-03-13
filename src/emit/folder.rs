@@ -1,38 +1,43 @@
 use crate::data::ir;
 use crate::data::hir;
 
-#[derive(Copy, Clone, Debug)]
-pub struct Folder;
+pub trait Foldable {
+    fn fold(self) -> Self;
+}
 
-impl Folder {
-    pub fn fold_hir_unit(unit: ir::Unit<hir::Fun>) -> ir::Unit<hir::Fun> {
+impl Foldable for ir::Unit<hir::Fun> {
+    fn fold(self) -> Self {
         ir::Unit {
-            name: unit.name,
-            data: unit.data,
-            funs: unit.funs.into_iter()
-                .map(|(name, fun)| (name, Self::fold_hir_fun(fun)))
+            name: self.name,
+            data: self.data,
+            funs: self.funs.into_iter()
+                .map(|(name, fun)| (name, fun.fold()))
                 .collect(),
         }
     }
+}
 
-    pub fn fold_hir_fun(fun: hir::Fun) -> hir::Fun {
+impl Foldable for hir::Fun {
+    fn fold(self) -> Self {
         hir::Fun {
-            name: fun.name,
-            body: Self::fold_hir_stm(fun.body),
+            name: self.name,
+            body: self.body,
         }
     }
+}
 
-    pub fn fold_hir_exp(exp: hir::Exp) -> hir::Exp {
+impl Foldable for hir::Exp {
+    fn fold(self) -> Self {
         use hir::Exp::*;
         use ir::Bin::*;
-        match exp {
+        match self {
         | Int(i) => Int(i),
         | Name(l) => Name(l),
         | Temp(t) => Temp(t),
-        | Mem(e) => Mem(Box::new(Self::fold_hir_exp(*e))),
-        | ESeq(s, e) => ESeq(Box::new(Self::fold_hir_stm(*s)), Box::new(Self::fold_hir_exp(*e))),
+        | Mem(e) => Mem(Box::new(e.fold())),
+        | ESeq(s, e) => ESeq(Box::new(s.fold()), Box::new(e.fold())),
         | Bin(b, l, r) => {
-            match (b, Self::fold_hir_exp(*l), Self::fold_hir_exp(*r)) {
+            match (b, l.fold(), r.fold()) {
             | (Add, Int(l), Int(r)) => Int(l + r),
             | (Sub, Int(l), Int(r)) => Int(l - r),
             | (Mul, Int(l), Int(r)) => Int((l as i128 * r as i128) as i64),
@@ -87,18 +92,20 @@ impl Folder {
         }
         }
     }
+}
 
-    pub fn fold_hir_stm(stm: hir::Stm) -> hir::Stm {
+impl Foldable for hir::Stm {
+    fn fold(self) -> Self {
         use hir::Stm::*;
-        match stm {
-        | Exp(e) => Exp(Self::fold_hir_exp(e)),
-        | Jump(e) => Jump(Self::fold_hir_exp(e)),
-        | CJump(e, t, f) => CJump(Self::fold_hir_exp(e), t, f),
+        match self {
+        | Exp(e) => Exp(e.fold()),
+        | Jump(e) => Jump(e.fold()),
+        | CJump(e, t, f) => CJump(e.fold(), t, f),
         | Label(l) => Label(l),
-        | Call(f, es) => Call(Self::fold_hir_exp(f), es.into_iter().map(Self::fold_hir_exp).collect()),
-        | Move(d, s) => Move(Self::fold_hir_exp(d), Self::fold_hir_exp(s)),
-        | Return(es) => Return(es.into_iter().map(Self::fold_hir_exp).collect()),
-        | Seq(ss) => Seq(ss.into_iter().map(Self::fold_hir_stm).collect()),
+        | Call(f, es) => Call(f.fold(), es.into_iter().map(Foldable::fold).collect()),
+        | Move(d, s) => Move(d.fold(), s.fold()),
+        | Return(es) => Return(es.into_iter().map(Foldable::fold).collect()),
+        | Seq(ss) => Seq(ss.into_iter().map(Foldable::fold).collect()),
         }
     }
 }

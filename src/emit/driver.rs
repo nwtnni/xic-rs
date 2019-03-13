@@ -2,6 +2,7 @@ use std::io::BufWriter;
 
 use crate::check;
 use crate::emit;
+use crate::emit::Foldable;
 use crate::error;
 use crate::data::ast;
 use crate::util::Tap;
@@ -23,7 +24,7 @@ impl<'main> Driver<'main> {
         let canonizer = emit::Canonizer::new();
         let emitter = emit::Emitter::new(env);
         let mut hir = emitter.emit_unit(path, ast);
-        if self.fold { hir = emit::Folder::fold_hir_unit(hir); }
+        if self.fold { hir = hir.fold(); }
         let lir = canonizer.canonize_unit(hir);
 
         if self.diagnostic {
