@@ -28,7 +28,10 @@ impl Canonizer {
 
     fn canonize_fun(&mut self, fun: &hir::Fun) -> lir::Fun {
         self.canonize_stm(&fun.body);
-        let canonized = std::mem::replace(&mut self.canonized, Vec::new());
+        let mut canonized = std::mem::replace(&mut self.canonized, Vec::new());
+        if let Some(lir::Stm::Return(_)) = canonized.last() {} else {
+            canonized.push(lir::Stm::Return(vec![])); 
+        }
         lir::Fun {
             name: fun.name,
             body: canonized,
