@@ -8,6 +8,7 @@ pub mod lex;
 pub mod parse;
 pub mod check;
 pub mod emit;
+pub mod interpret;
 mod error;
 mod util;
 
