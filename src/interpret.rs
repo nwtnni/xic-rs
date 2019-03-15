@@ -1,3 +1,5 @@
 mod interpreter;
+mod error;
 
-pub use interpreter::Interpreter;
+pub(crate) use interpreter::Interpreter;
+pub(crate) use error::Error;

@@ -1,6 +1,7 @@
 use crate::lex;
 use crate::parse;
 use crate::check;
+use crate::interpret;
 
 #[derive(Debug)]
 pub enum Error {
@@ -8,6 +9,7 @@ pub enum Error {
     Syntactic(parse::Error),
     Semantic(check::Error),
     IO(std::io::Error),
+    IR(interpret::Error),
 }
 
 impl std::fmt::Display for Error {
@@ -17,6 +19,7 @@ impl std::fmt::Display for Error {
         | Error::Syntactic(error) => write!(fmt, "{}", error),
         | Error::Semantic(error) => write!(fmt, "{}", error),
         | Error::IO(error) => write!(fmt, "{}", error),
+        | Error::IR(error) => write!(fmt, "{}", error),
         }
     }
 }
@@ -44,5 +47,11 @@ impl From<parse::Error> for Error {
 impl From<check::Error> for Error {
     fn from(error: check::Error) -> Self {
         Error::Semantic(error)
+    }
+}
+
+impl From<interpret::Error> for Error {
+    fn from(error: interpret::Error) -> Self {
+        Error::IR(error)
     }
 }
