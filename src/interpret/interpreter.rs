@@ -47,13 +47,17 @@ impl<'unit> Interpreter<'unit> {
             self.next = Some(next);
         }
         | CJump(exp, t, f) => {
-            let cond = self.interpret_exp(exp)?
-                .extract_bool()?;
-            let branch = if cond { t } else { f };
-            let next = self.jump.get(branch)
-                .cloned()
-                .ok_or_else(|| interpret::Error::UnboundLabel(*branch))?;
-            self.next = Some(next);
+            let cond = self.interpret_exp(exp)?.extract_bool()?;
+            let branch = if cond {
+                self.jump.get(t)
+                    .cloned()
+                    .ok_or_else(|| interpret::Error::UnboundLabel(*t))?
+            } else {
+                self.jump.get(f)
+                    .cloned()
+                    .unwrap_or(self.next.unwrap() + 1)
+            };
+            self.next = Some(branch);
         }
         | Call(f, args) => unimplemented!(),
         | Label(exp) => (),
