@@ -5,6 +5,7 @@ use crate::data::operand;
 pub enum Error {
     UnboundTemp(operand::Temp),
     UnboundLabel(operand::Label),
+    UnboundFun(operand::Label),
     NotName(interpret::Value),
     NotTemp(interpret::Value),
     NotInt(interpret::Value),

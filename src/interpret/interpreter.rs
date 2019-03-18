@@ -1,6 +1,7 @@
 use std::io::{BufRead, BufReader, Stdin};
 use std::collections::HashMap;
 
+use crate::constants;
 use crate::data::operand;
 use crate::data::ir;
 use crate::data::lir;
@@ -121,6 +122,54 @@ impl<'unit> Interpreter<'unit> {
 
             self.next = None;
         },
+        }
+        Ok(())
+    }
+
+    fn interpret_lib(&mut self, f: operand::Label, args: &[lir::Exp]) -> Result<(), interpret::Error> {
+        let name = match f {
+        | operand::Label::Fix(sym) => symbol::resolve(sym),
+        | _ => return Err(interpret::Error::UnboundFun(f)),
+        };
+        match name {
+        | "_Iprint_pai" | "_Iprintln_pai" => {
+            let base = self.interpret_exp(&args[0])?.extract_int(self.call.current())?;
+            let size = self.heap.read(base - constants::WORD_SIZE)?;
+            for i in 0..size {
+                let address = base + i * constants::WORD_SIZE;
+                let memory = self.heap.read(address)?;
+                let ch = std::char::from_u32(memory as u32).unwrap();
+                print!("{}", ch)
+            }
+            if name == "_Iprintln_pai" {
+                println!()
+            }
+        }
+        | "_Ireadln_ai" => {
+            unimplemented!()
+        }
+        | "_Igetchar_i" => {
+            unimplemented!()
+        }
+        | "_Ieof_b" => {
+            unimplemented!()
+        }
+        | "_IunparseInt_aii" => {
+            unimplemented!()
+        }
+        | "_IparseInt_t2ibai" => {
+            unimplemented!()
+        }
+        | "_xi_alloc" => {
+            unimplemented!()
+        }
+        | "_xi_out_of_bounds" => {
+            unimplemented!()
+        }
+        | "_Iassert_pb" => {
+            unimplemented!()
+        }
+        | _ => return Err(interpret::Error::UnboundFun(f)),
         }
         Ok(())
     }

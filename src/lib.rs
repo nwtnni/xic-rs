@@ -9,6 +9,7 @@ pub mod parse;
 pub mod check;
 pub mod emit;
 pub mod interpret;
+mod constants;
 mod error;
 mod util;
 
