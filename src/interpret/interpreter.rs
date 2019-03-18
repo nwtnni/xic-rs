@@ -27,20 +27,48 @@ pub struct Interpreter<'unit> {
     call: interpret::Stack,
 
     /// Instruction pointer
-    next: usize
+    next: Option<usize>
 }
 
 impl<'unit> Interpreter<'unit> {
-
-    fn interpret_call(&mut self, fun: operand::Label) -> Result<Vec<i64>, interpret::Error> {
+    fn interpret_unit(mut self) {
         unimplemented!()
     }
 
-    fn interpret_stm(&mut self) -> Option<Vec<i64>> {
-        unimplemented!()
+    fn interpret_stm(&mut self, stm: &lir::Stm) -> Result<(), interpret::Error> {
+        use lir::Stm::*;
+        match stm {
+        | Jump(exp) => {
+            let label = self.interpret_exp(exp)?
+                .extract_name()?;
+            let next = self.jump.get(&label)
+                .cloned()
+                .ok_or_else(|| interpret::Error::UnboundLabel(label))?;
+            self.next = Some(next);
+        }
+        | CJump(exp, t, f) => {
+            let cond = self.interpret_exp(exp)?
+                .extract_bool()?;
+            let branch = if cond { t } else { f };
+            let next = self.jump.get(branch)
+                .cloned()
+                .ok_or_else(|| interpret::Error::UnboundLabel(*branch))?;
+            self.next = Some(next);
+        }
+        | Call(f, args) => unimplemented!(),
+        | Label(exp) => (),
+        | Move(lir::Exp::Mem(mem), src) => {
+            unimplemented!()
+        }
+        | Move(dst, src) => {
+            unimplemented!()
+        }
+        | Return(rets) => unimplemented!(),
+        }
+        Ok(())
     }
 
-    fn interpret_exp(&self) {
+    fn interpret_exp(&self, exp: &lir::Exp) -> Result<interpret::Value, interpret::Error> {
         unimplemented!()
     }
 }

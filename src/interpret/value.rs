@@ -23,6 +23,14 @@ impl Value {
         }
     }
 
+    pub fn extract_bool(&self) -> Result<bool, interpret::Error> {
+        match *self {
+        | Value::Int(0) => Ok(false),
+        | Value::Int(1) => Ok(true),
+        | value => Err(interpret::Error::NotBool(value)),
+        }
+    }
+
     pub fn extract_int(&self) -> Result<i64, interpret::Error> {
         match *self {
         | Value::Int(i) => Ok(i),

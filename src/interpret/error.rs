@@ -8,6 +8,7 @@ pub enum Error {
     NotName(interpret::Value),
     NotTemp(interpret::Value),
     NotInt(interpret::Value),
+    NotBool(interpret::Value),
 }
 
 impl std::fmt::Display for Error {
