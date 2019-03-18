@@ -2,6 +2,7 @@ use std::io::{BufRead, BufReader, Stdin};
 use std::collections::HashMap;
 
 use crate::data::operand;
+use crate::data::ir;
 use crate::data::lir;
 use crate::util::symbol;
 use crate::interpret;
@@ -60,18 +61,17 @@ impl<'unit> Interpreter<'unit> {
             self.next = Some(branch);
         }
         | Call(f, args) => unimplemented!(),
-        | Label(exp) => (),
+        | Label(_) => (),
         | Move(lir::Exp::Mem(mem), src) => {
             let frame = self.call.current();
             let address = self.interpret_exp(mem)?.extract_int(frame)?;
             let value = self.interpret_exp(src)?.extract_int(frame)?;
-            self.heap.store(address, value);
+            self.heap.store(address, value)?;
         }
         | Move(dst, src) => {
-            let frame = self.call.current_mut();
             let dst = self.interpret_exp(dst)?.extract_temp()?;
-            let src = self.interpret_exp(src)?.extract_int(frame)?;
-            frame.insert(dst, src);
+            let src = self.interpret_exp(src)?.extract_int(self.call.current())?;
+            self.call.current_mut().insert(dst, src);
         }
         | Return(rets) => {
             let rets = rets.iter()
@@ -98,7 +98,41 @@ impl<'unit> Interpreter<'unit> {
         | Int(i) => Ok(interpret::Value::Int(*i)),
         | Name(l) => Ok(interpret::Value::Name(*l)),
         | Temp(t) => Ok(interpret::Value::Temp(*t)),
-        | _ => unimplemented!(),
+        | Mem(a) => {
+            let frame = self.call.current();
+            let address = self.interpret_exp(a)?.extract_int(frame)?;
+            let value = self.heap.read(address)?;
+            Ok(interpret::Value::Int(value))
+        }
+        | Bin(bin, l, r) => {
+            let frame = self.call.current();
+            let l = self.interpret_exp(l)?.extract_int(frame)?;
+            let r = self.interpret_exp(r)?.extract_int(frame)?;
+            use ir::Bin::*;
+            let value = match bin {
+            | Add => l + r,
+            | Sub => l - r,
+            | Mul => (l as i128 * r as i128) as i64,
+            | Hul => ((l as i128 * r as i128) >> 64) as i64,
+            | Div if r == 0 => return Err(interpret::Error::DivideByZero),
+            | Mod if r == 0 => return Err(interpret::Error::DivideByZero),
+            | Div => l / r,
+            | Mod => l % r,
+            | Xor => l ^ r,
+            | Ls  => l << r,
+            | Rs  => ((l as u64 >> r) as i64),
+            | ARs => l >> r,
+            | Lt  => if l < r  { 1 } else { 0 },
+            | Le  => if l <= r { 1 } else { 0 },
+            | Ge  => if l >= r { 1 } else { 0 },
+            | Gt  => if l > r  { 1 } else { 0 },
+            | Ne  => if l != r { 1 } else { 0 },
+            | Eq  => if l == r { 1 } else { 0 },
+            | And => if (l & r) & 0b1 == 1 { 1 } else { 0 },
+            | Or  => if (l | r) & 0b1 == 1 { 1 } else { 0 },
+            };
+            Ok(interpret::Value::Int(value))
+        }
         }
     }
 }

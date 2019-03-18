@@ -1,5 +1,6 @@
 use crate::interpret;
 
+#[derive(Debug)]
 pub struct Heap(Vec<i64>);
 
 const WORD_SIZE: i64 = 8;

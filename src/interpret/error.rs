@@ -13,6 +13,7 @@ pub enum Error {
     InvalidRead(i64),
     InvalidWrite(i64),
     OutOfMemory,
+    DivideByZero,
 }
 
 impl std::fmt::Display for Error {

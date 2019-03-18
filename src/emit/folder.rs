@@ -53,8 +53,8 @@ impl Foldable for hir::Exp {
             | (Gt , Int(l), Int(r)) => Int(if l > r  { 1 } else { 0 }),
             | (Ne , Int(l), Int(r)) => Int(if l != r { 1 } else { 0 }),
             | (Eq , Int(l), Int(r)) => Int(if l == r { 1 } else { 0 }),
-            | (And, Int(l), Int(r)) => Int(if l & r == 1 { 1 } else { 0 }),
-            | (Or , Int(l), Int(r)) => Int(if l | r == 1 { 1 } else { 0 }),
+            | (And, Int(l), Int(r)) => Int(if (l & r) & 0b1 == 0b1 { 1 } else { 0 }),
+            | (Or , Int(l), Int(r)) => Int(if (l | r) & 0b1 == 0b1 { 1 } else { 0 }),
             | (Div, Int(l), Int(r)) if r != 0 => Int(l / r),
             | (Mod, Int(l), Int(r)) if r != 0 => Int(l % r),
 
