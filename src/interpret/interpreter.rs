@@ -88,6 +88,12 @@ impl<'unit> Interpreter<'unit> {
     }
 
     fn interpret_exp(&self, exp: &lir::Exp) -> Result<interpret::Value, interpret::Error> {
-        unimplemented!()
+        use lir::Exp::*;
+        match exp {
+        | Int(i) => Ok(interpret::Value::Int(*i)),
+        | Name(l) => Ok(interpret::Value::Name(*l)),
+        | Temp(t) => Ok(interpret::Value::Temp(*t)),
+        | _ => unimplemented!(),
+        }
     }
 }
