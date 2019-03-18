@@ -27,6 +27,11 @@ impl Stack {
         self.0.last_mut().unwrap()
     }
 
+    pub fn parent(&self) -> &Frame {
+        let parent = self.0.len() - 2;
+        self.0.get(parent).unwrap()
+    }
+
     pub fn parent_mut(&mut self) -> &mut Frame {
         let parent = self.0.len() - 2;
         self.0.get_mut(parent).unwrap()

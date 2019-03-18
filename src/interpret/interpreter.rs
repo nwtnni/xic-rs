@@ -36,6 +36,36 @@ impl<'unit> Interpreter<'unit> {
         unimplemented!()
     }
 
+    fn interpret_call(&mut self, f: operand::Label, args: &[lir::Exp]) -> Result<(), interpret::Error> {
+        self.call.push();
+
+        // Push arguments into callee stack frame
+        for (i, arg) in args.iter().enumerate() {
+            let arg = self.interpret_exp(arg)?
+                .extract_int(self.call.parent())?;
+            self.call.current_mut()
+                .insert(operand::Temp::Arg(i), arg);
+        }
+
+        // Record instruction pointer before jumping
+        let next = self.next.unwrap() + 1;
+        let jump = self.jump.get(&f)
+            .cloned()
+            .ok_or_else(|| interpret::Error::UnboundLabel(f))?;
+        self.next = Some(jump);
+
+        // Execute callee
+        while let Some(next) = self.next {
+            let stm = self.funs.get(next).ok_or_else(|| interpret::Error::InvalidIP)?;
+            self.interpret_stm(stm)?;
+        }
+
+        // Pop callee stack frame and return instruction pointer
+        self.call.pop();
+        self.next = Some(next);
+        Ok(())
+    }
+
     fn interpret_stm(&mut self, stm: &lir::Stm) -> Result<(), interpret::Error> {
         use lir::Stm::*;
         match stm {
@@ -60,7 +90,11 @@ impl<'unit> Interpreter<'unit> {
             };
             self.next = Some(branch);
         }
-        | Call(f, args) => unimplemented!(),
+        | Call(f, args) => {
+            let f = self.interpret_exp(f)?
+                .extract_name()?;
+            self.interpret_call(f, args)?;
+        }
         | Label(_) => (),
         | Move(lir::Exp::Mem(mem), src) => {
             let frame = self.call.current();
@@ -85,7 +119,6 @@ impl<'unit> Interpreter<'unit> {
                 parent.insert(operand::Temp::Ret(i), ret);
             }
 
-            self.call.pop();
             self.next = None;
         },
         }
