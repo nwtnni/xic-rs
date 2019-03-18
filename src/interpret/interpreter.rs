@@ -61,7 +61,12 @@ impl<'unit> Interpreter<'unit> {
             unimplemented!()
         }
         | Move(dst, src) => {
-            unimplemented!()
+            let dst = self.interpret_exp(dst)?
+                .extract_temp()?;
+            let src = self.interpret_exp(src)?
+                .extract_int(&self.call.current())?;
+            self.call.current_mut()
+                .insert(dst, src);
         }
         | Return(rets) => unimplemented!(),
         }

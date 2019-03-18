@@ -31,9 +31,10 @@ impl Value {
         }
     }
 
-    pub fn extract_int(&self) -> Result<i64, interpret::Error> {
+    pub fn extract_int(&self, frame: &interpret::Frame) -> Result<i64, interpret::Error> {
         match *self {
         | Value::Int(i) => Ok(i),
+        | Value::Temp(temp) => frame.get(&temp),
         | value => Err(interpret::Error::NotInt(value)),
         }
     }
