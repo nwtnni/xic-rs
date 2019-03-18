@@ -9,6 +9,10 @@ pub enum Error {
     NotTemp(interpret::Value),
     NotInt(interpret::Value),
     NotBool(interpret::Value),
+    InvalidMalloc(i64),
+    InvalidRead(i64),
+    InvalidWrite(i64),
+    OutOfMemory,
 }
 
 impl std::fmt::Display for Error {
