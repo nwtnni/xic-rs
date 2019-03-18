@@ -4,12 +4,10 @@ use std::collections::HashMap;
 use crate::data::operand;
 use crate::data::lir;
 use crate::util::symbol;
+use crate::interpret;
 
 #[derive(Debug)]
 pub struct Interpreter<'unit> {
-    /// Call stack
-    call: Vec<Frame>, 
-
     /// Static data segment
     data: HashMap<operand::Label, symbol::Symbol>,
 
@@ -24,37 +22,25 @@ pub struct Interpreter<'unit> {
 
     /// `stdin` connection for I/O library functions
     read: BufReader<Stdin>,
+
+    /// Call stack
+    call: interpret::Stack,
+
+    /// Instruction pointer
+    next: usize
 }
 
 impl<'unit> Interpreter<'unit> {
-    fn interpret_stm(&mut self) {
+
+    fn interpret_call(&mut self, fun: operand::Label) -> Result<Vec<i64>, interpret::Error> {
         unimplemented!()
     }
 
-    fn interpret_exp(&self) -> Val {
+    fn interpret_stm(&mut self) -> Option<Vec<i64>> {
         unimplemented!()
     }
-}
 
-#[derive(Debug)]
-enum Val {
-    Name(operand::Label),
-    Temp(operand::Temp),
-    Int(i64),
-}
-
-#[derive(Debug)]
-struct Frame {
-    rets: Vec<i64>,
-    regs: HashMap<operand::Temp, i64>,
-}
-
-impl Frame {
-    fn get_reg(&self, temp: operand::Temp) -> Option<i64> {
-        self.regs.get(&temp).cloned()
-    }
-
-    fn get_ret(&self, ret: usize) -> Option<i64> {
-        self.rets.get(ret).cloned() 
+    fn interpret_exp(&self) {
+        unimplemented!()
     }
 }
