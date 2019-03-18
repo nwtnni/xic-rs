@@ -158,7 +158,10 @@ impl<'unit> Interpreter<'unit> {
                 .insert(operand::Temp::Ret(0), address + constants::WORD_SIZE);
         }
         | "_Igetchar_i" => {
-            unimplemented!()
+            let mut buffer = [0u8];
+            self.read.read_exact( &mut buffer).unwrap();
+            self.call.parent_mut()
+                .insert(operand::Temp::Ret(0), buffer[0] as i64);
         }
         | "_Ieof_b" => {
             unimplemented!()
