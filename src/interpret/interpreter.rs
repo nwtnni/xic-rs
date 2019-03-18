@@ -68,7 +68,21 @@ impl<'unit> Interpreter<'unit> {
             self.call.current_mut()
                 .insert(dst, src);
         }
-        | Return(rets) => unimplemented!(),
+        | Return(rets) => {
+            let rets = rets.iter()
+                .map(|ret| self.interpret_exp(ret))
+                .map(|ret| ret.and_then(|ret| ret.extract_int(&self.call.current())))
+                .collect::<Result<Vec<_>, _>>()?;
+
+            let parent = self.call.parent_mut();
+
+            for (i, ret) in rets.into_iter().enumerate() {
+                parent.insert(operand::Temp::Ret(i), ret);
+            }
+
+            self.call.pop();
+            self.next = None;
+        },
         }
         Ok(())
     }
