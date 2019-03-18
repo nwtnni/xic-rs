@@ -18,7 +18,7 @@ pub struct Interpreter<'unit> {
     funs: Vec<&'unit lir::Stm>,
 
     /// Heap for dynamic memory allocation
-    heap: Vec<i64>,
+    heap: interpret::Heap,
 
     /// `stdin` connection for I/O library functions
     read: BufReader<Stdin>,
@@ -58,15 +58,16 @@ impl<'unit> Interpreter<'unit> {
         | Call(f, args) => unimplemented!(),
         | Label(exp) => (),
         | Move(lir::Exp::Mem(mem), src) => {
-            unimplemented!()
+            let frame = self.call.current();
+            let address = self.interpret_exp(mem)?.extract_int(frame)?;
+            let value = self.interpret_exp(src)?.extract_int(frame)?;
+            self.heap.store(address, value);
         }
         | Move(dst, src) => {
-            let dst = self.interpret_exp(dst)?
-                .extract_temp()?;
-            let src = self.interpret_exp(src)?
-                .extract_int(&self.call.current())?;
-            self.call.current_mut()
-                .insert(dst, src);
+            let frame = self.call.current_mut();
+            let dst = self.interpret_exp(dst)?.extract_temp()?;
+            let src = self.interpret_exp(src)?.extract_int(frame)?;
+            frame.insert(dst, src);
         }
         | Return(rets) => {
             let rets = rets.iter()
