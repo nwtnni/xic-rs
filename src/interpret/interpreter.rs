@@ -1,4 +1,4 @@
-use std::io::{BufRead, BufReader, Stdin};
+use std::io::{Read, BufReader, Stdin};
 use std::collections::HashMap;
 
 use crate::constants;
@@ -146,7 +146,16 @@ impl<'unit> Interpreter<'unit> {
             }
         }
         | "_Ireadln_ai" => {
-            unimplemented!()
+            let mut buffer = String::new();
+            self.read.read_to_string(&mut buffer).unwrap();
+            let length = buffer.len() as i64;
+            let address = self.heap.malloc((length + 1) * constants::WORD_SIZE)?;
+            self.heap.store(address, length)?;
+            for (c, i) in buffer.chars().zip(1..) {
+                self.heap.store(address + i * constants::WORD_SIZE, c as u32 as i64)?;
+            }
+            self.call.parent_mut()
+                .insert(operand::Temp::Ret(0), address + constants::WORD_SIZE);
         }
         | "_Igetchar_i" => {
             unimplemented!()
