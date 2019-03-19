@@ -1,8 +1,5 @@
 #![feature(box_patterns, fnbox)]
 
-#[macro_use]
-extern crate maplit;
-
 pub mod data;
 pub mod lex;
 pub mod parse;

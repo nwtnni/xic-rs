@@ -18,38 +18,8 @@ pub struct Env {
 
 impl Env {
     pub fn new() -> Self {
-        let library = hashmap! {
-            symbol::intern("print") => Entry::Fun(
-                vec![typ::Exp::Arr(Box::new(typ::Exp::Int))],
-                typ::Typ::Unit,
-            ),
-            symbol::intern("println") => Entry::Fun(
-                vec![typ::Exp::Arr(Box::new(typ::Exp::Int))],
-                typ::Typ::Unit,
-            ),
-            symbol::intern("readln") => Entry::Fun(
-                vec![],
-                typ::Typ::array(typ::Exp::Int),
-            ),
-            symbol::intern("getchar") => Entry::Fun(
-                vec![],
-                typ::Typ::int(),
-            ),
-            symbol::intern("eof") => Entry::Fun(
-                vec![],
-                typ::Typ::boolean(),
-            ),
-            symbol::intern("unparseInt") => Entry::Fun(
-                vec![typ::Exp::Int],
-                typ::Typ::array(typ::Exp::Int),
-            ),
-            symbol::intern("parseInt") => Entry::Fun(
-                vec![typ::Exp::Arr(Box::new(typ::Exp::Int))],
-                typ::Typ::Tup(vec![typ::Exp::Int, typ::Exp::Bool]),
-            ),
-        };
         Env {
-            stack: vec![library],
+            stack: vec![HashMap::default()],
             ret: typ::Typ::Unit,
         }
     }
