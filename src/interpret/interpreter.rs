@@ -135,23 +135,23 @@ impl<'unit> Interpreter<'unit> {
         };
 
         if args.len() != match name {
-        | "_Igetchar_i"
-        | "_Ieof_b"
-        | "_xi_out_of_bounds" => 0,
-        | "_Iprint_pai"
-        | "_Iprintln_pai"
-        | "_Ireadln_ai"
-        | "_IunparseInt_aii"
-        | "_IparseInt_t2ibai"
-        | "_xi_alloc"
-        | "_Iassert_pb" => 1,
+        | constants::GET_CHAR
+        | constants::EOF
+        | constants::XI_OUT_OF_BOUNDS => 0,
+        | constants::PRINT
+        | constants::PRINTLN
+        | constants::READLN
+        | constants::UNPARSE_INT
+        | constants::PARSE_INT
+        | constants::XI_ALLOC
+        | constants::ASSERT => 1,
         | _ => return Err(interpret::Error::UnboundFun(f)),
         } {
             return Err(interpret::Error::CallMismatch)
         }
 
         match name {
-        | "_Iprint_pai" | "_Iprintln_pai" => {
+        | constants::PRINT | constants::PRINTLN => {
             let ptr = self.interpret_exp(&args[0])?.extract_int(self.call.current())?;
             let arr = self.heap.read_arr(ptr)?;
             for n in arr {
@@ -159,11 +159,11 @@ impl<'unit> Interpreter<'unit> {
                     .ok_or_else(|| interpret::Error::InvalidChar(n))?;
                 print!("{}", c);
             }
-            if name == "_Iprintln_pai" {
+            if name == constants::PRINTLN {
                 println!()
             }
         }
-        | "_Ireadln_ai" => {
+        | constants::READLN => {
             let mut buffer = String::new();
             std::io::stdin()
                 .read_to_string(&mut buffer)
@@ -173,14 +173,14 @@ impl<'unit> Interpreter<'unit> {
             self.heap.store_str(ptr, &buffer)?;
             self.interpret_ret(0, ptr + constants::WORD_SIZE);
         }
-        | "_Igetchar_i" => {
+        | constants::GET_CHAR => {
             let mut buffer = [0u8];
             std::io::stdin()
                 .read_exact(&mut buffer)
                 .unwrap();
             self.interpret_ret(0, buffer[0] as i64);
         }
-        | "_Ieof_b" => {
+        | constants::EOF => {
             let eof = std::io::stdin()
                 .bytes()
                 .peekable()
@@ -188,7 +188,7 @@ impl<'unit> Interpreter<'unit> {
                 .is_none();
             self.interpret_ret(0, if eof { 1 } else { 0 });
         }
-        | "_IunparseInt_aii" => {
+        | constants::UNPARSE_INT => {
             let s = self.interpret_exp(&args[0])?
                 .extract_int(self.call.current())?
                 .to_string();
@@ -197,7 +197,7 @@ impl<'unit> Interpreter<'unit> {
             self.heap.store_str(ptr, &s)?;
             self.interpret_ret(0, ptr + constants::WORD_SIZE);
         }
-        | "_IparseInt_t2ibai" => {
+        | constants::PARSE_INT => {
             let ptr = self.interpret_exp(&args[0])?.extract_int(self.call.current())?;
             let arr = self.heap.read_arr(ptr)?;
             let mut string = String::new();
@@ -213,15 +213,15 @@ impl<'unit> Interpreter<'unit> {
             self.interpret_ret(0, result);
             self.interpret_ret(1, success);
         }
-        | "_xi_alloc" => {
+        | constants::XI_ALLOC => {
             let bytes = self.interpret_exp(&args[0])?.extract_int(self.call.current())?;
             let ptr = self.heap.calloc(bytes)?;
             self.interpret_ret(0, ptr);
         }
-        | "_xi_out_of_bounds" => {
+        | constants::XI_OUT_OF_BOUNDS => {
             return Err(interpret::Error::OutOfBounds)
         }
-        | "_Iassert_pb" => {
+        | constants::ASSERT => {
             let test = self.interpret_exp(&args[0])?.extract_bool(self.call.current())?;
             if !test { return Err(interpret::Error::AssertFail) }
         }
