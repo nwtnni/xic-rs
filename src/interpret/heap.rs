@@ -35,9 +35,25 @@ impl Heap {
         Ok(self.0[index])
     }
 
+    pub fn read_arr(&self, address: i64) -> Result<Vec<i64>, interpret::Error> {
+        let index = self.address_to_index(address)?;
+        let len = self.0[index - 1] as usize; 
+        Ok(self.0[index..index + len].to_vec())
+    }
+
     pub fn store(&mut self, address: i64, value: i64) -> Result<(), interpret::Error> {
         let index = self.address_to_index(address)?;
         self.0[index] = value;
+        Ok(())
+    }
+
+    pub fn store_str(&mut self, address: i64, string: &str) -> Result<(), interpret::Error> {
+        let index = self.address_to_index(address)?;
+        let len = string.len() as i64;
+        self.0[index] = len;
+        for (c, i) in string.chars().zip(1..) {
+            self.0[index + i] = c as u32 as i64;
+        }
         Ok(())
     }
 

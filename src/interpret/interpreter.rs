@@ -1,4 +1,5 @@
 use std::io::Read;
+use std::str::FromStr;
 use std::collections::HashMap;
 
 use crate::constants;
@@ -111,16 +112,20 @@ impl<'unit> Interpreter<'unit> {
                 .map(|ret| ret.and_then(|ret| ret.extract_int(&self.call.current())))
                 .collect::<Result<Vec<_>, _>>()?;
 
-            let parent = self.call.parent_mut();
-
             for (i, ret) in rets.into_iter().enumerate() {
-                parent.insert(operand::Temp::Ret(i), ret);
+                self.interpret_ret(i, ret);
             }
 
             self.next = None;
         },
         }
         Ok(())
+    }
+
+    fn interpret_ret(&mut self, index: usize, value: i64) {
+        self.call
+            .parent_mut()
+            .insert(operand::Temp::Ret(index), value);
     }
 
     fn interpret_lib(&mut self, f: operand::Label, args: &[lir::Exp]) -> Result<(), interpret::Error> {
@@ -130,17 +135,17 @@ impl<'unit> Interpreter<'unit> {
         };
         match name {
         | "_Iprint_pai" | "_Iprintln_pai" => {
-            let arr = args.get(0)
-                .ok_or(interpret::Error::CallMismatch)?;
-            let base = self.interpret_exp(arr)?
-                .extract_int(self.call.current())?;
-            let size = self.heap.read(base - constants::WORD_SIZE)?;
-            for i in 0..size {
-                let address = base + i * constants::WORD_SIZE;
-                let memory = self.heap.read(address)?;
-                let ch = std::char::from_u32(memory as u32).unwrap();
-                print!("{}", ch)
+            if args.len() != 1 { return Err(interpret::Error::CallMismatch) }
+
+            let ptr = self.interpret_exp(&args[0])?.extract_int(self.call.current())?;
+            let arr = self.heap.read_arr(ptr)?;
+
+            for n in arr {
+                let c = std::char::from_u32(n as u32)
+                    .ok_or_else(|| interpret::Error::InvalidChar(n))?;
+                print!("{}", c);
             }
+
             if name == "_Iprintln_pai" {
                 println!()
             }
@@ -152,20 +157,15 @@ impl<'unit> Interpreter<'unit> {
                 .unwrap();
             let len = buffer.len() as i64;
             let ptr = self.heap.malloc((len + 1) * constants::WORD_SIZE)?;
-            self.heap.store(ptr, len)?;
-            for (c, i) in buffer.chars().zip(1..) {
-                self.heap.store(ptr + i * constants::WORD_SIZE, c as u32 as i64)?;
-            }
-            self.call.parent_mut()
-                .insert(operand::Temp::Ret(0), ptr + constants::WORD_SIZE);
+            self.heap.store_str(ptr, &buffer)?;
+            self.interpret_ret(0, ptr + constants::WORD_SIZE);
         }
         | "_Igetchar_i" => {
             let mut buffer = [0u8];
             std::io::stdin()
                 .read_exact(&mut buffer)
                 .unwrap();
-            self.call.parent_mut()
-                .insert(operand::Temp::Ret(0), buffer[0] as i64);
+            self.interpret_ret(0, buffer[0] as i64);
         }
         | "_Ieof_b" => {
             let eof = std::io::stdin()
@@ -173,26 +173,40 @@ impl<'unit> Interpreter<'unit> {
                 .peekable()
                 .peek()
                 .is_none();
-            self.call.parent_mut()
-                .insert(operand::Temp::Ret(0), if eof { 1 } else { 0 });
+            self.interpret_ret(0, if eof { 1 } else { 0 });
         }
         | "_IunparseInt_aii" => {
-            let n = args.get(0)
-                .ok_or(interpret::Error::CallMismatch)?;
-            let s = self.interpret_exp(n)?
+            if args.len() != 1 { return Err(interpret::Error::CallMismatch) }
+
+            let s = self.interpret_exp(&args[0])?
                 .extract_int(self.call.current())?
                 .to_string();
+
             let len = s.len() as i64;
             let ptr = self.heap.malloc((len + 1) * constants::WORD_SIZE)?;
-            self.heap.store(ptr, len)?;
-            for (c, i) in s.chars().zip(1..) {
-                self.heap.store(ptr + i * constants::WORD_SIZE, c as u32 as i64)?;
-            }
-            self.call.parent_mut()
-                .insert(operand::Temp::Ret(0), ptr + constants::WORD_SIZE);
+            self.heap.store_str(ptr, &s)?;
+            self.interpret_ret(0, ptr + constants::WORD_SIZE);
         }
         | "_IparseInt_t2ibai" => {
-            unimplemented!()
+            if args.len() != 1 { return Err(interpret::Error::CallMismatch) }
+
+            let ptr = self.interpret_exp(&args[0])?.extract_int(self.call.current())?;
+            let arr = self.heap.read_arr(ptr)?;
+            let mut string = String::new();
+
+            for n in arr {
+                let c = std::char::from_u32(n as u32)
+                    .ok_or_else(|| interpret::Error::InvalidChar(n))?;
+                string.push(c);
+            }
+
+            let (result, success) = match i64::from_str(&string) {
+            | Ok(n) => (n, 1),
+            | Err(_) => (0, 0),
+            };
+
+            self.interpret_ret(0, result);
+            self.interpret_ret(1, success);
         }
         | "_xi_alloc" => {
             unimplemented!()

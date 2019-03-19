@@ -13,6 +13,7 @@ pub enum Error {
     InvalidMalloc(i64),
     InvalidRead(i64),
     InvalidWrite(i64),
+    InvalidChar(i64),
     InvalidIP,
     OutOfMemory,
     DivideByZero,
