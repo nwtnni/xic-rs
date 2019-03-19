@@ -36,6 +36,14 @@ impl<'unit> Interpreter<'unit> {
     }
 
     fn interpret_call(&mut self, f: operand::Label, args: &[lir::Exp]) -> Result<(), interpret::Error> {
+
+        // Try to interpret as a library function first
+        if let operand::Label::Fix(f) = f {
+            if let Ok(()) = self.interpret_lib(f, args) {
+                return Ok(())
+            }
+        }
+
         self.call.push();
 
         // Push arguments into callee stack frame
@@ -50,7 +58,7 @@ impl<'unit> Interpreter<'unit> {
         let next = self.next.unwrap() + 1;
         let jump = self.jump.get(&f)
             .cloned()
-            .ok_or_else(|| interpret::Error::UnboundLabel(f))?;
+            .ok_or_else(|| interpret::Error::UnboundFun(f))?;
         self.next = Some(jump);
 
         // Execute callee
@@ -65,76 +73,8 @@ impl<'unit> Interpreter<'unit> {
         Ok(())
     }
 
-    fn interpret_stm(&mut self, stm: &lir::Stm) -> Result<(), interpret::Error> {
-        use lir::Stm::*;
-        match stm {
-        | Jump(exp) => {
-            let label = self.interpret_exp(exp)?
-                .extract_name()?;
-            let next = self.jump.get(&label)
-                .cloned()
-                .ok_or_else(|| interpret::Error::UnboundLabel(label))?;
-            self.next = Some(next);
-        }
-        | CJump(exp, t, f) => {
-            let cond = self.interpret_exp(exp)?.extract_bool(self.call.current())?;
-            let branch = if cond {
-                self.jump.get(t)
-                    .cloned()
-                    .ok_or_else(|| interpret::Error::UnboundLabel(*t))?
-            } else {
-                self.jump.get(f)
-                    .cloned()
-                    .unwrap_or(self.next.unwrap() + 1)
-            };
-            self.next = Some(branch);
-        }
-        | Call(f, args) => {
-            let f = self.interpret_exp(f)?
-                .extract_name()?;
-            self.interpret_call(f, args)?;
-        }
-        | Label(_) => (),
-        | Move(lir::Exp::Mem(mem), src) => {
-            let frame = self.call.current();
-            let address = self.interpret_exp(mem)?.extract_int(frame)?;
-            let value = self.interpret_exp(src)?.extract_int(frame)?;
-            self.heap.store(address, value)?;
-        }
-        | Move(dst, src) => {
-            let dst = self.interpret_exp(dst)?.extract_temp()?;
-            let src = self.interpret_exp(src)?.extract_int(self.call.current())?;
-            self.call.current_mut().insert(dst, src);
-        }
-        | Return(rets) => {
-            let rets = rets.iter()
-                .map(|ret| self.interpret_exp(ret))
-                .map(|ret| ret.and_then(|ret| ret.extract_int(&self.call.current())))
-                .collect::<Result<Vec<_>, _>>()?;
-
-            for (i, ret) in rets.into_iter().enumerate() {
-                self.interpret_ret(i, ret);
-            }
-
-            self.next = None;
-        },
-        }
-        Ok(())
-    }
-
-    fn interpret_ret(&mut self, index: usize, value: i64) {
-        self.call
-            .parent_mut()
-            .insert(operand::Temp::Ret(index), value);
-    }
-
-    fn interpret_lib(&mut self, f: operand::Label, args: &[lir::Exp]) -> Result<(), interpret::Error> {
-        let name = match f {
-        | operand::Label::Fix(sym) => symbol::resolve(sym),
-        | _ => return Err(interpret::Error::UnboundFun(f)),
-        };
-
-        if args.len() != match name {
+    fn interpret_lib(&mut self, f: symbol::Symbol, args: &[lir::Exp]) -> Result<(), interpret::Error> {
+        if args.len() != match symbol::resolve(f) {
         | constants::GET_CHAR
         | constants::EOF
         | constants::XI_OUT_OF_BOUNDS => 0,
@@ -145,12 +85,12 @@ impl<'unit> Interpreter<'unit> {
         | constants::PARSE_INT
         | constants::XI_ALLOC
         | constants::ASSERT => 1,
-        | _ => return Err(interpret::Error::UnboundFun(f)),
+        | _ => return Err(interpret::Error::UnboundFun(operand::Label::Fix(f))),
         } {
             return Err(interpret::Error::CallMismatch)
         }
 
-        match name {
+        match symbol::resolve(f) {
         | constants::PRINT | constants::PRINTLN => {
             let ptr = self.interpret_exp(&args[0])?.extract_int(self.call.current())?;
             let arr = self.heap.read_arr(ptr)?;
@@ -159,7 +99,7 @@ impl<'unit> Interpreter<'unit> {
                     .ok_or_else(|| interpret::Error::InvalidChar(n))?;
                 print!("{}", c);
             }
-            if name == constants::PRINTLN {
+            if symbol::resolve(f) == constants::PRINTLN {
                 println!()
             }
         }
@@ -230,6 +170,63 @@ impl<'unit> Interpreter<'unit> {
         Ok(())
     }
 
+    fn interpret_stm(&mut self, stm: &lir::Stm) -> Result<(), interpret::Error> {
+        use lir::Stm::*;
+        match stm {
+        | Label(_) => (),
+        | Jump(exp) => {
+            let label = self.interpret_exp(exp)?
+                .extract_name()?;
+            let next = self.jump.get(&label)
+                .cloned()
+                .ok_or_else(|| interpret::Error::UnboundLabel(label))?;
+            self.next = Some(next);
+        }
+        | CJump(exp, t, f) => {
+            let cond = self.interpret_exp(exp)?.extract_bool(self.call.current())?;
+            let branch = if cond {
+                self.jump.get(t)
+                    .cloned()
+                    .ok_or_else(|| interpret::Error::UnboundLabel(*t))?
+            } else {
+                self.jump.get(f)
+                    .cloned()
+                    .unwrap_or(self.next.unwrap() + 1)
+            };
+            self.next = Some(branch);
+        }
+        | Call(f, args) => {
+            let f = self.interpret_exp(f)?
+                .extract_name()?;
+            self.interpret_call(f, args)?;
+        }
+        | Move(lir::Exp::Mem(mem), src) => {
+            let frame = self.call.current();
+            let address = self.interpret_exp(mem)?.extract_int(frame)?;
+            let value = self.interpret_exp(src)?.extract_int(frame)?;
+            self.heap.store(address, value)?;
+        }
+        | Move(dst, src) => {
+            let dst = self.interpret_exp(dst)?.extract_temp()?;
+            let src = self.interpret_exp(src)?.extract_int(self.call.current())?;
+            self.call.current_mut().insert(dst, src);
+        }
+        | Return(rets) => {
+            let rets = rets.iter()
+                .map(|ret| self.interpret_exp(ret))
+                .map(|ret| ret.and_then(|ret| ret.extract_int(&self.call.current())))
+                .collect::<Result<Vec<_>, _>>()?;
+
+            for (i, ret) in rets.into_iter().enumerate() {
+                self.interpret_ret(i, ret);
+            }
+
+            self.next = None;
+        },
+        }
+        Ok(())
+    }
+
     fn interpret_exp(&self, exp: &lir::Exp) -> Result<interpret::Value, interpret::Error> {
         use lir::Exp::*;
         match exp {
@@ -272,5 +269,11 @@ impl<'unit> Interpreter<'unit> {
             Ok(interpret::Value::Int(value))
         }
         }
+    }
+
+    fn interpret_ret(&mut self, index: usize, value: i64) {
+        self.call
+            .parent_mut()
+            .insert(operand::Temp::Ret(index), value);
     }
 }
