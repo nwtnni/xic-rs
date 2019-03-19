@@ -70,7 +70,7 @@ xic ("Test --parse") ["../pa2"] "--parse" {
     beauty.xi (Syntax, "Unexpected token ==");
 }
 
-xic ("Test --typecheck") ["../pa3"] "-libpath $(testpath) --typecheck" {
+xic ("Test --typecheck") ["../pa3"] "--libpath $(testpath) --typecheck" {
     ex01.xi;
     ex02.xi;
     ex03.xi;
@@ -99,13 +99,13 @@ xic ("Test --typecheck") ["../pa3"] "-libpath $(testpath) --typecheck" {
     mdarrays.xi;
 }
 
-xic ("Test --irgen") "-libpath $(testpath) --irgen" {
+xic ("Test --irgen") "--libpath $(testpath) --irgen" {
     ex01.xi;
     ack.xi;
     primes.xi;
 }
 
-xic ("Test --irgen -O") "-libpath $(testpath) --irgen -O" {
+xic ("Test --irgen -O") "--libpath $(testpath) --irgen -O" {
     ex01.xi;
     ack.xi;
     primes.xi;

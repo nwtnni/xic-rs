@@ -70,7 +70,7 @@ xic ("Test --parse") ["../pa2"] "--parse" {
     beauty.xi (Syntax, "Unexpected token ==");
 }
 
-xic ("Test --typecheck") "-libpath $(testpath) --typecheck" {
+xic ("Test --typecheck") "--libpath $(testpath) --typecheck" {
     ex01.xi;
     ex02.xi;
     ex03.xi;
