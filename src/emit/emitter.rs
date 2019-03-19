@@ -1,5 +1,6 @@
 use std::collections::HashMap;
 
+use crate::constants;
 use crate::check;
 use crate::data::ast;
 use crate::data::ir;
@@ -14,10 +15,6 @@ pub struct Emitter<'env> {
     data: HashMap<symbol::Symbol, operand::Label>,
     funs: HashMap<symbol::Symbol, symbol::Symbol>,
 }
-
-const XI_ALLOC: &'static str = "_xi_alloc";
-const XI_OUT_OF_BOUNDS: &'static str = "_xi_out_of_bounds";
-const WORD_SIZE: usize = 8;
 
 impl<'env> Emitter<'env> {
     pub fn new(env: &'env check::Env) -> Self {
@@ -86,7 +83,7 @@ impl<'env> Emitter<'env> {
 
             for (i, v) in vs.iter().enumerate() {
                 let entry = self.emit_exp(v, vars).into();
-                let offset = hir::Exp::Int(((i + 1) * WORD_SIZE) as i64);
+                let offset = hir::Exp::Int((i + 1) as i64 * constants::WORD_SIZE);
                 let address = hir::Exp::Mem(Box::new(
                     hir::Exp::Bin(
                         ir::Bin::Add,
@@ -99,7 +96,11 @@ impl<'env> Emitter<'env> {
 
             hir::Exp::ESeq(
                 Box::new(hir::Stm::Seq(seq)),
-                Box::new(base)
+                Box::new(hir::Exp::Bin(
+                    ir::Bin::Add,
+                    Box::new(base),
+                    Box::new(hir::Exp::Int(constants::WORD_SIZE)),
+                )),
             ).into()
         }
         | Bin(bin, lhs, rhs, _) => {
@@ -180,45 +181,54 @@ impl<'env> Emitter<'env> {
             ).into()
         }
         | Idx(arr, idx, _) => {
-            let address = hir::Exp::from(self.emit_exp(&*arr, vars));
-            let memory = hir::Exp::Mem(Box::new(address.clone()));
-            let index = hir::Exp::Temp(operand::Temp::new("INDEX"));
+            let address = operand::Temp::new("ADDRESS");
+            let index = operand::Temp::new("INDEX");
+            let length = hir::Exp::Mem(Box::new(
+                hir::Exp::Bin(
+                    ir::Bin::Sub,
+                    Box::new(hir::Exp::Temp(address)),
+                    Box::new(hir::Exp::Int(constants::WORD_SIZE)),
+                ),
+            ));
             let offset = hir::Exp::Bin(
                 ir::Bin::Add,
-                Box::new(address),
+                Box::new(hir::Exp::Temp(address)),
                 Box::new(hir::Exp::Bin(
                     ir::Bin::Mul,
-                    Box::new(hir::Exp::Int(WORD_SIZE as i64)),
-                    Box::new(hir::Exp::Bin(
-                        ir::Bin::Add,
-                        Box::new(hir::Exp::Int(1)),
-                        Box::new(index.clone()),
-                    )),
+                    Box::new(hir::Exp::Temp(index)),
+                    Box::new(hir::Exp::Int(constants::WORD_SIZE)),
                 )),
             );
 
             let lo = operand::Label::new("LOW_BOUND");
             let hi = operand::Label::new("HIGH_BOUND");
-            let fail = operand::Label::Fix(symbol::intern(XI_OUT_OF_BOUNDS));
+            let fail = operand::Label::new("OUT_OF_BOUNDS");
+            let safe = operand::Label::new("IN_BOUNDS");
+            let oob = hir::Exp::Name(operand::Label::Fix(symbol::intern(constants::XI_OUT_OF_BOUNDS)));
 
             let lt = hir::Exp::Bin(
                 ir::Bin::Lt,
-                Box::new(index.clone()),
+                Box::new(hir::Exp::Temp(index)),
                 Box::new(hir::Exp::Int(0)),
             );
 
             let ge = hir::Exp::Bin(
                 ir::Bin::Ge,
-                Box::new(index.clone()),
-                Box::new(memory),
+                Box::new(hir::Exp::Temp(index)),
+                Box::new(length),
             );
 
             let bounds = hir::Stm::Seq(vec![
-                hir::Stm::Move(index.clone(), self.emit_exp(&*idx, vars).into()),
+                hir::Stm::Move(hir::Exp::Temp(address), self.emit_exp(&*arr, vars).into()),
+                hir::Stm::Move(hir::Exp::Temp(index), self.emit_exp(&*idx, vars).into()),
                 hir::Stm::CJump(lt, fail, lo),
                 hir::Stm::Label(lo),
                 hir::Stm::CJump(ge, fail, hi),
                 hir::Stm::Label(hi),
+                hir::Stm::Jump(hir::Exp::Name(safe)),
+                hir::Stm::Label(fail),
+                hir::Stm::Call(oob, Vec::with_capacity(0)),
+                hir::Stm::Label(safe),
             ]);
 
             hir::Exp::ESeq(Box::new(bounds), Box::new(offset)).into()
@@ -250,9 +260,9 @@ impl<'env> Emitter<'env> {
     }
 
     fn emit_alloc(length: usize) -> hir::Stm {
-        let label = operand::Label::Fix(symbol::intern(XI_ALLOC));
+        let label = operand::Label::Fix(symbol::intern(constants::XI_ALLOC));
         let alloc = hir::Exp::Name(label);
-        let size = hir::Exp::Int(((length + 1) * WORD_SIZE) as i64);
+        let size = hir::Exp::Int((length + 1) as i64 * constants::WORD_SIZE);
         hir::Stm::Call(alloc, vec![size])
     }
 
