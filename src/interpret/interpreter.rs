@@ -1,4 +1,4 @@
-use std::io::{Read, BufReader, Stdin};
+use std::io::Read;
 use std::collections::HashMap;
 
 use crate::constants;
@@ -21,9 +21,6 @@ pub struct Interpreter<'unit> {
 
     /// Heap for dynamic memory allocation
     heap: interpret::Heap,
-
-    /// `stdin` connection for I/O library functions
-    read: BufReader<Stdin>,
 
     /// Call stack
     call: interpret::Stack,
@@ -147,7 +144,9 @@ impl<'unit> Interpreter<'unit> {
         }
         | "_Ireadln_ai" => {
             let mut buffer = String::new();
-            self.read.read_to_string(&mut buffer).unwrap();
+            std::io::stdin()
+                .read_to_string(&mut buffer)
+                .unwrap();
             let length = buffer.len() as i64;
             let address = self.heap.malloc((length + 1) * constants::WORD_SIZE)?;
             self.heap.store(address, length)?;
@@ -159,12 +158,20 @@ impl<'unit> Interpreter<'unit> {
         }
         | "_Igetchar_i" => {
             let mut buffer = [0u8];
-            self.read.read_exact( &mut buffer).unwrap();
+            std::io::stdin()
+                .read_exact(&mut buffer)
+                .unwrap();
             self.call.parent_mut()
                 .insert(operand::Temp::Ret(0), buffer[0] as i64);
         }
         | "_Ieof_b" => {
-            unimplemented!()
+            let eof = std::io::stdin()
+                .bytes()
+                .peekable()
+                .peek()
+                .is_none();
+            self.call.parent_mut()
+                .insert(operand::Temp::Ret(0), if eof { 1 } else { 0 });
         }
         | "_IunparseInt_aii" => {
             unimplemented!()
