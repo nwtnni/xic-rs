@@ -77,7 +77,7 @@ impl<'unit> Interpreter<'unit> {
             self.next = Some(next);
         }
         | CJump(exp, t, f) => {
-            let cond = self.interpret_exp(exp)?.extract_bool()?;
+            let cond = self.interpret_exp(exp)?.extract_bool(self.call.current())?;
             let branch = if cond {
                 self.jump.get(t)
                     .cloned()
@@ -133,19 +133,32 @@ impl<'unit> Interpreter<'unit> {
         | operand::Label::Fix(sym) => symbol::resolve(sym),
         | _ => return Err(interpret::Error::UnboundFun(f)),
         };
+
+        if args.len() != match name {
+        | "_Igetchar_i"
+        | "_Ieof_b"
+        | "_xi_out_of_bounds" => 0,
+        | "_Iprint_pai"
+        | "_Iprintln_pai"
+        | "_Ireadln_ai"
+        | "_IunparseInt_aii"
+        | "_IparseInt_t2ibai"
+        | "_xi_alloc"
+        | "_Iassert_pb" => 1,
+        | _ => return Err(interpret::Error::UnboundFun(f)),
+        } {
+            return Err(interpret::Error::CallMismatch)
+        }
+
         match name {
         | "_Iprint_pai" | "_Iprintln_pai" => {
-            if args.len() != 1 { return Err(interpret::Error::CallMismatch) }
-
             let ptr = self.interpret_exp(&args[0])?.extract_int(self.call.current())?;
             let arr = self.heap.read_arr(ptr)?;
-
             for n in arr {
                 let c = std::char::from_u32(n as u32)
                     .ok_or_else(|| interpret::Error::InvalidChar(n))?;
                 print!("{}", c);
             }
-
             if name == "_Iprintln_pai" {
                 println!()
             }
@@ -176,48 +189,43 @@ impl<'unit> Interpreter<'unit> {
             self.interpret_ret(0, if eof { 1 } else { 0 });
         }
         | "_IunparseInt_aii" => {
-            if args.len() != 1 { return Err(interpret::Error::CallMismatch) }
-
             let s = self.interpret_exp(&args[0])?
                 .extract_int(self.call.current())?
                 .to_string();
-
             let len = s.len() as i64;
             let ptr = self.heap.malloc((len + 1) * constants::WORD_SIZE)?;
             self.heap.store_str(ptr, &s)?;
             self.interpret_ret(0, ptr + constants::WORD_SIZE);
         }
         | "_IparseInt_t2ibai" => {
-            if args.len() != 1 { return Err(interpret::Error::CallMismatch) }
-
             let ptr = self.interpret_exp(&args[0])?.extract_int(self.call.current())?;
             let arr = self.heap.read_arr(ptr)?;
             let mut string = String::new();
-
             for n in arr {
                 let c = std::char::from_u32(n as u32)
                     .ok_or_else(|| interpret::Error::InvalidChar(n))?;
                 string.push(c);
             }
-
             let (result, success) = match i64::from_str(&string) {
             | Ok(n) => (n, 1),
             | Err(_) => (0, 0),
             };
-
             self.interpret_ret(0, result);
             self.interpret_ret(1, success);
         }
         | "_xi_alloc" => {
-            unimplemented!()
+            let bytes = self.interpret_exp(&args[0])?.extract_int(self.call.current())?;
+            let ptr = self.heap.calloc(bytes)?;
+            self.interpret_ret(0, ptr);
         }
         | "_xi_out_of_bounds" => {
-            unimplemented!()
+            return Err(interpret::Error::OutOfBounds)
         }
         | "_Iassert_pb" => {
-            unimplemented!()
+            let test = self.interpret_exp(&args[0])?.extract_bool(self.call.current())?;
+            if !test { return Err(interpret::Error::AssertFail) }
         }
-        | _ => return Err(interpret::Error::UnboundFun(f)),
+        | _ => unreachable!(),
         }
         Ok(())
     }

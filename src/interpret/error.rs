@@ -16,8 +16,10 @@ pub enum Error {
     InvalidChar(i64),
     InvalidIP,
     OutOfMemory,
+    OutOfBounds,
     DivideByZero,
     CallMismatch,
+    AssertFail,
 }
 
 impl std::fmt::Display for Error {
