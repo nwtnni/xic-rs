@@ -16,6 +16,7 @@ pub enum Error {
     InvalidIP,
     OutOfMemory,
     DivideByZero,
+    CallMismatch,
 }
 
 impl std::fmt::Display for Error {

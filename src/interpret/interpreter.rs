@@ -130,7 +130,10 @@ impl<'unit> Interpreter<'unit> {
         };
         match name {
         | "_Iprint_pai" | "_Iprintln_pai" => {
-            let base = self.interpret_exp(&args[0])?.extract_int(self.call.current())?;
+            let arr = args.get(0)
+                .ok_or(interpret::Error::CallMismatch)?;
+            let base = self.interpret_exp(arr)?
+                .extract_int(self.call.current())?;
             let size = self.heap.read(base - constants::WORD_SIZE)?;
             for i in 0..size {
                 let address = base + i * constants::WORD_SIZE;
@@ -147,14 +150,14 @@ impl<'unit> Interpreter<'unit> {
             std::io::stdin()
                 .read_to_string(&mut buffer)
                 .unwrap();
-            let length = buffer.len() as i64;
-            let address = self.heap.malloc((length + 1) * constants::WORD_SIZE)?;
-            self.heap.store(address, length)?;
+            let len = buffer.len() as i64;
+            let ptr = self.heap.malloc((len + 1) * constants::WORD_SIZE)?;
+            self.heap.store(ptr, len)?;
             for (c, i) in buffer.chars().zip(1..) {
-                self.heap.store(address + i * constants::WORD_SIZE, c as u32 as i64)?;
+                self.heap.store(ptr + i * constants::WORD_SIZE, c as u32 as i64)?;
             }
             self.call.parent_mut()
-                .insert(operand::Temp::Ret(0), address + constants::WORD_SIZE);
+                .insert(operand::Temp::Ret(0), ptr + constants::WORD_SIZE);
         }
         | "_Igetchar_i" => {
             let mut buffer = [0u8];
@@ -174,7 +177,19 @@ impl<'unit> Interpreter<'unit> {
                 .insert(operand::Temp::Ret(0), if eof { 1 } else { 0 });
         }
         | "_IunparseInt_aii" => {
-            unimplemented!()
+            let n = args.get(0)
+                .ok_or(interpret::Error::CallMismatch)?;
+            let s = self.interpret_exp(n)?
+                .extract_int(self.call.current())?
+                .to_string();
+            let len = s.len() as i64;
+            let ptr = self.heap.malloc((len + 1) * constants::WORD_SIZE)?;
+            self.heap.store(ptr, len)?;
+            for (c, i) in s.chars().zip(1..) {
+                self.heap.store(ptr + i * constants::WORD_SIZE, c as u32 as i64)?;
+            }
+            self.call.parent_mut()
+                .insert(operand::Temp::Ret(0), ptr + constants::WORD_SIZE);
         }
         | "_IparseInt_t2ibai" => {
             unimplemented!()
