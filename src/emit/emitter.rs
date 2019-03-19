@@ -233,10 +233,6 @@ impl<'env> Emitter<'env> {
 
             hir::Exp::ESeq(Box::new(bounds), Box::new(offset)).into()
         }
-        | Call(ast::Call { name, args, ..}) if *name == symbol::intern("length") => {
-            let address = self.emit_exp(&args[0], vars).into();
-            hir::Exp::Mem(Box::new(address)).into()
-        }
         | Call(call) => {
             let call = self.emit_call(call, vars);
             let temp = hir::Exp::Temp(operand::Temp::Ret(0));
@@ -251,12 +247,20 @@ impl<'env> Emitter<'env> {
     }
 
     fn emit_call(&mut self, call: &ast::Call, vars: &HashMap<symbol::Symbol, operand::Temp>) -> hir::Stm {
-        hir::Stm::Call(
-            hir::Exp::Name(operand::Label::Fix(self.mangle_fun(call.name))),
-            call.args.iter()
-                .map(|arg| self.emit_exp(arg, vars).into())
-                .collect(),
-        )
+        if symbol::resolve(call.name) == "length" {
+            let address = self.emit_exp(&call.args[0], vars).into();
+            hir::Stm::Move(
+                hir::Exp::Mem(Box::new(address)).into(),
+                hir::Exp::Temp(operand::Temp::Ret(0)),
+            )
+        } else {
+            hir::Stm::Call(
+                hir::Exp::Name(operand::Label::Fix(self.mangle_fun(call.name))),
+                call.args.iter()
+                    .map(|arg| self.emit_exp(arg, vars).into())
+                    .collect(),
+            )
+        }
     }
 
     fn emit_alloc(length: usize) -> hir::Stm {
