@@ -58,12 +58,10 @@ impl<'unit> Interpreter<'unit> {
         }
     }
 
-    fn interpret_unit(mut self, args: &str) -> Result<(), interpret::Error> {
-        let ptr = self.heap.malloc((args.len() + 1) as i64 * constants::WORD_SIZE)?;
-        self.heap.store_str(ptr, args)?;
+    pub fn interpret_unit(mut self) -> Result<(), interpret::Error> {
         self.interpret_call(
             operand::Label::Fix(symbol::intern("_Imain_paai")),
-            &vec![lir::Exp::Int(ptr)],
+            &vec![lir::Exp::Int(0)],
         )?;
         Ok(())
     }

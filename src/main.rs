@@ -15,7 +15,7 @@ struct Arguments {
     #[structopt(short = "t", long = "typecheck")]
     type_output: bool,
 
-    /// Generate emitted IR
+    /// Generate output from emitted IR
     #[structopt(short = "g", long = "irgen")]
     ir_output: bool,
 
@@ -31,7 +31,7 @@ struct Arguments {
     #[structopt(short = "D", parse(from_os_str))]
     output_dir: Option<std::path::PathBuf>,
 
-    /// Specify where to search for library files
+    /// Specify where to search for source files
     #[structopt(long = "sourcepath", parse(from_os_str))]
     source_dir: Option<std::path::PathBuf>,
 
@@ -39,7 +39,7 @@ struct Arguments {
     #[structopt(long = "libpath", parse(from_os_str))]
     lib_dir: Option<std::path::PathBuf>,
 
-    /// Source files to compile
+    /// Source files to compile, relative to `source_dir`
     #[structopt(parse(from_os_str))]
     files: Vec<std::path::PathBuf>,
 }
@@ -51,12 +51,14 @@ fn run(args: Arguments) -> Result<(), xic::Error> {
     let parser = xic::parse::Driver::new(&directory, args.parse_output);
     let checker = xic::check::Driver::new(&directory, args.type_output, args.lib_dir.as_ref());
     let emitter = xic::emit::Driver::new(&directory, args.ir_output, !args.disable_opt);
+    let interpreter = xic::interpret::Driver::new(args.ir_interpret);
     for path in &args.files {
         let path = source.join(path);
         let tokens = lexer.drive(&path)?;
         let program = parser.drive(&path, tokens)?;
         let env = checker.drive(&path, &program)?;
-        emitter.drive(&path, &program, &env)?;
+        let lir = emitter.drive(&path, &program, &env)?;
+        interpreter.drive(&lir)?;
     }
     Ok(())
 }

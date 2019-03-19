@@ -5,6 +5,8 @@ use crate::emit;
 use crate::emit::Foldable;
 use crate::error;
 use crate::data::ast;
+use crate::data::ir;
+use crate::data::lir;
 use crate::util::Tap;
 use crate::util::sexp::Serialize;
 
@@ -20,7 +22,7 @@ impl<'main> Driver<'main> {
         Driver { directory, diagnostic, fold }
     }
 
-    pub fn drive(&self, path: &std::path::Path, ast: &ast::Program, env: &check::Env) -> Result<(), error::Error> {
+    pub fn drive(&self, path: &std::path::Path, ast: &ast::Program, env: &check::Env) -> Result<ir::Unit<lir::Fun>, error::Error> {
         let canonizer = emit::Canonizer::new();
         let emitter = emit::Emitter::new(env);
         let mut hir = emitter.emit_unit(path, ast);
@@ -38,6 +40,6 @@ impl<'main> Driver<'main> {
             lir.sexp().write(80, &mut log)?;
         }
 
-        Ok(())
+        Ok(lir)
     }
 }
