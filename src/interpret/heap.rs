@@ -7,6 +7,10 @@ const WORD_SIZE: i64 = 8;
 const HEAP_SIZE: i64 = 10240;
 
 impl Heap {
+    pub fn new() -> Self {
+        Heap(Vec::new())
+    }
+
     pub fn malloc(&mut self, size: i64) -> Result<i64, interpret::Error> {
         if size < 0 || size % WORD_SIZE != 0 {
             return Err(interpret::Error::InvalidMalloc(size))

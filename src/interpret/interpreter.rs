@@ -31,8 +31,41 @@ pub struct Interpreter<'unit> {
 }
 
 impl<'unit> Interpreter<'unit> {
-    fn interpret_unit(mut self) {
-        unimplemented!()
+    pub fn new(unit: &'unit ir::Unit<lir::Fun>) -> Self {
+        let mut funs = Vec::new();
+        let mut jump = HashMap::default();
+        let data = unit.data.iter()
+            .map(|(sym, label)| (*label, *sym))
+            .collect();
+
+        for fun in unit.funs.values() {
+            jump.insert(operand::Label::Fix(fun.name), funs.len());
+            for stm in &fun.body {
+                if let lir::Stm::Label(label) = stm {
+                    jump.insert(*label, funs.len());
+                }
+                funs.push(stm);
+            }
+        }
+
+        Interpreter {
+            data, 
+            jump,
+            funs,
+            heap: interpret::Heap::new(),
+            call: interpret::Stack::new(),
+            next: None,        
+        }
+    }
+
+    fn interpret_unit(mut self, args: &str) -> Result<(), interpret::Error> {
+        let ptr = self.heap.malloc((args.len() + 1) as i64 * constants::WORD_SIZE)?;
+        self.heap.store_str(ptr, args)?;
+        self.interpret_call(
+            operand::Label::Fix(symbol::intern("_Imain_paai")),
+            &vec![lir::Exp::Int(ptr)],
+        )?;
+        Ok(())
     }
 
     fn interpret_call(&mut self, f: operand::Label, args: &[lir::Exp]) -> Result<(), interpret::Error> {
