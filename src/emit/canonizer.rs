@@ -68,7 +68,6 @@ impl Canonizer {
     fn canonize_stm(&mut self, stm: &hir::Stm) {
         use hir::Stm::*;
         match stm {
-        | Exp(e) => { self.canonize_exp(e); },
         | Label(l) => self.canonized.push(lir::Stm::Label(*l)),
         | Seq(stms) => {
             let mut purity = true;

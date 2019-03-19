@@ -79,7 +79,6 @@ impl From<Tree> for Exp {
 
 #[derive(Clone, Debug)]
 pub enum Stm {
-    Exp(Exp),
     Jump(Exp),
     CJump(Exp, operand::Label, operand::Label),
     Label(operand::Label),

@@ -99,7 +99,6 @@ impl Foldable for hir::Stm {
     fn fold(self) -> Self {
         use hir::Stm::*;
         match self {
-        | Exp(e) => Exp(e.fold()),
         | Jump(e) => Jump(e.fold()),
         | Label(l) => Label(l),
         | Call(f, es) => Call(f.fold(), es.into_iter().map(Foldable::fold).collect()),

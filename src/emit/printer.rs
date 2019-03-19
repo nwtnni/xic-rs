@@ -43,7 +43,6 @@ impl Serialize for hir::Stm {
     fn sexp(&self) -> Sexp {
         use hir::Stm::*;
         match self {
-        | Exp(e) => vec!["EXP".sexp(), e.sexp()].sexp_move(),
         | Jump(e) => vec!["JUMP".sexp(), e.sexp()].sexp_move(),
         | CJump(e, t, f) => vec!["CJUMP".sexp(), e.sexp(), t.sexp(), f.sexp()].sexp_move(),
         | Label(l) => vec!["LABEL".sexp(), l.sexp()].sexp_move(),
