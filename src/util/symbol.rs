@@ -24,7 +24,7 @@ pub struct Interner {
 ///
 /// Only the same `Interner` that produced a `Symbol` can be used
 /// to resolve it to a string again.
-#[derive(Copy, Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
+#[derive(Copy, Clone, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub struct Symbol(usize);
 
 impl Interner {
@@ -74,5 +74,17 @@ impl std::str::FromStr for Symbol {
     type Err = ();
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         Ok(intern(s))
+    }
+}
+
+impl std::fmt::Debug for Symbol {
+    fn fmt(&self, fmt: &mut std::fmt::Formatter) -> std::fmt::Result {
+        write!(fmt, "{:?}", resolve(*self))
+    }
+}
+
+impl std::fmt::Display for Symbol {
+    fn fmt(&self, fmt: &mut std::fmt::Formatter) -> std::fmt::Result {
+        write!(fmt, "{}", resolve(*self))
     }
 }

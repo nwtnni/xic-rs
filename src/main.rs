@@ -19,10 +19,6 @@ struct Arguments {
     #[structopt(short = "g", long = "irgen")]
     ir_output: bool,
 
-    /// Interpret generated IR
-    #[structopt(short = "i", long = "irrun")]
-    ir_interpret: bool,
-
     /// Disable optimizations
     #[structopt(short = "O")]
     disable_opt: bool,
@@ -51,14 +47,12 @@ fn run(args: Arguments) -> Result<(), xic::Error> {
     let parser = xic::parse::Driver::new(&directory, args.parse_output);
     let checker = xic::check::Driver::new(&directory, args.type_output, args.lib_dir.as_ref());
     let emitter = xic::emit::Driver::new(&directory, args.ir_output, !args.disable_opt);
-    let interpreter = xic::interpret::Driver::new(args.ir_interpret);
     for path in &args.files {
         let path = source.join(path);
         let tokens = lexer.drive(&path)?;
         let program = parser.drive(&path, tokens)?;
         let env = checker.drive(&path, &program)?;
-        let lir = emitter.drive(&path, &program, &env)?;
-        interpreter.drive(&lir)?;
+        let _lir = emitter.drive(&path, &program, &env)?;
     }
     Ok(())
 }
