@@ -1,6 +1,8 @@
 use std::borrow::Cow;
 
-use pretty::{BoxDoc, Doc};
+use pretty::Arena;
+use pretty::DocAllocator;
+use pretty::DocBuilder;
 
 use crate::error;
 use crate::util::symbol;
@@ -13,16 +15,20 @@ pub enum Sexp {
 }
 
 impl Sexp {
-    fn to_doc(&self) -> Doc<BoxDoc<()>> {
+    fn to_doc<'a, A>(&self, allocator: &'a A) -> DocBuilder<'a, A, ()>
+    where
+        A: DocAllocator<'a, ()>,
+        A::Doc: Clone,
+    {
         match self {
-            Sexp::Atom(s) => Doc::as_string(s),
-            Sexp::List(l) => Doc::text("(")
-                .append(
-                    Doc::intersperse(l.iter().map(Sexp::to_doc), Doc::space())
-                        .nest(1)
-                        .group(),
+            Sexp::Atom(atom) => allocator.text(atom.clone()),
+            Sexp::List(list) => allocator
+                .intersperse(
+                    list.iter().map(|sexp| sexp.to_doc(allocator).nest(4)),
+                    allocator.line(),
                 )
-                .append(Doc::text(")")),
+                .parens()
+                .group(),
         }
     }
 
@@ -31,7 +37,8 @@ impl Sexp {
         width: usize,
         writer: &mut W,
     ) -> Result<(), error::Error> {
-        self.to_doc().render(width, writer)?;
+        let arena = Arena::new();
+        self.to_doc(&arena).render(width, writer)?;
         Ok(())
     }
 }

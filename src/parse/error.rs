@@ -6,7 +6,7 @@ type ParseError = lalrpop_util::ParseError<span::Point, token::Token, error::Err
 
 #[derive(Debug)]
 pub enum Error {
-    EOF,
+    Eof(span::Point),
     Integer(span::Span),
     Array(span::Span),
     Length(span::Span),
@@ -16,7 +16,7 @@ pub enum Error {
 impl std::fmt::Display for Error {
     fn fmt(&self, fmt: &mut std::fmt::Formatter) -> std::fmt::Result {
         match &self {
-            Error::EOF => write!(fmt, "error:Unexpected eof"),
+            Error::Eof(point) => write!(fmt, "{} error:Unexpected eof", point),
             Error::Integer(span) => write!(fmt, "{} error:Invalid integer literal", span),
             Error::Array(span) => write!(fmt, "{} error:Invalid array initialization", span),
             Error::Length(span) => write!(
@@ -43,9 +43,9 @@ impl From<ParseError> for error::Error {
         match error {
             InvalidToken { .. } | ExtraToken { .. } => unreachable!(),
             User { error } => error,
-            UnrecognizedToken { token: None, .. } => error::Error::Syntactic(Error::EOF),
+            UnrecognizedEOF { location, .. } => error::Error::Syntactic(Error::Eof(location)),
             UnrecognizedToken {
-                token: Some((start, token, end)),
+                token: (start, token, end),
                 ..
             } => error::Error::Syntactic(Error::Token(span::Span::new(start, end), token)),
         }
