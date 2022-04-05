@@ -11,25 +11,25 @@ impl Serialize for ast::Interface {
 
 impl Serialize for ast::Program {
     fn sexp(&self) -> Sexp {
-        vec![self.uses.sexp(), self.funs.sexp()].sexp_move()
+        [self.uses.sexp(), self.funs.sexp()].sexp_move()
     }
 }
 
 impl Serialize for ast::Use {
     fn sexp(&self) -> Sexp {
-        vec!["use".sexp(), self.name.sexp()].sexp_move()
+        ["use".sexp(), self.name.sexp()].sexp_move()
     }
 }
 
 impl Serialize for ast::Sig {
     fn sexp(&self) -> Sexp {
-        vec![self.name.sexp(), self.args.sexp(), self.rets.sexp()].sexp_move()
+        [self.name.sexp(), self.args.sexp(), self.rets.sexp()].sexp_move()
     }
 }
 
 impl Serialize for ast::Fun {
     fn sexp(&self) -> Sexp {
-        vec![
+        [
             self.name.sexp(),
             self.args.sexp(),
             self.rets.sexp(),
@@ -45,8 +45,8 @@ impl Serialize for ast::Typ {
         match self {
             Bool(_) => "bool".sexp(),
             Int(_) => "int".sexp(),
-            Arr(typ, None, _) => vec!["[]".sexp(), typ.sexp()].sexp_move(),
-            Arr(typ, Some(exp), _) => vec!["[]".sexp(), typ.sexp(), exp.sexp()].sexp_move(),
+            Arr(typ, None, _) => ["[]".sexp(), typ.sexp()].sexp_move(),
+            Arr(typ, Some(exp), _) => ["[]".sexp(), typ.sexp(), exp.sexp()].sexp_move(),
         }
     }
 }
@@ -97,14 +97,14 @@ impl Serialize for ast::Exp {
             },
             Str(s, _) => format!("\"{}\"", util::unescape_str(s)).sexp_move(),
             Int(i, _) if *i < 0 => {
-                vec!["-".sexp(), (-(*i as i128)).to_string().sexp_move()].sexp_move()
+                ["-".sexp(), (-(*i as i128)).to_string().sexp_move()].sexp_move()
             }
             Int(i, _) => i.to_string().sexp_move(),
             Var(v, _) => v.sexp(),
             Arr(exps, _) => exps.sexp(),
-            Bin(bin, lhs, rhs, _) => vec![bin.sexp(), lhs.sexp(), rhs.sexp()].sexp_move(),
-            Uno(uno, exp, _) => vec![uno.sexp(), exp.sexp()].sexp_move(),
-            Idx(arr, idx, _) => vec!["[]".sexp(), arr.sexp(), idx.sexp()].sexp_move(),
+            Bin(bin, lhs, rhs, _) => [bin.sexp(), lhs.sexp(), rhs.sexp()].sexp_move(),
+            Uno(uno, exp, _) => [uno.sexp(), exp.sexp()].sexp_move(),
+            Idx(arr, idx, _) => ["[]".sexp(), arr.sexp(), idx.sexp()].sexp_move(),
             Call(call) => call.sexp(),
         }
     }
@@ -112,7 +112,7 @@ impl Serialize for ast::Exp {
 
 impl Serialize for ast::Dec {
     fn sexp(&self) -> Sexp {
-        vec![self.name.sexp(), self.typ.sexp()].sexp_move()
+        [self.name.sexp(), self.typ.sexp()].sexp_move()
     }
 }
 
@@ -128,7 +128,7 @@ impl Serialize for ast::Stm {
     fn sexp(&self) -> Sexp {
         use ast::Stm::*;
         match self {
-            Ass(lhs, rhs, _) => vec!["=".sexp(), lhs.sexp(), rhs.sexp()].sexp_move(),
+            Ass(lhs, rhs, _) => ["=".sexp(), lhs.sexp(), rhs.sexp()].sexp_move(),
             Call(call) => call.sexp(),
             Init(decs, call, _) => {
                 let mut decs = decs
@@ -144,7 +144,7 @@ impl Serialize for ast::Stm {
                 } else {
                     Sexp::List(decs)
                 };
-                vec!["=".sexp(), decs.sexp(), call.sexp()].sexp_move()
+                ["=".sexp(), decs.sexp(), call.sexp()].sexp_move()
             }
             Dec(dec, _) => dec.sexp(),
             Ret(exps, _) => std::iter::once("return".sexp())
@@ -153,10 +153,10 @@ impl Serialize for ast::Stm {
                 .tap(Sexp::List),
             Seq(stms, _) => stms.sexp(),
             If(cond, pass, Some(fail), _) => {
-                vec!["if".sexp(), cond.sexp(), pass.sexp(), fail.sexp()].sexp_move()
+                ["if".sexp(), cond.sexp(), pass.sexp(), fail.sexp()].sexp_move()
             }
-            If(cond, pass, None, _) => vec!["if".sexp(), cond.sexp(), pass.sexp()].sexp_move(),
-            While(cond, body, _) => vec!["while".sexp(), cond.sexp(), body.sexp()].sexp_move(),
+            If(cond, pass, None, _) => ["if".sexp(), cond.sexp(), pass.sexp()].sexp_move(),
+            While(cond, body, _) => ["while".sexp(), cond.sexp(), body.sexp()].sexp_move(),
         }
     }
 }

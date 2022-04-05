@@ -17,7 +17,7 @@ impl<T: ir::IR + Serialize> Serialize for ir::Unit<T> {
 
 impl Serialize for hir::Fun {
     fn sexp(&self) -> Sexp {
-        vec!["FUNC".sexp(), self.name.sexp(), self.body.sexp()].sexp_move()
+        ["FUNC".sexp(), self.name.sexp(), self.body.sexp()].sexp_move()
     }
 }
 
@@ -26,11 +26,11 @@ impl Serialize for hir::Exp {
         use hir::Exp::*;
         match self {
             Int(i) => i.sexp(),
-            Mem(e) => vec!["MEM".sexp(), e.sexp()].sexp_move(),
-            Bin(b, l, r) => vec![b.sexp(), l.sexp(), r.sexp()].sexp_move(),
-            Name(l) => vec!["NAME".sexp(), l.sexp()].sexp_move(),
-            Temp(t) => vec!["TEMP".sexp(), t.sexp()].sexp_move(),
-            ESeq(s, e) => vec!["ESEQ".sexp(), s.sexp(), e.sexp()].sexp_move(),
+            Mem(e) => ["MEM".sexp(), e.sexp()].sexp_move(),
+            Bin(b, l, r) => [b.sexp(), l.sexp(), r.sexp()].sexp_move(),
+            Name(l) => ["NAME".sexp(), l.sexp()].sexp_move(),
+            Temp(t) => ["TEMP".sexp(), t.sexp()].sexp_move(),
+            ESeq(s, e) => ["ESEQ".sexp(), s.sexp(), e.sexp()].sexp_move(),
         }
     }
 }
@@ -39,15 +39,15 @@ impl Serialize for hir::Stm {
     fn sexp(&self) -> Sexp {
         use hir::Stm::*;
         match self {
-            Jump(e) => vec!["JUMP".sexp(), e.sexp()].sexp_move(),
-            CJump(e, t, f) => vec!["CJUMP".sexp(), e.sexp(), t.sexp(), f.sexp()].sexp_move(),
-            Label(l) => vec!["LABEL".sexp(), l.sexp()].sexp_move(),
+            Jump(e) => ["JUMP".sexp(), e.sexp()].sexp_move(),
+            CJump(e, t, f) => ["CJUMP".sexp(), e.sexp(), t.sexp(), f.sexp()].sexp_move(),
+            Label(l) => ["LABEL".sexp(), l.sexp()].sexp_move(),
             Call(f, args) => std::iter::once("CALL".sexp())
                 .chain(std::iter::once(f.sexp()))
                 .chain(args.iter().map(|arg| arg.sexp()))
                 .collect::<Vec<_>>()
                 .sexp_move(),
-            Move(d, s) => vec!["MOVE".sexp(), d.sexp(), s.sexp()].sexp_move(),
+            Move(d, s) => ["MOVE".sexp(), d.sexp(), s.sexp()].sexp_move(),
             Return(exps) => std::iter::once("RETURN".sexp())
                 .chain(exps.iter().map(|exp| exp.sexp()))
                 .collect::<Vec<_>>()
@@ -62,7 +62,7 @@ impl Serialize for hir::Stm {
 
 impl Serialize for lir::Fun {
     fn sexp(&self) -> Sexp {
-        vec![
+        [
             "FUNC".sexp(),
             self.name.sexp(),
             std::iter::once("SEQ".sexp())
@@ -79,10 +79,10 @@ impl Serialize for lir::Exp {
         use lir::Exp::*;
         match self {
             Int(i) => i.sexp(),
-            Mem(e) => vec!["MEM".sexp(), e.sexp()].sexp_move(),
-            Bin(b, l, r) => vec![b.sexp(), l.sexp(), r.sexp()].sexp_move(),
-            Name(l) => vec!["NAME".sexp(), l.sexp()].sexp_move(),
-            Temp(t) => vec!["TEMP".sexp(), t.sexp()].sexp_move(),
+            Mem(e) => ["MEM".sexp(), e.sexp()].sexp_move(),
+            Bin(b, l, r) => [b.sexp(), l.sexp(), r.sexp()].sexp_move(),
+            Name(l) => ["NAME".sexp(), l.sexp()].sexp_move(),
+            Temp(t) => ["TEMP".sexp(), t.sexp()].sexp_move(),
         }
     }
 }
@@ -96,10 +96,10 @@ impl Serialize for lir::Stm {
                 .chain(args.iter().map(|arg| arg.sexp()))
                 .collect::<Vec<_>>()
                 .sexp_move(),
-            Jump(e) => vec!["JUMP".sexp(), e.sexp()].sexp_move(),
-            CJump(e, t, _) => vec!["CJUMP".sexp(), e.sexp(), t.sexp()].sexp_move(),
-            Label(l) => vec!["LABEL".sexp(), l.sexp()].sexp_move(),
-            Move(d, s) => vec!["MOVE".sexp(), d.sexp(), s.sexp()].sexp_move(),
+            Jump(e) => ["JUMP".sexp(), e.sexp()].sexp_move(),
+            CJump(e, t, _) => ["CJUMP".sexp(), e.sexp(), t.sexp()].sexp_move(),
+            Label(l) => ["LABEL".sexp(), l.sexp()].sexp_move(),
+            Move(d, s) => ["MOVE".sexp(), d.sexp(), s.sexp()].sexp_move(),
             Return(exps) => std::iter::once("RETURN".sexp())
                 .chain(exps.iter().map(|exp| exp.sexp()))
                 .collect::<Vec<_>>()

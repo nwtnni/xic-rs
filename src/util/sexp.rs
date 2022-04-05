@@ -101,3 +101,19 @@ impl<T: Serialize> Serialize for Vec<T> {
             .tap(Sexp::List)
     }
 }
+
+impl<const N: usize, T: Serialize> Serialize for [T; N] {
+    fn sexp(&self) -> Sexp {
+        self.iter()
+            .map(Serialize::sexp)
+            .collect::<Vec<_>>()
+            .tap(Sexp::List)
+    }
+
+    fn sexp_move(self) -> Sexp {
+        IntoIterator::into_iter(self)
+            .map(Serialize::sexp_move)
+            .collect::<Vec<_>>()
+            .tap(Sexp::List)
+    }
+}
