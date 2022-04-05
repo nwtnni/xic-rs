@@ -41,12 +41,6 @@ impl Temp {
     }
 }
 
-impl std::fmt::Display for Temp {
-    fn fmt(&self, fmt: &mut std::fmt::Formatter) -> std::fmt::Result {
-        unimplemented!()
-    }
-}
-
 #[derive(Copy, Clone, Debug, PartialEq, Eq, Hash)]
 pub enum Reg {
     RAX,
@@ -67,13 +61,7 @@ pub enum Reg {
     R15,
 }
 
-impl std::fmt::Display for Reg {
-    fn fmt(&self, fmt: &mut std::fmt::Formatter) -> std::fmt::Result {
-        unimplemented!()
-    }
-}
-
-pub trait Operand: Copy + Eq + std::hash::Hash + std::fmt::Display + std::fmt::Debug {}
+pub trait Operand: Copy + Eq + std::hash::Hash + std::fmt::Debug {}
 impl Operand for Temp {}
 impl Operand for Reg {}
 

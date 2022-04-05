@@ -9,10 +9,8 @@ pub enum Exp {
 impl Exp {
     pub fn subtypes(&self, rhs: &Exp) -> bool {
         match (self, rhs) {
-            (Exp::Any, _)
-            | (Exp::Int, Exp::Int)
-            | (Exp::Bool, Exp::Bool)
-            | (Exp::Arr(box Exp::Any), Exp::Arr(_)) => true,
+            (Exp::Any, _) | (Exp::Int, Exp::Int) | (Exp::Bool, Exp::Bool) => true,
+            (Exp::Arr(t), Exp::Arr(_)) if **t == Exp::Any => true,
             (Exp::Arr(l), Exp::Arr(r)) => l.subtypes(r),
             _ => false,
         }

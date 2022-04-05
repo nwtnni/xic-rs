@@ -54,18 +54,13 @@ impl PreExp {
             | PreExp::Call(ast::Call { span, .. }) => span,
         }
     }
+
     pub fn into_exp(self) -> Result<ast::Exp, error::Error> {
         match self {
             PreExp::Bool(b, span) => Ok(ast::Exp::Bool(b, span)),
             PreExp::Chr(c, span) => Ok(ast::Exp::Chr(c, span)),
             PreExp::Str(s, span) => Ok(ast::Exp::Str(s, span)),
             PreExp::Var(name, span) => Ok(ast::Exp::Var(name, span)),
-            PreExp::Uno(ast::Uno::Neg, box PreExp::Int(mut n, _), span) => {
-                n.insert(0, '-');
-                i64::from_str(&n)
-                    .map_err(|_| parse::Error::Integer(span).into())
-                    .map(|n| ast::Exp::Int(n, span))
-            }
             PreExp::Int(n, span) => i64::from_str(&n)
                 .map_err(|_| parse::Error::Integer(span).into())
                 .map(|n| ast::Exp::Int(n, span)),
@@ -80,6 +75,18 @@ impl PreExp {
                 let lhs = (*lhs).into_exp()?;
                 let rhs = (*rhs).into_exp()?;
                 Ok(ast::Exp::Bin(bin, Box::new(lhs), Box::new(rhs), span))
+            }
+            // https://doc.rust-lang.org/beta/unstable-book/language-features/box-patterns.html
+            PreExp::Uno(ast::Uno::Neg, exp, span) if matches!(&*exp, PreExp::Int(_, _)) => {
+                let mut n = match *exp {
+                    PreExp::Int(n, _) => n,
+                    _ => unreachable!(),
+                };
+
+                n.insert(0, '-');
+                i64::from_str(&n)
+                    .map_err(|_| parse::Error::Integer(span).into())
+                    .map(|n| ast::Exp::Int(n, span))
             }
             PreExp::Uno(uno, exp, span) => match (*exp).into_exp()? {
                 ast::Exp::Int(n, _) if n == std::i64::MIN => {

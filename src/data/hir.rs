@@ -1,5 +1,3 @@
-use std::boxed::FnBox;
-
 use crate::data::ir;
 use crate::data::operand;
 use crate::util::symbol;
@@ -15,7 +13,7 @@ pub enum Tree {
     Cx(Con),
 }
 
-pub type Con = Box<dyn FnBox(operand::Label, operand::Label) -> Stm>;
+pub type Con = Box<dyn FnOnce(operand::Label, operand::Label) -> Stm>;
 
 impl From<Con> for Tree {
     fn from(con: Con) -> Self {

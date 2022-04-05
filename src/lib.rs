@@ -1,5 +1,3 @@
-#![feature(box_patterns, fnbox)]
-
 pub mod check;
 mod constants;
 pub mod data;
