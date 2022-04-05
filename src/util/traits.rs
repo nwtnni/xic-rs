@@ -1,6 +1,9 @@
 /// Convenience trait for method-chaining functions.
 pub trait Tap: Sized {
-    fn tap<F, T>(self, f: F) -> T where F: FnOnce(Self) -> T {
+    fn tap<F, T>(self, f: F) -> T
+    where
+        F: FnOnce(Self) -> T,
+    {
         f(self)
     }
 }
@@ -23,7 +26,7 @@ pub trait TakeUntil: Iterator + Sized {
         Until {
             inner: self,
             predicate,
-            done: false
+            done: false,
         }
     }
 }
@@ -41,12 +44,12 @@ impl<T, I: Iterator<Item = T>, F: FnMut(&T) -> bool> Iterator for Until<I, F> {
     type Item = T;
     fn next(&mut self) -> Option<Self::Item> {
         match self.inner.next() {
-        | None => None,
-        | Some(_) if self.done => None,
-        | Some(next) => {
-            self.done = (self.predicate)(&next);
-            Some(next)
-        }
+            None => None,
+            Some(_) if self.done => None,
+            Some(next) => {
+                self.done = (self.predicate)(&next);
+                Some(next)
+            }
         }
     }
 }

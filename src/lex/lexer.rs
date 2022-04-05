@@ -1,8 +1,8 @@
+use crate::data::token;
+use crate::error;
 use crate::lex::{Error, ErrorKind};
 use crate::util::span;
 use crate::util::symbol;
-use crate::data::token;
-use crate::error;
 use crate::util::Tap;
 
 /// Stateful Xi lexer.
@@ -29,28 +29,22 @@ pub struct Lexer<'source> {
 
 fn is_digit(c: char) -> bool {
     match c {
-    | '0'..='9' => true,
-    | _ => false,
+        '0'..='9' => true,
+        _ => false,
     }
 }
 
 fn is_hex_digit(c: char) -> bool {
     match c {
-    | '0'..='9'
-    | 'a'..='f'
-    | 'A'..='F' => true,
-    | _ => false,
+        '0'..='9' | 'a'..='f' | 'A'..='F' => true,
+        _ => false,
     }
 }
 
 fn is_ident(c: char) -> bool {
     match c {
-    | 'a'..='z'
-    | 'A'..='Z'
-    | '0'..='9'
-    | '_'
-    | '\'' => true,
-    | _ => false,
+        'a'..='z' | 'A'..='Z' | '0'..='9' | '_' | '\'' => true,
+        _ => false,
     }
 }
 
@@ -59,7 +53,14 @@ impl<'source> Lexer<'source> {
     pub fn new(source: &'source str) -> Self {
         let mut stream = source.char_indices().peekable();
         let next = stream.next();
-        Lexer { source, stream, next, idx: 0, row: 1, col: 1 }
+        Lexer {
+            source,
+            stream,
+            next,
+            idx: 0,
+            row: 1,
+            col: 1,
+        }
     }
 
     /// Look at the next character without consuming
@@ -105,26 +106,27 @@ impl<'source> Lexer<'source> {
     fn forward(&mut self) {
         loop {
             match self.peek() {
-            | Some('\n') | Some('\t') | Some('\r') | Some(' ') => {
-                self.skip();
-            }
-            | Some('/') if self.peeeek() == Some('/') => {
-                self.take_while(|c| c != '\n');
-                self.skip();
-            }
-            | None | Some(_) => {
-                return
-            }
+                Some('\n') | Some('\t') | Some('\r') | Some(' ') => {
+                    self.skip();
+                }
+                Some('/') if self.peeeek() == Some('/') => {
+                    self.take_while(|c| c != '\n');
+                    self.skip();
+                }
+                None | Some(_) => return,
             }
         }
     }
 
     /// Advance iterator while predicate holds and return end point
     fn take_while<F>(&mut self, mut f: F) -> span::Point
-        where F: FnMut(char) -> bool
+    where
+        F: FnMut(char) -> bool,
     {
         while let Some((_, c)) = self.next {
-            if !f(c) { return self.point() }
+            if !f(c) {
+                return self.point();
+            }
             self.skip();
         }
         self.point().bump()
@@ -135,17 +137,17 @@ impl<'source> Lexer<'source> {
         use token::Token::*;
         let end = self.take_while(is_ident);
         let token = match &self.source[start.idx..end.idx] {
-        | "use"    => USE,
-        | "if"     => IF,
-        | "while"  => WHILE,
-        | "else"   => ELSE,
-        | "return" => RETURN,
-        | "length" => LENGTH,
-        | "int"    => INT,
-        | "bool"   => BOOL,
-        | "true"   => TRUE,
-        | "false"  => FALSE,
-        | ident    => IDENT(symbol::intern(ident)),
+            "use" => USE,
+            "if" => IF,
+            "while" => WHILE,
+            "else" => ELSE,
+            "return" => RETURN,
+            "length" => LENGTH,
+            "int" => INT,
+            "bool" => BOOL,
+            "true" => TRUE,
+            "false" => FALSE,
+            ident => IDENT(symbol::intern(ident)),
         };
         Ok((start, token, end))
     }
@@ -162,56 +164,54 @@ impl<'source> Lexer<'source> {
     /// Lex and unescape a single char
     fn lex_char(&mut self, start: span::Point, string: bool) -> Result<char, error::Error> {
         match self.advance() {
-        | Some('\n')
-        | Some('\r')
-        | Some('\x08')
-        | Some('\x0C') => {
-            let span = start.into();
-            let kind = if string { ErrorKind::InvalidString } else { ErrorKind::InvalidCharacter };
-            Err(Error::new(span, kind).into())
-        }
-        | Some('\'') if !string => {
-            let span = start.into();
-            let kind = ErrorKind::InvalidCharacter;
-            Err(Error::new(span, kind).into())
-        }
-        | Some('\\') => {
-            match self.advance() {
-            | Some('n')  => Ok('\n'),
-            | Some('r')  => Ok('\r'),
-            | Some('t')  => Ok('\t'),
-            | Some('b')  => Ok('\x08'),
-            | Some('f')  => Ok('\x0C'),
-            | Some('\\') => Ok('\\'),
-            | Some('\'') if !string => Ok('\''),
-            | Some('\"') if  string => Ok('\"'),
-            | Some('u')
-            | Some('x')  => {
-                let mut count = 0;
-                let start = self.point();
-                let end = self.take_while(|c| {
-                    count += 1;
-                    is_hex_digit(c) && count <= 4
-                });
-                let span = span::Span::new(start, end);
-                u32::from_str_radix(&self.source[start.idx..end.idx], 16)
-                    .ok()
-                    .and_then(std::char::from_u32)
-                    .ok_or_else(|| Error::new(span, ErrorKind::InvalidCharacter).into())
-            }
-            | _ => {
+            Some('\n') | Some('\r') | Some('\x08') | Some('\x0C') => {
                 let span = start.into();
-                let kind = ErrorKind::InvalidEscape;
+                let kind = if string {
+                    ErrorKind::InvalidString
+                } else {
+                    ErrorKind::InvalidCharacter
+                };
                 Err(Error::new(span, kind).into())
             }
+            Some('\'') if !string => {
+                let span = start.into();
+                let kind = ErrorKind::InvalidCharacter;
+                Err(Error::new(span, kind).into())
             }
-        }
-        | Some(ch) => Ok(ch),
-        | None => {
-            let span = start.into();
-            let kind = ErrorKind::UnclosedCharacter;
-            Err(Error::new(span, kind).into())
-        }
+            Some('\\') => match self.advance() {
+                Some('n') => Ok('\n'),
+                Some('r') => Ok('\r'),
+                Some('t') => Ok('\t'),
+                Some('b') => Ok('\x08'),
+                Some('f') => Ok('\x0C'),
+                Some('\\') => Ok('\\'),
+                Some('\'') if !string => Ok('\''),
+                Some('\"') if string => Ok('\"'),
+                Some('u') | Some('x') => {
+                    let mut count = 0;
+                    let start = self.point();
+                    let end = self.take_while(|c| {
+                        count += 1;
+                        is_hex_digit(c) && count <= 4
+                    });
+                    let span = span::Span::new(start, end);
+                    u32::from_str_radix(&self.source[start.idx..end.idx], 16)
+                        .ok()
+                        .and_then(std::char::from_u32)
+                        .ok_or_else(|| Error::new(span, ErrorKind::InvalidCharacter).into())
+                }
+                _ => {
+                    let span = start.into();
+                    let kind = ErrorKind::InvalidEscape;
+                    Err(Error::new(span, kind).into())
+                }
+            },
+            Some(ch) => Ok(ch),
+            None => {
+                let span = start.into();
+                let kind = ErrorKind::UnclosedCharacter;
+                Err(Error::new(span, kind).into())
+            }
         }
     }
 
@@ -233,7 +233,7 @@ impl<'source> Lexer<'source> {
         while let Some(ch) = self.peek() {
             if ch == '\"' {
                 self.skip();
-                return Ok((start, token::Token::STRING(buffer), self.point()))
+                return Ok((start, token::Token::STRING(buffer), self.point()));
             } else {
                 buffer.push(self.lex_char(start, true)?);
             }
@@ -248,68 +248,71 @@ impl<'source> Lexer<'source> {
 type Spanned = Result<(span::Point, token::Token, span::Point), error::Error>;
 
 impl<'source> Iterator for Lexer<'source> {
-
     type Item = Spanned;
 
     fn next(&mut self) -> Option<Self::Item> {
-
         use token::Token::*;
 
         // Skip past whitespace and comments
         self.forward();
 
-        if let None = self.peek() { return None }
+        if let None = self.peek() {
+            return None;
+        }
 
         let start = self.point();
         let ch = self.advance().unwrap();
         let mut end = self.point();
 
         macro_rules! eat {
-            ($token:expr) => { { self.skip(); end = self.point(); $token } }
+            ($token:expr) => {{
+                self.skip();
+                end = self.point();
+                $token
+            }};
         }
 
         let token = match ch {
-        | 'a'..='z'
-        | 'A'..='Z' => return Some(self.lex_ident(start)),
-        | '\''      => return Some(self.lex_character(start)),
-        | '"'       => return Some(self.lex_string(start)),
-        | '0'..='9' => return Some(self.lex_integer(start)),
-        | '_' => UNDERSCORE,
-        | ',' => COMMA,
-        | ';' => SEMICOLON,
-        | ':' => COLON,
-        | '{' => LBRACE,
-        | '}' => RBRACE,
-        | '[' => LBRACK,
-        | ']' => RBRACK,
-        | '(' => LPAREN,
-        | ')' => RPAREN,
-        | '&' => AND,
-        | '|' => OR,
-        | '+' => ADD,
-        | '-' => SUB,
-        | '%' => MOD,
-        | '/' => DIV,
-        | '!' if self.peek() == Some('=') => eat!(NE),
-        | '!' => NOT,
-        | '<' if self.peek() == Some('=') => eat!(LE),
-        | '<' => LT,
-        | '>' if self.peek() == Some('=') => eat!(GE),
-        | '>' => GT,
-        | '=' if self.peek() == Some('=') => eat!(EQ),
-        | '=' => ASSIGN,
-        | '*' if self.peek() == Some('>') && self.peeeek() == Some('>') => {
-            self.skip();
-            self.skip();
-            end = self.point();
-            HUL
-        }
-        | '*' => MUL,
-        | _ => {
-            let span = span::Span::new(start, end);
-            let kind = ErrorKind::UnknownCharacter;
-            return Some(Err(Error::new(span, kind).into()))
-        }
+            'a'..='z' | 'A'..='Z' => return Some(self.lex_ident(start)),
+            '\'' => return Some(self.lex_character(start)),
+            '"' => return Some(self.lex_string(start)),
+            '0'..='9' => return Some(self.lex_integer(start)),
+            '_' => UNDERSCORE,
+            ',' => COMMA,
+            ';' => SEMICOLON,
+            ':' => COLON,
+            '{' => LBRACE,
+            '}' => RBRACE,
+            '[' => LBRACK,
+            ']' => RBRACK,
+            '(' => LPAREN,
+            ')' => RPAREN,
+            '&' => AND,
+            '|' => OR,
+            '+' => ADD,
+            '-' => SUB,
+            '%' => MOD,
+            '/' => DIV,
+            '!' if self.peek() == Some('=') => eat!(NE),
+            '!' => NOT,
+            '<' if self.peek() == Some('=') => eat!(LE),
+            '<' => LT,
+            '>' if self.peek() == Some('=') => eat!(GE),
+            '>' => GT,
+            '=' if self.peek() == Some('=') => eat!(EQ),
+            '=' => ASSIGN,
+            '*' if self.peek() == Some('>') && self.peeeek() == Some('>') => {
+                self.skip();
+                self.skip();
+                end = self.point();
+                HUL
+            }
+            '*' => MUL,
+            _ => {
+                let span = span::Span::new(start, end);
+                let kind = ErrorKind::UnknownCharacter;
+                return Some(Err(Error::new(span, kind).into()));
+            }
         };
 
         Some(Ok((start, token, end)))

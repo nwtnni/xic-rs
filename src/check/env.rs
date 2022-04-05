@@ -27,14 +27,15 @@ impl Env {
     pub fn get(&self, symbol: symbol::Symbol) -> Option<&Entry> {
         for map in self.stack.iter().rev() {
             if let Some(entry) = map.get(&symbol) {
-                return Some(entry)
+                return Some(entry);
             }
         }
         None
     }
 
     pub fn insert(&mut self, symbol: symbol::Symbol, entry: Entry) {
-        self.stack.last_mut()
+        self.stack
+            .last_mut()
             .expect("[INTERNAL ERROR]: missing top-level environment")
             .insert(symbol, entry);
     }
@@ -42,7 +43,7 @@ impl Env {
     pub fn remove(&mut self, name: symbol::Symbol) -> Option<Entry> {
         for map in self.stack.iter_mut().rev() {
             if let Some(entry) = map.remove(&name) {
-                return Some(entry)
+                return Some(entry);
             }
         }
         None

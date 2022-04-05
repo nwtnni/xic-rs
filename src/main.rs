@@ -5,7 +5,7 @@ use structopt::StructOpt;
 struct Arguments {
     /// Generate output from lexical analysis
     #[structopt(short = "l", long = "lex")]
-    lex_output: bool,  
+    lex_output: bool,
 
     /// Generate output from syntactic analysis
     #[structopt(short = "p", long = "parse")]

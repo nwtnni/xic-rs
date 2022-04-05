@@ -13,10 +13,10 @@ pub enum Error {
 impl std::fmt::Display for Error {
     fn fmt(&self, fmt: &mut std::fmt::Formatter) -> std::fmt::Result {
         match self {
-        | Error::Lexical(error) => write!(fmt, "{}", error),
-        | Error::Syntactic(error) => write!(fmt, "{}", error),
-        | Error::Semantic(error) => write!(fmt, "{}", error),
-        | Error::IO(error) => write!(fmt, "{}", error),
+            Error::Lexical(error) => write!(fmt, "{}", error),
+            Error::Syntactic(error) => write!(fmt, "{}", error),
+            Error::Semantic(error) => write!(fmt, "{}", error),
+            Error::IO(error) => write!(fmt, "{}", error),
         }
     }
 }

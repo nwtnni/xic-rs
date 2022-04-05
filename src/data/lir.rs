@@ -10,9 +10,9 @@ pub struct Fun {
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Exp {
-    Int(i64), 
+    Int(i64),
     Mem(Box<Exp>),
-    Bin(ir::Bin, Box<Exp>, Box<Exp>),    
+    Bin(ir::Bin, Box<Exp>, Box<Exp>),
     Name(operand::Label),
     Temp(operand::Temp),
 }

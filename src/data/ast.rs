@@ -30,11 +30,17 @@ pub trait Callable {
 macro_rules! impl_callable {
     ($type:ty) => {
         impl Callable for $type {
-            fn name(&self) -> symbol::Symbol { self.name }
-            fn args(&self) -> &[Dec] { &self.args }
-            fn rets(&self) -> &[Typ] { &self.rets }
+            fn name(&self) -> symbol::Symbol {
+                self.name
+            }
+            fn args(&self) -> &[Dec] {
+                &self.args
+            }
+            fn rets(&self) -> &[Typ] {
+                &self.rets
+            }
         }
-    }
+    };
 }
 
 /// Represents a function signature (i.e. without implementation).
@@ -46,7 +52,7 @@ pub struct Sig {
     pub span: span::Span,
 }
 
-impl_callable!(Sig); 
+impl_callable!(Sig);
 
 /// Represents a function definition (i.e. with implementation).
 #[derive(Clone, Debug)]
@@ -71,10 +77,9 @@ pub enum Typ {
 impl Typ {
     pub fn has_len(&self) -> bool {
         match self {
-        | Typ::Bool(_)
-        | Typ::Int(_) => false,
-        | Typ::Arr(_, Some(_), _) => true,
-        | Typ::Arr(typ, _, _) => typ.has_len(),
+            Typ::Bool(_) | Typ::Int(_) => false,
+            Typ::Arr(_, Some(_), _) => true,
+            Typ::Arr(typ, _, _) => typ.has_len(),
         }
     }
 }
@@ -82,10 +87,9 @@ impl Typ {
 impl PartialEq for Typ {
     fn eq(&self, other: &Self) -> bool {
         match (self, other) {
-        | (Typ::Bool(_), Typ::Bool(_))
-        | (Typ::Int(_), Typ::Int(_)) => true,
-        | (Typ::Arr(lhs, _, _), Typ::Arr(rhs, _, _)) => lhs == rhs,
-        | _ => false,
+            (Typ::Bool(_), Typ::Bool(_)) | (Typ::Int(_), Typ::Int(_)) => true,
+            (Typ::Arr(lhs, _, _), Typ::Arr(rhs, _, _)) => lhs == rhs,
+            _ => false,
         }
     }
 }
@@ -114,26 +118,22 @@ pub enum Bin {
 impl Bin {
     pub fn is_numeric(&self) -> bool {
         match self {
-        | Bin::Mul | Bin::Hul
-        | Bin::Div | Bin::Mod
-        | Bin::Add | Bin::Sub => true,
-        | _ => false,
+            Bin::Mul | Bin::Hul | Bin::Div | Bin::Mod | Bin::Add | Bin::Sub => true,
+            _ => false,
         }
     }
 
     pub fn is_compare(&self) -> bool {
         match self {
-        | Bin::Lt | Bin::Le
-        | Bin::Ge | Bin::Gt
-        | Bin::Ne | Bin::Eq => true,
-        | _ => false,
+            Bin::Lt | Bin::Le | Bin::Ge | Bin::Gt | Bin::Ne | Bin::Eq => true,
+            _ => false,
         }
     }
 
     pub fn is_logical(&self) -> bool {
         match self {
-        | Bin::And | Bin::Or => true,
-        | _ => false,
+            Bin::And | Bin::Or => true,
+            _ => false,
         }
     }
 }
@@ -182,16 +182,16 @@ pub enum Exp {
 impl Exp {
     pub fn span(&self) -> span::Span {
         match self {
-        | Exp::Bool(_, span)
-        | Exp::Chr(_, span)
-        | Exp::Str(_, span)
-        | Exp::Int(_, span)
-        | Exp::Var(_, span)
-        | Exp::Arr(_, span)
-        | Exp::Bin(_, _, _, span)
-        | Exp::Uno(_, _, span)
-        | Exp::Idx(_, _, span) => *span,
-        | Exp::Call(call) => call.span,
+            Exp::Bool(_, span)
+            | Exp::Chr(_, span)
+            | Exp::Str(_, span)
+            | Exp::Int(_, span)
+            | Exp::Var(_, span)
+            | Exp::Arr(_, span)
+            | Exp::Bin(_, _, _, span)
+            | Exp::Uno(_, _, span)
+            | Exp::Idx(_, _, span) => *span,
+            Exp::Call(call) => call.span,
         }
     }
 }
@@ -226,7 +226,7 @@ pub enum Stm {
 
     /// Variable declaration
     Dec(Dec, span::Span),
-    
+
     /// Return statement
     Ret(Vec<Exp>, span::Span),
 
@@ -243,14 +243,14 @@ pub enum Stm {
 impl Stm {
     pub fn span(&self) -> span::Span {
         match self {
-        | Stm::Call(call) => call.span,
-        | Stm::Ass(_, _, span)
-        | Stm::Init(_, _, span)
-        | Stm::Dec(_, span)
-        | Stm::Ret(_, span)
-        | Stm::Seq(_, span)
-        | Stm::If(_, _, _, span)
-        | Stm::While(_, _, span) => *span,
+            Stm::Call(call) => call.span,
+            Stm::Ass(_, _, span)
+            | Stm::Init(_, _, span)
+            | Stm::Dec(_, span)
+            | Stm::Ret(_, span)
+            | Stm::Seq(_, span)
+            | Stm::If(_, _, _, span)
+            | Stm::While(_, _, span) => *span,
         }
     }
 }

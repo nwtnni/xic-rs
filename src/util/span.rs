@@ -55,6 +55,9 @@ impl std::fmt::Display for Span {
 
 impl From<Point> for Span {
     fn from(point: Point) -> Self {
-        Span { lo: point, hi: point.bump() }
+        Span {
+            lo: point,
+            hi: point.bump(),
+        }
     }
 }

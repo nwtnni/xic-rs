@@ -1,10 +1,10 @@
-mod emitter;
 mod canonizer;
 mod driver;
+mod emitter;
 mod folder;
 mod printer;
 
-pub(crate) use emitter::Emitter;
 pub(crate) use canonizer::Canonizer;
-pub(crate) use folder::Foldable;
 pub use driver::Driver;
+pub(crate) use emitter::Emitter;
+pub(crate) use folder::Foldable;

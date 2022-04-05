@@ -74,7 +74,7 @@ impl std::fmt::Display for Reg {
 }
 
 pub trait Operand: Copy + Eq + std::hash::Hash + std::fmt::Display + std::fmt::Debug {}
-impl Operand for Temp {} 
+impl Operand for Temp {}
 impl Operand for Reg {}
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]

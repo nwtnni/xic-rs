@@ -29,7 +29,10 @@ pub struct Symbol(usize);
 
 impl Interner {
     /// Store `string` in this interner if not already cached.
-    fn intern<'a, S>(&mut self, string: S) -> Symbol where S: Into<Cow<'a, str>> {
+    fn intern<'a, S>(&mut self, string: S) -> Symbol
+    where
+        S: Into<Cow<'a, str>>,
+    {
         let cow = string.into();
         if let Some(&index) = self.index.get(cow.as_ref()) {
             Symbol(index)
@@ -51,17 +54,16 @@ impl Interner {
 }
 
 /// Look up `string` in the global cache, and insert it if missing.
-pub fn intern<'a, S>(string: S) -> Symbol where S: Into<Cow<'a, str>> {
-    INTERNER.with(|interner| {
-        interner.borrow_mut().intern(string)
-    })
+pub fn intern<'a, S>(string: S) -> Symbol
+where
+    S: Into<Cow<'a, str>>,
+{
+    INTERNER.with(|interner| interner.borrow_mut().intern(string))
 }
 
 /// Resolve `symbol` to its string representation.
 pub fn resolve(symbol: Symbol) -> &'static str {
-    INTERNER.with(|interner| {
-        interner.borrow().resolve(symbol)
-    })
+    INTERNER.with(|interner| interner.borrow().resolve(symbol))
 }
 
 impl From<Symbol> for &'static str {
