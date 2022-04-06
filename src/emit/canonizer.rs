@@ -23,14 +23,14 @@ impl Canonizer {
         }
         ir::Unit {
             name: unit.name,
-            funs: funs,
+            funs,
             data: unit.data,
         }
     }
 
     fn canonize_fun(&mut self, fun: &hir::Fun) -> lir::Fun {
         self.canonize_stm(&fun.body);
-        let mut canonized = std::mem::replace(&mut self.canonized, Vec::new());
+        let mut canonized = std::mem::take(&mut self.canonized);
         if let Some(lir::Stm::Return(_)) = canonized.last() {
         } else {
             canonized.push(lir::Stm::Return(vec![]));

@@ -57,12 +57,13 @@ impl From<Tree> for Exp {
                 let t = operand::Label::new("TRUE");
                 let f = operand::Label::new("FALSE");
                 let value = Exp::Temp(operand::Temp::new("BOOL"));
-                let mut seq = Vec::with_capacity(5);
-                seq.push(Stm::Move(value.clone(), Exp::Int(0)));
-                seq.push(cond(t, f));
-                seq.push(Stm::Label(t));
-                seq.push(Stm::Move(value.clone(), Exp::Int(1)));
-                seq.push(Stm::Label(f));
+                let seq = vec![
+                    Stm::Move(value.clone(), Exp::Int(0)),
+                    cond(t, f),
+                    Stm::Label(t),
+                    Stm::Move(value.clone(), Exp::Int(1)),
+                    Stm::Label(f),
+                ];
                 Exp::ESeq(Box::new(Stm::Seq(seq)), Box::new(value))
             }
         }

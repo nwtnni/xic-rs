@@ -121,7 +121,7 @@ impl Checker {
         let mut rets = sig
             .rets()
             .iter()
-            .map(|typ| self.check_typ(&typ))
+            .map(|typ| self.check_typ(typ))
             .collect::<Result<Vec<_>, _>>()?;
 
         let rets = match rets.len() {
@@ -229,13 +229,12 @@ impl Checker {
                 }
             }
             Exp::Bin(ast::Bin::Add, l, r, _) => {
-                match (self.check_exp(l)?, self.check_exp(r)?) {
-                    (Typ::Exp(Arr(lhs)), Typ::Exp(Arr(rhs))) => {
-                        if let Some(lub) = lhs.lub(&*rhs) {
-                            return Ok(Typ::array(lub));
-                        }
+                if let (Typ::Exp(Arr(lhs)), Typ::Exp(Arr(rhs))) =
+                    (self.check_exp(l)?, self.check_exp(r)?)
+                {
+                    if let Some(lub) = lhs.lub(&*rhs) {
+                        return Ok(Typ::array(lub));
                     }
-                    _ => (),
                 }
                 self.check_bin(l, r, Typ::int(), Typ::int())
             }
@@ -386,7 +385,7 @@ impl Checker {
                 let pass = self.check_stm(pass)?;
                 self.env.pop();
 
-                if let None = fail {
+                if fail.is_none() {
                     return Ok(Unit);
                 }
 

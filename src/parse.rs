@@ -1,3 +1,8 @@
+#![allow(clippy::clone_on_copy)]
+#![allow(clippy::too_many_arguments)]
+#![allow(clippy::try_err)]
+#![allow(clippy::just_underscores_and_digits)]
+
 use lalrpop_util::lalrpop_mod;
 
 mod driver;

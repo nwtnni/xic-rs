@@ -45,6 +45,6 @@ impl<'main> Driver<'main> {
             };
         }
 
-        Ok(program?)
+        program
     }
 }

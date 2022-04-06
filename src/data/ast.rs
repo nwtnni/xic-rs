@@ -117,24 +117,21 @@ pub enum Bin {
 
 impl Bin {
     pub fn is_numeric(&self) -> bool {
-        match self {
-            Bin::Mul | Bin::Hul | Bin::Div | Bin::Mod | Bin::Add | Bin::Sub => true,
-            _ => false,
-        }
+        matches!(
+            self,
+            Bin::Mul | Bin::Hul | Bin::Div | Bin::Mod | Bin::Add | Bin::Sub
+        )
     }
 
     pub fn is_compare(&self) -> bool {
-        match self {
-            Bin::Lt | Bin::Le | Bin::Ge | Bin::Gt | Bin::Ne | Bin::Eq => true,
-            _ => false,
-        }
+        matches!(
+            self,
+            Bin::Lt | Bin::Le | Bin::Ge | Bin::Gt | Bin::Ne | Bin::Eq
+        )
     }
 
     pub fn is_logical(&self) -> bool {
-        match self {
-            Bin::And | Bin::Or => true,
-            _ => false,
-        }
+        matches!(self, Bin::And | Bin::Or)
     }
 }
 

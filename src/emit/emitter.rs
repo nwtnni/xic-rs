@@ -34,7 +34,7 @@ impl<'env> Emitter<'env> {
         }
         ir::Unit {
             name: symbol::intern(path.to_string_lossy()),
-            funs: funs,
+            funs,
             data: self.data,
         }
     }
@@ -243,7 +243,7 @@ impl<'env> Emitter<'env> {
         if symbol::resolve(call.name) == "length" {
             let address = self.emit_exp(&call.args[0], vars).into();
             hir::Stm::Move(
-                hir::Exp::Mem(Box::new(address)).into(),
+                hir::Exp::Mem(Box::new(address)),
                 hir::Exp::Temp(operand::Temp::Ret(0)),
             )
         } else {
@@ -284,13 +284,11 @@ impl<'env> Emitter<'env> {
             Ass(lhs, rhs, _) => {
                 let lhs = self.emit_exp(lhs, vars).into();
                 let rhs = self.emit_exp(rhs, vars).into();
-                hir::Stm::Move(lhs, rhs).into()
+                hir::Stm::Move(lhs, rhs)
             }
             Call(call) => self.emit_call(call, vars),
             Init(decs, ast::Exp::Call(call), _) => {
-                let mut seq = Vec::new();
-
-                seq.push(self.emit_call(call, vars));
+                let mut seq = vec![self.emit_call(call, vars)];
 
                 for (i, dec) in decs.iter().enumerate() {
                     if let Some(dec) = dec {
@@ -367,7 +365,7 @@ impl<'env> Emitter<'env> {
             _ => panic!("[INTERNAL ERROR]: type checking failed"),
         };
 
-        let mut mangled = format!("_I{}_", symbol::resolve(fun).replace("_", "__"),);
+        let mut mangled = format!("_I{}_", symbol::resolve(fun).replace('_', "__"),);
 
         match os {
             typ::Typ::Unit => mangled.push('p'),

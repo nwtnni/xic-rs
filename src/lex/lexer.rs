@@ -28,24 +28,15 @@ pub struct Lexer<'source> {
 }
 
 fn is_digit(c: char) -> bool {
-    match c {
-        '0'..='9' => true,
-        _ => false,
-    }
+    matches!(c, '0'..='9')
 }
 
 fn is_hex_digit(c: char) -> bool {
-    match c {
-        '0'..='9' | 'a'..='f' | 'A'..='F' => true,
-        _ => false,
-    }
+    matches!(c, '0'..='9' | 'a'..='f' | 'A'..='F')
 }
 
 fn is_ident(c: char) -> bool {
-    match c {
-        'a'..='z' | 'A'..='Z' | '0'..='9' | '_' | '\'' => true,
-        _ => false,
-    }
+    matches!(c, 'a'..='z' | 'A'..='Z' | '0'..='9' | '_' | '\'')
 }
 
 impl<'source> Lexer<'source> {
@@ -256,9 +247,7 @@ impl<'source> Iterator for Lexer<'source> {
         // Skip past whitespace and comments
         self.forward();
 
-        if let None = self.peek() {
-            return None;
-        }
+        self.peek()?;
 
         let start = self.point();
         let ch = self.advance().unwrap();

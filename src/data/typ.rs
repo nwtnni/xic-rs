@@ -21,13 +21,7 @@ impl Exp {
             (Exp::Any, typ) | (typ, Exp::Any) => Some(typ.clone()),
             (Exp::Int, Exp::Int) => Some(Exp::Int),
             (Exp::Bool, Exp::Bool) => Some(Exp::Bool),
-            (Exp::Arr(lhs), Exp::Arr(rhs)) => {
-                if let Some(lub) = lhs.lub(rhs) {
-                    Some(Exp::Arr(Box::new(lub)))
-                } else {
-                    None
-                }
-            }
+            (Exp::Arr(lhs), Exp::Arr(rhs)) => lhs.lub(rhs).map(Box::new).map(Exp::Arr),
             (_, _) => None,
         }
     }
@@ -64,7 +58,7 @@ impl std::fmt::Display for Typ {
             Typ::Exp(typ) => write!(fmt, "{}", typ),
             Typ::Tup(typs) => {
                 write!(fmt, "(")?;
-                if typs.len() > 0 {
+                if !typs.is_empty() {
                     let mut iter = typs.iter();
                     if let Some(typ) = iter.next() {
                         write!(fmt, "{}", typ)?;

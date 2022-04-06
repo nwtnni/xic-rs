@@ -39,15 +39,17 @@ impl std::fmt::Display for Error {
             ErrorKind::UnboundFun(f) => format!("Unbound function {}", symbol::resolve(*f)),
             ErrorKind::NotVar(v) => format!("{} is not a variable type", symbol::resolve(*v)),
             ErrorKind::NotFun(f) => format!("{} is not a function", symbol::resolve(*f)),
-            ErrorKind::NotExp => format!("Not an expression type"),
-            ErrorKind::IndexEmpty => format!("Cannot index empty array"),
-            ErrorKind::CallLength => format!("Incorrect number of arguments for function call"),
-            ErrorKind::InitLength => format!("Initialization mismatch"),
-            ErrorKind::InitProcedure => format!("Cannot initialize with a procedure"),
-            ErrorKind::Unreachable => format!("Unreachable statement"),
-            ErrorKind::MissingReturn => format!("Missing return statement"),
-            ErrorKind::NameClash => format!("Name already bound in environment"),
-            ErrorKind::SigMismatch => format!("Implementation does not match signature"),
+            ErrorKind::NotExp => String::from("Not an expression type"),
+            ErrorKind::IndexEmpty => String::from("Cannot index empty array"),
+            ErrorKind::CallLength => {
+                String::from("Incorrect number of arguments for function call")
+            }
+            ErrorKind::InitLength => String::from("Initialization mismatch"),
+            ErrorKind::InitProcedure => String::from("Cannot initialize with a procedure"),
+            ErrorKind::Unreachable => String::from("Unreachable statement"),
+            ErrorKind::MissingReturn => String::from("Missing return statement"),
+            ErrorKind::NameClash => String::from("Name already bound in environment"),
+            ErrorKind::SigMismatch => String::from("Implementation does not match signature"),
             ErrorKind::Mismatch { expected, found } => {
                 format!("Expected {} but found {}", expected, found)
             }
