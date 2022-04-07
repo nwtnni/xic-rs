@@ -117,7 +117,7 @@ impl Serialize for ast::Expression {
 
 impl Serialize for ast::Declaration {
     fn sexp(&self) -> Sexp {
-        [self.name.sexp(), self._type.sexp()].sexp_move()
+        [self.name.sexp(), self.r#type.sexp()].sexp_move()
     }
 }
 

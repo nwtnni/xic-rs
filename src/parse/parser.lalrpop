@@ -73,7 +73,7 @@ ClosedStatement: Statement = {
 
     // Single initialization
     <l: @L> <declaration: StatementDeclaration> <la: @L> "=" <lr: @R> <expression: Expression> ";"? <r: @R> =>? {
-        if declaration._type.has_len() { Err(parse::Error::Array(Span::new(la, lr)))? }
+        if declaration.has_len() { Err(parse::Error::Array(Span::new(la, lr)))? }
         Ok(Statement::Initialization(vec![Some(declaration)], expression, Span::new(l, r)))
     },
 
@@ -136,14 +136,14 @@ OptDeclaration: Option<Declaration> = {
 }
 
 ArgDeclaration: Declaration = {
-    <l: @L> <name: ID> ":" <_type: ArgType> <r: @R> => {
-        Declaration { name, _type, span: Span::new(l, r) }
+    <l: @L> <name: ID> ":" <type_: ArgType> <r: @R> => {
+        Declaration::new(name, type_, Span::new(l, r))
     }
 }
 
 StatementDeclaration: Declaration = {
-    <l: @L> <name: ID> ":" <_type: DeclarationType> <r: @R> => {
-        Declaration { name, _type, span: Span::new(l, r) }
+    <l: @L> <name: ID> ":" <type_: DeclarationType> <r: @R> => {
+        Declaration::new(name, type_, Span::new(l, r))
     }
 }
 
@@ -154,15 +154,15 @@ PrimType: Type = {
 
 ArgType: Type = {
     <PrimType>,
-    <l: @L> <_type: ArgType> "[" "]" <r: @R> => {
-        Type::Array(Box::new(_type), None, Span::new(l, r))
+    <l: @L> <type_: ArgType> "[" "]" <r: @R> => {
+        Type::Array(Box::new(type_), None, Span::new(l, r))
     },
 }
 
 DeclarationType: Type = {
     <PrimType>,
-    <l: @L> <_type: PrimType> <arrays: ArrayType+> =>? {
-        let mut _type = _type;
+    <l: @L> <type_: PrimType> <arrays: ArrayType+> =>? {
+        let mut type_ = type_;
         let mut seen = None;
         for (len, r) in arrays.into_iter().rev() {
             match (&len, &mut seen) {
@@ -170,9 +170,9 @@ DeclarationType: Type = {
             | (Some(len), seen) => *seen = Some(len.span()),
             | _ => (),
             }
-            _type = Type::Array(Box::new(_type), len, Span::new(l, r));
+            type_ = Type::Array(Box::new(type_), len, Span::new(l, r));
         }
-        Ok(_type)
+        Ok(type_)
     },
 }
 

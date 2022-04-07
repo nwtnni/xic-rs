@@ -1,5 +1,5 @@
-use crate::util::span;
-use crate::util::symbol;
+use crate::util::span::Span;
+use crate::util::symbol::Symbol;
 
 /// Represents a Xi interface file.
 #[derive(Clone, Debug)]
@@ -17,12 +17,12 @@ pub struct Program {
 /// Represents a use statement for importing interfaces.
 #[derive(Clone, Debug)]
 pub struct Use {
-    pub name: symbol::Symbol,
-    pub span: span::Span,
+    pub name: Symbol,
+    pub span: Span,
 }
 
 pub trait Callable {
-    fn name(&self) -> symbol::Symbol;
+    fn name(&self) -> Symbol;
     fn parameters(&self) -> &[Declaration];
     fn returns(&self) -> &[Type];
 }
@@ -30,7 +30,7 @@ pub trait Callable {
 macro_rules! impl_callable {
     ($type:ty) => {
         impl Callable for $type {
-            fn name(&self) -> symbol::Symbol {
+            fn name(&self) -> Symbol {
                 self.name
             }
 
@@ -48,10 +48,10 @@ macro_rules! impl_callable {
 /// Represents a function signature (i.e. without implementation).
 #[derive(Clone, Debug)]
 pub struct Signature {
-    pub name: symbol::Symbol,
+    pub name: Symbol,
     pub parameters: Vec<Declaration>,
     pub returns: Vec<Type>,
-    pub span: span::Span,
+    pub span: Span,
 }
 
 impl_callable!(Signature);
@@ -59,11 +59,11 @@ impl_callable!(Signature);
 /// Represents a function definition (i.e. with implementation).
 #[derive(Clone, Debug)]
 pub struct Function {
-    pub name: symbol::Symbol,
+    pub name: Symbol,
     pub parameters: Vec<Declaration>,
     pub returns: Vec<Type>,
     pub body: Statement,
-    pub span: span::Span,
+    pub span: Span,
 }
 
 impl_callable!(Function);
@@ -71,9 +71,9 @@ impl_callable!(Function);
 /// Represents a primitive type.
 #[derive(Clone, Debug)]
 pub enum Type {
-    Bool(span::Span),
-    Int(span::Span),
-    Array(Box<Type>, Option<Expression>, span::Span),
+    Bool(Span),
+    Int(Span),
+    Array(Box<Type>, Option<Expression>, Span),
 }
 
 impl Type {
@@ -148,38 +148,38 @@ pub enum Unary {
 #[derive(Clone, Debug)]
 pub enum Expression {
     /// Boolean literal
-    Boolean(bool, span::Span),
+    Boolean(bool, Span),
 
     /// Char literal
-    Character(char, span::Span),
+    Character(char, Span),
 
     /// String literal
-    String(String, span::Span),
+    String(String, Span),
 
     /// Integer literal
-    Integer(i64, span::Span),
+    Integer(i64, Span),
 
     /// Variable
-    Variable(symbol::Symbol, span::Span),
+    Variable(Symbol, Span),
 
     /// Array literal
-    Array(Vec<Expression>, span::Span),
+    Array(Vec<Expression>, Span),
 
     /// Binary operation
-    Binary(Binary, Box<Expression>, Box<Expression>, span::Span),
+    Binary(Binary, Box<Expression>, Box<Expression>, Span),
 
     /// Unary operation
-    Unary(Unary, Box<Expression>, span::Span),
+    Unary(Unary, Box<Expression>, Span),
 
     /// Array index
-    Index(Box<Expression>, Box<Expression>, span::Span),
+    Index(Box<Expression>, Box<Expression>, Span),
 
     /// Function call
     Call(Call),
 }
 
 impl Expression {
-    pub fn span(&self) -> span::Span {
+    pub fn span(&self) -> Span {
         match self {
             Expression::Boolean(_, span)
             | Expression::Character(_, span)
@@ -194,7 +194,7 @@ impl Expression {
         }
     }
 
-    pub fn span_mut(&mut self) -> &mut span::Span {
+    pub fn span_mut(&mut self) -> &mut Span {
         match self {
             Expression::Boolean(_, span)
             | Expression::Character(_, span)
@@ -213,54 +213,59 @@ impl Expression {
 /// Represents a variable declaration.
 #[derive(Clone, Debug)]
 pub struct Declaration {
-    pub name: symbol::Symbol,
-    pub _type: Type,
-    pub span: span::Span,
+    pub name: Symbol,
+    pub r#type: Type,
+    pub span: Span,
+}
+
+impl Declaration {
+    pub fn new(name: Symbol, r#type: Type, span: Span) -> Self {
+        Self { name, r#type, span }
+    }
+
+    pub fn has_len(&self) -> bool {
+        self.r#type.has_len()
+    }
 }
 
 /// Represents a function call.
 #[derive(Clone, Debug)]
 pub struct Call {
-    pub name: symbol::Symbol,
+    pub name: Symbol,
     pub arguments: Vec<Expression>,
-    pub span: span::Span,
+    pub span: Span,
 }
 
 /// Represents an imperative statement.
 #[derive(Clone, Debug)]
 pub enum Statement {
     /// Assignment
-    Assignment(Expression, Expression, span::Span),
+    Assignment(Expression, Expression, Span),
 
     /// Procedure call
     Call(Call),
 
     /// Initialization
-    Initialization(Vec<Option<Declaration>>, Expression, span::Span),
+    Initialization(Vec<Option<Declaration>>, Expression, Span),
 
     /// Variable declaration
-    Declaration(Declaration, span::Span),
+    Declaration(Declaration, Span),
 
     /// Return statement
-    Return(Vec<Expression>, span::Span),
+    Return(Vec<Expression>, Span),
 
     /// Statement block
-    Sequence(Vec<Statement>, span::Span),
+    Sequence(Vec<Statement>, Span),
 
     /// If-else block
-    If(
-        Expression,
-        Box<Statement>,
-        Option<Box<Statement>>,
-        span::Span,
-    ),
+    If(Expression, Box<Statement>, Option<Box<Statement>>, Span),
 
     /// While block
-    While(Expression, Box<Statement>, span::Span),
+    While(Expression, Box<Statement>, Span),
 }
 
 impl Statement {
-    pub fn span(&self) -> span::Span {
+    pub fn span(&self) -> Span {
         match self {
             Statement::Call(call) => call.span,
             Statement::Assignment(_, _, span)

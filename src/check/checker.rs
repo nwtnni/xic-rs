@@ -121,7 +121,7 @@ impl Checker {
         let parameters = signature
             .parameters()
             .iter()
-            .map(|declaration| &declaration._type)
+            .map(|declaration| &declaration.r#type)
             .map(|r#type| self.check_type(r#type))
             .collect::<Result<Vec<_>, _>>()?;
 
@@ -204,7 +204,7 @@ impl Checker {
             bail!(declaration.span, ErrorKind::NameClash)
         }
 
-        let r#type = self.check_type(&declaration._type)?;
+        let r#type = self.check_type(&declaration.r#type)?;
 
         self.context
             .insert(declaration.name, context::Entry::Variable(r#type.clone()));
