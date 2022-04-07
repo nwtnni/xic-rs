@@ -117,26 +117,6 @@ pub enum Binary {
     Or,
 }
 
-impl Binary {
-    pub fn is_numeric(&self) -> bool {
-        matches!(
-            self,
-            Binary::Mul | Binary::Hul | Binary::Div | Binary::Mod | Binary::Add | Binary::Sub
-        )
-    }
-
-    pub fn is_compare(&self) -> bool {
-        matches!(
-            self,
-            Binary::Lt | Binary::Le | Binary::Ge | Binary::Gt | Binary::Ne | Binary::Eq
-        )
-    }
-
-    pub fn is_logical(&self) -> bool {
-        matches!(self, Binary::And | Binary::Or)
-    }
-}
-
 /// Represents a unary operator.
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
 pub enum Unary {

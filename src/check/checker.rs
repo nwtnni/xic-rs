@@ -225,6 +225,7 @@ impl Checker {
                 Some(_) => bail!(*span, ErrorKind::NotVariable(*name)),
                 None => bail!(*span, ErrorKind::UnboundVariable(*name)),
             },
+
             ast::Expression::Array(array, _) => {
                 let mut bound = r#type::Expression::Any;
 
@@ -238,6 +239,7 @@ impl Checker {
 
                 Ok(r#type::Expression::Array(Box::new(bound)))
             }
+
             ast::Expression::Binary(ast::Binary::Add, left, right, _) => {
                 let span = right.span();
                 match (self.check_expression(left)?, self.check_expression(right)?) {
@@ -255,26 +257,45 @@ impl Checker {
                     ),
                 }
             }
-            ast::Expression::Binary(operation, left, right, _) if operation.is_numeric() => self
-                .check_binary(
-                    left,
-                    right,
-                    r#type::Expression::Integer,
-                    r#type::Expression::Integer,
-                ),
-            ast::Expression::Binary(operation, left, right, _) if operation.is_compare() => self
-                .check_binary(
-                    left,
-                    right,
-                    r#type::Expression::Integer,
-                    r#type::Expression::Boolean,
-                ),
-            ast::Expression::Binary(_, left, right, _) => self.check_binary(
+            ast::Expression::Binary(
+                ast::Binary::Mul
+                | ast::Binary::Hul
+                | ast::Binary::Div
+                | ast::Binary::Mod
+                | ast::Binary::Sub,
                 left,
                 right,
-                r#type::Expression::Boolean,
+                _,
+            ) => self.check_binary(
+                left,
+                right,
+                r#type::Expression::Integer,
+                r#type::Expression::Integer,
+            ),
+            ast::Expression::Binary(
+                ast::Binary::Lt
+                | ast::Binary::Le
+                | ast::Binary::Ge
+                | ast::Binary::Gt
+                | ast::Binary::Ne
+                | ast::Binary::Eq,
+                left,
+                right,
+                _,
+            ) => self.check_binary(
+                left,
+                right,
+                r#type::Expression::Integer,
                 r#type::Expression::Boolean,
             ),
+            ast::Expression::Binary(ast::Binary::And | ast::Binary::Or, left, right, _) => self
+                .check_binary(
+                    left,
+                    right,
+                    r#type::Expression::Boolean,
+                    r#type::Expression::Boolean,
+                ),
+
             ast::Expression::Unary(ast::Unary::Neg, expression, _) => {
                 match self.check_expression(expression)? {
                     r#type::Expression::Integer => Ok(r#type::Expression::Integer),
@@ -287,6 +308,7 @@ impl Checker {
                     r#type => expected!(expression.span(), r#type::Expression::Boolean, r#type),
                 }
             }
+
             ast::Expression::Index(array, index, span) => {
                 match (self.check_expression(array)?, self.check_expression(index)?) {
                     (r#type::Expression::Array(r#type), r#type::Expression::Integer)
@@ -307,6 +329,7 @@ impl Checker {
                     }
                 }
             }
+
             ast::Expression::Call(call) if call.name == symbol::intern("length") => {
                 if call.arguments.len() != 1 {
                     bail!(call.span, ErrorKind::CallLength)
