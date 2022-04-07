@@ -7,100 +7,107 @@ use crate::util::span;
 use crate::util::symbol;
 
 #[derive(Clone, Debug)]
-pub enum PreExp {
+pub enum Expression {
     /// Boolean literal
-    Bool(bool, span::Span),
+    Boolean(bool, span::Span),
 
     /// Char literal
-    Chr(char, span::Span),
+    Character(char, span::Span),
 
     /// String literal
-    Str(String, span::Span),
+    String(String, span::Span),
 
     /// Integer literal
-    Int(String, span::Span),
+    Integer(String, span::Span),
 
     /// Variable
-    Var(symbol::Symbol, span::Span),
+    Variable(symbol::Symbol, span::Span),
 
     /// Array literal
-    Arr(Vec<PreExp>, span::Span),
+    Array(Vec<Expression>, span::Span),
 
     /// Binary operation
-    Bin(ast::Bin, Box<PreExp>, Box<PreExp>, span::Span),
+    Binary(ast::Binary, Box<Expression>, Box<Expression>, span::Span),
 
     /// Unary operation
-    Uno(ast::Uno, Box<PreExp>, span::Span),
+    Unary(ast::Unary, Box<Expression>, span::Span),
 
     /// Array index
-    Idx(Box<PreExp>, Box<PreExp>, span::Span),
+    Index(Box<Expression>, Box<Expression>, span::Span),
 
     /// Function call
     Call(ast::Call),
 }
 
-impl PreExp {
+impl Expression {
     pub fn span_mut(&mut self) -> &mut span::Span {
         match self {
-            PreExp::Bool(_, span)
-            | PreExp::Chr(_, span)
-            | PreExp::Str(_, span)
-            | PreExp::Int(_, span)
-            | PreExp::Var(_, span)
-            | PreExp::Arr(_, span)
-            | PreExp::Bin(_, _, _, span)
-            | PreExp::Uno(_, _, span)
-            | PreExp::Idx(_, _, span)
-            | PreExp::Call(ast::Call { span, .. }) => span,
+            Expression::Boolean(_, span)
+            | Expression::Character(_, span)
+            | Expression::String(_, span)
+            | Expression::Integer(_, span)
+            | Expression::Variable(_, span)
+            | Expression::Array(_, span)
+            | Expression::Binary(_, _, _, span)
+            | Expression::Unary(_, _, span)
+            | Expression::Index(_, _, span)
+            | Expression::Call(ast::Call { span, .. }) => span,
         }
     }
 
-    pub fn into_exp(self) -> Result<ast::Exp, error::Error> {
+    pub fn into_expression(self) -> Result<ast::Expression, error::Error> {
         match self {
-            PreExp::Bool(b, span) => Ok(ast::Exp::Bool(b, span)),
-            PreExp::Chr(c, span) => Ok(ast::Exp::Chr(c, span)),
-            PreExp::Str(s, span) => Ok(ast::Exp::Str(s, span)),
-            PreExp::Var(name, span) => Ok(ast::Exp::Var(name, span)),
-            PreExp::Int(n, span) => i64::from_str(&n)
+            Expression::Boolean(b, span) => Ok(ast::Expression::Boolean(b, span)),
+            Expression::Character(c, span) => Ok(ast::Expression::Character(c, span)),
+            Expression::String(s, span) => Ok(ast::Expression::String(s, span)),
+            Expression::Variable(name, span) => Ok(ast::Expression::Variable(name, span)),
+            Expression::Integer(n, span) => i64::from_str(&n)
                 .map_err(|_| parse::Error::Integer(span).into())
-                .map(|n| ast::Exp::Int(n, span)),
-            PreExp::Arr(exps, span) => {
+                .map(|n| ast::Expression::Integer(n, span)),
+            Expression::Array(exps, span) => {
                 let exps = exps
                     .into_iter()
-                    .map(PreExp::into_exp)
+                    .map(Expression::into_expression)
                     .collect::<Result<Vec<_>, _>>()?;
-                Ok(ast::Exp::Arr(exps, span))
+                Ok(ast::Expression::Array(exps, span))
             }
-            PreExp::Bin(bin, lhs, rhs, span) => {
-                let lhs = (*lhs).into_exp()?;
-                let rhs = (*rhs).into_exp()?;
-                Ok(ast::Exp::Bin(bin, Box::new(lhs), Box::new(rhs), span))
+            Expression::Binary(bin, lhs, rhs, span) => {
+                let lhs = (*lhs).into_expression()?;
+                let rhs = (*rhs).into_expression()?;
+                Ok(ast::Expression::Binary(
+                    bin,
+                    Box::new(lhs),
+                    Box::new(rhs),
+                    span,
+                ))
             }
             // https://doc.rust-lang.org/beta/unstable-book/language-features/box-patterns.html
-            PreExp::Uno(ast::Uno::Neg, exp, span) if matches!(&*exp, PreExp::Int(_, _)) => {
+            Expression::Unary(ast::Unary::Neg, exp, span)
+                if matches!(&*exp, Expression::Integer(_, _)) =>
+            {
                 let mut n = match *exp {
-                    PreExp::Int(n, _) => n,
+                    Expression::Integer(n, _) => n,
                     _ => unreachable!(),
                 };
 
                 n.insert(0, '-');
                 i64::from_str(&n)
                     .map_err(|_| parse::Error::Integer(span).into())
-                    .map(|n| ast::Exp::Int(n, span))
+                    .map(|n| ast::Expression::Integer(n, span))
             }
-            PreExp::Uno(uno, exp, span) => match (*exp).into_exp()? {
-                ast::Exp::Int(n, _) if n == std::i64::MIN => {
+            Expression::Unary(uno, exp, span) => match (*exp).into_expression()? {
+                ast::Expression::Integer(n, _) if n == std::i64::MIN => {
                     Err(parse::Error::Integer(span).into())
                 }
-                ast::Exp::Int(n, _) => Ok(ast::Exp::Int(-n, span)),
-                exp => Ok(ast::Exp::Uno(uno, Box::new(exp), span)),
+                ast::Expression::Integer(n, _) => Ok(ast::Expression::Integer(-n, span)),
+                exp => Ok(ast::Expression::Unary(uno, Box::new(exp), span)),
             },
-            PreExp::Idx(arr, idx, span) => {
-                let arr = (*arr).into_exp()?;
-                let idx = (*idx).into_exp()?;
-                Ok(ast::Exp::Idx(Box::new(arr), Box::new(idx), span))
+            Expression::Index(arr, idx, span) => {
+                let arr = (*arr).into_expression()?;
+                let idx = (*idx).into_expression()?;
+                Ok(ast::Expression::Index(Box::new(arr), Box::new(idx), span))
             }
-            PreExp::Call(call) => Ok(ast::Exp::Call(call)),
+            Expression::Call(call) => Ok(ast::Expression::Call(call)),
         }
     }
 }

@@ -1,8 +1,9 @@
-use crate::check::env;
-use crate::check::Env;
-use crate::check::{Error, ErrorKind};
+use crate::check::context;
+use crate::check::Context;
+use crate::check::Error;
+use crate::check::ErrorKind;
 use crate::data::ast;
-use crate::data::typ;
+use crate::data::r#type;
 use crate::error;
 use crate::lex;
 use crate::parse;
@@ -24,389 +25,453 @@ macro_rules! expected {
     }};
 }
 
-macro_rules! zip {
-    ($lhs:expr, $rhs:expr, $span:expr, $err:expr) => {{
-        if $lhs.len() != $rhs.len() {
-            bail!($span, $err)
-        }
-        $lhs.iter().zip($rhs.iter())
-    }};
-}
-
 pub struct Checker {
-    env: Env,
+    context: Context,
 }
 
 impl Checker {
     pub fn new() -> Self {
-        Checker { env: Env::new() }
+        Checker {
+            context: Context::new(),
+        }
     }
 
     pub fn check_program(
         mut self,
-        lib: &std::path::Path,
+        directory_library: &std::path::Path,
         program: &ast::Program,
-    ) -> Result<env::Env, error::Error> {
+    ) -> Result<Context, error::Error> {
         for path in &program.uses {
-            let path = lib.join(symbol::resolve(path.name).to_string() + ".ixi");
+            let path = directory_library.join(symbol::resolve(path.name).to_string() + ".ixi");
             let source = std::fs::read_to_string(path)?;
             let lexer = lex::Lexer::new(&source);
             let interface = parse::InterfaceParser::new().parse(lexer)?;
             self.load_interface(&interface)?;
         }
-        for fun in &program.funs {
-            self.load_fun(fun)?;
+
+        for function in &program.functions {
+            self.load_function(function)?;
         }
-        for fun in &program.funs {
-            self.check_fun(fun)?;
+
+        for function in &program.functions {
+            self.check_function(function)?;
         }
-        Ok(self.env)
+
+        Ok(self.context)
     }
 
     fn load_interface(&mut self, interface: &ast::Interface) -> Result<(), error::Error> {
-        for sig in &interface.sigs {
-            let (name, args, rets) = self.check_sig(sig)?;
-            match self.env.get(name) {
-                Some(env::Entry::Sig(i, o)) => {
-                    for (arg, param) in zip!(args, i, sig.span, ErrorKind::NameClash) {
-                        if arg != param {
-                            bail!(sig.span, ErrorKind::NameClash)
-                        }
-                    }
-                    if rets != *o {
-                        bail!(sig.span, ErrorKind::NameClash)
-                    }
+        for signature in &interface.signatures {
+            let (name, new_parameters, new_returns) = self.check_signature(signature)?;
+
+            match self.context.get(name) {
+                Some(context::Entry::Signature(old_parameters, _))
+                    if new_parameters != *old_parameters =>
+                {
+                    bail!(signature.span, ErrorKind::NameClash)
                 }
-                Some(_) => bail!(sig.span, ErrorKind::NameClash),
-                None => self.env.insert(name, env::Entry::Sig(args, rets)),
+                Some(context::Entry::Signature(_, old_returns)) if new_returns != *old_returns => {
+                    bail!(signature.span, ErrorKind::NameClash)
+                }
+                Some(context::Entry::Signature(_, _)) | None => {
+                    self.context
+                        .insert(name, context::Entry::Signature(new_parameters, new_returns));
+                }
+                Some(_) => bail!(signature.span, ErrorKind::NameClash),
             }
         }
         Ok(())
     }
 
-    fn load_fun(&mut self, fun: &ast::Fun) -> Result<(), error::Error> {
-        let (name, args, rets) = self.check_sig(fun)?;
-        match self.env.remove(name) {
-            Some(env::Entry::Sig(i, o)) => {
-                for (arg, param) in zip!(args, i, fun.span, ErrorKind::SigMismatch) {
-                    if !arg.subtypes(param) {
-                        bail!(fun.span, ErrorKind::SigMismatch)
-                    }
-                }
-                if !rets.subtypes(&o) {
-                    bail!(fun.span, ErrorKind::SigMismatch)
-                }
-                self.env.insert(name, env::Entry::Fun(i, o));
-                Ok(())
+    fn load_function(&mut self, function: &ast::Function) -> Result<(), error::Error> {
+        let (name, new_parameters, new_returns) = self.check_signature(function)?;
+
+        match self.context.remove(name) {
+            Some(context::Entry::Signature(old_parameters, _))
+                if !r#type::subtypes(&old_parameters, &new_parameters) =>
+            {
+                bail!(function.span, ErrorKind::SignatureMismatch)
             }
-            None => {
-                self.env.insert(name, env::Entry::Fun(args, rets));
-                Ok(())
+            Some(context::Entry::Signature(_, old_returns))
+                if !r#type::subtypes(&new_returns, &old_returns) =>
+            {
+                bail!(function.span, ErrorKind::SignatureMismatch)
             }
-            Some(_) => bail!(fun.span, ErrorKind::NameClash),
+            Some(context::Entry::Signature(_, _)) | None => {
+                self.context
+                    .insert(name, context::Entry::Function(new_parameters, new_returns));
+            }
+            Some(_) => bail!(function.span, ErrorKind::NameClash),
         }
+
+        Ok(())
     }
 
-    fn check_sig<C: ast::Callable>(
+    fn check_signature<C: ast::Callable>(
         &self,
-        sig: &C,
-    ) -> Result<(symbol::Symbol, Vec<typ::Exp>, typ::Typ), error::Error> {
-        let args = sig
-            .args()
+        signature: &C,
+    ) -> Result<
+        (
+            symbol::Symbol,
+            Vec<r#type::Expression>,
+            Vec<r#type::Expression>,
+        ),
+        error::Error,
+    > {
+        let parameters = signature
+            .parameters()
             .iter()
-            .map(|dec| &dec.typ)
-            .map(|typ| self.check_typ(typ))
+            .map(|declaration| &declaration._type)
+            .map(|r#type| self.check_type(r#type))
             .collect::<Result<Vec<_>, _>>()?;
 
-        let mut rets = sig
-            .rets()
+        let returns = signature
+            .returns()
             .iter()
-            .map(|typ| self.check_typ(typ))
+            .map(|r#type| self.check_type(r#type))
             .collect::<Result<Vec<_>, _>>()?;
 
-        let rets = match rets.len() {
-            0 => typ::Typ::Unit,
-            1 => typ::Typ::Exp(rets.pop().unwrap()),
-            _ => typ::Typ::Tup(rets),
-        };
-
-        Ok((sig.name(), args, rets))
+        Ok((signature.name(), parameters, returns))
     }
 
-    fn check_typ(&self, typ: &ast::Typ) -> Result<typ::Exp, error::Error> {
-        match typ {
-            ast::Typ::Bool(_) => Ok(typ::Exp::Bool),
-            ast::Typ::Int(_) => Ok(typ::Exp::Int),
-            ast::Typ::Arr(typ, None, _) => Ok(typ::Exp::Arr(Box::new(self.check_typ(typ)?))),
-            ast::Typ::Arr(typ, Some(len), _) => {
-                let typ = self.check_typ(typ)?;
-                match self.check_exp(len)? {
-                    typ::Typ::Exp(typ::Exp::Int) => Ok(typ::Exp::Arr(Box::new(typ))),
-                    typ => expected!(len.span(), typ::Typ::int(), typ),
+    fn check_type(&self, r#type: &ast::Type) -> Result<r#type::Expression, error::Error> {
+        match r#type {
+            ast::Type::Bool(_) => Ok(r#type::Expression::Boolean),
+            ast::Type::Int(_) => Ok(r#type::Expression::Integer),
+            ast::Type::Array(r#type, None, _) => self
+                .check_type(r#type)
+                .map(Box::new)
+                .map(r#type::Expression::Array),
+            ast::Type::Array(r#type, Some(len), _) => {
+                let r#type = self.check_type(r#type)?;
+                match self.check_expression(len)? {
+                    r#type::Expression::Integer => Ok(r#type::Expression::Array(Box::new(r#type))),
+                    r#type => expected!(len.span(), r#type::Expression::Integer, r#type),
                 }
             }
         }
     }
 
-    fn check_fun(&mut self, fun: &ast::Fun) -> Result<(), error::Error> {
-        let rets = match self.env.get(fun.name) {
-            Some(env::Entry::Fun(_, o)) => o.clone(),
+    fn check_function(&mut self, function: &ast::Function) -> Result<(), error::Error> {
+        let returns = match self.context.get(function.name) {
+            Some(context::Entry::Function(_, returns)) => returns.clone(),
             _ => panic!("[INTERNAL ERROR]: function should be bound in first pass"),
         };
-        self.env.push();
-        self.env.set_return(rets.clone());
-        for arg in &fun.args {
-            self.check_dec(arg)?;
+
+        self.context.push();
+        self.context.set_return(returns.clone());
+
+        for parameter in &function.parameters {
+            self.check_declaration(parameter)?;
         }
-        match (rets, self.check_stm(&fun.body)?) {
-            (typ::Typ::Unit, _) => (),
-            (_, typ::Stm::Void) => (),
-            _ => bail!(fun.span, ErrorKind::MissingReturn),
+
+        if self.check_statement(&function.body)? != r#type::Stm::Void && !returns.is_empty() {
+            bail!(function.span, ErrorKind::MissingReturn);
         }
-        self.env.pop();
+
+        self.context.pop();
         Ok(())
     }
 
-    fn check_call(&self, call: &ast::Call) -> Result<typ::Typ, error::Error> {
-        let (params, rets) = match self.env.get(call.name) {
-            Some(env::Entry::Sig(i, o)) | Some(env::Entry::Fun(i, o)) => (i, o),
+    fn check_call(&self, call: &ast::Call) -> Result<Vec<r#type::Expression>, error::Error> {
+        let (parameters, returns) = match self.context.get(call.name) {
+            Some(context::Entry::Signature(parameters, returns))
+            | Some(context::Entry::Function(parameters, returns)) => (parameters, returns),
             Some(_) => bail!(call.span, ErrorKind::NotFun(call.name)),
             None => bail!(call.span, ErrorKind::UnboundFun(call.name)),
         };
 
-        for (arg, param) in zip!(call.args, params, call.span, ErrorKind::CallLength) {
-            match self.check_exp(arg)? {
-                typ::Typ::Exp(ref typ) if !typ.subtypes(param) => {
-                    expected!(
-                        arg.span(),
-                        typ::Typ::Exp(param.clone()),
-                        typ::Typ::Exp(typ.clone())
-                    )
-                }
-                typ::Typ::Exp(_) => (),
-                _ => bail!(arg.span(), ErrorKind::NotExp),
+        if call.arguments.len() != parameters.len() {
+            bail!(call.span, ErrorKind::CallLength);
+        }
+
+        for (argument, parameter) in call.arguments.iter().zip(parameters) {
+            let r#type = self.check_expression(argument)?;
+
+            if !r#type.subtypes(parameter) {
+                expected!(argument.span(), parameter.clone(), r#type)
             }
         }
 
-        Ok(rets.clone())
+        Ok(returns.clone())
     }
 
-    fn check_dec(&mut self, dec: &ast::Dec) -> Result<typ::Exp, error::Error> {
-        if self.env.get(dec.name).is_some() {
-            bail!(dec.span, ErrorKind::NameClash)
+    fn check_declaration(
+        &mut self,
+        declaration: &ast::Declaration,
+    ) -> Result<r#type::Expression, error::Error> {
+        if self.context.get(declaration.name).is_some() {
+            bail!(declaration.span, ErrorKind::NameClash)
         }
-        let typ = self.check_typ(&dec.typ)?;
-        self.env.insert(dec.name, env::Entry::Var(typ.clone()));
-        Ok(typ)
+
+        let r#type = self.check_type(&declaration._type)?;
+
+        self.context
+            .insert(declaration.name, context::Entry::Variable(r#type.clone()));
+
+        Ok(r#type)
     }
 
-    fn check_exp(&self, exp: &ast::Exp) -> Result<typ::Typ, error::Error> {
-        use ast::{Exp, Uno};
-        use typ::{Exp::*, Typ};
+    fn check_expression(&self, exp: &ast::Expression) -> Result<r#type::Expression, error::Error> {
         match exp {
-            Exp::Bool(_, _) => Ok(Typ::boolean()),
-            Exp::Chr(_, _) => Ok(Typ::int()),
-            Exp::Str(_, _) => Ok(Typ::array(Int)),
-            Exp::Int(_, _) => Ok(Typ::int()),
-            Exp::Var(v, span) => match self.env.get(*v) {
-                Some(env::Entry::Var(typ)) => Ok(Typ::Exp(typ.clone())),
-                Some(_) => bail!(*span, ErrorKind::NotVar(*v)),
-                None => bail!(*span, ErrorKind::UnboundVar(*v)),
+            ast::Expression::Boolean(_, _) => Ok(r#type::Expression::Boolean),
+            ast::Expression::Character(_, _) => Ok(r#type::Expression::Integer),
+            ast::Expression::String(_, _) => Ok(r#type::Expression::Array(Box::new(
+                r#type::Expression::Integer,
+            ))),
+            ast::Expression::Integer(_, _) => Ok(r#type::Expression::Integer),
+            ast::Expression::Variable(name, span) => match self.context.get(*name) {
+                Some(context::Entry::Variable(typ)) => Ok(typ.clone()),
+                Some(_) => bail!(*span, ErrorKind::NotVariable(*name)),
+                None => bail!(*span, ErrorKind::UnboundVariable(*name)),
             },
-            Exp::Arr(exps, _) => {
-                let mut all = Typ::any();
-                for exp in exps {
-                    let typ = self.check_exp(exp)?;
-                    if let Some(lub) = all.lub(&typ) {
-                        all = lub;
-                    } else {
-                        expected!(exp.span(), all, typ)
+            ast::Expression::Array(array, _) => {
+                let mut bound = r#type::Expression::Any;
+
+                for expression in array {
+                    let r#type = self.check_expression(expression)?;
+                    match r#type.least_upper_bound(&bound) {
+                        None => expected!(expression.span(), bound, r#type),
+                        Some(_bound) => bound = _bound,
                     }
                 }
-                match all {
-                    Typ::Exp(typ) => Ok(Typ::array(typ)),
-                    _ => unreachable!(),
-                }
+
+                Ok(r#type::Expression::Array(Box::new(bound)))
             }
-            Exp::Bin(ast::Bin::Add, l, r, _) => {
-                if let (Typ::Exp(Arr(lhs)), Typ::Exp(Arr(rhs))) =
-                    (self.check_exp(l)?, self.check_exp(r)?)
-                {
-                    if let Some(lub) = lhs.lub(&*rhs) {
-                        return Ok(Typ::array(lub));
+            ast::Expression::Binary(ast::Binary::Add, left, right, _) => {
+                let span = right.span();
+                match (self.check_expression(left)?, self.check_expression(right)?) {
+                    (r#type::Expression::Array(left), r#type::Expression::Array(right)) => {
+                        match left.least_upper_bound(&right) {
+                            None => expected!(span, *left, *right),
+                            Some(bound) => Ok(r#type::Expression::Array(Box::new(bound))),
+                        }
                     }
+                    (_, _) => self.check_binary(
+                        left,
+                        right,
+                        r#type::Expression::Integer,
+                        r#type::Expression::Integer,
+                    ),
                 }
-                self.check_bin(l, r, Typ::int(), Typ::int())
             }
-            Exp::Bin(bin, l, r, _) if bin.is_numeric() => {
-                self.check_bin(l, r, Typ::int(), Typ::int())
+            ast::Expression::Binary(operation, left, right, _) if operation.is_numeric() => self
+                .check_binary(
+                    left,
+                    right,
+                    r#type::Expression::Integer,
+                    r#type::Expression::Integer,
+                ),
+            ast::Expression::Binary(operation, left, right, _) if operation.is_compare() => self
+                .check_binary(
+                    left,
+                    right,
+                    r#type::Expression::Integer,
+                    r#type::Expression::Boolean,
+                ),
+            ast::Expression::Binary(_, left, right, _) => self.check_binary(
+                left,
+                right,
+                r#type::Expression::Boolean,
+                r#type::Expression::Boolean,
+            ),
+            ast::Expression::Unary(ast::Unary::Neg, expression, _) => {
+                match self.check_expression(expression)? {
+                    r#type::Expression::Integer => Ok(r#type::Expression::Integer),
+                    r#type => expected!(expression.span(), r#type::Expression::Integer, r#type),
+                }
             }
-            Exp::Bin(bin, l, r, _) if bin.is_compare() => {
-                self.check_bin(l, r, Typ::int(), Typ::boolean())
+            ast::Expression::Unary(ast::Unary::Not, expression, _) => {
+                match self.check_expression(expression)? {
+                    r#type::Expression::Boolean => Ok(r#type::Expression::Boolean),
+                    r#type => expected!(expression.span(), r#type::Expression::Boolean, r#type),
+                }
             }
-            Exp::Bin(_, l, r, _) => self.check_bin(l, r, Typ::boolean(), Typ::boolean()),
-            Exp::Uno(Uno::Neg, exp, _) => match self.check_exp(exp)? {
-                Typ::Exp(Int) => Ok(Typ::int()),
-                typ => expected!(exp.span(), Typ::int(), typ),
-            },
-            Exp::Uno(Uno::Not, exp, _) => match self.check_exp(exp)? {
-                Typ::Exp(Bool) => Ok(Typ::boolean()),
-                typ => expected!(exp.span(), Typ::boolean(), typ),
-            },
-            Exp::Idx(arr, idx, span) => match (self.check_exp(arr)?, self.check_exp(idx)?) {
-                (Typ::Exp(Arr(typ)), Typ::Exp(Int)) => {
-                    if *typ == Any {
+            ast::Expression::Index(array, index, span) => {
+                match (self.check_expression(array)?, self.check_expression(index)?) {
+                    (r#type::Expression::Array(r#type), r#type::Expression::Integer)
+                        if *r#type == r#type::Expression::Any =>
+                    {
                         bail!(*span, ErrorKind::IndexEmpty)
-                    } else {
-                        Ok(Typ::Exp(*typ))
+                    }
+                    (r#type::Expression::Array(r#type), r#type::Expression::Integer) => Ok(*r#type),
+                    (r#type::Expression::Array(r#type), _) => {
+                        expected!(index.span(), r#type::Expression::Integer, *r#type)
+                    }
+                    (r#type, _) => {
+                        expected!(
+                            array.span(),
+                            r#type::Expression::Array(Box::new(r#type::Expression::Any)),
+                            r#type
+                        )
                     }
                 }
-                (Typ::Exp(Arr(_)), typ) => {
-                    expected!(idx.span(), Typ::int(), typ)
-                }
-                (typ, _) => {
-                    expected!(arr.span(), Typ::any(), typ)
-                }
-            },
-            Exp::Call(call) if call.name == symbol::intern("length") => {
-                if call.args.len() != 1 {
+            }
+            ast::Expression::Call(call) if call.name == symbol::intern("length") => {
+                if call.arguments.len() != 1 {
                     bail!(call.span, ErrorKind::CallLength)
                 }
 
-                match self.check_exp(&call.args[0])? {
-                    Typ::Exp(Arr(_)) => Ok(Typ::int()),
-                    typ => expected!(call.span, Typ::array(Any), typ),
+                match self.check_expression(&call.arguments[0])? {
+                    r#type::Expression::Array(_) => Ok(r#type::Expression::Integer),
+                    typ => expected!(
+                        call.span,
+                        r#type::Expression::Array(Box::new(r#type::Expression::Any)),
+                        typ
+                    ),
                 }
             }
-            Exp::Call(call) => self.check_call(call),
+            ast::Expression::Call(call) => {
+                let mut returns = self.check_call(call)?;
+                match returns.len() {
+                    1 => Ok(returns.remove(0)),
+                    _ => bail!(call.span, ErrorKind::NotExp),
+                }
+            }
         }
     }
 
-    fn check_bin(
+    fn check_call_or_expression(
         &self,
-        lhs: &ast::Exp,
-        rhs: &ast::Exp,
-        i: typ::Typ,
-        o: typ::Typ,
-    ) -> Result<typ::Typ, error::Error> {
-        match (self.check_exp(lhs)?, self.check_exp(rhs)?) {
-            (ref l, ref r) if l.subtypes(&i) && r.subtypes(&i) => Ok(o),
-            (ref l, ref r) if l.subtypes(&i) => expected!(rhs.span(), i, r.clone()),
-            (l, _) => expected!(lhs.span(), i, l),
+        expression: &ast::Expression,
+    ) -> Result<Vec<r#type::Expression>, error::Error> {
+        match expression {
+            ast::Expression::Call(call) if call.name != symbol::intern("length") => {
+                self.check_call(call)
+            }
+            expression => Ok(vec![self.check_expression(expression)?]),
         }
     }
 
-    fn check_stm(&mut self, stm: &ast::Stm) -> Result<typ::Stm, error::Error> {
-        use ast::Stm;
-        use typ::{Stm::*, Typ};
-        match stm {
-            Stm::Ass(lhs, rhs, _) => {
-                let l = self.check_exp(lhs)?;
-                let r = self.check_exp(rhs)?;
-                if r.subtypes(&l) {
-                    Ok(Unit)
+    fn check_binary(
+        &self,
+        left: &ast::Expression,
+        right: &ast::Expression,
+        parameter: r#type::Expression,
+        r#return: r#type::Expression,
+    ) -> Result<r#type::Expression, error::Error> {
+        match (self.check_expression(left)?, self.check_expression(right)?) {
+            (left, right) if left.subtypes(&parameter) && right.subtypes(&parameter) => {
+                Ok(r#return)
+            }
+            (left, mismatch) if left.subtypes(&parameter) => {
+                expected!(right.span(), parameter, mismatch)
+            }
+            (mismatch, _) => expected!(left.span(), parameter, mismatch),
+        }
+    }
+
+    fn check_statement(&mut self, statement: &ast::Statement) -> Result<r#type::Stm, error::Error> {
+        match statement {
+            ast::Statement::Assignment(left, right, _) => {
+                let span = right.span();
+                let left = self.check_expression(left)?;
+                let right = self.check_expression(right)?;
+                if right.subtypes(&left) {
+                    Ok(r#type::Stm::Unit)
                 } else {
-                    expected!(rhs.span(), l, r)
+                    expected!(span, left, right)
                 }
             }
-            Stm::Call(call) => match self.check_call(call)? {
-                Typ::Unit => Ok(Unit),
-                typ => expected!(call.span, Typ::Unit, typ),
+            ast::Statement::Call(call) => match &*self.check_call(call)? {
+                [] => Ok(r#type::Stm::Unit),
+                _ => bail!(call.span, ErrorKind::NotProcedure),
             },
-            Stm::Dec(dec, _) => {
-                self.check_dec(dec)?;
-                Ok(Unit)
+            ast::Statement::Declaration(declaration, _) => {
+                self.check_declaration(declaration)?;
+                Ok(r#type::Stm::Unit)
             }
-            Stm::Init(decs, exp, span) => {
-                let inits = match self.check_exp(exp)? {
-                    Typ::Unit => bail!(exp.span(), ErrorKind::InitProcedure),
-                    Typ::Exp(rhs) => {
-                        vec![rhs]
-                    }
-                    Typ::Tup(typs) => typs,
-                };
+            ast::Statement::Initialization(declarations, expression, span) => {
+                let initializations = self.check_call_or_expression(expression)?;
 
-                for (dec, init) in zip!(decs, inits, *span, ErrorKind::InitLength) {
-                    if let Some(dec) = dec {
-                        let typ = self.check_dec(dec)?;
-                        if !init.subtypes(&typ) {
-                            expected!(dec.span, Typ::Exp(init.clone()), Typ::Exp(typ))
+                if initializations.is_empty() {
+                    bail!(*span, ErrorKind::InitProcedure);
+                }
+
+                if initializations.len() != declarations.len() {
+                    bail!(*span, ErrorKind::InitLength);
+                }
+
+                for (declaration, initialization) in declarations.iter().zip(initializations) {
+                    if let Some(declaration) = declaration {
+                        let r#type = self.check_declaration(declaration)?;
+                        if !initialization.subtypes(&r#type) {
+                            expected!(declaration.span, initialization, r#type);
                         }
                     }
                 }
 
-                Ok(Unit)
+                Ok(r#type::Stm::Unit)
             }
-            Stm::Ret(rets, span) => {
-                let ret = match rets.len() {
-                    0 => Typ::Unit,
-                    1 => match self.check_exp(&rets[0])? {
-                        Typ::Exp(typ) => Typ::Exp(typ),
-                        _ => bail!(*span, ErrorKind::NotExp),
-                    },
-                    _ => {
-                        let mut typs = Vec::new();
-                        for ret in rets {
-                            match self.check_exp(ret)? {
-                                Typ::Exp(typ) => typs.push(typ),
-                                _ => bail!(ret.span(), ErrorKind::NotExp),
-                            }
-                        }
-                        Typ::Tup(typs)
-                    }
-                };
-                let expected = self.env.get_return();
-                if ret.subtypes(expected) {
-                    Ok(Void)
+            ast::Statement::Return(returns, span) => {
+                let returns = returns
+                    .iter()
+                    .map(|r#return| self.check_expression(r#return))
+                    .collect::<Result<Vec<_>, _>>()?;
+
+                let expected = self.context.get_returns();
+
+                if r#type::subtypes(&returns, expected) {
+                    Ok(r#type::Stm::Void)
                 } else {
-                    expected!(*span, expected.clone(), ret)
+                    bail!(*span, ErrorKind::ReturnMismatch);
                 }
             }
-            Stm::Seq(stms, _) => {
-                self.env.push();
-                let mut typ = Unit;
-                for stm in stms {
-                    if typ == Void {
-                        bail!(stm.span(), ErrorKind::Unreachable)
-                    } else if self.check_stm(stm)? == Void {
-                        typ = Void;
+            ast::Statement::Sequence(statements, _) => {
+                self.context.push();
+
+                let mut r#type = r#type::Stm::Unit;
+
+                for statement in statements {
+                    if r#type == r#type::Stm::Void {
+                        bail!(statement.span(), ErrorKind::Unreachable)
+                    } else if self.check_statement(statement)? == r#type::Stm::Void {
+                        r#type = r#type::Stm::Void;
                     }
                 }
-                self.env.pop();
-                Ok(typ)
+
+                self.context.pop();
+                Ok(r#type)
             }
-            Stm::If(cond, pass, fail, _) => {
-                match self.check_exp(cond)? {
-                    Typ::Exp(typ::Exp::Bool) => (),
-                    typ => expected!(cond.span(), Typ::boolean(), typ),
+            ast::Statement::If(condition, r#if, None, _) => {
+                match self.check_expression(condition)? {
+                    r#type::Expression::Boolean => (),
+                    typ => expected!(condition.span(), r#type::Expression::Boolean, typ),
                 };
 
-                self.env.push();
-                let pass = self.check_stm(pass)?;
-                self.env.pop();
+                self.context.push();
+                self.check_statement(r#if)?;
+                self.context.pop();
 
-                if fail.is_none() {
-                    return Ok(Unit);
-                }
-
-                self.env.push();
-                let fail = self.check_stm(fail.as_ref().unwrap())?;
-                self.env.pop();
-
-                match (pass, fail) {
-                    (Void, Void) => Ok(Void),
-                    _ => Ok(Unit),
-                }
+                Ok(r#type::Stm::Unit)
             }
-            Stm::While(cond, body, _) => {
-                match self.check_exp(cond)? {
-                    Typ::Exp(typ::Exp::Bool) => (),
-                    typ => expected!(cond.span(), Typ::boolean(), typ),
+            ast::Statement::If(condition, r#if, Some(r#else), _) => {
+                match self.check_expression(condition)? {
+                    r#type::Expression::Boolean => (),
+                    typ => expected!(condition.span(), r#type::Expression::Boolean, typ),
                 };
-                self.env.push();
-                self.check_stm(body)?;
-                self.env.pop();
-                Ok(Unit)
+
+                self.context.push();
+                let r#if = self.check_statement(r#if)?;
+                self.context.pop();
+
+                self.context.push();
+                let r#else = self.check_statement(r#else)?;
+                self.context.pop();
+
+                Ok(r#if.least_upper_bound(&r#else))
+            }
+            ast::Statement::While(cond, body, _) => {
+                match self.check_expression(cond)? {
+                    r#type::Expression::Boolean => (),
+                    typ => expected!(cond.span(), r#type::Expression::Boolean, typ),
+                };
+
+                self.context.push();
+                self.check_statement(body)?;
+                self.context.pop();
+
+                Ok(r#type::Stm::Unit)
             }
         }
     }

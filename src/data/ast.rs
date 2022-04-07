@@ -4,14 +4,14 @@ use crate::util::symbol;
 /// Represents a Xi interface file.
 #[derive(Clone, Debug)]
 pub struct Interface {
-    pub sigs: Vec<Sig>,
+    pub signatures: Vec<Signature>,
 }
 
 /// Represents a Xi source file.
 #[derive(Clone, Debug)]
 pub struct Program {
     pub uses: Vec<Use>,
-    pub funs: Vec<Fun>,
+    pub functions: Vec<Function>,
 }
 
 /// Represents a use statement for importing interfaces.
@@ -23,8 +23,8 @@ pub struct Use {
 
 pub trait Callable {
     fn name(&self) -> symbol::Symbol;
-    fn args(&self) -> &[Dec];
-    fn rets(&self) -> &[Typ];
+    fn parameters(&self) -> &[Declaration];
+    fn returns(&self) -> &[Type];
 }
 
 macro_rules! impl_callable {
@@ -33,11 +33,13 @@ macro_rules! impl_callable {
             fn name(&self) -> symbol::Symbol {
                 self.name
             }
-            fn args(&self) -> &[Dec] {
-                &self.args
+
+            fn parameters(&self) -> &[Declaration] {
+                &self.parameters
             }
-            fn rets(&self) -> &[Typ] {
-                &self.rets
+
+            fn returns(&self) -> &[Type] {
+                &self.returns
             }
         }
     };
@@ -45,60 +47,60 @@ macro_rules! impl_callable {
 
 /// Represents a function signature (i.e. without implementation).
 #[derive(Clone, Debug)]
-pub struct Sig {
+pub struct Signature {
     pub name: symbol::Symbol,
-    pub args: Vec<Dec>,
-    pub rets: Vec<Typ>,
+    pub parameters: Vec<Declaration>,
+    pub returns: Vec<Type>,
     pub span: span::Span,
 }
 
-impl_callable!(Sig);
+impl_callable!(Signature);
 
 /// Represents a function definition (i.e. with implementation).
 #[derive(Clone, Debug)]
-pub struct Fun {
+pub struct Function {
     pub name: symbol::Symbol,
-    pub args: Vec<Dec>,
-    pub rets: Vec<Typ>,
-    pub body: Stm,
+    pub parameters: Vec<Declaration>,
+    pub returns: Vec<Type>,
+    pub body: Statement,
     pub span: span::Span,
 }
 
-impl_callable!(Fun);
+impl_callable!(Function);
 
 /// Represents a primitive type.
 #[derive(Clone, Debug)]
-pub enum Typ {
+pub enum Type {
     Bool(span::Span),
     Int(span::Span),
-    Arr(Box<Typ>, Option<Exp>, span::Span),
+    Array(Box<Type>, Option<Expression>, span::Span),
 }
 
-impl Typ {
+impl Type {
     pub fn has_len(&self) -> bool {
         match self {
-            Typ::Bool(_) | Typ::Int(_) => false,
-            Typ::Arr(_, Some(_), _) => true,
-            Typ::Arr(typ, _, _) => typ.has_len(),
+            Type::Bool(_) | Type::Int(_) => false,
+            Type::Array(_, Some(_), _) => true,
+            Type::Array(typ, _, _) => typ.has_len(),
         }
     }
 }
 
-impl PartialEq for Typ {
+impl PartialEq for Type {
     fn eq(&self, other: &Self) -> bool {
         match (self, other) {
-            (Typ::Bool(_), Typ::Bool(_)) | (Typ::Int(_), Typ::Int(_)) => true,
-            (Typ::Arr(lhs, _, _), Typ::Arr(rhs, _, _)) => lhs == rhs,
+            (Type::Bool(_), Type::Bool(_)) | (Type::Int(_), Type::Int(_)) => true,
+            (Type::Array(lhs, _, _), Type::Array(rhs, _, _)) => lhs == rhs,
             _ => false,
         }
     }
 }
 
-impl Eq for Typ {}
+impl Eq for Type {}
 
 /// Represents a binary operator.
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
-pub enum Bin {
+pub enum Binary {
     Mul,
     Hul,
     Div,
@@ -115,89 +117,89 @@ pub enum Bin {
     Or,
 }
 
-impl Bin {
+impl Binary {
     pub fn is_numeric(&self) -> bool {
         matches!(
             self,
-            Bin::Mul | Bin::Hul | Bin::Div | Bin::Mod | Bin::Add | Bin::Sub
+            Binary::Mul | Binary::Hul | Binary::Div | Binary::Mod | Binary::Add | Binary::Sub
         )
     }
 
     pub fn is_compare(&self) -> bool {
         matches!(
             self,
-            Bin::Lt | Bin::Le | Bin::Ge | Bin::Gt | Bin::Ne | Bin::Eq
+            Binary::Lt | Binary::Le | Binary::Ge | Binary::Gt | Binary::Ne | Binary::Eq
         )
     }
 
     pub fn is_logical(&self) -> bool {
-        matches!(self, Bin::And | Bin::Or)
+        matches!(self, Binary::And | Binary::Or)
     }
 }
 
 /// Represents a unary operator.
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
-pub enum Uno {
+pub enum Unary {
     Neg,
     Not,
 }
 
 /// Represents an expression (i.e. a term that can be evaluated).
 #[derive(Clone, Debug)]
-pub enum Exp {
+pub enum Expression {
     /// Boolean literal
-    Bool(bool, span::Span),
+    Boolean(bool, span::Span),
 
     /// Char literal
-    Chr(char, span::Span),
+    Character(char, span::Span),
 
     /// String literal
-    Str(String, span::Span),
+    String(String, span::Span),
 
     /// Integer literal
-    Int(i64, span::Span),
+    Integer(i64, span::Span),
 
     /// Variable
-    Var(symbol::Symbol, span::Span),
+    Variable(symbol::Symbol, span::Span),
 
     /// Array literal
-    Arr(Vec<Exp>, span::Span),
+    Array(Vec<Expression>, span::Span),
 
     /// Binary operation
-    Bin(Bin, Box<Exp>, Box<Exp>, span::Span),
+    Binary(Binary, Box<Expression>, Box<Expression>, span::Span),
 
     /// Unary operation
-    Uno(Uno, Box<Exp>, span::Span),
+    Unary(Unary, Box<Expression>, span::Span),
 
     /// Array index
-    Idx(Box<Exp>, Box<Exp>, span::Span),
+    Index(Box<Expression>, Box<Expression>, span::Span),
 
     /// Function call
     Call(Call),
 }
 
-impl Exp {
+impl Expression {
     pub fn span(&self) -> span::Span {
         match self {
-            Exp::Bool(_, span)
-            | Exp::Chr(_, span)
-            | Exp::Str(_, span)
-            | Exp::Int(_, span)
-            | Exp::Var(_, span)
-            | Exp::Arr(_, span)
-            | Exp::Bin(_, _, _, span)
-            | Exp::Uno(_, _, span)
-            | Exp::Idx(_, _, span) => *span,
-            Exp::Call(call) => call.span,
+            Expression::Boolean(_, span)
+            | Expression::Character(_, span)
+            | Expression::String(_, span)
+            | Expression::Integer(_, span)
+            | Expression::Variable(_, span)
+            | Expression::Array(_, span)
+            | Expression::Binary(_, _, _, span)
+            | Expression::Unary(_, _, span)
+            | Expression::Index(_, _, span) => *span,
+            Expression::Call(call) => call.span,
         }
     }
 }
 
 /// Represents a variable declaration.
 #[derive(Clone, Debug)]
-pub struct Dec {
+pub struct Declaration {
     pub name: symbol::Symbol,
-    pub typ: Typ,
+    pub _type: Type,
     pub span: span::Span,
 }
 
@@ -205,49 +207,54 @@ pub struct Dec {
 #[derive(Clone, Debug)]
 pub struct Call {
     pub name: symbol::Symbol,
-    pub args: Vec<Exp>,
+    pub arguments: Vec<Expression>,
     pub span: span::Span,
 }
 
 /// Represents an imperative statement.
 #[derive(Clone, Debug)]
-pub enum Stm {
+pub enum Statement {
     /// Assignment
-    Ass(Exp, Exp, span::Span),
+    Assignment(Expression, Expression, span::Span),
 
     /// Procedure call
     Call(Call),
 
     /// Initialization
-    Init(Vec<Option<Dec>>, Exp, span::Span),
+    Initialization(Vec<Option<Declaration>>, Expression, span::Span),
 
     /// Variable declaration
-    Dec(Dec, span::Span),
+    Declaration(Declaration, span::Span),
 
     /// Return statement
-    Ret(Vec<Exp>, span::Span),
+    Return(Vec<Expression>, span::Span),
 
     /// Statement block
-    Seq(Vec<Stm>, span::Span),
+    Sequence(Vec<Statement>, span::Span),
 
     /// If-else block
-    If(Exp, Box<Stm>, Option<Box<Stm>>, span::Span),
+    If(
+        Expression,
+        Box<Statement>,
+        Option<Box<Statement>>,
+        span::Span,
+    ),
 
     /// While block
-    While(Exp, Box<Stm>, span::Span),
+    While(Expression, Box<Statement>, span::Span),
 }
 
-impl Stm {
+impl Statement {
     pub fn span(&self) -> span::Span {
         match self {
-            Stm::Call(call) => call.span,
-            Stm::Ass(_, _, span)
-            | Stm::Init(_, _, span)
-            | Stm::Dec(_, span)
-            | Stm::Ret(_, span)
-            | Stm::Seq(_, span)
-            | Stm::If(_, _, _, span)
-            | Stm::While(_, _, span) => *span,
+            Statement::Call(call) => call.span,
+            Statement::Assignment(_, _, span)
+            | Statement::Initialization(_, _, span)
+            | Statement::Declaration(_, span)
+            | Statement::Return(_, span)
+            | Statement::Sequence(_, span)
+            | Statement::If(_, _, _, span)
+            | Statement::While(_, _, span) => *span,
         }
     }
 }

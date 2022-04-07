@@ -3,16 +3,13 @@
 #![allow(clippy::try_err)]
 #![allow(clippy::just_underscores_and_digits)]
 
-use lalrpop_util::lalrpop_mod;
-
 mod driver;
 mod error;
+mod parser;
 mod printer;
-mod shim;
-
-lalrpop_mod!(parser, "/parse/parser.rs");
+pub mod shim;
 
 pub use driver::Driver;
 pub(crate) use error::Error;
-pub(crate) use parser::{InterfaceParser, ProgramParser};
-pub(crate) use shim::PreExp;
+pub(crate) use parser::InterfaceParser;
+pub(crate) use parser::ProgramParser;

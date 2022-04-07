@@ -4,4 +4,4 @@ pub mod ir;
 pub mod lir;
 pub mod operand;
 pub mod token;
-pub mod typ;
+pub mod r#type;

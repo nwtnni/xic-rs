@@ -3,10 +3,12 @@ pub mod span;
 pub mod symbol;
 mod traits;
 
-pub use traits::{Conv, TakeUntil, Tap};
+pub use traits::Conv;
+pub use traits::TakeUntil;
+pub use traits::Tap;
 
-pub fn unescape_char(c: char) -> Option<&'static str> {
-    match c {
+pub fn unescape_char(char: char) -> Option<&'static str> {
+    match char {
         '\n' => Some("\\n"),
         '\r' => Some("\\r"),
         '\t' => Some("\\t"),
@@ -16,12 +18,12 @@ pub fn unescape_char(c: char) -> Option<&'static str> {
     }
 }
 
-pub fn unescape_str(s: &str) -> String {
+pub fn unescape_str(string: &str) -> String {
     let mut buffer = String::new();
-    for c in s.chars() {
-        match unescape_char(c) {
-            Some(s) => buffer.push_str(s),
-            None => buffer.push(c),
+    for char in string.chars() {
+        match unescape_char(char) {
+            Some(unescaped) => buffer.push_str(unescaped),
+            None => buffer.push(char),
         }
     }
     buffer

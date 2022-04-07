@@ -1,280 +1,282 @@
 use crate::data::ast::*;
+use crate::data::token::Token;
 use crate::error::Error;
 use crate::parse;
-use crate::parse::PreExp;
-use crate::util::symbol::{Symbol, intern};
-use crate::util::span::{Point, Span};
-use crate::data::token::Token;
+use crate::parse::shim;
+use crate::util::symbol::Symbol;
+use crate::util::symbol::intern;
+use crate::util::span::Point;
+use crate::util::span::Span;
 
 grammar;
 
 pub Program: Program = {
-    <uses: Use*> <funs: Fun+> => Program { uses, funs },
+    <uses: Use*> <functions: Function+> => Program { uses, functions },
 }
 
 pub Interface: Interface = {
-    <sigs: Sig+> => Interface { sigs },
+    <signatures: Signature+> => Interface { signatures },
 }
 
 Use: Use = {
     <l: @L> "use" <name: ID> ";"? <r: @R> => Use { name, span: Span::new(l, r) },
 }
 
-Sig: Sig = {
-    <l: @L> <name: ID> "(" <args: Comma<ArgDec>> ")" <rets: (":" <CommaPlus<ArgTyp>>)?> <r: @R> => {
-        let rets = if let Some(rets) = rets { rets } else { Vec::new() };
-        Sig { name, args, rets, span: Span::new(l, r) }
+Signature: Signature = {
+    <l: @L> <name: ID> "(" <parameters: Comma<ArgDeclaration>> ")" <returns: (":" <CommaPlus<ArgType>>)?> <r: @R> => {
+        let returns = if let Some(returns) = returns { returns } else { Vec::new() };
+        Signature { name, parameters, returns, span: Span::new(l, r) }
     }
 }
 
-Fun: Fun = {
-    <l: @L> <name: ID> "(" <args: Comma<ArgDec>> ")" <rets: (":" <CommaPlus<ArgTyp>>)?> <body: Block> <r: @R> => {
-        let rets = if let Some(rets) = rets { rets } else { Vec::new() };
-        Fun { name, args, rets, body, span: Span::new(l, r) }
+Function: Function = {
+    <l: @L> <name: ID> "(" <parameters: Comma<ArgDeclaration>> ")" <returns: (":" <CommaPlus<ArgType>>)?> <body: Block> <r: @R> => {
+        let returns = if let Some(returns) = returns { returns } else { Vec::new() };
+        Function { name, parameters, returns, body, span: Span::new(l, r) }
     }
 }
 
-RetStm: Stm = {
-    <l: @L> "return" <rets: Comma<Exp>> ";"? <r: @R> => {
-        Stm::Ret(rets, Span::new(l, r))
+ReturnStatement: Statement = {
+    <l: @L> "return" <returns: Comma<Expression>> ";"? <r: @R> => {
+        Statement::Return(returns, Span::new(l, r))
     }
 }
 
 // Refer to http://www.parsifalsoft.com/ifelse.html
-NoRetStm: Stm = {
-    <OpenStm>,
-    <ClosedStm>,
+NoReturnStatement: Statement = {
+    <OpenStatement>,
+    <ClosedStatement>,
 }
 
-OpenStm: Stm = {
+OpenStatement: Statement = {
     // If statement
-    <l: @L> "if" <cond: Exp> <pass: NoRetStm> <r: @R> => {
-        Stm::If(cond, Box::new(pass), None, Span::new(l, r))
+    <l: @L> "if" <condition: Expression> <pass: NoReturnStatement> <r: @R> => {
+        Statement::If(condition, Box::new(pass), None, Span::new(l, r))
     },
 
     // If-else statement
-    <l: @L> "if" <cond: Exp> <pass: ClosedStm> "else" <fail: OpenStm> <r: @R> => {
-        Stm::If(cond, Box::new(pass), Some(Box::new(fail)), Span::new(l, r))
+    <l: @L> "if" <condition: Expression> <pass: ClosedStatement> "else" <fail: OpenStatement> <r: @R> => {
+        Statement::If(condition, Box::new(pass), Some(Box::new(fail)), Span::new(l, r))
     },
 }
 
-ClosedStm: Stm = {
+ClosedStatement: Statement = {
     // If-else statement
-    <l: @L> "if" <cond: Exp> <pass: ClosedStm> "else" <fail: ClosedStm> <r: @R> => {
-        Stm::If(cond, Box::new(pass), Some(Box::new(fail)), Span::new(l, r))
+    <l: @L> "if" <condition: Expression> <pass: ClosedStatement> "else" <fail: ClosedStatement> <r: @R> => {
+        Statement::If(condition, Box::new(pass), Some(Box::new(fail)), Span::new(l, r))
     },
 
     // Procedure call
-    <call: Call> ";"? => Stm::Call(call),
+    <call: Call> ";"? => Statement::Call(call),
 
     // Single declaration
-    <l: @L> <dec: StmDec> ";"? <r: @R> => Stm::Dec(dec, Span::new(l, r)),
+    <l: @L> <declaration: StatementDeclaration> ";"? <r: @R> => Statement::Declaration(declaration, Span::new(l, r)),
 
     // Single initialization
-    <l: @L> <dec: StmDec> <la: @L> "=" <lr: @R> <exp: Exp> ";"? <r: @R> =>? {
-        if dec.typ.has_len() { Err(parse::Error::Array(Span::new(la, lr)))? }
-        Ok(Stm::Init(vec![Some(dec)], exp, Span::new(l, r)))
+    <l: @L> <declaration: StatementDeclaration> <la: @L> "=" <lr: @R> <expression: Expression> ";"? <r: @R> =>? {
+        if declaration._type.has_len() { Err(parse::Error::Array(Span::new(la, lr)))? }
+        Ok(Statement::Initialization(vec![Some(declaration)], expression, Span::new(l, r)))
     },
 
     // Single assignment
-    <l: @L> <lhs: Loc> "=" <exp: Exp> ";"? <r: @R> => {
-        Stm::Ass(lhs, exp, Span::new(l, r))
+    <l: @L> <lhs: LValue> "=" <expression: Expression> ";"? <r: @R> => {
+        Statement::Assignment(lhs, expression, Span::new(l, r))
     },
 
     // Multiple initialization
-    <l: @L> <decs: Init> "=" <call: Call> ";"? <r: @R> => {
-        Stm::Init(decs, Exp::Call(call), Span::new(l, r))
+    <l: @L> <declarations: Initialization> "=" <call: Call> ";"? <r: @R> => {
+        Statement::Initialization(declarations, Expression::Call(call), Span::new(l, r))
     },
 
     // While statement
-    <l: @L> "while" <cond: Exp> <body: ClosedStm> <r: @R> => {
-        Stm::While(cond, Box::new(body), Span::new(l, r))
+    <l: @L> "while" <condition: Expression> <body: ClosedStatement> <r: @R> => {
+        Statement::While(condition, Box::new(body), Span::new(l, r))
     },
 
     <Block> ";"?,
 }
 
 // Either single wildcard or multiple declarations
-Init: Vec<Option<Dec>> = {
+Initialization: Vec<Option<Declaration>> = {
     "_" => vec![None],
-    <h: OptDec> <t: ("," <OptDec>)+> => {
-        let mut t = t;
-        t.insert(0, h);
-        t
+    <head: OptDeclaration> <tail: ("," <OptDeclaration>)+> => {
+        let mut tail = tail;
+        tail.insert(0, head);
+        tail
     }
 }
 
-Block: Stm = {
-    <l: @L> "{" <stms: NoRetStm*> <ret: RetStm?> "}" <r: @R> => {
-        let mut stms = stms;
-        if let Some(ret) = ret { stms.push(ret); }
-        Stm::Seq(stms, Span::new(l, r))
+Block: Statement = {
+    <l: @L> "{" <statements: NoReturnStatement*> <_return: ReturnStatement?> "}" <r: @R> => {
+        let mut statements = statements;
+        if let Some(_return) = _return { statements.push(_return); }
+        Statement::Sequence(statements, Span::new(l, r))
     },
 }
 
 Call: Call = {
-    <l: @L> <name: ID> "(" <args: Comma<Exp>> ")" <r: @R> => {
-        Call { name, args, span: Span::new(l, r) }
+    <l: @L> <name: ID> "(" <arguments: Comma<Expression>> ")" <r: @R> => {
+        Call { name, arguments, span: Span::new(l, r) }
     },
 }
 
-Loc: Exp = {
-    <l: @L> <name: ID> <r: @R> => Exp::Var(name, Span::new(l, r)),
-    <l: @L> <call: Call> "[" <idx: Exp> "]" <r: @R> => {
-        let call = Exp::Call(call);
-        Exp::Idx(Box::new(call), Box::new(idx), Span::new(l, r))
+LValue: Expression = {
+    <l: @L> <name: ID> <r: @R> => Expression::Variable(name, Span::new(l, r)),
+    <l: @L> <call: Call> "[" <index: Expression> "]" <r: @R> => {
+        let call = Expression::Call(call);
+        Expression::Index(Box::new(call), Box::new(index), Span::new(l, r))
     },
-    <l: @L> <arr: Loc> "[" <idx: Exp> "]" <r: @R> => {
-        Exp::Idx(Box::new(arr), Box::new(idx), Span::new(l, r))
+    <l: @L> <array: LValue> "[" <index: Expression> "]" <r: @R> => {
+        Expression::Index(Box::new(array), Box::new(index), Span::new(l, r))
     },
 }
 
-OptDec: Option<Dec> = {
-    "_"           => None,
-    <dec: StmDec> => Some(dec),
+OptDeclaration: Option<Declaration> = {
+    "_" => None,
+    <declaration: StatementDeclaration> => Some(declaration),
 }
 
-ArgDec: Dec = {
-    <l: @L> <name: ID> ":" <typ: ArgTyp> <r: @R> => {
-        Dec { name, typ, span: Span::new(l, r) }
+ArgDeclaration: Declaration = {
+    <l: @L> <name: ID> ":" <_type: ArgType> <r: @R> => {
+        Declaration { name, _type, span: Span::new(l, r) }
     }
 }
 
-StmDec: Dec = {
-    <l: @L> <name: ID> ":" <typ: DecTyp> <r: @R> => {
-        Dec { name, typ, span: Span::new(l, r) }
+StatementDeclaration: Declaration = {
+    <l: @L> <name: ID> ":" <_type: DeclarationType> <r: @R> => {
+        Declaration { name, _type, span: Span::new(l, r) }
     }
 }
 
-PrimTyp: Typ = {
-    <l: @L> "bool" <r: @R> => Typ::Bool(Span::new(l, r)),
-    <l: @L> "int"  <r: @R> => Typ::Int(Span::new(l, r)),
+PrimType: Type = {
+    <l: @L> "bool" <r: @R> => Type::Bool(Span::new(l, r)),
+    <l: @L> "int"  <r: @R> => Type::Int(Span::new(l, r)),
 }
 
-ArgTyp: Typ = {
-    <PrimTyp>,
-    <l: @L> <typ: ArgTyp> "[" "]" <r: @R> => {
-        Typ::Arr(Box::new(typ), None, Span::new(l, r))
+ArgType: Type = {
+    <PrimType>,
+    <l: @L> <_type: ArgType> "[" "]" <r: @R> => {
+        Type::Array(Box::new(_type), None, Span::new(l, r))
     },
 }
 
-DecTyp: Typ = {
-    <PrimTyp>,
-    <l: @L> <typ: PrimTyp> <arrs: ArrTyp+> =>? {
-        let mut typ = typ;
+DeclarationType: Type = {
+    <PrimType>,
+    <l: @L> <_type: PrimType> <arrays: ArrayType+> =>? {
+        let mut _type = _type;
         let mut seen = None;
-        for (len, r) in arrs.into_iter().rev() {
+        for (len, r) in arrays.into_iter().rev() {
             match (&len, &mut seen) {
             | (None, Some(span)) => return Err(parse::Error::Length(*span).into()),
-            | (Some(len), ref mut seen) => **seen = Some(len.span()),
+            | (Some(len), seen) => *seen = Some(len.span()),
             | _ => (),
             }
-            typ = Typ::Arr(Box::new(typ), len, Span::new(l, r));
+            _type = Type::Array(Box::new(_type), len, Span::new(l, r));
         }
-        Ok(typ)
+        Ok(_type)
     },
 }
 
-ArrTyp: (Option<Exp>, Point) = {
-    "[" <len: Exp?> "]" <r: @R> => (len, r),
+ArrayType: (Option<Expression>, Point) = {
+    "[" <len: Expression?> "]" <r: @R> => (len, r),
 }
 
-Exp: Exp = {
-    <pre: PreExp> =>? pre.into_exp().map_err(|error| lalrpop_util::ParseError::User { error }),
+Expression: Expression = {
+    <shim: Shim> =>? shim.into_expression().map_err(|error| lalrpop_util::ParseError::User { error }),
 }
 
-Binary<Op, Next>: PreExp = {
-    <l: @L> <lhs: Binary<Op, Next>> <bin: Op> <rhs: Next> <r: @R> => {
-        PreExp::Bin(bin, Box::new(lhs), Box::new(rhs), Span::new(l, r))
+Binary<Op, Next>: shim::Expression = {
+    <l: @L> <lhs: Binary<Op, Next>> <binary: Op> <rhs: Next> <r: @R> => {
+        shim::Expression::Binary(binary, Box::new(lhs), Box::new(rhs), Span::new(l, r))
     },
     <Next>
 }
 
-PreExp: PreExp = Or;
+Shim: shim::Expression = Or;
 
-OrOp: Bin = {
-    "|" => Bin::Or,
+OrOp: Binary = {
+    "|" => Binary::Or,
 }
 
-Or: PreExp = Binary<OrOp, And>;
+Or: shim::Expression = Binary<OrOp, And>;
 
-AndOp: Bin = {
-    "&" => Bin::And,
+AndOp: Binary = {
+    "&" => Binary::And,
 }
 
-And: PreExp = Binary<AndOp, Equal>;
+And: shim::Expression = Binary<AndOp, Equal>;
 
-EqualOp: Bin = {
-    "==" => Bin::Eq,
-    "!=" => Bin::Ne,
+EqualOp: Binary = {
+    "==" => Binary::Eq,
+    "!=" => Binary::Ne,
 }
 
-Equal: PreExp = Binary<EqualOp, Compare>;
+Equal: shim::Expression = Binary<EqualOp, Compare>;
 
-CompareOp: Bin = {
-    "<"  => Bin::Lt,
-    "<=" => Bin::Le,
-    ">=" => Bin::Ge,
-    ">"  => Bin::Gt,
+CompareOp: Binary = {
+    "<"  => Binary::Lt,
+    "<=" => Binary::Le,
+    ">=" => Binary::Ge,
+    ">"  => Binary::Gt,
 }
 
-Compare: PreExp = Binary<CompareOp, Add>;
+Compare: shim::Expression = Binary<CompareOp, Add>;
 
-AddOp: Bin = {
-    "+" => Bin::Add,
-    "-" => Bin::Sub,
+AddOp: Binary = {
+    "+" => Binary::Add,
+    "-" => Binary::Sub,
 }
 
-Add: PreExp = Binary<AddOp, Mul>;
+Add: shim::Expression = Binary<AddOp, Mul>;
 
-MulOp: Bin = {
-    "*"   => Bin::Mul,
-    "*>>" => Bin::Hul,
-    "/"   => Bin::Div,
-    "%"   => Bin::Mod,
+MulOp: Binary = {
+    "*"   => Binary::Mul,
+    "*>>" => Binary::Hul,
+    "/"   => Binary::Div,
+    "%"   => Binary::Mod,
 }
 
-Mul: PreExp = Binary<MulOp, Prefix>;
+Mul: shim::Expression = Binary<MulOp, Prefix>;
 
-PrefixOp: Uno = {
-    "-" => Uno::Neg,
-    "!" => Uno::Not,
+PrefixOp: Unary = {
+    "-" => Unary::Neg,
+    "!" => Unary::Not,
 }
 
-Prefix: PreExp = {
-    <l: @L> <uno: PrefixOp> <exp: Prefix> <r: @R> => {
-        PreExp::Uno(uno, Box::new(exp), Span::new(l, r))
+Prefix: shim::Expression = {
+    <l: @L> <unary: PrefixOp> <expression: Prefix> <r: @R> => {
+        shim::Expression::Unary(unary, Box::new(expression), Span::new(l, r))
     },
     <Postfix>
 }
 
-Postfix: PreExp = {
-    <l: @L> <arr: Postfix> "[" <idx: PreExp> "]" <r: @R> => {
-        PreExp::Idx(Box::new(arr), Box::new(idx), Span::new(l, r))
+Postfix: shim::Expression = {
+    <l: @L> <array: Postfix> "[" <index: Shim> "]" <r: @R> => {
+        shim::Expression::Index(Box::new(array), Box::new(index), Span::new(l, r))
     },
     <Value>
 }
 
-Value: PreExp = {
-    <call: Call>             => PreExp::Call(call),
-    <l: @L> "true"   <r: @R> => PreExp::Bool(true, Span::new(l, r)),
-    <l: @L> "false"  <r: @R> => PreExp::Bool(false, Span::new(l, r)),
-    <l: @L> <c: CHR> <r: @R> => PreExp::Chr(c, Span::new(l, r)),
-    <l: @L> <s: STR> <r: @R> => PreExp::Str(s, Span::new(l, r)),
-    <l: @L> <i: INT> <r: @R> => PreExp::Int(i, Span::new(l, r)),
-    <l: @L> <v: ID>  <r: @R> => PreExp::Var(v, Span::new(l, r)),
-    <l: @L> "{" <exps: Comma<PreExp>> ","? "}" <r: @R> => {
-        PreExp::Arr(exps, Span::new(l, r))
+Value: shim::Expression = {
+    <call: Call> => shim::Expression::Call(call),
+    <l: @L> "true" <r: @R> => shim::Expression::Boolean(true, Span::new(l, r)),
+    <l: @L> "false" <r: @R> => shim::Expression::Boolean(false, Span::new(l, r)),
+    <l: @L> <char: CHR> <r: @R> => shim::Expression::Character(char, Span::new(l, r)),
+    <l: @L> <string: STR> <r: @R> => shim::Expression::String(string, Span::new(l, r)),
+    <l: @L> <int: INT> <r: @R> => shim::Expression::Integer(int, Span::new(l, r)),
+    <l: @L> <var: ID>  <r: @R> => shim::Expression::Variable(var, Span::new(l, r)),
+    <l: @L> "{" <expressions: Comma<Shim>> ","? "}" <r: @R> => {
+        shim::Expression::Array(expressions, Span::new(l, r))
     },
-    <l: @L> "(" <exp: PreExp> ")" <r: @R> => {
-        let mut exp = exp;
-        *exp.span_mut() = Span::new(l, r);
-        exp
+    <l: @L> "(" <expression: Shim> ")" <r: @R> => {
+        let mut expression = expression;
+        *expression.span_mut() = Span::new(l, r);
+        expression
     },
-    <l: @L> "length" "(" <arg: Exp> ")" <r: @R> => {
-        PreExp::Call(Call {
+    <l: @L> "length" "(" <argument: Expression> ")" <r: @R> => {
+        shim::Expression::Call(Call {
             name: intern("length"),
-            args: vec![arg],
+            arguments: vec![argument],
             span: Span::new(l, r)
         })
     },
@@ -282,23 +284,23 @@ Value: PreExp = {
 
 #[inline]
 Comma<T>: Vec<T> = {
-    <h: T?> <t: ("," <T>)*> => {
-        match h {
-        | None => t,
-        | Some(e) => {
-            let mut t = t;
-            t.insert(0, e);
-            t
+    <head: T?> <tail: ("," <T>)*> => {
+        match head {
+        | None => tail,
+        | Some(head) => {
+            let mut tail = tail;
+            tail.insert(0, head);
+            tail
         }
         }
     }
 }
 
 CommaPlus<T>: Vec<T> = {
-    <h: T> <t: ("," <T>)*> => {
-        let mut t = t;
-        t.insert(0, h);
-        t
+    <head: T> <tail: ("," <T>)*> => {
+        let mut tail = tail;
+        tail.insert(0, head);
+        tail
     }
 }
 

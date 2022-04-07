@@ -7,7 +7,7 @@ pub enum Error {
     Lexical(lex::Error),
     Syntactic(parse::Error),
     Semantic(check::Error),
-    IO(std::io::Error),
+    Io(std::io::Error),
 }
 
 impl std::fmt::Display for Error {
@@ -16,7 +16,7 @@ impl std::fmt::Display for Error {
             Error::Lexical(error) => write!(fmt, "{}", error),
             Error::Syntactic(error) => write!(fmt, "{}", error),
             Error::Semantic(error) => write!(fmt, "{}", error),
-            Error::IO(error) => write!(fmt, "{}", error),
+            Error::Io(error) => write!(fmt, "{}", error),
         }
     }
 }
@@ -25,7 +25,7 @@ impl std::error::Error for Error {}
 
 impl From<std::io::Error> for Error {
     fn from(error: std::io::Error) -> Self {
-        Error::IO(error)
+        Error::Io(error)
     }
 }
 

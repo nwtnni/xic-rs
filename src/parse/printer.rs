@@ -5,13 +5,13 @@ use crate::util::Tap;
 
 impl Serialize for ast::Interface {
     fn sexp(&self) -> Sexp {
-        self.sigs.sexp()
+        self.signatures.sexp()
     }
 }
 
 impl Serialize for ast::Program {
     fn sexp(&self) -> Sexp {
-        [self.uses.sexp(), self.funs.sexp()].sexp_move()
+        [self.uses.sexp(), self.functions.sexp()].sexp_move()
     }
 }
 
@@ -21,39 +21,44 @@ impl Serialize for ast::Use {
     }
 }
 
-impl Serialize for ast::Sig {
-    fn sexp(&self) -> Sexp {
-        [self.name.sexp(), self.args.sexp(), self.rets.sexp()].sexp_move()
-    }
-}
-
-impl Serialize for ast::Fun {
+impl Serialize for ast::Signature {
     fn sexp(&self) -> Sexp {
         [
             self.name.sexp(),
-            self.args.sexp(),
-            self.rets.sexp(),
+            self.parameters.sexp(),
+            self.returns.sexp(),
+        ]
+        .sexp_move()
+    }
+}
+
+impl Serialize for ast::Function {
+    fn sexp(&self) -> Sexp {
+        [
+            self.name.sexp(),
+            self.parameters.sexp(),
+            self.returns.sexp(),
             self.body.sexp(),
         ]
         .sexp_move()
     }
 }
 
-impl Serialize for ast::Typ {
+impl Serialize for ast::Type {
     fn sexp(&self) -> Sexp {
-        use ast::Typ::*;
+        use ast::Type::*;
         match self {
             Bool(_) => "bool".sexp(),
             Int(_) => "int".sexp(),
-            Arr(typ, None, _) => ["[]".sexp(), typ.sexp()].sexp_move(),
-            Arr(typ, Some(exp), _) => ["[]".sexp(), typ.sexp(), exp.sexp()].sexp_move(),
+            Array(typ, None, _) => ["[]".sexp(), typ.sexp()].sexp_move(),
+            Array(typ, Some(exp), _) => ["[]".sexp(), typ.sexp(), exp.sexp()].sexp_move(),
         }
     }
 }
 
-impl Serialize for ast::Bin {
+impl Serialize for ast::Binary {
     fn sexp(&self) -> Sexp {
-        use ast::Bin::*;
+        use ast::Binary::*;
         match self {
             Mul => "*",
             Hul => "*>>",
@@ -74,9 +79,9 @@ impl Serialize for ast::Bin {
     }
 }
 
-impl Serialize for ast::Uno {
+impl Serialize for ast::Unary {
     fn sexp(&self) -> Sexp {
-        use ast::Uno::*;
+        use ast::Unary::*;
         match self {
             Neg => "-",
             Not => "!",
@@ -85,52 +90,56 @@ impl Serialize for ast::Uno {
     }
 }
 
-impl Serialize for ast::Exp {
+impl Serialize for ast::Expression {
     fn sexp(&self) -> Sexp {
-        use ast::Exp::*;
+        use ast::Expression::*;
         match self {
-            Bool(false, _) => "false".sexp(),
-            Bool(true, _) => "true".sexp(),
-            Chr(c, _) => match util::unescape_char(*c) {
+            Boolean(false, _) => "false".sexp(),
+            Boolean(true, _) => "true".sexp(),
+            Character(c, _) => match util::unescape_char(*c) {
                 Some(s) => format!("\'{}\'", s).sexp_move(),
                 None => format!("\'{}\'", c).sexp_move(),
             },
-            Str(s, _) => format!("\"{}\"", util::unescape_str(s)).sexp_move(),
-            Int(i, _) if *i < 0 => {
+            String(s, _) => format!("\"{}\"", util::unescape_str(s)).sexp_move(),
+            Integer(i, _) if *i < 0 => {
                 ["-".sexp(), (-(*i as i128)).to_string().sexp_move()].sexp_move()
             }
-            Int(i, _) => i.to_string().sexp_move(),
-            Var(v, _) => v.sexp(),
-            Arr(exps, _) => exps.sexp(),
-            Bin(bin, lhs, rhs, _) => [bin.sexp(), lhs.sexp(), rhs.sexp()].sexp_move(),
-            Uno(uno, exp, _) => [uno.sexp(), exp.sexp()].sexp_move(),
-            Idx(arr, idx, _) => ["[]".sexp(), arr.sexp(), idx.sexp()].sexp_move(),
+            Integer(i, _) => i.to_string().sexp_move(),
+            Variable(v, _) => v.sexp(),
+            Array(exps, _) => exps.sexp(),
+            Binary(bin, lhs, rhs, _) => [bin.sexp(), lhs.sexp(), rhs.sexp()].sexp_move(),
+            Unary(uno, exp, _) => [uno.sexp(), exp.sexp()].sexp_move(),
+            Index(arr, idx, _) => ["[]".sexp(), arr.sexp(), idx.sexp()].sexp_move(),
             Call(call) => call.sexp(),
         }
     }
 }
 
-impl Serialize for ast::Dec {
+impl Serialize for ast::Declaration {
     fn sexp(&self) -> Sexp {
-        [self.name.sexp(), self.typ.sexp()].sexp_move()
+        [self.name.sexp(), self._type.sexp()].sexp_move()
     }
 }
 
 impl Serialize for ast::Call {
     fn sexp(&self) -> Sexp {
-        let mut args = self.args.iter().map(Serialize::sexp).collect::<Vec<_>>();
+        let mut args = self
+            .arguments
+            .iter()
+            .map(Serialize::sexp)
+            .collect::<Vec<_>>();
         args.insert(0, self.name.sexp());
         args.sexp_move()
     }
 }
 
-impl Serialize for ast::Stm {
+impl Serialize for ast::Statement {
     fn sexp(&self) -> Sexp {
-        use ast::Stm::*;
+        use ast::Statement::*;
         match self {
-            Ass(lhs, rhs, _) => ["=".sexp(), lhs.sexp(), rhs.sexp()].sexp_move(),
+            Assignment(lhs, rhs, _) => ["=".sexp(), lhs.sexp(), rhs.sexp()].sexp_move(),
             Call(call) => call.sexp(),
-            Init(decs, call, _) => {
+            Initialization(decs, call, _) => {
                 let mut decs = decs
                     .iter()
                     .map(|dec| {
@@ -146,12 +155,12 @@ impl Serialize for ast::Stm {
                 };
                 ["=".sexp(), decs.sexp(), call.sexp()].sexp_move()
             }
-            Dec(dec, _) => dec.sexp(),
-            Ret(exps, _) => std::iter::once("return".sexp())
+            Declaration(dec, _) => dec.sexp(),
+            Return(exps, _) => std::iter::once("return".sexp())
                 .chain(exps.iter().map(Serialize::sexp))
                 .collect::<Vec<_>>()
                 .tap(Sexp::List),
-            Seq(stms, _) => stms.sexp(),
+            Sequence(stms, _) => stms.sexp(),
             If(cond, pass, Some(fail), _) => {
                 ["if".sexp(), cond.sexp(), pass.sexp(), fail.sexp()].sexp_move()
             }

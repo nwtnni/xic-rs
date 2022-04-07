@@ -1,55 +1,55 @@
 use std::collections::HashMap;
 
-use crate::data::typ;
+use crate::data::r#type;
 use crate::util::symbol;
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Entry {
-    Var(typ::Exp),
-    Fun(Vec<typ::Exp>, typ::Typ),
-    Sig(Vec<typ::Exp>, typ::Typ),
+    Variable(r#type::Expression),
+    Function(Vec<r#type::Expression>, Vec<r#type::Expression>),
+    Signature(Vec<r#type::Expression>, Vec<r#type::Expression>),
 }
 
 #[derive(Clone, Debug)]
-pub struct Env {
+pub struct Context {
     stack: Vec<HashMap<symbol::Symbol, Entry>>,
-    ret: typ::Typ,
+    r#return: Option<Vec<r#type::Expression>>,
 }
 
-impl Default for Env {
+impl Default for Context {
     fn default() -> Self {
         Self::new()
     }
 }
 
-impl Env {
+impl Context {
     pub fn new() -> Self {
-        Env {
+        Context {
             stack: vec![HashMap::default()],
-            ret: typ::Typ::Unit,
+            r#return: None,
         }
     }
 
     pub fn get(&self, symbol: symbol::Symbol) -> Option<&Entry> {
         for map in self.stack.iter().rev() {
-            if let Some(entry) = map.get(&symbol) {
-                return Some(entry);
+            if let Some(r#type) = map.get(&symbol) {
+                return Some(r#type);
             }
         }
         None
     }
 
-    pub fn insert(&mut self, symbol: symbol::Symbol, entry: Entry) {
+    pub fn insert(&mut self, symbol: symbol::Symbol, r#type: Entry) {
         self.stack
             .last_mut()
             .expect("[INTERNAL ERROR]: missing top-level environment")
-            .insert(symbol, entry);
+            .insert(symbol, r#type);
     }
 
     pub fn remove(&mut self, name: symbol::Symbol) -> Option<Entry> {
         for map in self.stack.iter_mut().rev() {
-            if let Some(entry) = map.remove(&name) {
-                return Some(entry);
+            if let Some(r#type) = map.remove(&name) {
+                return Some(r#type);
             }
         }
         None
@@ -63,11 +63,13 @@ impl Env {
         self.stack.pop();
     }
 
-    pub fn get_return(&self) -> &typ::Typ {
-        &self.ret
+    pub fn get_returns(&self) -> &[r#type::Expression] {
+        self.r#return
+            .as_ref()
+            .expect("[INTERNAL ERROR]: missing return type")
     }
 
-    pub fn set_return(&mut self, typ: typ::Typ) {
-        self.ret = typ;
+    pub fn set_return(&mut self, r#type: Vec<r#type::Expression>) {
+        self.r#return.replace(r#type);
     }
 }

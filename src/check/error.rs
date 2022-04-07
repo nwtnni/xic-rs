@@ -1,4 +1,4 @@
-use crate::data::typ;
+use crate::data::r#type;
 use crate::util::span;
 use crate::util::symbol;
 
@@ -16,30 +16,36 @@ impl Error {
 
 #[derive(Clone, Debug)]
 pub enum ErrorKind {
-    UnboundVar(symbol::Symbol),
+    UnboundVariable(symbol::Symbol),
     UnboundFun(symbol::Symbol),
-    NotVar(symbol::Symbol),
+    NotVariable(symbol::Symbol),
     NotFun(symbol::Symbol),
     NotExp,
+    NotProcedure,
     IndexEmpty,
     CallLength,
     InitLength,
     InitProcedure,
     Unreachable,
     MissingReturn,
+    ReturnMismatch,
     NameClash,
-    SigMismatch,
-    Mismatch { expected: typ::Typ, found: typ::Typ },
+    SignatureMismatch,
+    Mismatch {
+        expected: r#type::Expression,
+        found: r#type::Expression,
+    },
 }
 
 impl std::fmt::Display for Error {
     fn fmt(&self, fmt: &mut std::fmt::Formatter) -> std::fmt::Result {
         let error = match &self.kind {
-            ErrorKind::UnboundVar(v) => format!("Unbound variable {}", symbol::resolve(*v)),
+            ErrorKind::UnboundVariable(v) => format!("Unbound variable {}", symbol::resolve(*v)),
             ErrorKind::UnboundFun(f) => format!("Unbound function {}", symbol::resolve(*f)),
-            ErrorKind::NotVar(v) => format!("{} is not a variable type", symbol::resolve(*v)),
+            ErrorKind::NotVariable(v) => format!("{} is not a variable type", symbol::resolve(*v)),
             ErrorKind::NotFun(f) => format!("{} is not a function", symbol::resolve(*f)),
-            ErrorKind::NotExp => String::from("Not an expression type"),
+            ErrorKind::NotExp => String::from("Not a single expression type"),
+            ErrorKind::NotProcedure => String::from("Not a procedure"),
             ErrorKind::IndexEmpty => String::from("Cannot index empty array"),
             ErrorKind::CallLength => {
                 String::from("Incorrect number of arguments for function call")
@@ -48,8 +54,9 @@ impl std::fmt::Display for Error {
             ErrorKind::InitProcedure => String::from("Cannot initialize with a procedure"),
             ErrorKind::Unreachable => String::from("Unreachable statement"),
             ErrorKind::MissingReturn => String::from("Missing return statement"),
+            ErrorKind::ReturnMismatch => String::from("Return mismatch"),
             ErrorKind::NameClash => String::from("Name already bound in environment"),
-            ErrorKind::SigMismatch => String::from("Implementation does not match signature"),
+            ErrorKind::SignatureMismatch => String::from("Implementation does not match signature"),
             ErrorKind::Mismatch { expected, found } => {
                 format!("Expected {} but found {}", expected, found)
             }

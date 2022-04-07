@@ -28,7 +28,7 @@ impl<'main> Driver<'main> {
         &self,
         path: &std::path::Path,
         ast: &ast::Program,
-    ) -> Result<check::Env, error::Error> {
+    ) -> Result<check::Context, error::Error> {
         let lib = if let Some(path) = self.lib {
             path
         } else {
