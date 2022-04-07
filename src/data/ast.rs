@@ -193,6 +193,21 @@ impl Expression {
             Expression::Call(call) => call.span,
         }
     }
+
+    pub fn span_mut(&mut self) -> &mut span::Span {
+        match self {
+            Expression::Boolean(_, span)
+            | Expression::Character(_, span)
+            | Expression::String(_, span)
+            | Expression::Integer(_, span)
+            | Expression::Variable(_, span)
+            | Expression::Array(_, span)
+            | Expression::Binary(_, _, _, span)
+            | Expression::Unary(_, _, span)
+            | Expression::Index(_, _, span) => span,
+            Expression::Call(call) => &mut call.span,
+        }
+    }
 }
 
 /// Represents a variable declaration.

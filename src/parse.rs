@@ -7,7 +7,6 @@ mod driver;
 mod error;
 mod parser;
 mod printer;
-pub mod shim;
 
 pub use driver::Driver;
 pub(crate) use error::Error;

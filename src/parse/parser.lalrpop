@@ -2,7 +2,6 @@ use crate::data::ast::*;
 use crate::data::token::Token;
 use crate::error::Error;
 use crate::parse;
-use crate::parse::shim;
 use crate::util::symbol::Symbol;
 use crate::util::symbol::intern;
 use crate::util::span::Point;
@@ -181,37 +180,33 @@ ArrayType: (Option<Expression>, Point) = {
     "[" <len: Expression?> "]" <r: @R> => (len, r),
 }
 
-Expression: Expression = {
-    <shim: Shim> =>? shim.into_expression().map_err(|error| lalrpop_util::ParseError::User { error }),
-}
+Expression: Expression = Or;
 
-Binary<Op, Next>: shim::Expression = {
+Binary<Op, Next>: Expression = {
     <l: @L> <lhs: Binary<Op, Next>> <binary: Op> <rhs: Next> <r: @R> => {
-        shim::Expression::Binary(binary, Box::new(lhs), Box::new(rhs), Span::new(l, r))
+        Expression::Binary(binary, Box::new(lhs), Box::new(rhs), Span::new(l, r))
     },
     <Next>
 }
-
-Shim: shim::Expression = Or;
 
 OrOp: Binary = {
     "|" => Binary::Or,
 }
 
-Or: shim::Expression = Binary<OrOp, And>;
+Or: Expression = Binary<OrOp, And>;
 
 AndOp: Binary = {
     "&" => Binary::And,
 }
 
-And: shim::Expression = Binary<AndOp, Equal>;
+And: Expression = Binary<AndOp, Equal>;
 
 EqualOp: Binary = {
     "==" => Binary::Eq,
     "!=" => Binary::Ne,
 }
 
-Equal: shim::Expression = Binary<EqualOp, Compare>;
+Equal: Expression = Binary<EqualOp, Compare>;
 
 CompareOp: Binary = {
     "<"  => Binary::Lt,
@@ -220,14 +215,14 @@ CompareOp: Binary = {
     ">"  => Binary::Gt,
 }
 
-Compare: shim::Expression = Binary<CompareOp, Add>;
+Compare: Expression = Binary<CompareOp, Add>;
 
 AddOp: Binary = {
     "+" => Binary::Add,
     "-" => Binary::Sub,
 }
 
-Add: shim::Expression = Binary<AddOp, Mul>;
+Add: Expression = Binary<AddOp, Mul>;
 
 MulOp: Binary = {
     "*"   => Binary::Mul,
@@ -236,45 +231,97 @@ MulOp: Binary = {
     "%"   => Binary::Mod,
 }
 
-Mul: shim::Expression = Binary<MulOp, Prefix>;
+Mul: Expression = Binary<MulOp, Prefix>;
 
 PrefixOp: Unary = {
     "-" => Unary::Neg,
     "!" => Unary::Not,
 }
 
-Prefix: shim::Expression = {
-    <l: @L> <unary: PrefixOp> <expression: Prefix> <r: @R> => {
-        shim::Expression::Unary(unary, Box::new(expression), Span::new(l, r))
+Prefix: Expression = {
+    // Hack to support `i64::MIN`.
+    //
+    // To avoid an ambiguous parse for -INT, we diverge into non-integer
+    // and integer branches here.
+    <l: @L> "-" <int: INT> <r: @R> =>? {
+        let span = Span::new(l, r);
+        let mut int = int;
+        int.insert(0, '-');
+        int.parse::<i64>()
+            .map_err(|_| parse::Error::Integer(span))
+            .map_err(Into::into)
+            .map(|int| Expression::Integer(int, span))
+    },
+    <l: @L> "-" <expression: NoIntPrefix> <r: @R> => {
+        Expression::Unary(Unary::Neg, Box::new(expression), Span::new(l, r))
+    },
+    <l: @L> "!" <expression: Prefix> <r: @R> => {
+        Expression::Unary(Unary::Not, Box::new(expression), Span::new(l, r))
     },
     <Postfix>
 }
 
-Postfix: shim::Expression = {
-    <l: @L> <array: Postfix> "[" <index: Shim> "]" <r: @R> => {
-        shim::Expression::Index(Box::new(array), Box::new(index), Span::new(l, r))
+NoIntPrefix: Expression = {
+    <l: @L> "-" <int: INT> <r: @R> =>? {
+        let span = Span::new(l, r);
+        let mut int = int;
+        int.insert(0, '-');
+        int.parse::<i64>()
+            .map_err(|_| parse::Error::Integer(span))
+            .map_err(Into::into)
+            .map(|int| Expression::Integer(int, span))
+    },
+    <l: @L> "-" <expression: NoIntPrefix> <r: @R> => {
+        Expression::Unary(Unary::Neg, Box::new(expression), Span::new(l, r))
+    },
+    <l: @L> "!" <expression: Prefix> <r: @R> => {
+        Expression::Unary(Unary::Not, Box::new(expression), Span::new(l, r))
+    },
+    <NoIntPostfix>
+}
+
+Postfix: Expression = {
+    <l: @L> <array: Postfix> "[" <index: Expression> "]" <r: @R> => {
+        Expression::Index(Box::new(array), Box::new(index), Span::new(l, r))
     },
     <Value>
 }
 
-Value: shim::Expression = {
-    <call: Call> => shim::Expression::Call(call),
-    <l: @L> "true" <r: @R> => shim::Expression::Boolean(true, Span::new(l, r)),
-    <l: @L> "false" <r: @R> => shim::Expression::Boolean(false, Span::new(l, r)),
-    <l: @L> <char: CHR> <r: @R> => shim::Expression::Character(char, Span::new(l, r)),
-    <l: @L> <string: STR> <r: @R> => shim::Expression::String(string, Span::new(l, r)),
-    <l: @L> <int: INT> <r: @R> => shim::Expression::Integer(int, Span::new(l, r)),
-    <l: @L> <var: ID>  <r: @R> => shim::Expression::Variable(var, Span::new(l, r)),
-    <l: @L> "{" <expressions: Comma<Shim>> ","? "}" <r: @R> => {
-        shim::Expression::Array(expressions, Span::new(l, r))
+NoIntPostfix: Expression = {
+    <l: @L> <array: Postfix> "[" <index: Expression> "]" <r: @R> => {
+        Expression::Index(Box::new(array), Box::new(index), Span::new(l, r))
     },
-    <l: @L> "(" <expression: Shim> ")" <r: @R> => {
+    <NoIntValue>
+}
+
+Value: Expression = {
+    NoIntValue,
+    <l: @L> <int: INT> <r: @R> =>? {
+        let span = Span::new(l, r);
+        int.parse::<i64>()
+            .map_err(|_| parse::Error::Integer(span))
+            .map_err(Into::into)
+            .map(|int| Expression::Integer(int, span))
+    },
+}
+
+NoIntValue: Expression = {
+    <call: Call> => Expression::Call(call),
+    <l: @L> "true" <r: @R> => Expression::Boolean(true, Span::new(l, r)),
+    <l: @L> "false" <r: @R> => Expression::Boolean(false, Span::new(l, r)),
+    <l: @L> <char: CHR> <r: @R> => Expression::Character(char, Span::new(l, r)),
+    <l: @L> <string: STR> <r: @R> => Expression::String(string, Span::new(l, r)),
+    <l: @L> <var: ID>  <r: @R> => Expression::Variable(var, Span::new(l, r)),
+    <l: @L> "{" <expressions: Comma<Expression>> ","? "}" <r: @R> => {
+        Expression::Array(expressions, Span::new(l, r))
+    },
+    <l: @L> "(" <expression: Expression> ")" <r: @R> => {
         let mut expression = expression;
         *expression.span_mut() = Span::new(l, r);
         expression
     },
     <l: @L> "length" "(" <argument: Expression> ")" <r: @R> => {
-        shim::Expression::Call(Call {
+        Expression::Call(Call {
             name: intern("length"),
             arguments: vec![argument],
             span: Span::new(l, r)
