@@ -37,6 +37,88 @@ impl From<Tree> for Condition {
     }
 }
 
+#[macro_export]
+macro_rules! hir {
+    ((CONST $($integer:tt)+)) => {
+        crate::data::hir::Expression::from(hir!($($integer)+))
+    };
+    ((NAME $($label:tt)+)) => {
+        crate::data::hir::Expression::from(hir!($($label)+))
+    };
+    ((TEMP $($temporary:tt)+)) => {
+        crate::data::hir::Expression::from(hir!($($temporary)+))
+    };
+    ((MEM $expression:tt)) => {
+        crate::data::hir::Expression::Memory(Box::new(hir!($expression)))
+    };
+    ((ECALL $function:tt $($argument:tt)*)) => {
+        crate::data::hir::Expression::Call(
+            hir!((CALL $function $($argument)*))
+        )
+    };
+    ((ESEQ $statement:tt $expression:tt)) => {
+        crate::data::hir::Expression::Sequence(
+            Box::new(hir!($statement)),
+            Box::new(hir!($expression)),
+        )
+    };
+
+    ((JUMP $expression:tt)) => {
+        crate::data::hir::Statement::Jump(hir!($expression))
+    };
+    ((CJUMP $condition:tt $r#true:ident $r#false:ident)) => {
+        crate::data::hir::Statement::CJump(
+            hir!($condition),
+            $r#true,
+            $r#false,
+        )
+    };
+    ((LABEL $label:tt)) => {
+        crate::data::hir::Statement::Label($label)
+    };
+    ((SCALL $function:tt $($argument:tt)*)) => {
+        crate::data::hir::Statement::Call(
+            hir!((CALL $function $($argument)*))
+        )
+    };
+    ((MOVE $into:tt $from:tt)) => {
+        crate::data::hir::Statement::Move(
+            hir!($into),
+            hir!($from),
+        )
+    };
+    ((RETURN $returns:expr)) => {
+        crate::data::hir::Statement::Return($returns)
+    };
+    ((SEQ $statement:tt $($statements:tt)+)) => {
+        crate::data::hir::Statement::Sequence(vec![
+            hir!($statement),
+            $(hir!($statements),)*
+        ])
+    };
+    ((SEQ $statements:expr)) => {
+        crate::data::hir::Statement::Sequence($statements)
+    };
+
+    ((CALL $function:tt $($argument:tt)*)) => {
+        crate::data::hir::Call {
+            name: Box::new(hir!($function)),
+            arguments: vec![$(hir!($argument),)*],
+        }
+    };
+
+    (($binary:ident $left:tt $right:tt)) => {
+        crate::data::hir::Expression::Binary(
+            $binary,
+            Box::new(hir!($left)),
+            Box::new(hir!($right)),
+        )
+    };
+    ($expression:expr) => {
+        $expression
+    }
+}
+
 #[derive(Clone, Debug)]
 pub enum Expression {
     Integer(i64),
@@ -64,30 +146,6 @@ impl From<i64> for Expression {
     fn from(integer: i64) -> Self {
         Self::Integer(integer)
     }
-}
-
-pub fn binary(
-    binary: ir::Binary,
-    left: impl Into<Expression>,
-    right: impl Into<Expression>,
-) -> Expression {
-    Expression::Binary(binary, Box::new(left.into()), Box::new(right.into()))
-}
-
-pub fn integer(integer: i64) -> Expression {
-    Expression::Integer(integer)
-}
-
-pub fn label(label: operand::Label) -> Expression {
-    Expression::Label(label)
-}
-
-pub fn temporary(temporary: operand::Temporary) -> Expression {
-    Expression::Temporary(temporary)
-}
-
-pub fn memory(expression: Expression) -> Expression {
-    Expression::Memory(Box::new(expression))
 }
 
 impl From<Expression> for Tree {
@@ -128,10 +186,6 @@ pub enum Statement {
     Move(Expression, Expression),
     Return(Vec<Expression>),
     Sequence(Vec<Statement>),
-}
-
-pub fn r#move(into: impl Into<Expression>, from: impl Into<Expression>) -> Statement {
-    Statement::Move(into.into(), from.into())
 }
 
 #[derive(Clone, Debug)]

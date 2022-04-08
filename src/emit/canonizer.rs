@@ -45,7 +45,7 @@ impl Canonizer {
         use hir::Expression::*;
         match exp {
             Integer(integer) => lir::Expression::Integer(*integer),
-            Memory(memory) => self.canonize_expression(memory),
+            Memory(memory) => lir::Expression::Memory(Box::new(self.canonize_expression(memory))),
             Label(label) => lir::Expression::Label(*label),
             Temporary(temporary) => lir::Expression::Temporary(*temporary),
             Sequence(statements, expression) => {
