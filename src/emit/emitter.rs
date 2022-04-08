@@ -50,9 +50,9 @@ impl<'env> Emitter<'env> {
         let mut statements = Vec::new();
 
         for (index, parameter) in function.parameters.iter().enumerate() {
-            let argument = hir::Expression::Temporary(operand::Temporary::Argument(index));
+            let argument = hir::temporary(operand::Temporary::Argument(index));
             let declaration = self.emit_declaration(parameter, &mut variables);
-            statements.push(hir::Statement::Move(declaration, argument));
+            statements.push(hir::r#move(declaration, argument));
         }
 
         let name = self.mangle_function(function.name);
@@ -73,10 +73,10 @@ impl<'env> Emitter<'env> {
     ) -> hir::Tree {
         use ast::Expression::*;
         match expression {
-            Boolean(false, _) => hir::Expression::Integer(0).into(),
-            Boolean(true, _) => hir::Expression::Integer(1).into(),
-            Integer(integer, _) => hir::Expression::Integer(*integer).into(),
-            Character(character, _) => hir::Expression::Integer(*character as i64).into(),
+            Boolean(false, _) => hir::integer(0).into(),
+            Boolean(true, _) => hir::integer(1).into(),
+            Integer(integer, _) => hir::integer(*integer).into(),
+            Character(character, _) => hir::integer(*character as i64).into(),
             String(string, _) => {
                 let symbol = symbol::intern(string);
                 let label = *self
@@ -84,44 +84,32 @@ impl<'env> Emitter<'env> {
                     .entry(symbol)
                     .or_insert_with(|| operand::Label::fresh("string"));
 
-                hir::Expression::Label(label).into()
+                hir::label(label).into()
             }
-            Variable(variable, _) => hir::Expression::Temporary(variables[variable]).into(),
+            Variable(variable, _) => hir::temporary(variables[variable]).into(),
             Array(expressions, _) => {
                 let alloc = Self::emit_alloc(expressions.len());
-                let base = hir::Expression::Temporary(operand::Temporary::fresh("array"));
+                let base = hir::temporary(operand::Temporary::fresh("array"));
 
                 let mut statements = vec![
                     alloc,
-                    hir::Statement::Move(
-                        base.clone(),
-                        hir::Expression::Temporary(operand::Temporary::Return(0)),
-                    ),
-                    hir::Statement::Move(
-                        hir::Expression::Memory(Box::new(base.clone())),
-                        hir::Expression::Integer(expressions.len() as i64),
-                    ),
+                    hir::r#move(base.clone(), hir::temporary(operand::Temporary::Return(0))),
+                    hir::r#move(hir::memory(base.clone()), expressions.len() as i64),
                 ];
 
                 for (index, expression) in expressions.iter().enumerate() {
-                    let expression = self.emit_expression(expression, variables).into();
-                    let offset =
-                        hir::Expression::Integer((index + 1) as i64 * constants::WORD_SIZE);
-                    let address = hir::Expression::Memory(Box::new(hir::Expression::Binary(
+                    let expression = self.emit_expression(expression, variables);
+                    let address = hir::memory(hir::binary(
                         ir::Binary::Add,
-                        Box::new(base.clone()),
-                        Box::new(offset),
-                    )));
-                    statements.push(hir::Statement::Move(address, expression));
+                        base.clone(),
+                        (index + 1) as i64 * constants::WORD_SIZE,
+                    ));
+                    statements.push(hir::r#move(address, expression));
                 }
 
                 hir::Expression::Sequence(
                     Box::new(hir::Statement::Sequence(statements)),
-                    Box::new(hir::Expression::Binary(
-                        ir::Binary::Add,
-                        Box::new(base),
-                        Box::new(hir::Expression::Integer(constants::WORD_SIZE)),
-                    )),
+                    Box::new(hir::binary(ir::Binary::Add, base, constants::WORD_SIZE)),
                 )
                 .into()
             }
@@ -137,28 +125,17 @@ impl<'env> Emitter<'env> {
                     | ir::Binary::Mod
                     | ir::Binary::Div
                     | ir::Binary::Add
-                    | ir::Binary::Sub => hir::Expression::Binary(
-                        binary,
-                        Box::new(left.into()),
-                        Box::new(right.into()),
-                    )
-                    .into(),
+                    | ir::Binary::Sub => hir::binary(binary, left, right).into(),
+
                     ir::Binary::Lt
                     | ir::Binary::Le
                     | ir::Binary::Ge
                     | ir::Binary::Gt
                     | ir::Binary::Ne
                     | ir::Binary::Eq => hir::Tree::Condition(Box::new(move |r#true, r#false| {
-                        hir::Statement::CJump(
-                            hir::Expression::Binary(
-                                binary,
-                                Box::new(left.into()),
-                                Box::new(right.into()),
-                            ),
-                            r#true,
-                            r#false,
-                        )
+                        hir::Statement::CJump(hir::binary(binary, left, right), r#true, r#false)
                     })),
+
                     ir::Binary::And => hir::Tree::Condition(Box::new(move |r#true, r#false| {
                         let and = operand::Label::fresh("and");
                         hir::Statement::Sequence(vec![
@@ -181,16 +158,16 @@ impl<'env> Emitter<'env> {
                 }
             }
 
-            Unary(ast::Unary::Neg, expression, _) => hir::Expression::Binary(
+            Unary(ast::Unary::Neg, expression, _) => hir::binary(
                 ir::Binary::Sub,
-                Box::new(hir::Expression::Integer(0)),
-                Box::new(self.emit_expression(expression, variables).into()),
+                0,
+                self.emit_expression(expression, variables),
             )
             .into(),
-            Unary(ast::Unary::Not, expression, _) => hir::Expression::Binary(
+            Unary(ast::Unary::Not, expression, _) => hir::binary(
                 ir::Binary::Xor,
-                Box::new(hir::Expression::Integer(1)),
-                Box::new(self.emit_expression(expression, variables).into()),
+                1,
+                self.emit_expression(expression, variables),
             )
             .into(),
 
@@ -198,20 +175,11 @@ impl<'env> Emitter<'env> {
                 let base = operand::Temporary::fresh("base");
                 let index = operand::Temporary::fresh("index");
 
-                let length = hir::Expression::Memory(Box::new(hir::Expression::Binary(
-                    ir::Binary::Sub,
-                    Box::new(hir::Expression::Temporary(base)),
-                    Box::new(hir::Expression::Integer(constants::WORD_SIZE)),
-                )));
-
-                let address = hir::Expression::Binary(
+                let length = hir::memory(hir::binary(ir::Binary::Sub, base, constants::WORD_SIZE));
+                let address = hir::binary(
                     ir::Binary::Add,
-                    Box::new(hir::Expression::Temporary(base)),
-                    Box::new(hir::Expression::Binary(
-                        ir::Binary::Mul,
-                        Box::new(hir::Expression::Temporary(index)),
-                        Box::new(hir::Expression::Integer(constants::WORD_SIZE)),
-                    )),
+                    base,
+                    hir::binary(ir::Binary::Mul, index, constants::WORD_SIZE),
                 );
 
                 let low = operand::Label::fresh("low");
@@ -220,40 +188,18 @@ impl<'env> Emitter<'env> {
                 let r#in = operand::Label::fresh("in");
 
                 let bounds = hir::Statement::Sequence(vec![
-                    hir::Statement::Move(
-                        hir::Expression::Temporary(base),
-                        self.emit_expression(&*array, variables).into(),
-                    ),
-                    hir::Statement::Move(
-                        hir::Expression::Temporary(index),
-                        self.emit_expression(&*array_index, variables).into(),
-                    ),
-                    hir::Statement::CJump(
-                        hir::Expression::Binary(
-                            ir::Binary::Lt,
-                            Box::new(hir::Expression::Temporary(index)),
-                            Box::new(hir::Expression::Integer(0)),
-                        ),
-                        out,
-                        low,
-                    ),
+                    hir::r#move(base, self.emit_expression(&*array, variables)),
+                    hir::r#move(index, self.emit_expression(&*array_index, variables)),
+                    hir::Statement::CJump(hir::binary(ir::Binary::Lt, index, 0), out, low),
                     hir::Statement::Label(low),
-                    hir::Statement::CJump(
-                        hir::Expression::Binary(
-                            ir::Binary::Ge,
-                            Box::new(hir::Expression::Temporary(index)),
-                            Box::new(length),
-                        ),
-                        out,
-                        high,
-                    ),
+                    hir::Statement::CJump(hir::binary(ir::Binary::Ge, index, length), out, high),
                     hir::Statement::Label(high),
-                    hir::Statement::Jump(hir::Expression::Label(r#in)),
+                    hir::Statement::Jump(hir::label(r#in)),
                     hir::Statement::Label(out),
                     hir::Statement::Call(hir::Call {
-                        name: Box::new(hir::Expression::Label(operand::Label::Fixed(
-                            symbol::intern(constants::XI_OUT_OF_BOUNDS),
-                        ))),
+                        name: Box::new(hir::label(operand::Label::Fixed(symbol::intern(
+                            constants::XI_OUT_OF_BOUNDS,
+                        )))),
                         arguments: Vec::new(),
                     }),
                     hir::Statement::Label(r#in),
@@ -262,13 +208,8 @@ impl<'env> Emitter<'env> {
                 hir::Expression::Sequence(Box::new(bounds), Box::new(address)).into()
             }
             Call(call) if call.name == symbol::intern("length") => {
-                let address = self.emit_expression(&call.arguments[0], variables).into();
-                hir::Expression::Memory(Box::new(hir::Expression::Binary(
-                    ir::Binary::Sub,
-                    Box::new(address),
-                    Box::new(hir::Expression::Integer(constants::WORD_SIZE)),
-                )))
-                .into()
+                let address = self.emit_expression(&call.arguments[0], variables);
+                hir::memory(hir::binary(ir::Binary::Sub, address, constants::WORD_SIZE)).into()
             }
             Call(call) => hir::Expression::Call(self.emit_call(call, variables)).into(),
         }
@@ -280,7 +221,7 @@ impl<'env> Emitter<'env> {
         variables: &HashMap<symbol::Symbol, operand::Temporary>,
     ) -> hir::Call {
         hir::Call {
-            name: Box::new(hir::Expression::Label(operand::Label::Fixed(
+            name: Box::new(hir::label(operand::Label::Fixed(
                 self.mangle_function(call.name),
             ))),
             arguments: call
@@ -292,9 +233,8 @@ impl<'env> Emitter<'env> {
     }
 
     fn emit_alloc(length: usize) -> hir::Statement {
-        let label = operand::Label::Fixed(symbol::intern(constants::XI_ALLOC));
-        let alloc = hir::Expression::Label(label);
-        let bytes = hir::Expression::Integer((length + 1) as i64 * constants::WORD_SIZE);
+        let alloc = hir::label(operand::Label::Fixed(symbol::intern(constants::XI_ALLOC)));
+        let bytes = hir::integer((length + 1) as i64 * constants::WORD_SIZE);
         hir::Statement::Call(hir::Call {
             name: Box::new(alloc),
             arguments: vec![bytes],
@@ -308,7 +248,7 @@ impl<'env> Emitter<'env> {
     ) -> hir::Expression {
         let fresh = operand::Temporary::fresh("t");
         variables.insert(declaration.name, fresh);
-        hir::Expression::Temporary(fresh)
+        hir::temporary(fresh)
     }
 
     fn emit_statement(
@@ -319,9 +259,9 @@ impl<'env> Emitter<'env> {
         use ast::Statement::*;
         match statement {
             Assignment(left, right, _) => {
-                let lhs = self.emit_expression(left, variables).into();
-                let rhs = self.emit_expression(right, variables).into();
-                hir::Statement::Move(lhs, rhs)
+                let lhs = self.emit_expression(left, variables);
+                let rhs = self.emit_expression(right, variables);
+                hir::r#move(lhs, rhs)
             }
             Call(call) => hir::Statement::Call(self.emit_call(call, variables)),
             Initialization(declarations, ast::Expression::Call(call), _) => {
@@ -330,9 +270,8 @@ impl<'env> Emitter<'env> {
                 for (index, declaration) in declarations.iter().enumerate() {
                     if let Some(declaration) = declaration {
                         let variable = self.emit_declaration(declaration, variables);
-                        let r#return =
-                            hir::Expression::Temporary(operand::Temporary::Return(index));
-                        statements.push(hir::Statement::Move(variable, r#return));
+                        let r#return = hir::temporary(operand::Temporary::Return(index));
+                        statements.push(hir::r#move(variable, r#return));
                     }
                 }
 
@@ -342,13 +281,12 @@ impl<'env> Emitter<'env> {
                 assert!(declarations.len() == 1 && declarations[0].is_some());
                 let declaration = declarations[0].as_ref().unwrap();
                 let variable = self.emit_declaration(declaration, variables);
-                let expression = self.emit_expression(expression, variables).into();
-                hir::Statement::Move(variable, expression)
+                let expression = self.emit_expression(expression, variables);
+                hir::r#move(variable, expression)
             }
-            Declaration(declaration, _) => hir::Statement::Move(
-                self.emit_declaration(declaration, variables),
-                hir::Expression::Integer(0),
-            ),
+            Declaration(declaration, _) => {
+                hir::r#move(self.emit_declaration(declaration, variables), 0)
+            }
             Return(expressions, _) => hir::Statement::Return(
                 expressions
                     .iter()

@@ -48,6 +48,48 @@ pub enum Expression {
     Sequence(Box<Statement>, Box<Expression>),
 }
 
+impl From<operand::Temporary> for Expression {
+    fn from(temporary: operand::Temporary) -> Self {
+        Self::Temporary(temporary)
+    }
+}
+
+impl From<operand::Label> for Expression {
+    fn from(label: operand::Label) -> Self {
+        Self::Label(label)
+    }
+}
+
+impl From<i64> for Expression {
+    fn from(integer: i64) -> Self {
+        Self::Integer(integer)
+    }
+}
+
+pub fn binary(
+    binary: ir::Binary,
+    left: impl Into<Expression>,
+    right: impl Into<Expression>,
+) -> Expression {
+    Expression::Binary(binary, Box::new(left.into()), Box::new(right.into()))
+}
+
+pub fn integer(integer: i64) -> Expression {
+    Expression::Integer(integer)
+}
+
+pub fn label(label: operand::Label) -> Expression {
+    Expression::Label(label)
+}
+
+pub fn temporary(temporary: operand::Temporary) -> Expression {
+    Expression::Temporary(temporary)
+}
+
+pub fn memory(expression: Expression) -> Expression {
+    Expression::Memory(Box::new(expression))
+}
+
 impl From<Expression> for Tree {
     fn from(expression: Expression) -> Self {
         Tree::Expression(expression)
@@ -86,6 +128,10 @@ pub enum Statement {
     Move(Expression, Expression),
     Return(Vec<Expression>),
     Sequence(Vec<Statement>),
+}
+
+pub fn r#move(into: impl Into<Expression>, from: impl Into<Expression>) -> Statement {
+    Statement::Move(into.into(), from.into())
 }
 
 #[derive(Clone, Debug)]
