@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::collections::BTreeMap;
 
 use crate::data::hir;
 use crate::data::ir;
@@ -17,7 +17,7 @@ impl Canonizer {
     }
 
     pub fn canonize_unit(mut self, unit: ir::Unit<hir::Function>) -> ir::Unit<lir::Function> {
-        let mut functions = HashMap::default();
+        let mut functions = BTreeMap::default();
         for (name, function) in unit.functions {
             functions.insert(name, self.canonize_function(&function));
         }

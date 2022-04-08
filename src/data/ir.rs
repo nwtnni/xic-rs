@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::collections::BTreeMap;
 
 use crate::data::ast;
 use crate::data::hir;
@@ -9,8 +9,8 @@ use crate::util::symbol;
 #[derive(Clone, Debug)]
 pub struct Unit<F: IR> {
     pub name: symbol::Symbol,
-    pub functions: HashMap<symbol::Symbol, F>,
-    pub data: HashMap<symbol::Symbol, operand::Label>,
+    pub functions: BTreeMap<symbol::Symbol, F>,
+    pub data: BTreeMap<symbol::Symbol, operand::Label>,
 }
 
 pub trait IR {}

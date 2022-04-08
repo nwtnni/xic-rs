@@ -1,3 +1,4 @@
+use std::collections::BTreeMap;
 use std::collections::HashMap;
 
 use crate::check;
@@ -12,16 +13,16 @@ use crate::util::symbol;
 #[derive(Debug)]
 pub struct Emitter<'env> {
     context: &'env check::Context,
-    data: HashMap<symbol::Symbol, operand::Label>,
-    functions: HashMap<symbol::Symbol, symbol::Symbol>,
+    data: BTreeMap<symbol::Symbol, operand::Label>,
+    functions: BTreeMap<symbol::Symbol, symbol::Symbol>,
 }
 
 impl<'env> Emitter<'env> {
     pub fn new(context: &'env check::Context) -> Self {
         Emitter {
             context,
-            data: HashMap::new(),
-            functions: HashMap::new(),
+            data: BTreeMap::new(),
+            functions: BTreeMap::new(),
         }
     }
 
@@ -30,7 +31,7 @@ impl<'env> Emitter<'env> {
         path: &std::path::Path,
         ast: &ast::Program,
     ) -> ir::Unit<hir::Function> {
-        let mut functions = HashMap::with_capacity(ast.functions.len());
+        let mut functions = BTreeMap::new();
 
         for fun in &ast.functions {
             let name = self.mangle_function(fun.name);
