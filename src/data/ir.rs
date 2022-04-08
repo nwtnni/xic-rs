@@ -14,7 +14,7 @@ pub struct Unit<F: IR> {
 
 pub trait IR {}
 impl IR for hir::Fun {}
-impl IR for lir::Fun {}
+impl IR for lir::Function {}
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
 pub enum Bin {

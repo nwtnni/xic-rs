@@ -33,7 +33,7 @@ impl<'env> Emitter<'env> {
             funs.insert(id, ir);
         }
         ir::Unit {
-            name: symbol::intern(path.to_string_lossy()),
+            name: symbol::intern(path.to_string_lossy().trim_start_matches("./")),
             funs,
             data: self.data,
         }
@@ -219,19 +219,25 @@ impl<'env> Emitter<'env> {
                     hir::Stm::Label(hi),
                     hir::Stm::Jump(hir::Exp::Name(safe)),
                     hir::Stm::Label(fail),
-                    hir::Stm::Call(oob, Vec::with_capacity(0)),
+                    hir::Stm::Call(hir::Call {
+                        name: Box::new(oob),
+                        args: Vec::with_capacity(0),
+                    }),
                     hir::Stm::Label(safe),
                 ]);
 
                 hir::Exp::ESeq(Box::new(bounds), Box::new(offset)).into()
             }
-            Call(call) => {
-                let call = self.emit_call(call, vars);
-                let temp = hir::Exp::Temp(operand::Temp::Ret(0));
-                let save = hir::Exp::Temp(operand::Temp::new("SAVE"));
-                let into = hir::Stm::Move(save.clone(), temp);
-                hir::Exp::ESeq(Box::new(hir::Stm::Seq(vec![call, into])), Box::new(save)).into()
+            Call(call) if call.name == symbol::intern("length") => {
+                let address = self.emit_exp(&call.arguments[0], vars).into();
+                hir::Exp::Mem(Box::new(hir::Exp::Bin(
+                    ir::Bin::Sub,
+                    Box::new(address),
+                    Box::new(hir::Exp::Int(constants::WORD_SIZE)),
+                )))
+                .into()
             }
+            Call(call) => hir::Exp::Call(self.emit_call(call, vars)).into(),
         }
     }
 
@@ -239,21 +245,16 @@ impl<'env> Emitter<'env> {
         &mut self,
         call: &ast::Call,
         vars: &HashMap<symbol::Symbol, operand::Temp>,
-    ) -> hir::Stm {
-        if symbol::resolve(call.name) == "length" {
-            let address = self.emit_exp(&call.arguments[0], vars).into();
-            hir::Stm::Move(
-                hir::Exp::Mem(Box::new(address)),
-                hir::Exp::Temp(operand::Temp::Ret(0)),
-            )
-        } else {
-            hir::Stm::Call(
-                hir::Exp::Name(operand::Label::Fix(self.mangle_fun(call.name))),
-                call.arguments
-                    .iter()
-                    .map(|arg| self.emit_exp(arg, vars).into())
-                    .collect(),
-            )
+    ) -> hir::Call {
+        hir::Call {
+            name: Box::new(hir::Exp::Name(operand::Label::Fix(
+                self.mangle_fun(call.name),
+            ))),
+            args: call
+                .arguments
+                .iter()
+                .map(|arg| self.emit_exp(arg, vars).into())
+                .collect(),
         }
     }
 
@@ -261,7 +262,10 @@ impl<'env> Emitter<'env> {
         let label = operand::Label::Fix(symbol::intern(constants::XI_ALLOC));
         let alloc = hir::Exp::Name(label);
         let size = hir::Exp::Int((length + 1) as i64 * constants::WORD_SIZE);
-        hir::Stm::Call(alloc, vec![size])
+        hir::Stm::Call(hir::Call {
+            name: Box::new(alloc),
+            args: vec![size],
+        })
     }
 
     fn emit_dec(
@@ -286,9 +290,9 @@ impl<'env> Emitter<'env> {
                 let rhs = self.emit_exp(rhs, vars).into();
                 hir::Stm::Move(lhs, rhs)
             }
-            Call(call) => self.emit_call(call, vars),
+            Call(call) => hir::Stm::Call(self.emit_call(call, vars)),
             Initialization(decs, ast::Expression::Call(call), _) => {
-                let mut seq = vec![self.emit_call(call, vars)];
+                let mut seq = vec![hir::Stm::Call(self.emit_call(call, vars))];
 
                 for (i, dec) in decs.iter().enumerate() {
                     if let Some(dec) = dec {

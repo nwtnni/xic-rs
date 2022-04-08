@@ -38,6 +38,7 @@ pub enum Exp {
     Int(i64),
     Mem(Box<Exp>),
     Bin(ir::Bin, Box<Exp>, Box<Exp>),
+    Call(Call),
     Name(operand::Label),
     Temp(operand::Temp),
     ESeq(Box<Stm>, Box<Exp>),
@@ -75,8 +76,14 @@ pub enum Stm {
     Jump(Exp),
     CJump(Exp, operand::Label, operand::Label),
     Label(operand::Label),
-    Call(Exp, Vec<Exp>),
+    Call(Call),
     Move(Exp, Exp),
     Return(Vec<Exp>),
     Seq(Vec<Stm>),
+}
+
+#[derive(Clone, Debug)]
+pub struct Call {
+    pub name: Box<Exp>,
+    pub args: Vec<Exp>,
 }

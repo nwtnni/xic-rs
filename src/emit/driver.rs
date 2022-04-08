@@ -31,7 +31,7 @@ impl<'main> Driver<'main> {
         path: &std::path::Path,
         ast: &ast::Program,
         env: &check::Context,
-    ) -> Result<ir::Unit<lir::Fun>, error::Error> {
+    ) -> Result<ir::Unit<lir::Function>, error::Error> {
         let canonizer = emit::Canonizer::new();
         let emitter = emit::Emitter::new(env);
         let mut hir = emitter.emit_unit(path, ast);

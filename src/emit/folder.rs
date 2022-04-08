@@ -39,6 +39,7 @@ impl Foldable for hir::Exp {
             Temp(t) => Temp(t),
             Mem(e) => Mem(Box::new(e.fold())),
             ESeq(s, e) => ESeq(Box::new(s.fold()), Box::new(e.fold())),
+            Call(call) => Call(call.fold()),
             Bin(b, l, r) => match (b, l.fold(), r.fold()) {
                 (Add, Int(l), Int(r)) => Int(l + r),
                 (Sub, Int(l), Int(r)) => Int(l - r),
@@ -107,7 +108,7 @@ impl Foldable for hir::Stm {
         match self {
             Jump(e) => Jump(e.fold()),
             Label(l) => Label(l),
-            Call(f, es) => Call(f.fold(), es.into_iter().map(Foldable::fold).collect()),
+            Call(call) => Call(call.fold()),
             Move(d, s) => Move(d.fold(), s.fold()),
             Return(es) => Return(es.into_iter().map(Foldable::fold).collect()),
             Seq(ss) => Seq(ss.into_iter().map(Foldable::fold).collect()),
@@ -120,7 +121,16 @@ impl Foldable for hir::Stm {
     }
 }
 
-impl Foldable for ir::Unit<lir::Fun> {
+impl Foldable for hir::Call {
+    fn fold(self) -> Self {
+        Self {
+            name: Box::new(self.name.fold()),
+            args: self.args.into_iter().map(Foldable::fold).collect(),
+        }
+    }
+}
+
+impl Foldable for ir::Unit<lir::Function> {
     fn fold(self) -> Self {
         ir::Unit {
             name: self.name,
@@ -134,19 +144,19 @@ impl Foldable for ir::Unit<lir::Fun> {
     }
 }
 
-impl Foldable for lir::Fun {
+impl Foldable for lir::Function {
     fn fold(self) -> Self {
-        lir::Fun {
+        lir::Function {
             name: self.name,
             body: self.body.into_iter().map(Foldable::fold).collect(),
         }
     }
 }
 
-impl Foldable for lir::Exp {
+impl Foldable for lir::Expression {
     fn fold(self) -> Self {
         use ir::Bin::*;
-        use lir::Exp::*;
+        use lir::Expression::*;
         match self {
             Int(i) => Int(i),
             Mem(e) => Mem(Box::new(e.fold())),
@@ -212,9 +222,9 @@ impl Foldable for lir::Exp {
     }
 }
 
-impl Foldable for lir::Stm {
+impl Foldable for lir::Statement {
     fn fold(self) -> Self {
-        use lir::Stm::*;
+        use lir::Statement::*;
         match self {
             Jump(e) => Jump(e.fold()),
             Call(f, es) => Call(f.fold(), es.into_iter().map(Foldable::fold).collect()),
@@ -222,8 +232,8 @@ impl Foldable for lir::Stm {
             Return(es) => Return(es.into_iter().map(Foldable::fold).collect()),
             Label(l) => Label(l),
             CJump(e, t, f) => match e.fold() {
-                lir::Exp::Int(1) => Jump(lir::Exp::Name(t)),
-                lir::Exp::Int(0) => Jump(lir::Exp::Name(f)),
+                lir::Expression::Int(1) => Jump(lir::Expression::Name(t)),
+                lir::Expression::Int(0) => Jump(lir::Expression::Name(f)),
                 e => CJump(e, t, f),
             },
         }

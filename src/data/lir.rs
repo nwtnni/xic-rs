@@ -3,26 +3,26 @@ use crate::data::operand;
 use crate::util::symbol;
 
 #[derive(Clone, Debug)]
-pub struct Fun {
+pub struct Function {
     pub name: symbol::Symbol,
-    pub body: Vec<Stm>,
+    pub body: Vec<Statement>,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub enum Exp {
+pub enum Expression {
     Int(i64),
-    Mem(Box<Exp>),
-    Bin(ir::Bin, Box<Exp>, Box<Exp>),
+    Mem(Box<Expression>),
+    Bin(ir::Bin, Box<Expression>, Box<Expression>),
     Name(operand::Label),
     Temp(operand::Temp),
 }
 
 #[derive(Clone, Debug)]
-pub enum Stm {
-    Jump(Exp),
-    CJump(Exp, operand::Label, operand::Label),
-    Call(Exp, Vec<Exp>),
+pub enum Statement {
+    Jump(Expression),
+    CJump(Expression, operand::Label, operand::Label),
+    Call(Expression, Vec<Expression>),
     Label(operand::Label),
-    Move(Exp, Exp),
-    Return(Vec<Exp>),
+    Move(Expression, Expression),
+    Return(Vec<Expression>),
 }
