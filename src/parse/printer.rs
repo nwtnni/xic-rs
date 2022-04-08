@@ -38,7 +38,7 @@ impl Serialize for ast::Function {
             self.name.sexp(),
             self.parameters.sexp(),
             self.returns.sexp(),
-            self.body.sexp(),
+            self.statements.sexp(),
         ]
         .sexp_move()
     }

@@ -165,7 +165,7 @@ impl Checker {
             self.check_declaration(parameter)?;
         }
 
-        if self.check_statement(&function.body)? != r#type::Stm::Void && !returns.is_empty() {
+        if self.check_statement(&function.statements)? != r#type::Stm::Void && !returns.is_empty() {
             bail!(function.span, ErrorKind::MissingReturn);
         }
 

@@ -62,7 +62,7 @@ pub struct Function {
     pub name: Symbol,
     pub parameters: Vec<Declaration>,
     pub returns: Vec<Type>,
-    pub body: Statement,
+    pub statements: Statement,
     pub span: Span,
 }
 

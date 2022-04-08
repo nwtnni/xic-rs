@@ -9,48 +9,56 @@ impl<T: ir::IR + Serialize> Serialize for ir::Unit<T> {
     fn sexp(&self) -> Sexp {
         std::iter::once("COMPUNIT".sexp())
             .chain(std::iter::once(self.name.sexp()))
-            .chain(self.funs.values().map(|fun| fun.sexp()))
+            .chain(self.functions.values().map(|function| function.sexp()))
             .collect::<Vec<_>>()
             .sexp_move()
     }
 }
 
-impl Serialize for hir::Fun {
+impl Serialize for hir::Function {
     fn sexp(&self) -> Sexp {
-        ["FUNC".sexp(), self.name.sexp(), self.body.sexp()].sexp_move()
+        ["FUNC".sexp(), self.name.sexp(), self.statements.sexp()].sexp_move()
     }
 }
 
-impl Serialize for hir::Exp {
+impl Serialize for hir::Expression {
     fn sexp(&self) -> Sexp {
-        use hir::Exp::*;
+        use hir::Expression::*;
         match self {
-            Int(i) => i.sexp(),
-            Mem(e) => ["MEM".sexp(), e.sexp()].sexp_move(),
-            Bin(b, l, r) => [b.sexp(), l.sexp(), r.sexp()].sexp_move(),
+            Integer(integer) => integer.sexp(),
+            Memory(expression) => ["MEM".sexp(), expression.sexp()].sexp_move(),
+            Binary(binary, left, right) => [binary.sexp(), left.sexp(), right.sexp()].sexp_move(),
             Call(call) => call.sexp(),
-            Name(l) => ["NAME".sexp(), l.sexp()].sexp_move(),
-            Temp(t) => ["TEMP".sexp(), t.sexp()].sexp_move(),
-            ESeq(s, e) => ["ESEQ".sexp(), s.sexp(), e.sexp()].sexp_move(),
+            Label(label) => ["NAME".sexp(), label.sexp()].sexp_move(),
+            Temporary(temporary) => ["TEMP".sexp(), temporary.sexp()].sexp_move(),
+            Sequence(sequence, expression) => {
+                ["ESEQ".sexp(), sequence.sexp(), expression.sexp()].sexp_move()
+            }
         }
     }
 }
 
-impl Serialize for hir::Stm {
+impl Serialize for hir::Statement {
     fn sexp(&self) -> Sexp {
-        use hir::Stm::*;
+        use hir::Statement::*;
         match self {
-            Jump(e) => ["JUMP".sexp(), e.sexp()].sexp_move(),
-            CJump(e, t, f) => ["CJUMP".sexp(), e.sexp(), t.sexp(), f.sexp()].sexp_move(),
-            Label(l) => ["LABEL".sexp(), l.sexp()].sexp_move(),
+            Jump(expression) => ["JUMP".sexp(), expression.sexp()].sexp_move(),
+            CJump(condition, r#true, r#false) => [
+                "CJUMP".sexp(),
+                condition.sexp(),
+                r#true.sexp(),
+                r#false.sexp(),
+            ]
+            .sexp_move(),
+            Label(label) => ["LABEL".sexp(), label.sexp()].sexp_move(),
             Call(call) => ["EXP".sexp(), call.sexp()].sexp_move(),
-            Move(d, s) => ["MOVE".sexp(), d.sexp(), s.sexp()].sexp_move(),
-            Return(exps) => std::iter::once("RETURN".sexp())
-                .chain(exps.iter().map(|exp| exp.sexp()))
+            Move(into, from) => ["MOVE".sexp(), into.sexp(), from.sexp()].sexp_move(),
+            Return(expressions) => std::iter::once("RETURN".sexp())
+                .chain(expressions.iter().map(|expression| expression.sexp()))
                 .collect::<Vec<_>>()
                 .sexp_move(),
-            Seq(stms) => std::iter::once("SEQ".sexp())
-                .chain(stms.iter().map(|stm| stm.sexp()))
+            Sequence(statements) => std::iter::once("SEQ".sexp())
+                .chain(statements.iter().map(|statement| statement.sexp()))
                 .collect::<Vec<_>>()
                 .sexp_move(),
         }
@@ -61,7 +69,7 @@ impl Serialize for hir::Call {
     fn sexp(&self) -> Sexp {
         std::iter::once("CALL".sexp())
             .chain(std::iter::once(self.name.sexp()))
-            .chain(self.args.iter().map(|arg| arg.sexp()))
+            .chain(self.arguments.iter().map(|argument| argument.sexp()))
             .collect::<Vec<_>>()
             .sexp_move()
     }
@@ -73,7 +81,7 @@ impl Serialize for lir::Function {
             "FUNC".sexp(),
             self.name.sexp(),
             std::iter::once("SEQ".sexp())
-                .chain(self.body.iter().map(|stm| stm.sexp()))
+                .chain(self.statements.iter().map(|statement| statement.sexp()))
                 .collect::<Vec<_>>()
                 .sexp_move(),
         ]
@@ -85,11 +93,11 @@ impl Serialize for lir::Expression {
     fn sexp(&self) -> Sexp {
         use lir::Expression::*;
         match self {
-            Int(i) => ["CONST".sexp(), i.sexp()].sexp_move(),
-            Mem(e) => ["MEM".sexp(), e.sexp()].sexp_move(),
-            Bin(b, l, r) => [b.sexp(), l.sexp(), r.sexp()].sexp_move(),
-            Name(l) => ["NAME".sexp(), l.sexp()].sexp_move(),
-            Temp(t) => ["TEMP".sexp(), t.sexp()].sexp_move(),
+            Integer(integer) => ["CONST".sexp(), integer.sexp()].sexp_move(),
+            Memory(expression) => ["MEM".sexp(), expression.sexp()].sexp_move(),
+            Binary(binary, left, right) => [binary.sexp(), left.sexp(), right.sexp()].sexp_move(),
+            Label(label) => ["NAME".sexp(), label.sexp()].sexp_move(),
+            Temporary(temporary) => ["TEMP".sexp(), temporary.sexp()].sexp_move(),
         }
     }
 }
@@ -98,49 +106,53 @@ impl Serialize for lir::Statement {
     fn sexp(&self) -> Sexp {
         use lir::Statement::*;
         match self {
-            Call(f, args) => {
+            Call(function, arguments) => {
                 let call = std::iter::once("CALL".sexp())
-                    .chain(std::iter::once(f.sexp()))
-                    .chain(args.iter().map(|arg| arg.sexp()))
+                    .chain(std::iter::once(function.sexp()))
+                    .chain(arguments.iter().map(|argument| argument.sexp()))
                     .collect::<Vec<_>>()
                     .sexp_move();
+
                 ["EXP".sexp(), call].sexp_move()
             }
-            Jump(e) => ["JUMP".sexp(), e.sexp()].sexp_move(),
-            CJump(e, t, _) => ["CJUMP".sexp(), e.sexp(), t.sexp()].sexp_move(),
-            Label(l) => ["LABEL".sexp(), l.sexp()].sexp_move(),
-            Move(d, s) => ["MOVE".sexp(), d.sexp(), s.sexp()].sexp_move(),
-            Return(exps) => std::iter::once("RETURN".sexp())
-                .chain(exps.iter().map(|exp| exp.sexp()))
+            Jump(expression) => ["JUMP".sexp(), expression.sexp()].sexp_move(),
+            CJump(condition, r#true, _) => {
+                ["CJUMP".sexp(), condition.sexp(), r#true.sexp()].sexp_move()
+            }
+            Label(label) => ["LABEL".sexp(), label.sexp()].sexp_move(),
+            Move(into, from) => ["MOVE".sexp(), into.sexp(), from.sexp()].sexp_move(),
+            Return(expressions) => std::iter::once("RETURN".sexp())
+                .chain(expressions.iter().map(|expression| expression.sexp()))
                 .collect::<Vec<_>>()
                 .sexp_move(),
         }
     }
 }
 
-impl Serialize for ir::Bin {
+impl Serialize for ir::Binary {
     fn sexp(&self) -> Sexp {
-        use ir::Bin::*;
+        use ir::Binary::*;
         match self {
-            Add => "ADD".sexp(),
-            Sub => "SUB".sexp(),
-            Mul => "MUL".sexp(),
-            Hul => "HMUL".sexp(),
-            Div => "DIV".sexp(),
-            Mod => "MOD".sexp(),
-            Xor => "XOR".sexp(),
-            Ls => "LSHIFT".sexp(),
-            Rs => "RSHIFT".sexp(),
-            ARs => "ARSHIFT".sexp(),
-            And => "AND".sexp(),
-            Or => "OR".sexp(),
-            Lt => "LT".sexp(),
-            Le => "LEQ".sexp(),
-            Ge => "GEQ".sexp(),
-            Gt => "GT".sexp(),
-            Ne => "NEQ".sexp(),
-            Eq => "EQ".sexp(),
+            Add => "ADD",
+            Sub => "SUB",
+            Mul => "MUL",
+            Hul => "HMUL",
+            Div => "DIV",
+            Mod => "MOD",
+            Xor => "XOR",
+            Ls => "LSHIFT",
+            Rs => "RSHIFT",
+            ARs => "ARSHIFT",
+            And => "AND",
+            Or => "OR",
+            Lt => "LT",
+            Le => "LEQ",
+            Ge => "GEQ",
+            Gt => "GT",
+            Ne => "NEQ",
+            Eq => "EQ",
         }
+        .sexp()
     }
 }
 
@@ -148,20 +160,20 @@ impl Serialize for operand::Label {
     fn sexp(&self) -> Sexp {
         use operand::Label::*;
         match self {
-            Fix(sym) => sym.sexp(),
-            Gen(sym, i) => format!("{}_{}", symbol::resolve(*sym), i).sexp_move(),
+            Fixed(symbol) => symbol.sexp(),
+            Fresh(symbol, index) => format!("{}_{}", symbol::resolve(*symbol), index).sexp_move(),
         }
     }
 }
 
-impl Serialize for operand::Temp {
+impl Serialize for operand::Temporary {
     fn sexp(&self) -> Sexp {
-        use operand::Temp::*;
+        use operand::Temporary::*;
         match self {
-            Arg(i) => format!("_ARG{}", i).sexp_move(),
-            Ret(i) => format!("_RET{}", i).sexp_move(),
-            Gen(sym, i) => format!("{}_{}", symbol::resolve(*sym), i).sexp_move(),
-            Reg(_) => panic!("[INTERNAL ERROR]: shouldn't be any registers in IR"),
+            Argument(index) => format!("_ARG{}", index).sexp_move(),
+            Return(index) => format!("_RET{}", index).sexp_move(),
+            Fresh(symbol, index) => format!("{}_{}", symbol::resolve(*symbol), index).sexp_move(),
+            Register(_) => panic!("[INTERNAL ERROR]: shouldn't be any registers in IR"),
         }
     }
 }

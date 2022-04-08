@@ -11,366 +11,413 @@ use crate::util::symbol;
 
 #[derive(Debug)]
 pub struct Emitter<'env> {
-    env: &'env check::Context,
+    context: &'env check::Context,
     data: HashMap<symbol::Symbol, operand::Label>,
-    funs: HashMap<symbol::Symbol, symbol::Symbol>,
+    functions: HashMap<symbol::Symbol, symbol::Symbol>,
 }
 
 impl<'env> Emitter<'env> {
-    pub fn new(env: &'env check::Context) -> Self {
+    pub fn new(context: &'env check::Context) -> Self {
         Emitter {
-            env,
+            context,
             data: HashMap::new(),
-            funs: HashMap::new(),
+            functions: HashMap::new(),
         }
     }
 
-    pub fn emit_unit(mut self, path: &std::path::Path, ast: &ast::Program) -> ir::Unit<hir::Fun> {
-        let mut funs = HashMap::with_capacity(ast.functions.len());
+    pub fn emit_unit(
+        mut self,
+        path: &std::path::Path,
+        ast: &ast::Program,
+    ) -> ir::Unit<hir::Function> {
+        let mut functions = HashMap::with_capacity(ast.functions.len());
+
         for fun in &ast.functions {
-            let id = self.mangle_fun(fun.name);
-            let ir = self.emit_fun(fun);
-            funs.insert(id, ir);
+            let name = self.mangle_function(fun.name);
+            let hir = self.emit_function(fun);
+            functions.insert(name, hir);
         }
+
         ir::Unit {
             name: symbol::intern(path.to_string_lossy().trim_start_matches("./")),
-            funs,
+            functions,
             data: self.data,
         }
     }
 
-    fn emit_fun(&mut self, fun: &ast::Function) -> hir::Fun {
-        let mut vars = HashMap::default();
-        let mut seq = Vec::new();
-        for (i, arg) in fun.parameters.iter().enumerate() {
-            let reg = hir::Exp::Temp(operand::Temp::Arg(i));
-            let dec = self.emit_dec(arg, &mut vars);
-            seq.push(hir::Stm::Move(dec, reg));
+    fn emit_function(&mut self, function: &ast::Function) -> hir::Function {
+        let mut variables = HashMap::default();
+        let mut statements = Vec::new();
+
+        for (index, parameter) in function.parameters.iter().enumerate() {
+            let argument = hir::Expression::Temporary(operand::Temporary::Argument(index));
+            let declaration = self.emit_declaration(parameter, &mut variables);
+            statements.push(hir::Statement::Move(declaration, argument));
         }
-        let name = self.mangle_fun(fun.name);
-        let body = self.emit_stm(&fun.body, &mut vars);
-        seq.push(body);
-        hir::Fun {
+
+        let name = self.mangle_function(function.name);
+        let statement = self.emit_statement(&function.statements, &mut variables);
+
+        statements.push(statement);
+
+        hir::Function {
             name,
-            body: hir::Stm::Seq(seq),
+            statements: hir::Statement::Sequence(statements),
         }
     }
 
-    fn emit_exp(
+    fn emit_expression(
         &mut self,
-        exp: &ast::Expression,
-        vars: &HashMap<symbol::Symbol, operand::Temp>,
+        expression: &ast::Expression,
+        variables: &HashMap<symbol::Symbol, operand::Temporary>,
     ) -> hir::Tree {
         use ast::Expression::*;
-        match exp {
-            Boolean(false, _) => hir::Exp::Int(0).into(),
-            Boolean(true, _) => hir::Exp::Int(1).into(),
-            Integer(i, _) => hir::Exp::Int(*i).into(),
-            Character(c, _) => hir::Exp::Int(*c as i64).into(),
-            String(s, _) => {
-                let symbol = symbol::intern(s);
+        match expression {
+            Boolean(false, _) => hir::Expression::Integer(0).into(),
+            Boolean(true, _) => hir::Expression::Integer(1).into(),
+            Integer(integer, _) => hir::Expression::Integer(*integer).into(),
+            Character(character, _) => hir::Expression::Integer(*character as i64).into(),
+            String(string, _) => {
+                let symbol = symbol::intern(string);
                 let label = *self
                     .data
                     .entry(symbol)
-                    .or_insert_with(|| operand::Label::new("STR"));
-                hir::Exp::Name(label).into()
+                    .or_insert_with(|| operand::Label::fresh("string"));
+
+                hir::Expression::Label(label).into()
             }
-            Variable(v, _) => hir::Exp::Temp(vars[v]).into(),
-            Array(vs, _) => {
-                let alloc = Self::emit_alloc(vs.len());
-                let base = hir::Exp::Temp(operand::Temp::new("ARR"));
+            Variable(variable, _) => hir::Expression::Temporary(variables[variable]).into(),
+            Array(expressions, _) => {
+                let alloc = Self::emit_alloc(expressions.len());
+                let base = hir::Expression::Temporary(operand::Temporary::fresh("array"));
 
-                let mut seq = Vec::with_capacity(vs.len() + 2);
-                seq.push(alloc);
-                seq.push(hir::Stm::Move(
-                    base.clone(),
-                    hir::Exp::Temp(operand::Temp::Ret(0)),
-                ));
-                seq.push(hir::Stm::Move(base.clone(), hir::Exp::Int(vs.len() as i64)));
+                let mut statements = vec![
+                    alloc,
+                    hir::Statement::Move(
+                        base.clone(),
+                        hir::Expression::Temporary(operand::Temporary::Return(0)),
+                    ),
+                    hir::Statement::Move(
+                        hir::Expression::Memory(Box::new(base.clone())),
+                        hir::Expression::Integer(expressions.len() as i64),
+                    ),
+                ];
 
-                for (i, v) in vs.iter().enumerate() {
-                    let entry = self.emit_exp(v, vars).into();
-                    let offset = hir::Exp::Int((i + 1) as i64 * constants::WORD_SIZE);
-                    let address = hir::Exp::Mem(Box::new(hir::Exp::Bin(
-                        ir::Bin::Add,
+                for (index, expression) in expressions.iter().enumerate() {
+                    let expression = self.emit_expression(expression, variables).into();
+                    let offset =
+                        hir::Expression::Integer((index + 1) as i64 * constants::WORD_SIZE);
+                    let address = hir::Expression::Memory(Box::new(hir::Expression::Binary(
+                        ir::Binary::Add,
                         Box::new(base.clone()),
                         Box::new(offset),
                     )));
-                    seq.push(hir::Stm::Move(address, entry));
+                    statements.push(hir::Statement::Move(address, expression));
                 }
 
-                hir::Exp::ESeq(
-                    Box::new(hir::Stm::Seq(seq)),
-                    Box::new(hir::Exp::Bin(
-                        ir::Bin::Add,
+                hir::Expression::Sequence(
+                    Box::new(hir::Statement::Sequence(statements)),
+                    Box::new(hir::Expression::Binary(
+                        ir::Binary::Add,
                         Box::new(base),
-                        Box::new(hir::Exp::Int(constants::WORD_SIZE)),
+                        Box::new(hir::Expression::Integer(constants::WORD_SIZE)),
                     )),
                 )
                 .into()
             }
-            Binary(bin, lhs, rhs, _) => {
-                let lhs = self.emit_exp(lhs, vars);
-                let rhs = self.emit_exp(rhs, vars);
 
-                if let Some(binop) = match bin {
-                    ast::Binary::Mul => Some(ir::Bin::Mul),
-                    ast::Binary::Hul => Some(ir::Bin::Hul),
-                    ast::Binary::Mod => Some(ir::Bin::Mod),
-                    ast::Binary::Div => Some(ir::Bin::Div),
-                    ast::Binary::Add => Some(ir::Bin::Add),
-                    ast::Binary::Sub => Some(ir::Bin::Sub),
-                    _ => None,
-                } {
-                    return hir::Exp::Bin(binop, Box::new(lhs.into()), Box::new(rhs.into())).into();
-                }
+            Binary(binary, left, right, _) => {
+                let binary = ir::Binary::from(*binary);
+                let left = self.emit_expression(left, variables);
+                let right = self.emit_expression(right, variables);
 
-                if let Some(relop) = match bin {
-                    ast::Binary::Lt => Some(ir::Bin::Lt),
-                    ast::Binary::Le => Some(ir::Bin::Le),
-                    ast::Binary::Ge => Some(ir::Bin::Ge),
-                    ast::Binary::Gt => Some(ir::Bin::Gt),
-                    ast::Binary::Ne => Some(ir::Bin::Ne),
-                    ast::Binary::Eq => Some(ir::Bin::Eq),
-                    _ => None,
-                } {
-                    return hir::Tree::Cx(Box::new(move |t, f| {
-                        let exp = hir::Exp::Bin(relop, Box::new(lhs.into()), Box::new(rhs.into()));
-                        hir::Stm::CJump(exp, t, f)
-                    }));
-                }
-
-                match bin {
-                    ast::Binary::And => hir::Tree::Cx(Box::new(move |t, f| {
-                        let and = operand::Label::new("AND");
-                        hir::Stm::Seq(vec![
-                            hir::Con::from(lhs)(and, f),
-                            hir::Stm::Label(and),
-                            hir::Con::from(rhs)(t, f),
+                match binary {
+                    ir::Binary::Mul
+                    | ir::Binary::Hul
+                    | ir::Binary::Mod
+                    | ir::Binary::Div
+                    | ir::Binary::Add
+                    | ir::Binary::Sub => hir::Expression::Binary(
+                        binary,
+                        Box::new(left.into()),
+                        Box::new(right.into()),
+                    )
+                    .into(),
+                    ir::Binary::Lt
+                    | ir::Binary::Le
+                    | ir::Binary::Ge
+                    | ir::Binary::Gt
+                    | ir::Binary::Ne
+                    | ir::Binary::Eq => hir::Tree::Condition(Box::new(move |r#true, r#false| {
+                        hir::Statement::CJump(
+                            hir::Expression::Binary(
+                                binary,
+                                Box::new(left.into()),
+                                Box::new(right.into()),
+                            ),
+                            r#true,
+                            r#false,
+                        )
+                    })),
+                    ir::Binary::And => hir::Tree::Condition(Box::new(move |r#true, r#false| {
+                        let and = operand::Label::fresh("and");
+                        hir::Statement::Sequence(vec![
+                            hir::Condition::from(left)(and, r#false),
+                            hir::Statement::Label(and),
+                            hir::Condition::from(right)(r#true, r#false),
                         ])
                     })),
-                    ast::Binary::Or => hir::Tree::Cx(Box::new(move |t, f| {
-                        let or = operand::Label::new("OR");
-                        hir::Stm::Seq(vec![
-                            hir::Con::from(lhs)(t, or),
-                            hir::Stm::Label(or),
-                            hir::Con::from(rhs)(t, f),
+                    ir::Binary::Or => hir::Tree::Condition(Box::new(move |r#true, r#false| {
+                        let or = operand::Label::fresh("or");
+                        hir::Statement::Sequence(vec![
+                            hir::Condition::from(left)(r#true, or),
+                            hir::Statement::Label(or),
+                            hir::Condition::from(right)(r#true, r#false),
                         ])
                     })),
-                    _ => panic!("[INTERNAL ERROR]: missing binary operator in IR emission"),
+                    ir::Binary::Xor | ir::Binary::Ls | ir::Binary::Rs | ir::Binary::ARs => {
+                        unreachable!("[INTERNAL ERROR]: no XOR, LSHIFT, RSHIFT in AST")
+                    }
                 }
             }
-            Unary(ast::Unary::Neg, exp, _) => hir::Exp::Bin(
-                ir::Bin::Sub,
-                Box::new(hir::Exp::Int(0)),
-                Box::new(self.emit_exp(exp, vars).into()),
+
+            Unary(ast::Unary::Neg, expression, _) => hir::Expression::Binary(
+                ir::Binary::Sub,
+                Box::new(hir::Expression::Integer(0)),
+                Box::new(self.emit_expression(expression, variables).into()),
             )
             .into(),
-            Unary(ast::Unary::Not, exp, _) => hir::Exp::Bin(
-                ir::Bin::Xor,
-                Box::new(hir::Exp::Int(1)),
-                Box::new(self.emit_exp(exp, vars).into()),
+            Unary(ast::Unary::Not, expression, _) => hir::Expression::Binary(
+                ir::Binary::Xor,
+                Box::new(hir::Expression::Integer(1)),
+                Box::new(self.emit_expression(expression, variables).into()),
             )
             .into(),
-            Index(arr, idx, _) => {
-                let address = operand::Temp::new("ADDRESS");
-                let index = operand::Temp::new("INDEX");
-                let length = hir::Exp::Mem(Box::new(hir::Exp::Bin(
-                    ir::Bin::Sub,
-                    Box::new(hir::Exp::Temp(address)),
-                    Box::new(hir::Exp::Int(constants::WORD_SIZE)),
+
+            Index(array, array_index, _) => {
+                let base = operand::Temporary::fresh("base");
+                let index = operand::Temporary::fresh("index");
+
+                let length = hir::Expression::Memory(Box::new(hir::Expression::Binary(
+                    ir::Binary::Sub,
+                    Box::new(hir::Expression::Temporary(base)),
+                    Box::new(hir::Expression::Integer(constants::WORD_SIZE)),
                 )));
-                let offset = hir::Exp::Bin(
-                    ir::Bin::Add,
-                    Box::new(hir::Exp::Temp(address)),
-                    Box::new(hir::Exp::Bin(
-                        ir::Bin::Mul,
-                        Box::new(hir::Exp::Temp(index)),
-                        Box::new(hir::Exp::Int(constants::WORD_SIZE)),
+
+                let address = hir::Expression::Binary(
+                    ir::Binary::Add,
+                    Box::new(hir::Expression::Temporary(base)),
+                    Box::new(hir::Expression::Binary(
+                        ir::Binary::Mul,
+                        Box::new(hir::Expression::Temporary(index)),
+                        Box::new(hir::Expression::Integer(constants::WORD_SIZE)),
                     )),
                 );
 
-                let lo = operand::Label::new("LOW_BOUND");
-                let hi = operand::Label::new("HIGH_BOUND");
-                let fail = operand::Label::new("OUT_OF_BOUNDS");
-                let safe = operand::Label::new("IN_BOUNDS");
-                let oob = hir::Exp::Name(operand::Label::Fix(symbol::intern(
-                    constants::XI_OUT_OF_BOUNDS,
-                )));
+                let low = operand::Label::fresh("low");
+                let high = operand::Label::fresh("high");
+                let out = operand::Label::fresh("out");
+                let r#in = operand::Label::fresh("in");
 
-                let lt = hir::Exp::Bin(
-                    ir::Bin::Lt,
-                    Box::new(hir::Exp::Temp(index)),
-                    Box::new(hir::Exp::Int(0)),
-                );
-
-                let ge = hir::Exp::Bin(
-                    ir::Bin::Ge,
-                    Box::new(hir::Exp::Temp(index)),
-                    Box::new(length),
-                );
-
-                let bounds = hir::Stm::Seq(vec![
-                    hir::Stm::Move(hir::Exp::Temp(address), self.emit_exp(&*arr, vars).into()),
-                    hir::Stm::Move(hir::Exp::Temp(index), self.emit_exp(&*idx, vars).into()),
-                    hir::Stm::CJump(lt, fail, lo),
-                    hir::Stm::Label(lo),
-                    hir::Stm::CJump(ge, fail, hi),
-                    hir::Stm::Label(hi),
-                    hir::Stm::Jump(hir::Exp::Name(safe)),
-                    hir::Stm::Label(fail),
-                    hir::Stm::Call(hir::Call {
-                        name: Box::new(oob),
-                        args: Vec::with_capacity(0),
+                let bounds = hir::Statement::Sequence(vec![
+                    hir::Statement::Move(
+                        hir::Expression::Temporary(base),
+                        self.emit_expression(&*array, variables).into(),
+                    ),
+                    hir::Statement::Move(
+                        hir::Expression::Temporary(index),
+                        self.emit_expression(&*array_index, variables).into(),
+                    ),
+                    hir::Statement::CJump(
+                        hir::Expression::Binary(
+                            ir::Binary::Lt,
+                            Box::new(hir::Expression::Temporary(index)),
+                            Box::new(hir::Expression::Integer(0)),
+                        ),
+                        out,
+                        low,
+                    ),
+                    hir::Statement::Label(low),
+                    hir::Statement::CJump(
+                        hir::Expression::Binary(
+                            ir::Binary::Ge,
+                            Box::new(hir::Expression::Temporary(index)),
+                            Box::new(length),
+                        ),
+                        out,
+                        high,
+                    ),
+                    hir::Statement::Label(high),
+                    hir::Statement::Jump(hir::Expression::Label(r#in)),
+                    hir::Statement::Label(out),
+                    hir::Statement::Call(hir::Call {
+                        name: Box::new(hir::Expression::Label(operand::Label::Fixed(
+                            symbol::intern(constants::XI_OUT_OF_BOUNDS),
+                        ))),
+                        arguments: Vec::new(),
                     }),
-                    hir::Stm::Label(safe),
+                    hir::Statement::Label(r#in),
                 ]);
 
-                hir::Exp::ESeq(Box::new(bounds), Box::new(offset)).into()
+                hir::Expression::Sequence(Box::new(bounds), Box::new(address)).into()
             }
             Call(call) if call.name == symbol::intern("length") => {
-                let address = self.emit_exp(&call.arguments[0], vars).into();
-                hir::Exp::Mem(Box::new(hir::Exp::Bin(
-                    ir::Bin::Sub,
+                let address = self.emit_expression(&call.arguments[0], variables).into();
+                hir::Expression::Memory(Box::new(hir::Expression::Binary(
+                    ir::Binary::Sub,
                     Box::new(address),
-                    Box::new(hir::Exp::Int(constants::WORD_SIZE)),
+                    Box::new(hir::Expression::Integer(constants::WORD_SIZE)),
                 )))
                 .into()
             }
-            Call(call) => hir::Exp::Call(self.emit_call(call, vars)).into(),
+            Call(call) => hir::Expression::Call(self.emit_call(call, variables)).into(),
         }
     }
 
     fn emit_call(
         &mut self,
         call: &ast::Call,
-        vars: &HashMap<symbol::Symbol, operand::Temp>,
+        variables: &HashMap<symbol::Symbol, operand::Temporary>,
     ) -> hir::Call {
         hir::Call {
-            name: Box::new(hir::Exp::Name(operand::Label::Fix(
-                self.mangle_fun(call.name),
+            name: Box::new(hir::Expression::Label(operand::Label::Fixed(
+                self.mangle_function(call.name),
             ))),
-            args: call
+            arguments: call
                 .arguments
                 .iter()
-                .map(|arg| self.emit_exp(arg, vars).into())
+                .map(|argument| self.emit_expression(argument, variables).into())
                 .collect(),
         }
     }
 
-    fn emit_alloc(length: usize) -> hir::Stm {
-        let label = operand::Label::Fix(symbol::intern(constants::XI_ALLOC));
-        let alloc = hir::Exp::Name(label);
-        let size = hir::Exp::Int((length + 1) as i64 * constants::WORD_SIZE);
-        hir::Stm::Call(hir::Call {
+    fn emit_alloc(length: usize) -> hir::Statement {
+        let label = operand::Label::Fixed(symbol::intern(constants::XI_ALLOC));
+        let alloc = hir::Expression::Label(label);
+        let bytes = hir::Expression::Integer((length + 1) as i64 * constants::WORD_SIZE);
+        hir::Statement::Call(hir::Call {
             name: Box::new(alloc),
-            args: vec![size],
+            arguments: vec![bytes],
         })
     }
 
-    fn emit_dec(
+    fn emit_declaration(
         &mut self,
-        dec: &ast::Declaration,
-        vars: &mut HashMap<symbol::Symbol, operand::Temp>,
-    ) -> hir::Exp {
-        let temp = operand::Temp::new("TEMP");
-        vars.insert(dec.name, temp);
-        hir::Exp::Temp(temp)
+        declaration: &ast::Declaration,
+        variables: &mut HashMap<symbol::Symbol, operand::Temporary>,
+    ) -> hir::Expression {
+        let fresh = operand::Temporary::fresh("t");
+        variables.insert(declaration.name, fresh);
+        hir::Expression::Temporary(fresh)
     }
 
-    fn emit_stm(
+    fn emit_statement(
         &mut self,
-        stm: &ast::Statement,
-        vars: &mut HashMap<symbol::Symbol, operand::Temp>,
-    ) -> hir::Stm {
+        statement: &ast::Statement,
+        variables: &mut HashMap<symbol::Symbol, operand::Temporary>,
+    ) -> hir::Statement {
         use ast::Statement::*;
-        match stm {
-            Assignment(lhs, rhs, _) => {
-                let lhs = self.emit_exp(lhs, vars).into();
-                let rhs = self.emit_exp(rhs, vars).into();
-                hir::Stm::Move(lhs, rhs)
+        match statement {
+            Assignment(left, right, _) => {
+                let lhs = self.emit_expression(left, variables).into();
+                let rhs = self.emit_expression(right, variables).into();
+                hir::Statement::Move(lhs, rhs)
             }
-            Call(call) => hir::Stm::Call(self.emit_call(call, vars)),
-            Initialization(decs, ast::Expression::Call(call), _) => {
-                let mut seq = vec![hir::Stm::Call(self.emit_call(call, vars))];
+            Call(call) => hir::Statement::Call(self.emit_call(call, variables)),
+            Initialization(declarations, ast::Expression::Call(call), _) => {
+                let mut statements = vec![hir::Statement::Call(self.emit_call(call, variables))];
 
-                for (i, dec) in decs.iter().enumerate() {
-                    if let Some(dec) = dec {
-                        let var = self.emit_dec(dec, vars);
-                        let ret = hir::Exp::Temp(operand::Temp::Ret(i));
-                        seq.push(hir::Stm::Move(var, ret));
+                for (index, declaration) in declarations.iter().enumerate() {
+                    if let Some(declaration) = declaration {
+                        let variable = self.emit_declaration(declaration, variables);
+                        let r#return =
+                            hir::Expression::Temporary(operand::Temporary::Return(index));
+                        statements.push(hir::Statement::Move(variable, r#return));
                     }
                 }
 
-                hir::Stm::Seq(seq)
+                hir::Statement::Sequence(statements)
             }
-            Initialization(decs, exp, _) => {
-                assert!(decs.len() == 1 && decs[0].is_some());
-                let dec = decs[0].as_ref().unwrap();
-                let var = self.emit_dec(dec, vars);
-                let exp = self.emit_exp(exp, vars).into();
-                hir::Stm::Move(var, exp)
+            Initialization(declarations, expression, _) => {
+                assert!(declarations.len() == 1 && declarations[0].is_some());
+                let declaration = declarations[0].as_ref().unwrap();
+                let variable = self.emit_declaration(declaration, variables);
+                let expression = self.emit_expression(expression, variables).into();
+                hir::Statement::Move(variable, expression)
             }
-            Declaration(dec, _) => hir::Stm::Move(self.emit_dec(dec, vars), hir::Exp::Int(0)),
-            Return(exps, _) => hir::Stm::Return(
-                exps.iter()
-                    .map(|exp| self.emit_exp(exp, vars).into())
+            Declaration(declaration, _) => hir::Statement::Move(
+                self.emit_declaration(declaration, variables),
+                hir::Expression::Integer(0),
+            ),
+            Return(expressions, _) => hir::Statement::Return(
+                expressions
+                    .iter()
+                    .map(|expression| self.emit_expression(expression, variables).into())
                     .collect(),
             ),
-            Sequence(stms, _) => {
-                hir::Stm::Seq(stms.iter().map(|stm| self.emit_stm(stm, vars)).collect())
-            }
-            If(cond, pass, None, _) => {
-                let t = operand::Label::new("TRUE");
-                let f = operand::Label::new("FALSE");
-                hir::Stm::Seq(vec![
-                    hir::Con::from(self.emit_exp(cond, vars))(t, f),
-                    hir::Stm::Label(t),
-                    self.emit_stm(pass, vars),
-                    hir::Stm::Label(f),
+            Sequence(statements, _) => hir::Statement::Sequence(
+                statements
+                    .iter()
+                    .map(|statement| self.emit_statement(statement, variables))
+                    .collect(),
+            ),
+            If(condition, r#if, None, _) => {
+                let r#true = operand::Label::fresh("true");
+                let r#false = operand::Label::fresh("false");
+                hir::Statement::Sequence(vec![
+                    hir::Condition::from(self.emit_expression(condition, variables))(
+                        r#true, r#false,
+                    ),
+                    hir::Statement::Label(r#true),
+                    self.emit_statement(r#if, variables),
+                    hir::Statement::Label(r#false),
                 ])
             }
-            If(cond, pass, Some(fail), _) => {
-                let t = operand::Label::new("TRUE");
-                let f = operand::Label::new("FALSE");
-                let done = operand::Label::new("DONE");
-                hir::Stm::Seq(vec![
-                    hir::Con::from(self.emit_exp(cond, vars))(t, f),
-                    hir::Stm::Label(t),
-                    self.emit_stm(pass, vars),
-                    hir::Stm::Jump(hir::Exp::Name(done)),
-                    hir::Stm::Label(f),
-                    self.emit_stm(fail, vars),
-                    hir::Stm::Label(done),
+            If(condition, r#if, Some(r#else), _) => {
+                let r#true = operand::Label::fresh("true");
+                let r#false = operand::Label::fresh("false");
+                let end = operand::Label::fresh("endif");
+                hir::Statement::Sequence(vec![
+                    hir::Condition::from(self.emit_expression(condition, variables))(
+                        r#true, r#false,
+                    ),
+                    hir::Statement::Label(r#true),
+                    self.emit_statement(r#if, variables),
+                    hir::Statement::Jump(hir::Expression::Label(end)),
+                    hir::Statement::Label(r#false),
+                    self.emit_statement(r#else, variables),
+                    hir::Statement::Label(end),
                 ])
             }
-            While(cond, body, _) => {
-                let h = operand::Label::new("WHILE");
-                let t = operand::Label::new("TRUE");
-                let f = operand::Label::new("FALSE");
-                hir::Stm::Seq(vec![
-                    hir::Stm::Label(h),
-                    hir::Con::from(self.emit_exp(cond, vars))(t, f),
-                    self.emit_stm(body, vars),
-                    hir::Stm::Jump(hir::Exp::Name(h)),
-                    hir::Stm::Label(f),
+            While(condition, statements, _) => {
+                let r#while = operand::Label::fresh("while");
+                let r#true = operand::Label::fresh("true");
+                let r#false = operand::Label::fresh("false");
+                hir::Statement::Sequence(vec![
+                    hir::Statement::Label(r#while),
+                    hir::Condition::from(self.emit_expression(condition, variables))(
+                        r#true, r#false,
+                    ),
+                    self.emit_statement(statements, variables),
+                    hir::Statement::Jump(hir::Expression::Label(r#while)),
+                    hir::Statement::Label(r#false),
                 ])
             }
         }
     }
 
-    fn mangle_fun(&mut self, fun: symbol::Symbol) -> symbol::Symbol {
-        if let Some(mangled) = self.funs.get(&fun) {
+    fn mangle_function(&mut self, name: symbol::Symbol) -> symbol::Symbol {
+        if let Some(mangled) = self.functions.get(&name) {
             return *mangled;
         }
 
-        let (parameters, returns) = match self.env.get(fun) {
+        let (parameters, returns) = match self.context.get(name) {
             Some(check::Entry::Function(parameters, returns))
             | Some(check::Entry::Signature(parameters, returns)) => (parameters, returns),
             _ => panic!("[INTERNAL ERROR]: type checking failed"),
         };
 
-        let mut mangled = format!("_I{}_", symbol::resolve(fun).replace('_', "__"),);
+        let mut mangled = format!("_I{}_", symbol::resolve(name).replace('_', "__"),);
 
         match returns.as_slice() {
             [] => mangled.push('p'),
@@ -386,23 +433,23 @@ impl<'env> Emitter<'env> {
             }
         }
 
-        for r#type in parameters {
-            Self::mangle_type(r#type, &mut mangled);
+        for parameter in parameters {
+            Self::mangle_type(parameter, &mut mangled);
         }
 
         let mangled = symbol::intern(mangled);
-        self.funs.insert(fun, mangled);
+        self.functions.insert(name, mangled);
         mangled
     }
 
-    fn mangle_type(typ: &r#type::Expression, mangled: &mut String) {
-        match typ {
+    fn mangle_type(r#type: &r#type::Expression, mangled: &mut String) {
+        match r#type {
             r#type::Expression::Any => panic!("[INTERNAL ERROR]: any type in IR"),
             r#type::Expression::Integer => mangled.push('i'),
             r#type::Expression::Boolean => mangled.push('b'),
-            r#type::Expression::Array(typ) => {
+            r#type::Expression::Array(r#type) => {
                 mangled.push('a');
-                Self::mangle_type(&*typ, mangled);
+                Self::mangle_type(&*r#type, mangled);
             }
         }
     }

@@ -3,87 +3,93 @@ use crate::data::operand;
 use crate::util::symbol;
 
 #[derive(Clone, Debug)]
-pub struct Fun {
+pub struct Function {
     pub name: symbol::Symbol,
-    pub body: Stm,
+    pub statements: Statement,
 }
 
 pub enum Tree {
-    Ex(Exp),
-    Cx(Con),
+    Expression(Expression),
+    Condition(Condition),
 }
 
-pub type Con = Box<dyn FnOnce(operand::Label, operand::Label) -> Stm>;
+pub type Condition = Box<dyn FnOnce(operand::Label, operand::Label) -> Statement>;
 
-impl From<Con> for Tree {
-    fn from(con: Con) -> Self {
-        Tree::Cx(con)
+impl From<Condition> for Tree {
+    fn from(condition: Condition) -> Self {
+        Tree::Condition(condition)
     }
 }
 
-impl From<Tree> for Con {
+impl From<Tree> for Condition {
     fn from(tree: Tree) -> Self {
         match tree {
-            Tree::Cx(con) => con,
-            Tree::Ex(exp) => Box::new(move |t, f| {
-                let exp = Exp::Bin(ir::Bin::Eq, Box::new(exp), Box::new(Exp::Int(1)));
-                Stm::CJump(exp, t, f)
+            Tree::Condition(condition) => condition,
+            Tree::Expression(expression) => Box::new(move |r#true, r#false| {
+                let condition = Expression::Binary(
+                    ir::Binary::Eq,
+                    Box::new(expression),
+                    Box::new(Expression::Integer(1)),
+                );
+                Statement::CJump(condition, r#true, r#false)
             }),
         }
     }
 }
 
 #[derive(Clone, Debug)]
-pub enum Exp {
-    Int(i64),
-    Mem(Box<Exp>),
-    Bin(ir::Bin, Box<Exp>, Box<Exp>),
+pub enum Expression {
+    Integer(i64),
+    Label(operand::Label),
+    Temporary(operand::Temporary),
+    Memory(Box<Expression>),
+    Binary(ir::Binary, Box<Expression>, Box<Expression>),
     Call(Call),
-    Name(operand::Label),
-    Temp(operand::Temp),
-    ESeq(Box<Stm>, Box<Exp>),
+    Sequence(Box<Statement>, Box<Expression>),
 }
 
-impl From<Exp> for Tree {
-    fn from(exp: Exp) -> Self {
-        Tree::Ex(exp)
+impl From<Expression> for Tree {
+    fn from(expression: Expression) -> Self {
+        Tree::Expression(expression)
     }
 }
 
-impl From<Tree> for Exp {
+impl From<Tree> for Expression {
     fn from(tree: Tree) -> Self {
         match tree {
-            Tree::Ex(exp) => exp,
-            Tree::Cx(cond) => {
-                let t = operand::Label::new("TRUE");
-                let f = operand::Label::new("FALSE");
-                let value = Exp::Temp(operand::Temp::new("BOOL"));
-                let seq = vec![
-                    Stm::Move(value.clone(), Exp::Int(0)),
-                    cond(t, f),
-                    Stm::Label(t),
-                    Stm::Move(value.clone(), Exp::Int(1)),
-                    Stm::Label(f),
+            Tree::Expression(expression) => expression,
+            Tree::Condition(condition) => {
+                let r#true = operand::Label::fresh("true");
+                let r#false = operand::Label::fresh("false");
+                let value = Expression::Temporary(operand::Temporary::fresh("bool"));
+
+                let sequence = vec![
+                    Statement::Move(value.clone(), Expression::Integer(0)),
+                    condition(r#true, r#false),
+                    Statement::Label(r#true),
+                    Statement::Move(value.clone(), Expression::Integer(1)),
+                    Statement::Label(r#false),
                 ];
-                Exp::ESeq(Box::new(Stm::Seq(seq)), Box::new(value))
+
+                Expression::Sequence(Box::new(Statement::Sequence(sequence)), Box::new(value))
             }
         }
     }
 }
 
 #[derive(Clone, Debug)]
-pub enum Stm {
-    Jump(Exp),
-    CJump(Exp, operand::Label, operand::Label),
+pub enum Statement {
+    Jump(Expression),
+    CJump(Expression, operand::Label, operand::Label),
     Label(operand::Label),
     Call(Call),
-    Move(Exp, Exp),
-    Return(Vec<Exp>),
-    Seq(Vec<Stm>),
+    Move(Expression, Expression),
+    Return(Vec<Expression>),
+    Sequence(Vec<Statement>),
 }
 
 #[derive(Clone, Debug)]
 pub struct Call {
-    pub name: Box<Exp>,
-    pub args: Vec<Exp>,
+    pub name: Box<Expression>,
+    pub arguments: Vec<Expression>,
 }

@@ -6,51 +6,51 @@ static LABELS: AtomicUsize = AtomicUsize::new(0);
 static TEMPS: AtomicUsize = AtomicUsize::new(0);
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq, Hash)]
-pub enum Imm {
-    Const(i64),
+pub enum Immediate {
+    Constant(i64),
     Label(Label),
 }
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq, Hash)]
 pub enum Label {
-    Fix(symbol::Symbol),
-    Gen(symbol::Symbol, usize),
+    Fixed(symbol::Symbol),
+    Fresh(symbol::Symbol, usize),
 }
 
 impl Label {
-    pub fn new(label: &'static str) -> Self {
-        let idx = LABELS.fetch_add(1, Ordering::SeqCst);
-        let sym = symbol::intern(label);
-        Label::Gen(sym, idx)
+    pub fn fresh(label: &'static str) -> Self {
+        let index = LABELS.fetch_add(1, Ordering::SeqCst);
+        let symbol = symbol::intern(label);
+        Label::Fresh(symbol, index)
     }
 }
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq, Hash)]
-pub enum Temp {
-    Reg(Reg),
-    Arg(usize),
-    Ret(usize),
-    Gen(symbol::Symbol, usize),
+pub enum Temporary {
+    Register(Register),
+    Argument(usize),
+    Return(usize),
+    Fresh(symbol::Symbol, usize),
 }
 
-impl Temp {
-    pub fn new(label: &'static str) -> Self {
-        let idx = TEMPS.fetch_add(1, Ordering::SeqCst);
-        let sym = symbol::intern(label);
-        Temp::Gen(sym, idx)
+impl Temporary {
+    pub fn fresh(label: &'static str) -> Self {
+        let index = TEMPS.fetch_add(1, Ordering::SeqCst);
+        let symbol = symbol::intern(label);
+        Temporary::Fresh(symbol, index)
     }
 }
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq, Hash)]
-pub enum Reg {
-    RAX,
-    RBX,
-    RCX,
-    RDX,
-    RBP,
-    RSP,
-    RSI,
-    RDI,
+pub enum Register {
+    Rax,
+    Rbx,
+    Rcx,
+    Rdx,
+    Rbp,
+    Rsp,
+    Rsi,
+    Rdi,
     R8,
     R9,
     R10,
@@ -62,11 +62,11 @@ pub enum Reg {
 }
 
 pub trait Operand: Copy + Eq + std::hash::Hash + std::fmt::Debug {}
-impl Operand for Temp {}
-impl Operand for Reg {}
+impl Operand for Temporary {}
+impl Operand for Register {}
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
-pub enum Mem<T: Operand> {
+pub enum Memory<T: Operand> {
     R(T),
     RO(T, i32),
 }

@@ -29,9 +29,9 @@ Signature: Signature = {
 }
 
 Function: Function = {
-    <l: @L> <name: ID> "(" <parameters: Comma<ArgDeclaration>> ")" <returns: (":" <CommaPlus<ArgType>>)?> <body: Block> <r: @R> => {
+    <l: @L> <name: ID> "(" <parameters: Comma<ArgDeclaration>> ")" <returns: (":" <CommaPlus<ArgType>>)?> <statements: Block> <r: @R> => {
         let returns = if let Some(returns) = returns { returns } else { Vec::new() };
-        Function { name, parameters, returns, body, span: Span::new(l, r) }
+        Function { name, parameters, returns, statements, span: Span::new(l, r) }
     }
 }
 
@@ -88,8 +88,8 @@ ClosedStatement: Statement = {
     },
 
     // While statement
-    <l: @L> "while" <condition: Expression> <body: ClosedStatement> <r: @R> => {
-        Statement::While(condition, Box::new(body), Span::new(l, r))
+    <l: @L> "while" <condition: Expression> <statements: ClosedStatement> <r: @R> => {
+        Statement::While(condition, Box::new(statements), Span::new(l, r))
     },
 
     <Block> ";"?,
