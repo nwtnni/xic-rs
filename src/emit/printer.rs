@@ -161,7 +161,7 @@ impl Serialize for operand::Label {
         use operand::Label::*;
         match self {
             Fixed(symbol) => symbol.sexp(),
-            Fresh(symbol, index) => format!("{}_{}", symbol::resolve(*symbol), index).sexp_move(),
+            Fresh(symbol, index) => format!("{}{}", symbol::resolve(*symbol), index).sexp_move(),
         }
     }
 }
@@ -172,7 +172,7 @@ impl Serialize for operand::Temporary {
         match self {
             Argument(index) => format!("_ARG{}", index).sexp_move(),
             Return(index) => format!("_RET{}", index).sexp_move(),
-            Fresh(symbol, index) => format!("{}_{}", symbol::resolve(*symbol), index).sexp_move(),
+            Fresh(symbol, index) => format!("{}{}", symbol::resolve(*symbol), index).sexp_move(),
             Register(_) => panic!("[INTERNAL ERROR]: shouldn't be any registers in IR"),
         }
     }
