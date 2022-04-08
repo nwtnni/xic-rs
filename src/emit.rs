@@ -2,6 +2,7 @@ mod canonizer;
 mod driver;
 mod emitter;
 mod folder;
+mod interpreter;
 mod printer;
 
 pub(crate) use canonizer::Canonizer;

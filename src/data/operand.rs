@@ -5,13 +5,13 @@ use crate::util::symbol;
 static LABELS: AtomicUsize = AtomicUsize::new(0);
 static TEMPS: AtomicUsize = AtomicUsize::new(0);
 
-#[derive(Copy, Clone, Debug, PartialEq, Eq, Hash)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub enum Immediate {
     Constant(i64),
     Label(Label),
 }
 
-#[derive(Copy, Clone, Debug, PartialEq, Eq, Hash)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub enum Label {
     Fixed(symbol::Symbol),
     Fresh(symbol::Symbol, usize),
@@ -25,7 +25,7 @@ impl Label {
     }
 }
 
-#[derive(Copy, Clone, Debug, PartialEq, Eq, Hash)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub enum Temporary {
     Register(Register),
     Argument(usize),
@@ -41,7 +41,7 @@ impl Temporary {
     }
 }
 
-#[derive(Copy, Clone, Debug, PartialEq, Eq, Hash)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub enum Register {
     Rax,
     Rbx,
@@ -61,11 +61,11 @@ pub enum Register {
     R15,
 }
 
-pub trait Operand: Copy + Eq + std::hash::Hash + std::fmt::Debug {}
+pub trait Operand: Copy + Eq + std::hash::Hash + std::fmt::Debug + PartialOrd + Ord {}
 impl Operand for Temporary {}
 impl Operand for Register {}
 
-#[derive(Copy, Clone, Debug, PartialEq, Eq)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub enum Memory<T: Operand> {
     R(T),
     RO(T, i32),
