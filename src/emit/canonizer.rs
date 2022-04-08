@@ -67,7 +67,15 @@ impl Canonizer {
             }
             Call(call) => {
                 self.canonize_call(call);
-                lir::Expression::Temp(operand::Temp::Ret(0))
+
+                let save = lir::Expression::Temp(operand::Temp::new("SAVE"));
+
+                self.canonized.push(lir::Statement::Move(
+                    save.clone(),
+                    lir::Expression::Temp(operand::Temp::Ret(0)),
+                ));
+
+                save
             }
         }
     }
