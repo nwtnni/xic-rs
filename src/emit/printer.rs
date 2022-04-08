@@ -5,7 +5,7 @@ use crate::data::operand;
 use crate::util::sexp::{Serialize, Sexp};
 use crate::util::symbol;
 
-impl<T: ir::IR + Serialize> Serialize for ir::Unit<T> {
+impl<T: Serialize> Serialize for ir::Unit<T> {
     fn sexp(&self) -> Sexp {
         std::iter::once("COMPUNIT".sexp())
             .chain(std::iter::once(self.name.sexp()))

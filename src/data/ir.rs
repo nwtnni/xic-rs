@@ -1,21 +1,29 @@
 use std::collections::BTreeMap;
 
 use crate::data::ast;
-use crate::data::hir;
-use crate::data::lir;
 use crate::data::operand;
 use crate::util::symbol;
 
 #[derive(Clone, Debug)]
-pub struct Unit<F: IR> {
+pub struct Unit<T> {
     pub name: symbol::Symbol,
-    pub functions: BTreeMap<symbol::Symbol, F>,
+    pub functions: BTreeMap<symbol::Symbol, T>,
     pub data: BTreeMap<symbol::Symbol, operand::Label>,
 }
 
-pub trait IR {}
-impl IR for hir::Function {}
-impl IR for lir::Function {}
+impl<T> Unit<T> {
+    pub fn map<'a, F: FnMut(&'a T) -> U, U>(&'a self, mut apply: F) -> Unit<U> {
+        Unit {
+            name: self.name,
+            functions: self
+                .functions
+                .iter()
+                .map(|(symbol, function)| (*symbol, apply(function)))
+                .collect(),
+            data: self.data.clone(),
+        }
+    }
+}
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
 pub enum Binary {
