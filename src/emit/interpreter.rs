@@ -2,6 +2,7 @@
 
 use std::collections::BTreeMap;
 use std::convert::TryFrom as _;
+use std::io::Read as _;
 
 use rand::rngs::ThreadRng;
 use rand::Rng as _;
@@ -203,7 +204,81 @@ impl<'a> Local<'a> {
             operand::Label::Fresh(_, _) => panic!("calling fresh function name"),
         };
 
-        global.call(unit, &name, &arguments)
+        self.library(global, name, &arguments)
+            .unwrap_or_else(|| global.call(unit, &name, &arguments))
+    }
+
+    fn library(
+        &mut self,
+        global: &mut Global,
+        name: Symbol,
+        arguments: &[i64],
+    ) -> Option<Vec<i64>> {
+        let r#returns = match symbol::resolve(name) {
+            "_Iprint_pai" => {
+                assert_eq!(arguments.len(), 1);
+                for byte in global.read_array(arguments[0]) {
+                    print!("{}", u8::try_from(*byte).unwrap() as char);
+                }
+                Vec::new()
+            }
+            "_Iprintln_pai" => {
+                assert_eq!(arguments.len(), 1);
+                for byte in global.read_array(arguments[0]) {
+                    print!("{}", u8::try_from(*byte).unwrap() as char);
+                }
+                println!();
+                Vec::new()
+            }
+            "_Ireadln_ai" => {
+                assert_eq!(arguments.len(), 0);
+                let mut buffer = String::new();
+                std::io::stdin().read_line(&mut buffer).unwrap();
+                assert_eq!(buffer.pop(), Some('\n'));
+                vec![global.write_array(buffer.as_bytes())]
+            }
+            "_Igetchar_i" => {
+                assert_eq!(arguments.len(), 0);
+                let mut char = [0];
+                std::io::stdin().read_exact(&mut char).unwrap();
+                vec![char[0] as i64]
+            }
+            "_Ieof_b" => unimplemented!(),
+            "_IunparseInt_aii" => {
+                assert_eq!(arguments.len(), 1);
+                vec![global.write_array(arguments[0].to_string().as_bytes())]
+            }
+            "_IparseInt_t2ibai" => {
+                assert_eq!(arguments.len(), 1);
+
+                let integer = global
+                    .read_array(arguments[0])
+                    .iter()
+                    .map(|byte| u8::try_from(*byte).unwrap() as char)
+                    .collect::<String>()
+                    .parse::<i64>();
+
+                match integer {
+                    Ok(integer) => vec![integer, 1],
+                    Err(_) => vec![0, 0],
+                }
+            }
+            "_xi_alloc" => {
+                assert_eq!(arguments.len(), 1);
+                vec![global.calloc(arguments[0])]
+            }
+            "_xi_out_of_bounds" => panic!("out of bounds"),
+            "_Iassert_pb" => {
+                assert_eq!(arguments.len(), 1);
+                if arguments[0] != 1 {
+                    panic!("Assertion error");
+                }
+                Vec::new()
+            }
+            _ => return None,
+        };
+
+        Some(r#returns)
     }
 
     fn pop_integer(&mut self, global: &Global) -> i64 {
@@ -229,13 +304,46 @@ impl<'a> Local<'a> {
 
 impl Global {
     fn read(&self, address: i64) -> i64 {
-        let address = usize::try_from(address).unwrap();
-        self.heap.get(address).copied().unwrap()
+        let index = Self::index(address);
+        self.heap.get(index).copied().unwrap()
     }
 
     fn write(&mut self, address: i64, value: i64) {
+        let index = Self::index(address);
+        self.heap[index] = value;
+    }
+
+    fn read_array(&self, address: i64) -> &[i64] {
+        let len = self.read(address - constants::WORD_SIZE);
+        assert!(len >= 0);
+        let index = Self::index(address);
+        &self.heap[index..][..len as usize]
+    }
+
+    fn write_array(&mut self, array: &[u8]) -> i64 {
+        let len = array.len() as i64;
+        let address = self.malloc((len + 1) * constants::WORD_SIZE);
+
+        self.write(address, len);
+
+        for (index, byte) in array.iter().copied().enumerate() {
+            self.write(
+                address + (index as i64 + 1) * constants::WORD_SIZE,
+                byte as i64,
+            );
+        }
+
+        address + constants::WORD_SIZE
+    }
+
+    fn index(address: i64) -> usize {
         let address = usize::try_from(address).unwrap();
-        self.heap[address] = value;
+
+        if address % constants::WORD_SIZE as usize > 0 {
+            panic!("Unaligned memory access: {:x}", address);
+        }
+
+        address / constants::WORD_SIZE as usize
     }
 
     fn malloc(&mut self, bytes: i64) -> i64 {
@@ -249,11 +357,11 @@ impl Global {
 
         let index = self.heap.len() as i64;
 
-        if index + bytes > HEAP_SIZE as i64 {
+        if index * constants::WORD_SIZE + bytes > HEAP_SIZE as i64 {
             todo!()
         }
 
-        for _ in 0..bytes {
+        for _ in 0..bytes / constants::WORD_SIZE {
             self.heap.push(self.rng.gen());
         }
 
@@ -261,11 +369,12 @@ impl Global {
     }
 
     fn calloc(&mut self, bytes: i64) -> i64 {
-        let base = self.malloc(bytes);
-        for offset in 0..bytes {
-            self.heap[(base + offset) as usize] = 0;
+        let address = self.malloc(bytes);
+        let index = Self::index(address);
+        for offset in index..(bytes / constants::WORD_SIZE) as usize {
+            self.heap[index + offset] = 0;
         }
-        base
+        address
     }
 }
 
