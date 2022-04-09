@@ -29,6 +29,7 @@ struct Local<'a> {
     stack: Vec<Value>,
 }
 
+#[derive(Copy, Clone, Debug)]
 enum Value {
     Integer(i64),
     Label(operand::Label),
@@ -37,16 +38,16 @@ enum Value {
 }
 
 impl Global {
-    pub fn run(unit: &ir::Unit<hir::Function>) -> i64 {
+    pub fn run(unit: &ir::Unit<hir::Function>) {
         let unit = unit.map(Flat::flatten_function);
         let mut global = Global {
             heap: Vec::new(),
             rng: rand::thread_rng(),
         };
 
-        global
+        assert!(global
             .call(&unit, &symbol::intern("_Imain_paai"), &[0])
-            .remove(0)
+            .is_empty());
     }
 
     fn call(&mut self, unit: &ir::Unit<Flat>, name: &Symbol, arguments: &[i64]) -> Vec<i64> {
@@ -135,8 +136,7 @@ impl<'a> Local<'a> {
             Hir::Expression(hir::Expression::Call(call)) => {
                 let mut r#return = self.call(unit, global, call);
                 assert_eq!(r#return.len(), 1);
-                self.temporaries
-                    .insert(operand::Temporary::Return(0), r#return.remove(0));
+                self.stack.push(Value::Integer(r#return.remove(0)));
             }
             Hir::Expression(hir::Expression::Sequence(_, _)) => unreachable!(),
 
@@ -365,7 +365,7 @@ impl Global {
             self.heap.push(self.rng.gen());
         }
 
-        index
+        index * constants::WORD_SIZE
     }
 
     fn calloc(&mut self, bytes: i64) -> i64 {
@@ -422,7 +422,7 @@ impl<'a> Flat<'a> {
 
     fn flatten_statement(&mut self, statement: &'a hir::Statement) {
         match statement {
-            hir::Statement::Jump(_) => (),
+            hir::Statement::Jump(expression) => self.flatten_expression(expression),
             hir::Statement::CJump(condition, _, _) => self.flatten_expression(condition),
             hir::Statement::Label(label) => {
                 self.labels.insert(*label, self.instructions.len());

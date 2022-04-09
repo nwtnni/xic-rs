@@ -25,7 +25,7 @@ impl Serialize for hir::Expression {
     fn sexp(&self) -> Sexp {
         use hir::Expression::*;
         match self {
-            Integer(integer) => integer.sexp(),
+            Integer(integer) => ["CONST".sexp(), integer.sexp()].sexp_move(),
             Memory(expression) => ["MEM".sexp(), expression.sexp()].sexp_move(),
             Binary(binary, left, right) => [binary.sexp(), left.sexp(), right.sexp()].sexp_move(),
             Call(call) => call.sexp(),

@@ -5,6 +5,7 @@ use crate::data::ast;
 use crate::data::ir;
 use crate::data::lir;
 use crate::emit;
+use crate::emit::interpreter;
 use crate::emit::Foldable;
 use crate::error;
 use crate::util::sexp::Serialize;
@@ -15,14 +16,16 @@ pub struct Driver<'main> {
     directory: &'main std::path::Path,
     diagnostic: bool,
     fold: bool,
+    run: bool,
 }
 
 impl<'main> Driver<'main> {
-    pub fn new(directory: &'main std::path::Path, diagnostic: bool, fold: bool) -> Self {
+    pub fn new(directory: &'main std::path::Path, diagnostic: bool, fold: bool, run: bool) -> Self {
         Driver {
             directory,
             diagnostic,
             fold,
+            run,
         }
     }
 
@@ -38,10 +41,6 @@ impl<'main> Driver<'main> {
         if self.fold {
             hir = hir.fold();
         }
-        let mut lir = canonizer.canonize_unit(hir);
-        if self.fold {
-            lir = lir.fold();
-        }
 
         if self.diagnostic {
             let mut log = self
@@ -51,7 +50,16 @@ impl<'main> Driver<'main> {
                 .tap(std::fs::File::create)
                 .map(BufWriter::new)?;
 
-            lir.sexp().write(80, &mut log)?;
+            hir.sexp().write(80, &mut log)?;
+        }
+
+        if self.run {
+            interpreter::Global::run(&hir);
+        }
+
+        let mut lir = canonizer.canonize_unit(hir);
+        if self.fold {
+            lir = lir.fold();
         }
 
         Ok(lir)

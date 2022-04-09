@@ -26,6 +26,10 @@ struct Command {
     #[structopt(short = "g", long = "irgen")]
     debug_ir: bool,
 
+    /// Emulate emitted IR
+    #[structopt(short = "r", long = "irrun")]
+    run_ir: bool,
+
     /// Disable optimizations
     #[structopt(short = "O")]
     optimize_disable: bool,
@@ -61,6 +65,7 @@ fn run() -> Result<(), xic::Error> {
         &command.directory_output,
         command.debug_ir,
         !command.optimize_disable,
+        command.run_ir,
     );
 
     for path in &command.input {
