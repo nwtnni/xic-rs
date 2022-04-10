@@ -9,6 +9,7 @@ use crate::constants;
 use crate::data::hir;
 use crate::data::ir;
 use crate::data::operand;
+use crate::interpret::flat;
 use crate::util::symbol;
 use crate::util::symbol::Symbol;
 
@@ -20,8 +21,7 @@ pub struct Global {
 }
 
 struct Local<'a> {
-    instructions: &'a Vec<Hir<'a>>,
-    labels: &'a BTreeMap<operand::Label, usize>,
+    flat: &'a flat::Flat<flat::Hir<'a>>,
     index: usize,
     temporaries: BTreeMap<operand::Temporary, i64>,
     stack: Vec<Value>,
@@ -37,7 +37,7 @@ enum Value {
 
 impl Global {
     pub fn run(unit: &ir::Unit<hir::Function>) {
-        let unit = unit.map(Flat::flatten_function);
+        let unit = flat::Flat::flatten_unit(unit);
         let mut global = Global {
             heap: Vec::new(),
             rng: rand::thread_rng(),
@@ -48,11 +48,13 @@ impl Global {
             .is_empty());
     }
 
-    fn call(&mut self, unit: &ir::Unit<Flat>, name: &Symbol, arguments: &[i64]) -> Vec<i64> {
-        let Flat {
-            instructions,
-            labels,
-        } = unit.functions.get(name).unwrap();
+    fn call(
+        &mut self,
+        unit: &ir::Unit<flat::Flat<flat::Hir>>,
+        name: &Symbol,
+        arguments: &[i64],
+    ) -> Vec<i64> {
+        let flat = unit.functions.get(name).unwrap();
 
         let mut temporaries = BTreeMap::new();
 
@@ -61,8 +63,7 @@ impl Global {
         }
 
         let mut frame = Local {
-            instructions,
-            labels,
+            flat,
             index: 0,
             temporaries,
             stack: Vec::new(),
@@ -78,27 +79,31 @@ impl Global {
 }
 
 impl<'a> Local<'a> {
-    fn step(&mut self, unit: &ir::Unit<Flat>, global: &mut Global) -> Option<Vec<i64>> {
-        let instruction = match self.instructions.get(self.index) {
+    fn step(
+        &mut self,
+        unit: &ir::Unit<flat::Flat<flat::Hir>>,
+        global: &mut Global,
+    ) -> Option<Vec<i64>> {
+        let instruction = match self.flat.get_instruction(self.index) {
             Some(instruction) => instruction,
             None => return Some(Vec::new()),
         };
 
         match instruction {
-            Hir::Expression(hir::Expression::Integer(integer)) => {
+            flat::Hir::Expression(hir::Expression::Integer(integer)) => {
                 self.stack.push(Value::Integer(*integer));
             }
-            Hir::Expression(hir::Expression::Label(label)) => {
+            flat::Hir::Expression(hir::Expression::Label(label)) => {
                 self.stack.push(Value::Label(*label));
             }
-            Hir::Expression(hir::Expression::Temporary(temporary)) => {
+            flat::Hir::Expression(hir::Expression::Temporary(temporary)) => {
                 self.stack.push(Value::Temporary(*temporary));
             }
-            Hir::Expression(hir::Expression::Memory(_)) => {
+            flat::Hir::Expression(hir::Expression::Memory(_)) => {
                 let address = self.pop_integer(global);
                 self.stack.push(Value::Memory(address));
             }
-            Hir::Expression(hir::Expression::Binary(binary, _, _)) => {
+            flat::Hir::Expression(hir::Expression::Binary(binary, _, _)) => {
                 let right = self.pop_integer(global);
                 let left = self.pop_integer(global);
                 let value = match binary {
@@ -131,37 +136,35 @@ impl<'a> Local<'a> {
                 };
                 self.stack.push(Value::Integer(value));
             }
-            Hir::Expression(hir::Expression::Call(call)) => {
+            flat::Hir::Expression(hir::Expression::Call(call)) => {
                 let mut r#return = self.call(unit, global, call);
                 assert_eq!(r#return.len(), 1);
                 self.stack.push(Value::Integer(r#return.remove(0)));
             }
-            Hir::Expression(hir::Expression::Sequence(_, _)) => unreachable!(),
+            flat::Hir::Expression(hir::Expression::Sequence(_, _)) => unreachable!(),
 
-            Hir::Statement(hir::Statement::Jump(_)) => {
+            flat::Hir::Statement(hir::Statement::Jump(_)) => {
                 let label = self.pop_label();
-                let index = self.labels.get(&label).unwrap();
-                self.index = *index;
+                self.index = self.flat.get_label(&label).unwrap();
                 return None;
             }
-            Hir::Statement(hir::Statement::CJump(_, r#true, r#false)) => {
+            flat::Hir::Statement(hir::Statement::CJump(_, r#true, r#false)) => {
                 let label = match self.pop_integer(global) {
                     0 => r#false,
                     1 => r#true,
                     _ => unreachable!(),
                 };
-                let index = self.labels.get(label).unwrap();
-                self.index = *index;
+                self.index = self.flat.get_label(label).unwrap();
                 return None;
             }
-            Hir::Statement(hir::Statement::Label(_)) => unreachable!(),
-            Hir::Statement(hir::Statement::Call(call)) => {
+            flat::Hir::Statement(hir::Statement::Label(_)) => unreachable!(),
+            flat::Hir::Statement(hir::Statement::Call(call)) => {
                 for (index, r#return) in self.call(unit, global, call).into_iter().enumerate() {
                     self.temporaries
                         .insert(operand::Temporary::Return(index), r#return);
                 }
             }
-            Hir::Statement(hir::Statement::Move(_, _)) => {
+            flat::Hir::Statement(hir::Statement::Move(_, _)) => {
                 let from = self.pop_integer(global);
                 let into = self.stack.pop();
                 match into {
@@ -174,7 +177,7 @@ impl<'a> Local<'a> {
                     Some(Value::Label(_)) => panic!("writing into label"),
                 }
             }
-            Hir::Statement(hir::Statement::Return(r#returns)) => {
+            flat::Hir::Statement(hir::Statement::Return(r#returns)) => {
                 let mut r#returns = (0..r#returns.len())
                     .map(|_| self.pop_integer(global))
                     .collect::<Vec<_>>();
@@ -183,14 +186,19 @@ impl<'a> Local<'a> {
 
                 return Some(r#returns);
             }
-            Hir::Statement(hir::Statement::Sequence(_)) => unreachable!(),
+            flat::Hir::Statement(hir::Statement::Sequence(_)) => unreachable!(),
         }
 
         self.index += 1;
         None
     }
 
-    fn call(&mut self, unit: &ir::Unit<Flat>, global: &mut Global, call: &hir::Call) -> Vec<i64> {
+    fn call(
+        &mut self,
+        unit: &ir::Unit<flat::Flat<flat::Hir>>,
+        global: &mut Global,
+        call: &hir::Call,
+    ) -> Vec<i64> {
         let mut arguments = (0..call.arguments.len())
             .map(|_| self.pop_integer(global))
             .collect::<Vec<_>>();
@@ -373,84 +381,5 @@ impl Global {
             self.heap[index + offset] = 0;
         }
         address
-    }
-}
-
-#[derive(Default)]
-struct Flat<'a> {
-    instructions: Vec<Hir<'a>>,
-    labels: BTreeMap<operand::Label, usize>,
-}
-
-#[derive(Copy, Clone, Debug)]
-enum Hir<'a> {
-    Expression(&'a hir::Expression),
-    Statement(&'a hir::Statement),
-}
-
-impl<'a> Flat<'a> {
-    fn flatten_function(function: &'a hir::Function) -> Self {
-        let mut flat = Flat::default();
-        flat.flatten_statement(&function.statements);
-        flat
-    }
-
-    fn flatten_expression(&mut self, expression: &'a hir::Expression) {
-        match expression {
-            hir::Expression::Integer(_)
-            | hir::Expression::Label(_)
-            | hir::Expression::Temporary(_) => (),
-            hir::Expression::Memory(address) => {
-                self.flatten_expression(address);
-            }
-            hir::Expression::Binary(_, left, right) => {
-                self.flatten_expression(left);
-                self.flatten_expression(right);
-            }
-            hir::Expression::Call(call) => self.flatten_call(call),
-            hir::Expression::Sequence(statement, expression) => {
-                self.flatten_statement(statement);
-                self.flatten_expression(expression);
-                return;
-            }
-        }
-
-        self.instructions.push(Hir::Expression(expression));
-    }
-
-    fn flatten_statement(&mut self, statement: &'a hir::Statement) {
-        match statement {
-            hir::Statement::Jump(expression) => self.flatten_expression(expression),
-            hir::Statement::CJump(condition, _, _) => self.flatten_expression(condition),
-            hir::Statement::Label(label) => {
-                self.labels.insert(*label, self.instructions.len());
-                return;
-            }
-            hir::Statement::Call(call) => self.flatten_call(call),
-            hir::Statement::Move(into, from) => {
-                self.flatten_expression(into);
-                self.flatten_expression(from);
-            }
-            hir::Statement::Return(returns) => {
-                returns
-                    .iter()
-                    .for_each(|r#return| self.flatten_expression(r#return));
-            }
-            hir::Statement::Sequence(statements) => {
-                statements
-                    .iter()
-                    .for_each(|statement| self.flatten_statement(statement));
-                return;
-            }
-        }
-
-        self.instructions.push(Hir::Statement(statement));
-    }
-
-    fn flatten_call(&mut self, hir::Call { name, arguments }: &'a hir::Call) {
-        self.flatten_expression(name);
-        arguments
-            .iter()
-            .for_each(|argument| self.flatten_expression(argument));
     }
 }
