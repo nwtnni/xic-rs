@@ -39,7 +39,7 @@ impl<'a> Flat<Hir<'a>> {
         unit.map(Self::flatten_function)
     }
 
-    fn flatten_function(function: &'a hir::Function) -> Self {
+    pub fn flatten_function(function: &'a hir::Function) -> Flat<Hir<'a>> {
         let mut flat = Flat::default();
         flat.flatten_statement(&function.statements);
         flat

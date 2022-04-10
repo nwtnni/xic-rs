@@ -35,20 +35,21 @@ enum Value {
     Temporary(operand::Temporary),
 }
 
+pub fn interpret_unit(unit: &ir::Unit<hir::Function>) {
+    let unit = flat::Flat::flatten_unit(unit);
+
+    let mut global = Global {
+        heap: Vec::new(),
+        rng: rand::thread_rng(),
+    };
+
+    assert!(global
+        .interpret_call(&unit, &symbol::intern("_Imain_paai"), &[0])
+        .is_empty());
+}
+
 impl Global {
-    pub fn run(unit: &ir::Unit<hir::Function>) {
-        let unit = flat::Flat::flatten_unit(unit);
-        let mut global = Global {
-            heap: Vec::new(),
-            rng: rand::thread_rng(),
-        };
-
-        assert!(global
-            .call(&unit, &symbol::intern("_Imain_paai"), &[0])
-            .is_empty());
-    }
-
-    fn call(
+    fn interpret_call(
         &mut self,
         unit: &ir::Unit<flat::Flat<flat::Hir>>,
         name: &Symbol,
@@ -90,20 +91,31 @@ impl<'a> Local<'a> {
         };
 
         match instruction {
-            flat::Hir::Expression(hir::Expression::Integer(integer)) => {
-                self.stack.push(Value::Integer(*integer));
+            flat::Hir::Expression(expression) => {
+                self.interpret_expression(unit, global, expression);
+                self.index += 1;
+                None
             }
-            flat::Hir::Expression(hir::Expression::Label(label)) => {
-                self.stack.push(Value::Label(*label));
-            }
-            flat::Hir::Expression(hir::Expression::Temporary(temporary)) => {
-                self.stack.push(Value::Temporary(*temporary));
-            }
-            flat::Hir::Expression(hir::Expression::Memory(_)) => {
+            flat::Hir::Statement(statement) => self.interpret_statement(unit, global, statement),
+        }
+    }
+
+    fn interpret_expression(
+        &mut self,
+        unit: &ir::Unit<flat::Flat<flat::Hir>>,
+        global: &mut Global,
+        expression: &hir::Expression,
+    ) {
+        match expression {
+            hir::Expression::Sequence(_, _) => unreachable!(),
+            hir::Expression::Integer(integer) => self.stack.push(Value::Integer(*integer)),
+            hir::Expression::Label(label) => self.stack.push(Value::Label(*label)),
+            hir::Expression::Temporary(temporary) => self.stack.push(Value::Temporary(*temporary)),
+            hir::Expression::Memory(_) => {
                 let address = self.pop_integer(global);
                 self.stack.push(Value::Memory(address));
             }
-            flat::Hir::Expression(hir::Expression::Binary(binary, _, _)) => {
+            hir::Expression::Binary(binary, _, _) => {
                 let right = self.pop_integer(global);
                 let left = self.pop_integer(global);
                 let value = match binary {
@@ -136,19 +148,29 @@ impl<'a> Local<'a> {
                 };
                 self.stack.push(Value::Integer(value));
             }
-            flat::Hir::Expression(hir::Expression::Call(call)) => {
-                let mut r#return = self.call(unit, global, call);
+            hir::Expression::Call(call) => {
+                let mut r#return = self.interpret_call(unit, global, call);
                 assert_eq!(r#return.len(), 1);
                 self.stack.push(Value::Integer(r#return.remove(0)));
             }
-            flat::Hir::Expression(hir::Expression::Sequence(_, _)) => unreachable!(),
+        }
+    }
 
-            flat::Hir::Statement(hir::Statement::Jump(_)) => {
+    fn interpret_statement(
+        &mut self,
+        unit: &ir::Unit<flat::Flat<flat::Hir>>,
+        global: &mut Global,
+        statement: &hir::Statement,
+    ) -> Option<Vec<i64>> {
+        match statement {
+            hir::Statement::Label(_) => unreachable!(),
+            hir::Statement::Sequence(_) => unreachable!(),
+            hir::Statement::Jump(_) => {
                 let label = self.pop_label();
                 self.index = self.flat.get_label(&label).unwrap();
                 return None;
             }
-            flat::Hir::Statement(hir::Statement::CJump(_, r#true, r#false)) => {
+            hir::Statement::CJump(_, r#true, r#false) => {
                 let label = match self.pop_integer(global) {
                     0 => r#false,
                     1 => r#true,
@@ -157,14 +179,17 @@ impl<'a> Local<'a> {
                 self.index = self.flat.get_label(label).unwrap();
                 return None;
             }
-            flat::Hir::Statement(hir::Statement::Label(_)) => unreachable!(),
-            flat::Hir::Statement(hir::Statement::Call(call)) => {
-                for (index, r#return) in self.call(unit, global, call).into_iter().enumerate() {
+            hir::Statement::Call(call) => {
+                for (index, r#return) in self
+                    .interpret_call(unit, global, call)
+                    .into_iter()
+                    .enumerate()
+                {
                     self.temporaries
                         .insert(operand::Temporary::Return(index), r#return);
                 }
             }
-            flat::Hir::Statement(hir::Statement::Move(_, _)) => {
+            hir::Statement::Move(_, _) => {
                 let from = self.pop_integer(global);
                 let into = self.stack.pop();
                 match into {
@@ -177,7 +202,7 @@ impl<'a> Local<'a> {
                     Some(Value::Label(_)) => panic!("writing into label"),
                 }
             }
-            flat::Hir::Statement(hir::Statement::Return(r#returns)) => {
+            hir::Statement::Return(r#returns) => {
                 let mut r#returns = (0..r#returns.len())
                     .map(|_| self.pop_integer(global))
                     .collect::<Vec<_>>();
@@ -186,14 +211,13 @@ impl<'a> Local<'a> {
 
                 return Some(r#returns);
             }
-            flat::Hir::Statement(hir::Statement::Sequence(_)) => unreachable!(),
         }
 
         self.index += 1;
         None
     }
 
-    fn call(
+    fn interpret_call(
         &mut self,
         unit: &ir::Unit<flat::Flat<flat::Hir>>,
         global: &mut Global,
@@ -211,7 +235,7 @@ impl<'a> Local<'a> {
         };
 
         self.library(global, name, &arguments)
-            .unwrap_or_else(|| global.call(unit, &name, &arguments))
+            .unwrap_or_else(|| global.interpret_call(unit, &name, &arguments))
     }
 
     fn library(

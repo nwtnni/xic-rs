@@ -54,7 +54,7 @@ impl<'main> Driver<'main> {
         }
 
         if self.run {
-            interpret::hir::Global::run(&hir);
+            interpret::hir::interpret_unit(&hir);
         }
 
         let mut lir = canonizer.canonize_unit(hir);
