@@ -1,5 +1,3 @@
-#![allow(dead_code)]
-
 use std::collections::BTreeMap;
 use std::convert::TryFrom as _;
 use std::io::Read as _;

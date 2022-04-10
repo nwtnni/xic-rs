@@ -5,9 +5,9 @@ use crate::data::ast;
 use crate::data::ir;
 use crate::data::lir;
 use crate::emit;
-use crate::emit::interpreter;
 use crate::emit::Foldable;
 use crate::error;
+use crate::interpret;
 use crate::util::sexp::Serialize;
 use crate::util::Tap;
 
@@ -54,7 +54,7 @@ impl<'main> Driver<'main> {
         }
 
         if self.run {
-            interpreter::Global::run(&hir);
+            interpret::hir::Global::run(&hir);
         }
 
         let mut lir = canonizer.canonize_unit(hir);
