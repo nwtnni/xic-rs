@@ -2,6 +2,8 @@ use std::collections::BTreeMap;
 use std::convert::TryFrom as _;
 use std::io::Read as _;
 
+use anyhow::anyhow;
+use anyhow::Context as _;
 use rand::rngs::ThreadRng;
 use rand::Rng as _;
 
@@ -35,7 +37,7 @@ enum Value {
     Temporary(operand::Temporary),
 }
 
-pub fn interpret_unit(unit: &ir::Unit<hir::Function>) {
+pub fn interpret_unit(unit: &ir::Unit<hir::Function>) -> anyhow::Result<()> {
     let unit = flat::Flat::flatten_unit(unit);
 
     let mut global = Global {
@@ -43,9 +45,11 @@ pub fn interpret_unit(unit: &ir::Unit<hir::Function>) {
         rng: rand::thread_rng(),
     };
 
-    assert!(global
-        .interpret_call(&unit, &symbol::intern("_Imain_paai"), &[0])
+    debug_assert!(global
+        .interpret_call(&unit, &symbol::intern("_Imain_paai"), &[0])?
         .is_empty());
+
+    Ok(())
 }
 
 impl Global {
@@ -54,7 +58,7 @@ impl Global {
         unit: &ir::Unit<flat::Flat<flat::Hir>>,
         name: &Symbol,
         arguments: &[i64],
-    ) -> Vec<i64> {
+    ) -> anyhow::Result<Vec<i64>> {
         let flat = unit.functions.get(name).unwrap();
 
         let mut temporaries = BTreeMap::new();
@@ -71,8 +75,8 @@ impl Global {
         };
 
         loop {
-            match frame.step(unit, self) {
-                Some(returns) => return returns,
+            match frame.step(unit, self)? {
+                Some(returns) => return Ok(returns),
                 None => continue,
             }
         }
@@ -84,17 +88,17 @@ impl<'a> Local<'a> {
         &mut self,
         unit: &ir::Unit<flat::Flat<flat::Hir>>,
         global: &mut Global,
-    ) -> Option<Vec<i64>> {
+    ) -> anyhow::Result<Option<Vec<i64>>> {
         let instruction = match self.flat.get_instruction(self.index) {
             Some(instruction) => instruction,
-            None => return Some(Vec::new()),
+            None => return Ok(Some(Vec::new())),
         };
 
         match instruction {
             flat::Hir::Expression(expression) => {
-                self.interpret_expression(unit, global, expression);
+                self.interpret_expression(unit, global, expression)?;
                 self.index += 1;
-                None
+                Ok(None)
             }
             flat::Hir::Statement(statement) => self.interpret_statement(unit, global, statement),
         }
@@ -105,7 +109,7 @@ impl<'a> Local<'a> {
         unit: &ir::Unit<flat::Flat<flat::Hir>>,
         global: &mut Global,
         expression: &hir::Expression,
-    ) {
+    ) -> anyhow::Result<()> {
         match expression {
             hir::Expression::Sequence(_, _) => unreachable!(),
             hir::Expression::Integer(integer) => self.stack.push(Value::Integer(*integer)),
@@ -136,24 +140,26 @@ impl<'a> Local<'a> {
                     ir::Binary::Ne => (left != right) as bool as i64,
                     ir::Binary::Eq => (left == right) as bool as i64,
                     ir::Binary::And => {
-                        assert!(left == 0 || left == 1);
-                        assert!(right == 0 || right == 1);
+                        debug_assert!(left == 0 || left == 1);
+                        debug_assert!(right == 0 || right == 1);
                         left & right
                     }
                     ir::Binary::Or => {
-                        assert!(left == 0 || left == 1);
-                        assert!(right == 0 || right == 1);
+                        debug_assert!(left == 0 || left == 1);
+                        debug_assert!(right == 0 || right == 1);
                         left | right
                     }
                 };
                 self.stack.push(Value::Integer(value));
             }
             hir::Expression::Call(call) => {
-                let mut r#return = self.interpret_call(unit, global, call);
-                assert_eq!(r#return.len(), 1);
+                let mut r#return = self.interpret_call(unit, global, call)?;
+                debug_assert_eq!(r#return.len(), 1);
                 self.stack.push(Value::Integer(r#return.remove(0)));
             }
         }
+
+        Ok(())
     }
 
     fn interpret_statement(
@@ -161,14 +167,14 @@ impl<'a> Local<'a> {
         unit: &ir::Unit<flat::Flat<flat::Hir>>,
         global: &mut Global,
         statement: &hir::Statement,
-    ) -> Option<Vec<i64>> {
+    ) -> anyhow::Result<Option<Vec<i64>>> {
         match statement {
             hir::Statement::Label(_) => unreachable!(),
             hir::Statement::Sequence(_) => unreachable!(),
             hir::Statement::Jump(_) => {
                 let label = self.pop_label();
                 self.index = self.flat.get_label(&label).unwrap();
-                return None;
+                return Ok(None);
             }
             hir::Statement::CJump(_, r#true, r#false) => {
                 let label = match self.pop_integer(global) {
@@ -177,11 +183,11 @@ impl<'a> Local<'a> {
                     _ => unreachable!(),
                 };
                 self.index = self.flat.get_label(label).unwrap();
-                return None;
+                return Ok(None);
             }
             hir::Statement::Call(call) => {
                 for (index, r#return) in self
-                    .interpret_call(unit, global, call)
+                    .interpret_call(unit, global, call)?
                     .into_iter()
                     .enumerate()
                 {
@@ -209,12 +215,12 @@ impl<'a> Local<'a> {
 
                 r#returns.reverse();
 
-                return Some(r#returns);
+                return Ok(Some(r#returns));
             }
         }
 
         self.index += 1;
-        None
+        Ok(None)
     }
 
     fn interpret_call(
@@ -222,7 +228,7 @@ impl<'a> Local<'a> {
         unit: &ir::Unit<flat::Flat<flat::Hir>>,
         global: &mut Global,
         call: &hir::Call,
-    ) -> Vec<i64> {
+    ) -> anyhow::Result<Vec<i64>> {
         let mut arguments = (0..call.arguments.len())
             .map(|_| self.pop_integer(global))
             .collect::<Vec<_>>();
@@ -234,8 +240,14 @@ impl<'a> Local<'a> {
             operand::Label::Fresh(_, _) => panic!("calling fresh function name"),
         };
 
-        self.library(global, name, &arguments)
-            .unwrap_or_else(|| global.interpret_call(unit, &name, &arguments))
+        match self.library(global, name, &arguments) {
+            Some(r#returns) => {
+                r#returns.with_context(|| anyhow!("Calling library function {}", name))
+            }
+            None => global
+                .interpret_call(unit, &name, &arguments)
+                .with_context(|| anyhow!("Calling user function {}", name)),
+        }
     }
 
     fn library(
@@ -243,17 +255,17 @@ impl<'a> Local<'a> {
         global: &mut Global,
         name: Symbol,
         arguments: &[i64],
-    ) -> Option<Vec<i64>> {
+    ) -> Option<anyhow::Result<Vec<i64>>> {
         let r#returns = match symbol::resolve(name) {
             "_Iprint_pai" => {
-                assert_eq!(arguments.len(), 1);
+                debug_assert_eq!(arguments.len(), 1);
                 for byte in global.read_array(arguments[0]) {
                     print!("{}", u8::try_from(*byte).unwrap() as char);
                 }
                 Vec::new()
             }
             "_Iprintln_pai" => {
-                assert_eq!(arguments.len(), 1);
+                debug_assert_eq!(arguments.len(), 1);
                 for byte in global.read_array(arguments[0]) {
                     print!("{}", u8::try_from(*byte).unwrap() as char);
                 }
@@ -261,25 +273,25 @@ impl<'a> Local<'a> {
                 Vec::new()
             }
             "_Ireadln_ai" => {
-                assert_eq!(arguments.len(), 0);
+                debug_assert_eq!(arguments.len(), 0);
                 let mut buffer = String::new();
                 std::io::stdin().read_line(&mut buffer).unwrap();
-                assert_eq!(buffer.pop(), Some('\n'));
+                debug_assert_eq!(buffer.pop(), Some('\n'));
                 vec![global.write_array(buffer.as_bytes())]
             }
             "_Igetchar_i" => {
-                assert_eq!(arguments.len(), 0);
+                debug_assert_eq!(arguments.len(), 0);
                 let mut char = [0];
                 std::io::stdin().read_exact(&mut char).unwrap();
                 vec![char[0] as i64]
             }
             "_Ieof_b" => unimplemented!(),
             "_IunparseInt_aii" => {
-                assert_eq!(arguments.len(), 1);
+                debug_assert_eq!(arguments.len(), 1);
                 vec![global.write_array(arguments[0].to_string().as_bytes())]
             }
             "_IparseInt_t2ibai" => {
-                assert_eq!(arguments.len(), 1);
+                debug_assert_eq!(arguments.len(), 1);
 
                 let integer = global
                     .read_array(arguments[0])
@@ -294,21 +306,21 @@ impl<'a> Local<'a> {
                 }
             }
             "_xi_alloc" => {
-                assert_eq!(arguments.len(), 1);
+                debug_assert_eq!(arguments.len(), 1);
                 vec![global.calloc(arguments[0])]
             }
             "_xi_out_of_bounds" => panic!("out of bounds"),
             "_Iassert_pb" => {
-                assert_eq!(arguments.len(), 1);
+                debug_assert_eq!(arguments.len(), 1);
                 if arguments[0] != 1 {
-                    panic!("Assertion error");
+                    return Some(Err(anyhow!("Assertion error: {}", arguments[0])));
                 }
                 Vec::new()
             }
             _ => return None,
         };
 
-        Some(r#returns)
+        Some(Ok(r#returns))
     }
 
     fn pop_integer(&mut self, global: &Global) -> i64 {
@@ -345,7 +357,7 @@ impl Global {
 
     fn read_array(&self, address: i64) -> &[i64] {
         let len = self.read(address - constants::WORD_SIZE);
-        assert!(len >= 0);
+        debug_assert!(len >= 0);
         let index = Self::index(address);
         &self.heap[index..][..len as usize]
     }

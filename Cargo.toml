@@ -5,6 +5,7 @@ authors = ["Newton Ni <nwtnni@gmail.com>"]
 edition = "2018"
 
 [dependencies]
+anyhow = "1.0"
 lalrpop-util = "0.19"
 structopt = "0.3"
 pretty = "0.11"

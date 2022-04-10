@@ -6,7 +6,6 @@ use crate::data::ir;
 use crate::data::lir;
 use crate::emit;
 use crate::emit::Foldable;
-use crate::error;
 use crate::interpret;
 use crate::util::sexp::Serialize;
 use crate::util::Tap;
@@ -34,7 +33,7 @@ impl<'main> Driver<'main> {
         path: &std::path::Path,
         ast: &ast::Program,
         env: &check::Context,
-    ) -> Result<ir::Unit<lir::Function>, error::Error> {
+    ) -> anyhow::Result<ir::Unit<lir::Function>> {
         let canonizer = emit::Canonizer::new();
         let emitter = emit::Emitter::new(env);
         let mut hir = emitter.emit_unit(path, ast);
@@ -54,7 +53,7 @@ impl<'main> Driver<'main> {
         }
 
         if self.run {
-            interpret::hir::interpret_unit(&hir);
+            interpret::hir::interpret_unit(&hir)?;
         }
 
         let mut lir = canonizer.canonize_unit(hir);

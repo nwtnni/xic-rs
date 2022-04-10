@@ -51,7 +51,7 @@ struct Command {
     input: Vec<PathBuf>,
 }
 
-fn run() -> Result<(), xic::Error> {
+fn main() -> anyhow::Result<()> {
     let command = Command::from_args();
 
     let lexer = lex::Driver::new(&command.directory_output, command.debug_lex);
@@ -77,10 +77,4 @@ fn run() -> Result<(), xic::Error> {
     }
 
     Ok(())
-}
-
-fn main() {
-    if let Err(error) = run() {
-        println!("{}", error);
-    }
 }
