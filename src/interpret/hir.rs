@@ -11,7 +11,8 @@ use crate::constants;
 use crate::data::hir;
 use crate::data::ir;
 use crate::data::operand;
-use crate::interpret::flat;
+use crate::interpret::postorder;
+use crate::interpret::postorder::PostorderHir;
 use crate::util::symbol;
 use crate::util::symbol::Symbol;
 
@@ -23,7 +24,7 @@ pub struct Global {
 }
 
 struct Local<'a> {
-    flat: &'a flat::Flat<flat::Hir<'a>>,
+    postorder: &'a PostorderHir<'a>,
     index: usize,
     temporaries: BTreeMap<operand::Temporary, i64>,
     stack: Vec<Value>,
@@ -38,7 +39,7 @@ enum Value {
 }
 
 pub fn interpret_unit(unit: &ir::Unit<hir::Function>) -> anyhow::Result<()> {
-    let unit = flat::Flat::flatten_hir_unit(unit);
+    let unit = PostorderHir::traverse_hir_unit(unit);
 
     let mut global = Global {
         heap: Vec::new(),
@@ -55,11 +56,11 @@ pub fn interpret_unit(unit: &ir::Unit<hir::Function>) -> anyhow::Result<()> {
 impl Global {
     fn interpret_call(
         &mut self,
-        unit: &ir::Unit<flat::Flat<flat::Hir>>,
+        unit: &ir::Unit<PostorderHir>,
         name: &Symbol,
         arguments: &[i64],
     ) -> anyhow::Result<Vec<i64>> {
-        let flat = unit.functions.get(name).unwrap();
+        let postorder = unit.functions.get(name).unwrap();
 
         let mut temporaries = BTreeMap::new();
 
@@ -68,7 +69,7 @@ impl Global {
         }
 
         let mut frame = Local {
-            flat,
+            postorder,
             index: 0,
             temporaries,
             stack: Vec::new(),
@@ -86,27 +87,29 @@ impl Global {
 impl<'a> Local<'a> {
     fn step(
         &mut self,
-        unit: &ir::Unit<flat::Flat<flat::Hir>>,
+        unit: &ir::Unit<PostorderHir<'a>>,
         global: &mut Global,
     ) -> anyhow::Result<Option<Vec<i64>>> {
-        let instruction = match self.flat.get_instruction(self.index) {
+        let instruction = match self.postorder.get_instruction(self.index) {
             Some(instruction) => instruction,
             None => return Ok(Some(Vec::new())),
         };
 
         match instruction {
-            flat::Hir::Expression(expression) => {
+            postorder::Hir::Expression(expression) => {
                 self.interpret_expression(unit, global, expression)?;
                 self.index += 1;
                 Ok(None)
             }
-            flat::Hir::Statement(statement) => self.interpret_statement(unit, global, statement),
+            postorder::Hir::Statement(statement) => {
+                self.interpret_statement(unit, global, statement)
+            }
         }
     }
 
     fn interpret_expression(
         &mut self,
-        unit: &ir::Unit<flat::Flat<flat::Hir>>,
+        unit: &ir::Unit<PostorderHir<'a>>,
         global: &mut Global,
         expression: &hir::Expression,
     ) -> anyhow::Result<()> {
@@ -164,7 +167,7 @@ impl<'a> Local<'a> {
 
     fn interpret_statement(
         &mut self,
-        unit: &ir::Unit<flat::Flat<flat::Hir>>,
+        unit: &ir::Unit<PostorderHir<'a>>,
         global: &mut Global,
         statement: &hir::Statement,
     ) -> anyhow::Result<Option<Vec<i64>>> {
@@ -173,7 +176,7 @@ impl<'a> Local<'a> {
             hir::Statement::Sequence(_) => unreachable!(),
             hir::Statement::Jump(_) => {
                 let label = self.pop_label();
-                self.index = self.flat.get_label(&label).unwrap();
+                self.index = self.postorder.get_label(&label).unwrap();
                 return Ok(None);
             }
             hir::Statement::CJump(_, r#true, r#false) => {
@@ -182,7 +185,7 @@ impl<'a> Local<'a> {
                     1 => r#true,
                     _ => unreachable!(),
                 };
-                self.index = self.flat.get_label(label).unwrap();
+                self.index = self.postorder.get_label(label).unwrap();
                 return Ok(None);
             }
             hir::Statement::Call(call) => {
@@ -225,7 +228,7 @@ impl<'a> Local<'a> {
 
     fn interpret_call(
         &mut self,
-        unit: &ir::Unit<flat::Flat<flat::Hir>>,
+        unit: &ir::Unit<PostorderHir<'a>>,
         global: &mut Global,
         call: &hir::Call,
     ) -> anyhow::Result<Vec<i64>> {
