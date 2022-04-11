@@ -116,9 +116,13 @@ impl Serialize for lir::Statement {
                 ["EXP".sexp(), call].sexp_move()
             }
             Jump(expression) => ["JUMP".sexp(), expression.sexp()].sexp_move(),
-            CJump(condition, r#true, _) => {
-                ["CJUMP".sexp(), condition.sexp(), r#true.sexp()].sexp_move()
-            }
+            CJump(condition, r#true, r#false) => [
+                "CJUMP".sexp(),
+                condition.sexp(),
+                r#true.sexp(),
+                r#false.sexp(),
+            ]
+            .sexp_move(),
             Label(label) => ["LABEL".sexp(), label.sexp()].sexp_move(),
             Move(into, from) => ["MOVE".sexp(), into.sexp(), from.sexp()].sexp_move(),
             Return(expressions) => std::iter::once("RETURN".sexp())
