@@ -123,14 +123,16 @@ impl Canonizer {
     }
 
     fn canonize_call(&mut self, call: &hir::Call) {
-        let save = lir::Expression::Temporary(operand::Temporary::fresh("save"));
-        let name = self.canonize_expression(&call.name);
-
-        self.canonized
-            .push(lir::Statement::Move(save.clone(), name));
+        let name = match &*call.name {
+            hir::Expression::Label(name) => name,
+            _ => unimplemented!("Calls to arbitrary expressions not yet implemented"),
+        };
 
         let arguments = self.canonize_expressions(&call.arguments);
-        self.canonized.push(lir::Statement::Call(save, arguments));
+        self.canonized.push(lir::Statement::Call(
+            lir::Expression::Label(*name),
+            arguments,
+        ));
     }
 
     fn canonize_expressions(&mut self, expressions: &[hir::Expression]) -> Vec<lir::Expression> {
