@@ -57,8 +57,8 @@ impl<T> Postorder<T> {
         self.instructions.get(index)
     }
 
-    pub fn get_label(&self, label: &operand::Label) -> Option<usize> {
-        self.labels.get(label).copied()
+    pub fn get_label(&self, label: &operand::Label) -> Option<&usize> {
+        self.labels.get(label)
     }
 }
 

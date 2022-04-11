@@ -1,5 +1,3 @@
-use std::collections::BTreeMap;
-
 use anyhow::anyhow;
 use anyhow::Context as _;
 
@@ -8,62 +6,37 @@ use crate::data::ir;
 use crate::data::operand;
 use crate::interpret::global::Global;
 use crate::interpret::global::Value;
+use crate::interpret::local;
 use crate::interpret::postorder;
 use crate::interpret::postorder::PostorderHir;
 use crate::util::symbol;
-use crate::util::symbol::Symbol;
-
-struct Local<'a> {
-    postorder: &'a PostorderHir<'a>,
-    index: usize,
-    temporaries: BTreeMap<operand::Temporary, i64>,
-    stack: Vec<Value>,
-}
 
 pub fn interpret_unit(unit: &ir::Unit<hir::Function>) -> anyhow::Result<()> {
     let unit = PostorderHir::traverse_hir_unit(unit);
 
     let mut global = Global::new();
-    let mut local = Local::new(&unit, &symbol::intern("_Imain_paai"), &[0]);
+    let mut local = local::Frame::new(&unit, &symbol::intern("_Imain_paai"), &[0]);
 
-    debug_assert!(local.run(&unit, &mut global)?.is_empty());
+    debug_assert!(local.interpret_hir(&unit, &mut global)?.is_empty());
 
     Ok(())
 }
 
-impl<'a> Local<'a> {
-    fn new(unit: &'a ir::Unit<PostorderHir<'a>>, name: &Symbol, arguments: &[i64]) -> Self {
-        let postorder = unit.functions.get(name).unwrap();
-
-        let mut temporaries = BTreeMap::new();
-
-        for (index, argument) in arguments.iter().copied().enumerate() {
-            temporaries.insert(operand::Temporary::Argument(index), argument);
-        }
-
-        Local {
-            postorder,
-            index: 0,
-            temporaries,
-            stack: Vec::new(),
-        }
-    }
-
-    fn run(
+impl<'a> local::Frame<'a, postorder::Hir<'a>> {
+    fn interpret_hir(
         &mut self,
         unit: &ir::Unit<PostorderHir<'a>>,
         global: &mut Global,
     ) -> anyhow::Result<Vec<i64>> {
         loop {
-            let instruction = match self.postorder.get_instruction(self.index) {
+            let instruction = match self.step() {
                 Some(instruction) => instruction,
                 None => return Ok(Vec::new()),
             };
 
             match instruction {
                 postorder::Hir::Expression(expression) => {
-                    self.interpret_expression(unit, global, expression)?;
-                    self.index += 1;
+                    self.interpret_expression(unit, global, expression)?
                 }
                 postorder::Hir::Statement(statement) => {
                     if let Some(r#returns) = self.interpret_statement(unit, global, statement)? {
@@ -82,12 +55,12 @@ impl<'a> Local<'a> {
     ) -> anyhow::Result<()> {
         match expression {
             hir::Expression::Sequence(_, _) => unreachable!(),
-            hir::Expression::Integer(integer) => self.stack.push(Value::Integer(*integer)),
-            hir::Expression::Label(label) => self.stack.push(Value::Label(*label)),
-            hir::Expression::Temporary(temporary) => self.stack.push(Value::Temporary(*temporary)),
+            hir::Expression::Integer(integer) => self.push(Value::Integer(*integer)),
+            hir::Expression::Label(label) => self.push(Value::Label(*label)),
+            hir::Expression::Temporary(temporary) => self.push(Value::Temporary(*temporary)),
             hir::Expression::Memory(_) => {
                 let address = self.pop_integer(global);
-                self.stack.push(Value::Memory(address));
+                self.push(Value::Memory(address));
             }
             hir::Expression::Binary(binary, _, _) => {
                 let right = self.pop_integer(global);
@@ -120,12 +93,12 @@ impl<'a> Local<'a> {
                         left | right
                     }
                 };
-                self.stack.push(Value::Integer(value));
+                self.push(Value::Integer(value));
             }
             hir::Expression::Call(call) => {
                 let mut r#return = self.interpret_call(unit, global, call)?;
                 debug_assert_eq!(r#return.len(), 1);
-                self.stack.push(Value::Integer(r#return.remove(0)));
+                self.push(Value::Integer(r#return.remove(0)));
             }
         }
 
@@ -143,7 +116,7 @@ impl<'a> Local<'a> {
             hir::Statement::Sequence(_) => unreachable!(),
             hir::Statement::Jump(_) => {
                 let label = self.pop_label();
-                self.index = self.postorder.get_label(&label).unwrap();
+                self.jump(&label);
                 return Ok(None);
             }
             hir::Statement::CJump(_, r#true, r#false) => {
@@ -152,7 +125,7 @@ impl<'a> Local<'a> {
                     1 => r#true,
                     _ => unreachable!(),
                 };
-                self.index = self.postorder.get_label(label).unwrap();
+                self.jump(label);
                 return Ok(None);
             }
             hir::Statement::Call(call) => {
@@ -161,35 +134,24 @@ impl<'a> Local<'a> {
                     .into_iter()
                     .enumerate()
                 {
-                    self.temporaries
-                        .insert(operand::Temporary::Return(index), r#return);
+                    self.insert(operand::Temporary::Return(index), r#return);
                 }
             }
             hir::Statement::Move(_, _) => {
                 let from = self.pop_integer(global);
-                let into = self.stack.pop();
+                let into = self.pop();
                 match into {
-                    None => panic!("empty stack"),
-                    Some(Value::Integer(_)) => panic!("writing into integer"),
-                    Some(Value::Memory(address)) => global.write(address, from),
-                    Some(Value::Temporary(temporary)) => {
-                        self.temporaries.insert(temporary, from);
-                    }
-                    Some(Value::Label(_)) => panic!("writing into label"),
+                    Value::Integer(_) => panic!("writing into integer"),
+                    Value::Memory(address) => global.write(address, from),
+                    Value::Temporary(temporary) => self.insert(temporary, from),
+                    Value::Label(_) => panic!("writing into label"),
                 }
             }
             hir::Statement::Return(r#returns) => {
-                let mut r#returns = (0..r#returns.len())
-                    .map(|_| self.pop_integer(global))
-                    .collect::<Vec<_>>();
-
-                r#returns.reverse();
-
-                return Ok(Some(r#returns));
+                return Ok(Some(self.pop_arguments(global, r#returns.len())));
             }
         }
 
-        self.index += 1;
         Ok(None)
     }
 
@@ -199,12 +161,7 @@ impl<'a> Local<'a> {
         global: &mut Global,
         call: &hir::Call,
     ) -> anyhow::Result<Vec<i64>> {
-        let mut arguments = (0..call.arguments.len())
-            .map(|_| self.pop_integer(global))
-            .collect::<Vec<_>>();
-
-        arguments.reverse();
-
+        let arguments = self.pop_arguments(global, call.arguments.len());
         let name = match self.pop_label() {
             operand::Label::Fixed(name) => name,
             operand::Label::Fresh(_, _) => panic!("calling fresh function name"),
@@ -212,27 +169,9 @@ impl<'a> Local<'a> {
 
         global
             .interpret_library(name, &arguments)
-            .unwrap_or_else(|| Local::new(unit, &name, &arguments).run(unit, global))
+            .unwrap_or_else(|| {
+                local::Frame::new(unit, &name, &arguments).interpret_hir(unit, global)
+            })
             .with_context(|| anyhow!("Calling function {}", name))
-    }
-
-    fn pop_integer(&mut self, global: &Global) -> i64 {
-        match self.stack.pop() {
-            None => panic!("empty stack"),
-            Some(Value::Integer(integer)) => integer,
-            Some(Value::Memory(address)) => global.read(address),
-            Some(Value::Label(_)) => panic!("using label as integer"),
-            Some(Value::Temporary(temporary)) => self.temporaries[&temporary],
-        }
-    }
-
-    fn pop_label(&mut self) -> operand::Label {
-        match self.stack.pop() {
-            None => panic!("empty stack"),
-            Some(Value::Integer(_)) => panic!("using integer as label"),
-            Some(Value::Memory(_)) => panic!("using memory as label"),
-            Some(Value::Label(label)) => label,
-            Some(Value::Temporary(_)) => panic!("using temporary as label"),
-        }
     }
 }
