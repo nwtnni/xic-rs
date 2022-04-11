@@ -38,7 +38,7 @@ enum Value {
 }
 
 pub fn interpret_unit(unit: &ir::Unit<hir::Function>) -> anyhow::Result<()> {
-    let unit = flat::Flat::flatten_unit(unit);
+    let unit = flat::Flat::flatten_hir_unit(unit);
 
     let mut global = Global {
         heap: Vec::new(),
