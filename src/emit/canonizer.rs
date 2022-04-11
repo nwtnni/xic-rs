@@ -8,7 +8,6 @@ use crate::data::operand;
 #[derive(Debug, Default)]
 pub struct Canonizer {
     canonized: Vec<lir::Statement>,
-    purity: bool,
 }
 
 impl Canonizer {
@@ -53,22 +52,18 @@ impl Canonizer {
                 self.canonize_expression(expression)
             }
             Binary(binary, left, right) => {
+                let save = lir::Expression::Temporary(operand::Temporary::fresh("save"));
                 let left = self.canonize_expression(left);
-                let index = self.canonized.len();
+
+                self.canonized
+                    .push(lir::Statement::Move(save.clone(), left));
+
                 let right = self.canonize_expression(right);
-                if self.purity {
-                    lir::Expression::Binary(*binary, Box::new(left), Box::new(right))
-                } else {
-                    let save = lir::Expression::Temporary(operand::Temporary::fresh("save"));
-                    let r#move = lir::Statement::Move(save.clone(), left);
-                    self.canonized.insert(index, r#move);
-                    lir::Expression::Binary(*binary, Box::new(save), Box::new(right))
-                }
+                lir::Expression::Binary(*binary, Box::new(save), Box::new(right))
             }
             Call(call) => {
-                self.canonize_call(call);
-
                 let save = lir::Expression::Temporary(operand::Temporary::fresh("save"));
+                self.canonize_call(call);
 
                 self.canonized.push(lir::Statement::Move(
                     save.clone(),
@@ -85,148 +80,58 @@ impl Canonizer {
         match statement {
             Label(label) => self.canonized.push(lir::Statement::Label(*label)),
             Sequence(statements) => {
-                let mut purity = true;
                 for statement in statements {
-                    self.purity = true;
                     self.canonize_statement(statement);
-                    purity &= self.purity;
                 }
-                self.purity = purity;
             }
             Jump(expression) => {
                 let jump = lir::Statement::Jump(self.canonize_expression(expression));
                 self.canonized.push(jump);
-                self.purity = false;
             }
             CJump(condition, r#true, r#false) => {
                 let cjump =
                     lir::Statement::CJump(self.canonize_expression(condition), *r#true, *r#false);
                 self.canonized.push(cjump);
-                self.purity = false;
-            }
-            Move(hir::Expression::Memory(into), from) => {
-                let into = self.canonize_expression(into);
-                let index = self.canonized.len();
-                let from = self.canonize_expression(from);
-                if self.purity {
-                    self.canonized.push(lir::Statement::Move(
-                        lir::Expression::Memory(Box::new(into)),
-                        from,
-                    ));
-                } else {
-                    let save = lir::Expression::Temporary(operand::Temporary::fresh("save"));
-                    let r#move = lir::Statement::Move(save.clone(), into);
-                    self.canonized.insert(index, r#move);
-                    self.canonized.push(lir::Statement::Move(
-                        lir::Expression::Memory(Box::new(save)),
-                        from,
-                    ));
-                }
-                self.purity = false;
             }
             Move(into, from) => {
+                let save = lir::Expression::Temporary(operand::Temporary::fresh("save"));
                 let into = self.canonize_expression(into);
-                let index = self.canonized.len();
+
+                self.canonized
+                    .push(lir::Statement::Move(save.clone(), into));
+
                 let from = self.canonize_expression(from);
-                if self.purity {
-                    self.canonized.push(lir::Statement::Move(into, from));
-                } else {
-                    let save = lir::Expression::Temporary(operand::Temporary::fresh("save"));
-                    let into = lir::Statement::Move(save.clone(), into);
-                    self.canonized.insert(index, into);
-                    self.canonized.push(lir::Statement::Move(save, from));
-                }
-                self.purity = false;
+                self.canonized.push(lir::Statement::Move(save, from));
             }
             Call(call) => self.canonize_call(call),
-            Return(expressions) => {
-                let mut purity = Vec::new();
-                let mut canonized = Vec::new();
-                let mut indices = Vec::new();
-
-                for expression in expressions {
-                    self.purity = true;
-                    canonized.push(self.canonize_expression(expression));
-                    indices.push(self.canonized.len());
-                    purity.push(self.purity);
-                }
-
-                // Find last impure argument
-                if let Some(impure) = purity.iter().rposition(|purity| !purity) {
-                    // Move previous arguments into temps
-                    let saved = (0..impure)
-                        .map(|_| operand::Temporary::fresh("save"))
-                        .collect::<Vec<_>>();
-
-                    for index in (0..impure).rev() {
-                        let save = lir::Expression::Temporary(saved[index]);
-                        let into = lir::Statement::Move(save, canonized.remove(index));
-                        self.canonized.insert(indices[index], into);
-                    }
-
-                    // Collect saved temps
-                    let expressions = saved
-                        .into_iter()
-                        .map(lir::Expression::Temporary)
-                        .chain(canonized.into_iter())
-                        .collect::<Vec<_>>();
-
-                    self.canonized.push(lir::Statement::Return(expressions));
-                } else {
-                    self.canonized.push(lir::Statement::Return(canonized));
-                }
-
-                // Does this matter?
-                self.purity = true;
+            Return(r#returns) => {
+                let r#returns = self.canonize_expressions(r#returns);
+                self.canonized.push(lir::Statement::Return(r#returns));
             }
         }
     }
 
     fn canonize_call(&mut self, call: &hir::Call) {
+        let save = lir::Expression::Temporary(operand::Temporary::fresh("save"));
         let name = self.canonize_expression(&call.name);
-        let index = self.canonized.len();
 
-        let mut purity = Vec::new();
-        let mut canonized = Vec::new();
-        let mut indices = Vec::new();
+        self.canonized
+            .push(lir::Statement::Move(save.clone(), name));
 
-        for arg in &call.arguments {
-            self.purity = true;
-            canonized.push(self.canonize_expression(arg));
-            indices.push(self.canonized.len());
-            purity.push(self.purity);
-        }
+        let arguments = self.canonize_expressions(&call.arguments);
+        self.canonized.push(lir::Statement::Call(save, arguments));
+    }
 
-        // Find last impure argument
-        if let Some(impure) = purity.iter().rposition(|purity| !purity) {
-            // Move previous arguments into temps
-            let saved = (0..impure)
-                .map(|_| operand::Temporary::fresh("save"))
-                .collect::<Vec<_>>();
-
-            for index in (0..impure).rev() {
-                let save = lir::Expression::Temporary(saved[index]);
-                let into = lir::Statement::Move(save, canonized.remove(index));
-                self.canonized.insert(indices[index], into);
-            }
-
-            // Move function address into temp
-            let save = lir::Expression::Temporary(operand::Temporary::fresh("save"));
-            let into = lir::Statement::Move(save.clone(), name);
-            self.canonized.insert(index, into);
-
-            // Collect saved temps
-            let args = saved
-                .into_iter()
-                .map(lir::Expression::Temporary)
-                .chain(canonized.into_iter())
-                .collect::<Vec<_>>();
-
-            self.canonized.push(lir::Statement::Call(save, args));
-        } else {
-            self.canonized.push(lir::Statement::Call(name, canonized));
-        }
-
-        self.purity = false;
+    fn canonize_expressions(&mut self, expressions: &[hir::Expression]) -> Vec<lir::Expression> {
+        expressions
+            .iter()
+            .map(|expression| {
+                let save = lir::Expression::Temporary(operand::Temporary::fresh("save"));
+                let expression = self.canonize_expression(expression);
+                self.canonized
+                    .push(lir::Statement::Move(save.clone(), expression));
+                save
+            })
+            .collect()
     }
 }
