@@ -51,6 +51,11 @@ impl Canonizer {
                 self.canonize_statement(statements);
                 self.canonize_expression(expression)
             }
+            Binary(binary, left, right) if commute(left, right) => {
+                let left = self.canonize_expression(left);
+                let right = self.canonize_expression(right);
+                lir::Expression::Binary(*binary, Box::new(left), Box::new(right))
+            }
             Binary(binary, left, right) => {
                 let save = lir::Expression::Temporary(operand::Temporary::fresh("save"));
                 let left = self.canonize_expression(left);
@@ -146,5 +151,18 @@ impl Canonizer {
                 save
             })
             .collect()
+    }
+}
+
+fn commute(before: &hir::Expression, after: &hir::Expression) -> bool {
+    use hir::Expression::*;
+    match (before, after) {
+        (Integer(_) | Label(_), _) => true,
+        (Binary(_, left, right), _) => commute(left, after) && commute(right, after),
+        (_, Integer(_) | Label(_) | Temporary(_)) => true,
+        (_, Memory(expression)) => commute(before, expression),
+        (_, Binary(_, left, right)) => commute(before, left) && commute(before, right),
+        (_, Call(_)) => false,
+        (_, Sequence(_, _)) => false,
     }
 }
