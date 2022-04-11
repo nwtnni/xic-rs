@@ -105,6 +105,14 @@ impl Canonizer {
                     from,
                 ));
             }
+            Move(hir::Expression::Memory(into), from) if pure(from) => {
+                let into = self.canonize_expression(into);
+                let from = self.canonize_expression(from);
+                self.canonized.push(lir::Statement::Move(
+                    lir::Expression::Memory(Box::new(into)),
+                    from,
+                ));
+            }
             Move(hir::Expression::Memory(into), from) => {
                 let save = lir::Expression::Temporary(operand::Temporary::fresh("save"));
                 let into = self.canonize_expression(into);
@@ -156,13 +164,19 @@ impl Canonizer {
 
 fn commute(before: &hir::Expression, after: &hir::Expression) -> bool {
     use hir::Expression::*;
-    match (before, after) {
-        (Integer(_) | Label(_), _) => true,
-        (Binary(_, left, right), _) => commute(left, after) && commute(right, after),
-        (_, Integer(_) | Label(_) | Temporary(_)) => true,
-        (_, Memory(expression)) => commute(before, expression),
-        (_, Binary(_, left, right)) => commute(before, left) && commute(before, right),
-        (_, Call(_)) => false,
-        (_, Sequence(_, _)) => false,
+    match before {
+        Integer(_) => true,
+        Binary(_, left, right) => commute(left, after) && commute(right, after),
+        Label(_) | Temporary(_) | Memory(_) | Call(_) | Sequence(_, _) => pure(after),
+    }
+}
+
+fn pure(expression: &hir::Expression) -> bool {
+    use hir::Expression::*;
+    match expression {
+        Integer(_) | Label(_) | Temporary(_) => true,
+        Memory(expression) => pure(expression),
+        Binary(_, left, right) => pure(left) && pure(right),
+        Call(_) | Sequence(_, _) => false,
     }
 }
