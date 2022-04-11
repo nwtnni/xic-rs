@@ -45,7 +45,7 @@ impl<'main> Driver<'main> {
             let mut log = self
                 .directory
                 .join(path)
-                .with_extension("ir")
+                .with_extension("hir")
                 .tap(std::fs::File::create)
                 .map(BufWriter::new)?;
 
@@ -57,8 +57,24 @@ impl<'main> Driver<'main> {
         }
 
         let mut lir = canonizer.canonize_unit(hir);
+
         if self.fold {
             lir = lir.fold();
+        }
+
+        if self.diagnostic {
+            let mut log = self
+                .directory
+                .join(path)
+                .with_extension("lir")
+                .tap(std::fs::File::create)
+                .map(BufWriter::new)?;
+
+            lir.sexp().write(80, &mut log)?;
+        }
+
+        if self.run {
+            interpret::lir::interpret_unit(&lir)?;
         }
 
         Ok(lir)
