@@ -52,11 +52,7 @@ impl<'main> Driver<'main> {
             hir.sexp().write(80, &mut log)?;
         }
 
-        if self.run {
-            interpret::hir::interpret_unit(&hir)?;
-        }
-
-        let mut lir = canonizer.canonize_unit(hir);
+        let mut lir = canonizer.canonize_unit(hir.clone());
 
         if self.fold {
             lir = lir.fold();
@@ -71,6 +67,10 @@ impl<'main> Driver<'main> {
                 .map(BufWriter::new)?;
 
             lir.sexp().write(80, &mut log)?;
+        }
+
+        if self.run {
+            interpret::hir::interpret_unit(&hir)?;
         }
 
         if self.run {
