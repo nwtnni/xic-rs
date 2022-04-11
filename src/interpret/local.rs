@@ -82,4 +82,68 @@ impl<'a, T: 'a> Frame<'a, T> {
             Some(Value::Temporary(_)) => panic!("using temporary as label"),
         }
     }
+
+    pub fn interpret_binary(&mut self, global: &Global, binary: &ir::Binary) {
+        let right = self.pop_integer(global);
+        let left = self.pop_integer(global);
+        let value = match binary {
+            ir::Binary::Add => left.wrapping_add(right),
+            ir::Binary::Sub => left.wrapping_sub(right),
+            ir::Binary::Mul => left.wrapping_mul(right),
+            ir::Binary::Hul => (((left as i128) * (right as i128)) >> 64) as i64,
+            ir::Binary::Div => left / right,
+            ir::Binary::Mod => left % right,
+            ir::Binary::Xor => left ^ right,
+            ir::Binary::Ls => left << right,
+            ir::Binary::Rs => ((left as u64) >> right) as i64,
+            ir::Binary::ARs => left >> right,
+            ir::Binary::Lt => (left < right) as bool as i64,
+            ir::Binary::Le => (left <= right) as bool as i64,
+            ir::Binary::Ge => (left >= right) as bool as i64,
+            ir::Binary::Gt => (left > right) as bool as i64,
+            ir::Binary::Ne => (left != right) as bool as i64,
+            ir::Binary::Eq => (left == right) as bool as i64,
+            ir::Binary::And => {
+                debug_assert!(left == 0 || left == 1);
+                debug_assert!(right == 0 || right == 1);
+                left & right
+            }
+            ir::Binary::Or => {
+                debug_assert!(left == 0 || left == 1);
+                debug_assert!(right == 0 || right == 1);
+                left | right
+            }
+        };
+        self.push(Value::Integer(value));
+    }
+
+    pub fn interpret_jump(&mut self) {
+        let label = self.pop_label();
+        self.jump(&label);
+    }
+
+    pub fn interpret_cjump(
+        &mut self,
+        global: &Global,
+        r#true: &operand::Label,
+        r#false: &operand::Label,
+    ) {
+        let label = match self.pop_integer(global) {
+            0 => r#false,
+            1 => r#true,
+            _ => unreachable!(),
+        };
+        self.jump(label);
+    }
+
+    pub fn interpret_move(&mut self, global: &mut Global) {
+        let from = self.pop_integer(global);
+        let into = self.pop();
+        match into {
+            Value::Integer(_) => panic!("writing into integer"),
+            Value::Memory(address) => global.write(address, from),
+            Value::Temporary(temporary) => self.insert(temporary, from),
+            Value::Label(_) => panic!("writing into label"),
+        }
+    }
 }

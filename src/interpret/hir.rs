@@ -62,39 +62,7 @@ impl<'a> local::Frame<'a, postorder::Hir<'a>> {
                 let address = self.pop_integer(global);
                 self.push(Value::Memory(address));
             }
-            hir::Expression::Binary(binary, _, _) => {
-                let right = self.pop_integer(global);
-                let left = self.pop_integer(global);
-                let value = match binary {
-                    ir::Binary::Add => left.wrapping_add(right),
-                    ir::Binary::Sub => left.wrapping_sub(right),
-                    ir::Binary::Mul => left.wrapping_mul(right),
-                    ir::Binary::Hul => (((left as i128) * (right as i128)) >> 64) as i64,
-                    ir::Binary::Div => left / right,
-                    ir::Binary::Mod => left % right,
-                    ir::Binary::Xor => left ^ right,
-                    ir::Binary::Ls => left << right,
-                    ir::Binary::Rs => ((left as u64) >> right) as i64,
-                    ir::Binary::ARs => left >> right,
-                    ir::Binary::Lt => (left < right) as bool as i64,
-                    ir::Binary::Le => (left <= right) as bool as i64,
-                    ir::Binary::Ge => (left >= right) as bool as i64,
-                    ir::Binary::Gt => (left > right) as bool as i64,
-                    ir::Binary::Ne => (left != right) as bool as i64,
-                    ir::Binary::Eq => (left == right) as bool as i64,
-                    ir::Binary::And => {
-                        debug_assert!(left == 0 || left == 1);
-                        debug_assert!(right == 0 || right == 1);
-                        left & right
-                    }
-                    ir::Binary::Or => {
-                        debug_assert!(left == 0 || left == 1);
-                        debug_assert!(right == 0 || right == 1);
-                        left | right
-                    }
-                };
-                self.push(Value::Integer(value));
-            }
+            hir::Expression::Binary(binary, _, _) => self.interpret_binary(global, binary),
             hir::Expression::Call(call) => {
                 let mut r#return = self.interpret_call(unit, global, call)?;
                 debug_assert_eq!(r#return.len(), 1);
@@ -115,17 +83,11 @@ impl<'a> local::Frame<'a, postorder::Hir<'a>> {
             hir::Statement::Label(_) => unreachable!(),
             hir::Statement::Sequence(_) => unreachable!(),
             hir::Statement::Jump(_) => {
-                let label = self.pop_label();
-                self.jump(&label);
+                self.interpret_jump();
                 return Ok(None);
             }
             hir::Statement::CJump(_, r#true, r#false) => {
-                let label = match self.pop_integer(global) {
-                    0 => r#false,
-                    1 => r#true,
-                    _ => unreachable!(),
-                };
-                self.jump(label);
+                self.interpret_cjump(global, r#true, r#false);
                 return Ok(None);
             }
             hir::Statement::Call(call) => {
@@ -137,16 +99,7 @@ impl<'a> local::Frame<'a, postorder::Hir<'a>> {
                     self.insert(operand::Temporary::Return(index), r#return);
                 }
             }
-            hir::Statement::Move(_, _) => {
-                let from = self.pop_integer(global);
-                let into = self.pop();
-                match into {
-                    Value::Integer(_) => panic!("writing into integer"),
-                    Value::Memory(address) => global.write(address, from),
-                    Value::Temporary(temporary) => self.insert(temporary, from),
-                    Value::Label(_) => panic!("writing into label"),
-                }
-            }
+            hir::Statement::Move(_, _) => self.interpret_move(global),
             hir::Statement::Return(r#returns) => {
                 return Ok(Some(self.pop_arguments(global, r#returns.len())));
             }
