@@ -18,5 +18,7 @@ xic
 *.parsed
 *.typed
 *.ir
+*.hir
+*.lir
 
 test.xi
