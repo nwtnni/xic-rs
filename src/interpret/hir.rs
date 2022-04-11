@@ -1,27 +1,17 @@
 use std::collections::BTreeMap;
-use std::convert::TryFrom as _;
-use std::io::Read as _;
 
 use anyhow::anyhow;
 use anyhow::Context as _;
-use rand::rngs::ThreadRng;
-use rand::Rng as _;
 
-use crate::constants;
 use crate::data::hir;
 use crate::data::ir;
 use crate::data::operand;
+use crate::interpret::global::Global;
+use crate::interpret::global::Value;
 use crate::interpret::postorder;
 use crate::interpret::postorder::PostorderHir;
 use crate::util::symbol;
 use crate::util::symbol::Symbol;
-
-const HEAP_SIZE: usize = 1024;
-
-pub struct Global {
-    heap: Vec<i64>,
-    rng: ThreadRng,
-}
 
 struct Local<'a> {
     postorder: &'a PostorderHir<'a>,
@@ -30,36 +20,19 @@ struct Local<'a> {
     stack: Vec<Value>,
 }
 
-#[derive(Copy, Clone, Debug)]
-enum Value {
-    Integer(i64),
-    Label(operand::Label),
-    Memory(i64),
-    Temporary(operand::Temporary),
-}
-
 pub fn interpret_unit(unit: &ir::Unit<hir::Function>) -> anyhow::Result<()> {
     let unit = PostorderHir::traverse_hir_unit(unit);
 
-    let mut global = Global {
-        heap: Vec::new(),
-        rng: rand::thread_rng(),
-    };
+    let mut global = Global::new();
+    let mut local = Local::new(&unit, &symbol::intern("_Imain_paai"), &[0]);
 
-    debug_assert!(global
-        .interpret_call(&unit, &symbol::intern("_Imain_paai"), &[0])?
-        .is_empty());
+    debug_assert!(local.run(&unit, &mut global)?.is_empty());
 
     Ok(())
 }
 
-impl Global {
-    fn interpret_call(
-        &mut self,
-        unit: &ir::Unit<PostorderHir>,
-        name: &Symbol,
-        arguments: &[i64],
-    ) -> anyhow::Result<Vec<i64>> {
+impl<'a> Local<'a> {
+    fn new(unit: &'a ir::Unit<PostorderHir<'a>>, name: &Symbol, arguments: &[i64]) -> Self {
         let postorder = unit.functions.get(name).unwrap();
 
         let mut temporaries = BTreeMap::new();
@@ -68,41 +41,35 @@ impl Global {
             temporaries.insert(operand::Temporary::Argument(index), argument);
         }
 
-        let mut frame = Local {
+        Local {
             postorder,
             index: 0,
             temporaries,
             stack: Vec::new(),
-        };
-
-        loop {
-            match frame.step(unit, self)? {
-                Some(returns) => return Ok(returns),
-                None => continue,
-            }
         }
     }
-}
 
-impl<'a> Local<'a> {
-    fn step(
+    fn run(
         &mut self,
         unit: &ir::Unit<PostorderHir<'a>>,
         global: &mut Global,
-    ) -> anyhow::Result<Option<Vec<i64>>> {
-        let instruction = match self.postorder.get_instruction(self.index) {
-            Some(instruction) => instruction,
-            None => return Ok(Some(Vec::new())),
-        };
+    ) -> anyhow::Result<Vec<i64>> {
+        loop {
+            let instruction = match self.postorder.get_instruction(self.index) {
+                Some(instruction) => instruction,
+                None => return Ok(Vec::new()),
+            };
 
-        match instruction {
-            postorder::Hir::Expression(expression) => {
-                self.interpret_expression(unit, global, expression)?;
-                self.index += 1;
-                Ok(None)
-            }
-            postorder::Hir::Statement(statement) => {
-                self.interpret_statement(unit, global, statement)
+            match instruction {
+                postorder::Hir::Expression(expression) => {
+                    self.interpret_expression(unit, global, expression)?;
+                    self.index += 1;
+                }
+                postorder::Hir::Statement(statement) => {
+                    if let Some(r#returns) = self.interpret_statement(unit, global, statement)? {
+                        return Ok(r#returns);
+                    }
+                }
             }
         }
     }
@@ -243,87 +210,10 @@ impl<'a> Local<'a> {
             operand::Label::Fresh(_, _) => panic!("calling fresh function name"),
         };
 
-        match self.library(global, name, &arguments) {
-            Some(r#returns) => {
-                r#returns.with_context(|| anyhow!("Calling library function {}", name))
-            }
-            None => global
-                .interpret_call(unit, &name, &arguments)
-                .with_context(|| anyhow!("Calling user function {}", name)),
-        }
-    }
-
-    fn library(
-        &mut self,
-        global: &mut Global,
-        name: Symbol,
-        arguments: &[i64],
-    ) -> Option<anyhow::Result<Vec<i64>>> {
-        let r#returns = match symbol::resolve(name) {
-            "_Iprint_pai" => {
-                debug_assert_eq!(arguments.len(), 1);
-                for byte in global.read_array(arguments[0]) {
-                    print!("{}", u8::try_from(*byte).unwrap() as char);
-                }
-                Vec::new()
-            }
-            "_Iprintln_pai" => {
-                debug_assert_eq!(arguments.len(), 1);
-                for byte in global.read_array(arguments[0]) {
-                    print!("{}", u8::try_from(*byte).unwrap() as char);
-                }
-                println!();
-                Vec::new()
-            }
-            "_Ireadln_ai" => {
-                debug_assert_eq!(arguments.len(), 0);
-                let mut buffer = String::new();
-                std::io::stdin().read_line(&mut buffer).unwrap();
-                debug_assert_eq!(buffer.pop(), Some('\n'));
-                vec![global.write_array(buffer.as_bytes())]
-            }
-            "_Igetchar_i" => {
-                debug_assert_eq!(arguments.len(), 0);
-                let mut char = [0];
-                std::io::stdin().read_exact(&mut char).unwrap();
-                vec![char[0] as i64]
-            }
-            "_Ieof_b" => unimplemented!(),
-            "_IunparseInt_aii" => {
-                debug_assert_eq!(arguments.len(), 1);
-                vec![global.write_array(arguments[0].to_string().as_bytes())]
-            }
-            "_IparseInt_t2ibai" => {
-                debug_assert_eq!(arguments.len(), 1);
-
-                let integer = global
-                    .read_array(arguments[0])
-                    .iter()
-                    .map(|byte| u8::try_from(*byte).unwrap() as char)
-                    .collect::<String>()
-                    .parse::<i64>();
-
-                match integer {
-                    Ok(integer) => vec![integer, 1],
-                    Err(_) => vec![0, 0],
-                }
-            }
-            "_xi_alloc" => {
-                debug_assert_eq!(arguments.len(), 1);
-                vec![global.calloc(arguments[0])]
-            }
-            "_xi_out_of_bounds" => panic!("out of bounds"),
-            "_Iassert_pb" => {
-                debug_assert_eq!(arguments.len(), 1);
-                if arguments[0] != 1 {
-                    return Some(Err(anyhow!("Assertion error: {}", arguments[0])));
-                }
-                Vec::new()
-            }
-            _ => return None,
-        };
-
-        Some(Ok(r#returns))
+        global
+            .interpret_library(name, &arguments)
+            .unwrap_or_else(|| Local::new(unit, &name, &arguments).run(unit, global))
+            .with_context(|| anyhow!("Calling function {}", name))
     }
 
     fn pop_integer(&mut self, global: &Global) -> i64 {
@@ -344,81 +234,5 @@ impl<'a> Local<'a> {
             Some(Value::Label(label)) => label,
             Some(Value::Temporary(_)) => panic!("using temporary as label"),
         }
-    }
-}
-
-impl Global {
-    fn read(&self, address: i64) -> i64 {
-        let index = Self::index(address);
-        self.heap.get(index).copied().unwrap()
-    }
-
-    fn write(&mut self, address: i64, value: i64) {
-        let index = Self::index(address);
-        self.heap[index] = value;
-    }
-
-    fn read_array(&self, address: i64) -> &[i64] {
-        let len = self.read(address - constants::WORD_SIZE);
-        debug_assert!(len >= 0);
-        let index = Self::index(address);
-        &self.heap[index..][..len as usize]
-    }
-
-    fn write_array(&mut self, array: &[u8]) -> i64 {
-        let len = array.len() as i64;
-        let address = self.malloc((len + 1) * constants::WORD_SIZE);
-
-        self.write(address, len);
-
-        for (index, byte) in array.iter().copied().enumerate() {
-            self.write(
-                address + (index as i64 + 1) * constants::WORD_SIZE,
-                byte as i64,
-            );
-        }
-
-        address + constants::WORD_SIZE
-    }
-
-    fn index(address: i64) -> usize {
-        let address = usize::try_from(address).unwrap();
-
-        if address % constants::WORD_SIZE as usize > 0 {
-            panic!("Unaligned memory access: {:x}", address);
-        }
-
-        address / constants::WORD_SIZE as usize
-    }
-
-    fn malloc(&mut self, bytes: i64) -> i64 {
-        if bytes < 0 {
-            todo!()
-        }
-
-        if bytes % constants::WORD_SIZE > 0 {
-            todo!()
-        }
-
-        let index = self.heap.len() as i64;
-
-        if index * constants::WORD_SIZE + bytes > HEAP_SIZE as i64 {
-            todo!()
-        }
-
-        for _ in 0..bytes / constants::WORD_SIZE {
-            self.heap.push(self.rng.gen());
-        }
-
-        index * constants::WORD_SIZE
-    }
-
-    fn calloc(&mut self, bytes: i64) -> i64 {
-        let address = self.malloc(bytes);
-        let index = Self::index(address);
-        for offset in index..(bytes / constants::WORD_SIZE) as usize {
-            self.heap[index + offset] = 0;
-        }
-        address
     }
 }
