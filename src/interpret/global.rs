@@ -6,7 +6,6 @@ use rand::rngs::ThreadRng;
 use rand::Rng as _;
 
 use crate::constants;
-use crate::data::operand;
 use crate::util::symbol;
 use crate::util::symbol::Symbol;
 
@@ -24,14 +23,6 @@ impl Default for Global {
             rng: rand::thread_rng(),
         }
     }
-}
-
-#[derive(Copy, Clone, Debug)]
-pub enum Value {
-    Integer(i64),
-    Label(operand::Label),
-    Memory(i64),
-    Temporary(operand::Temporary),
 }
 
 impl Global {

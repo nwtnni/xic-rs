@@ -4,28 +4,28 @@ use anyhow::Context as _;
 use crate::data::ir;
 use crate::data::lir;
 use crate::data::operand;
-use crate::interpret::global::Global;
-use crate::interpret::global::Value;
-use crate::interpret::local;
 use crate::interpret::postorder;
-use crate::interpret::postorder::PostorderLir;
+use crate::interpret::postorder::Postorder;
+use crate::interpret::Global;
+use crate::interpret::Local;
+use crate::interpret::Value;
 use crate::util::symbol;
 
 pub fn interpret_unit(unit: &ir::Unit<lir::Function>) -> anyhow::Result<()> {
-    let unit = PostorderLir::traverse_lir_unit(unit);
+    let unit = Postorder::traverse_lir_unit(unit);
 
     let mut global = Global::new();
-    let mut local = local::Frame::new(&unit, &symbol::intern("_Imain_paai"), &[0]);
+    let mut local = Local::new(&unit, &symbol::intern("_Imain_paai"), &[0]);
 
     debug_assert!(local.interpret_lir(&unit, &mut global)?.is_empty());
 
     Ok(())
 }
 
-impl<'a> local::Frame<'a, postorder::Lir<'a>> {
+impl<'a> Local<'a, postorder::Lir<'a>> {
     fn interpret_lir(
         &mut self,
-        unit: &ir::Unit<PostorderLir<'a>>,
+        unit: &ir::Unit<Postorder<postorder::Lir<'a>>>,
         global: &mut Global,
     ) -> anyhow::Result<Vec<i64>> {
         loop {
@@ -68,7 +68,7 @@ impl<'a> local::Frame<'a, postorder::Lir<'a>> {
 
     fn interpret_statement(
         &mut self,
-        unit: &ir::Unit<PostorderLir<'a>>,
+        unit: &ir::Unit<Postorder<postorder::Lir<'a>>>,
         global: &mut Global,
         statement: &lir::Statement,
     ) -> anyhow::Result<Option<Vec<i64>>> {
@@ -92,7 +92,7 @@ impl<'a> local::Frame<'a, postorder::Lir<'a>> {
                 let r#returns = global
                     .interpret_library(name, &arguments)
                     .unwrap_or_else(|| {
-                        local::Frame::new(unit, &name, &arguments).interpret_lir(unit, global)
+                        Local::new(unit, &name, &arguments).interpret_lir(unit, global)
                     })
                     .with_context(|| anyhow!("Calling function {}", name))?;
 

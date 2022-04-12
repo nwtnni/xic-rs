@@ -4,28 +4,28 @@ use anyhow::Context as _;
 use crate::data::hir;
 use crate::data::ir;
 use crate::data::operand;
-use crate::interpret::global::Global;
-use crate::interpret::global::Value;
-use crate::interpret::local;
 use crate::interpret::postorder;
-use crate::interpret::postorder::PostorderHir;
+use crate::interpret::Global;
+use crate::interpret::Local;
+use crate::interpret::Postorder;
+use crate::interpret::Value;
 use crate::util::symbol;
 
 pub fn interpret_unit(unit: &ir::Unit<hir::Function>) -> anyhow::Result<()> {
-    let unit = PostorderHir::traverse_hir_unit(unit);
+    let unit = Postorder::traverse_hir_unit(unit);
 
     let mut global = Global::new();
-    let mut local = local::Frame::new(&unit, &symbol::intern("_Imain_paai"), &[0]);
+    let mut local = Local::new(&unit, &symbol::intern("_Imain_paai"), &[0]);
 
     debug_assert!(local.interpret_hir(&unit, &mut global)?.is_empty());
 
     Ok(())
 }
 
-impl<'a> local::Frame<'a, postorder::Hir<'a>> {
+impl<'a> Local<'a, postorder::Hir<'a>> {
     fn interpret_hir(
         &mut self,
-        unit: &ir::Unit<PostorderHir<'a>>,
+        unit: &ir::Unit<Postorder<postorder::Hir<'a>>>,
         global: &mut Global,
     ) -> anyhow::Result<Vec<i64>> {
         loop {
@@ -49,7 +49,7 @@ impl<'a> local::Frame<'a, postorder::Hir<'a>> {
 
     fn interpret_expression(
         &mut self,
-        unit: &ir::Unit<PostorderHir<'a>>,
+        unit: &ir::Unit<Postorder<postorder::Hir<'a>>>,
         global: &mut Global,
         expression: &hir::Expression,
     ) -> anyhow::Result<()> {
@@ -75,7 +75,7 @@ impl<'a> local::Frame<'a, postorder::Hir<'a>> {
 
     fn interpret_statement(
         &mut self,
-        unit: &ir::Unit<PostorderHir<'a>>,
+        unit: &ir::Unit<Postorder<postorder::Hir<'a>>>,
         global: &mut Global,
         statement: &hir::Statement,
     ) -> anyhow::Result<Option<Vec<i64>>> {
@@ -110,7 +110,7 @@ impl<'a> local::Frame<'a, postorder::Hir<'a>> {
 
     fn interpret_call(
         &mut self,
-        unit: &ir::Unit<PostorderHir<'a>>,
+        unit: &ir::Unit<Postorder<postorder::Hir<'a>>>,
         global: &mut Global,
         call: &hir::Call,
     ) -> anyhow::Result<Vec<i64>> {
@@ -122,9 +122,7 @@ impl<'a> local::Frame<'a, postorder::Hir<'a>> {
 
         global
             .interpret_library(name, &arguments)
-            .unwrap_or_else(|| {
-                local::Frame::new(unit, &name, &arguments).interpret_hir(unit, global)
-            })
+            .unwrap_or_else(|| Local::new(unit, &name, &arguments).interpret_hir(unit, global))
             .with_context(|| anyhow!("Calling function {}", name))
     }
 }

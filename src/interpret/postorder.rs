@@ -42,11 +42,6 @@ use crate::data::ir;
 use crate::data::lir;
 use crate::data::operand;
 
-pub type PostorderHir<'a> = Postorder<Hir<'a>>;
-
-#[allow(dead_code)]
-pub type PostorderLir<'a> = Postorder<Lir<'a>>;
-
 pub struct Postorder<T> {
     instructions: Vec<T>,
     labels: BTreeMap<operand::Label, usize>,
@@ -148,14 +143,12 @@ impl<'a> Postorder<Hir<'a>> {
     }
 }
 
-#[allow(dead_code)]
 #[derive(Copy, Clone, Debug)]
 pub enum Lir<'a> {
     Expression(&'a lir::Expression),
     Statement(&'a lir::Statement),
 }
 
-#[allow(dead_code)]
 impl<'a> Postorder<Lir<'a>> {
     pub fn traverse_lir_unit(unit: &'a ir::Unit<lir::Function>) -> ir::Unit<Postorder<Lir<'a>>> {
         unit.map(Self::traverse_lir_function)

@@ -2,19 +2,19 @@ use std::collections::BTreeMap;
 
 use crate::data::ir;
 use crate::data::operand;
-use crate::interpret::global::Global;
-use crate::interpret::global::Value;
-use crate::interpret::postorder::Postorder;
+use crate::interpret::Global;
+use crate::interpret::Postorder;
+use crate::interpret::Value;
 use crate::util::symbol::Symbol;
 
-pub struct Frame<'a, T: 'a> {
+pub struct Local<'a, T: 'a> {
     postorder: &'a Postorder<T>,
     index: usize,
     temporaries: BTreeMap<operand::Temporary, i64>,
     stack: Vec<Value>,
 }
 
-impl<'a, T: 'a> Frame<'a, T> {
+impl<'a, T: 'a> Local<'a, T> {
     pub fn new(unit: &'a ir::Unit<Postorder<T>>, name: &Symbol, arguments: &[i64]) -> Self {
         let postorder = unit.functions.get(name).unwrap();
 
@@ -24,7 +24,7 @@ impl<'a, T: 'a> Frame<'a, T> {
             temporaries.insert(operand::Temporary::Argument(index), argument);
         }
 
-        Frame {
+        Local {
             postorder,
             index: 0,
             temporaries,
