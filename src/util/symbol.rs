@@ -46,6 +46,18 @@ impl Interner {
         }
     }
 
+    /// Store static `string` in this interner if not already cached.
+    fn intern_static(&mut self, string: &'static str) -> Symbol {
+        if let Some(&index) = self.index.get(string) {
+            Symbol(index)
+        } else {
+            let index = self.store.len();
+            self.store.push(string);
+            self.index.insert(string, index);
+            Symbol(index)
+        }
+    }
+
     /// Resolve `symbol` in this interner.
     /// Requires that `symbol` was produced by this interner.
     fn resolve(&self, symbol: Symbol) -> &'static str {
@@ -59,6 +71,11 @@ where
     S: Into<Cow<'a, str>>,
 {
     INTERNER.with(|interner| interner.borrow_mut().intern(string))
+}
+
+/// Look up static `string` in the global cache, and insert it if missing.
+pub fn intern_static(string: &'static str) -> Symbol {
+    INTERNER.with(|interner| interner.borrow_mut().intern_static(string))
 }
 
 /// Resolve `symbol` to its string representation.

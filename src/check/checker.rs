@@ -330,7 +330,7 @@ impl Checker {
                 }
             }
 
-            ast::Expression::Call(call) if call.name == symbol::intern("length") => {
+            ast::Expression::Call(call) if symbol::resolve(call.name) == "length" => {
                 if call.arguments.len() != 1 {
                     bail!(call.span, ErrorKind::CallLength)
                 }
@@ -359,7 +359,7 @@ impl Checker {
         expression: &ast::Expression,
     ) -> Result<Vec<r#type::Expression>, error::Error> {
         match expression {
-            ast::Expression::Call(call) if call.name != symbol::intern("length") => {
+            ast::Expression::Call(call) if symbol::resolve(call.name) != "length" => {
                 self.check_call(call)
             }
             expression => Ok(vec![self.check_expression(expression)?]),

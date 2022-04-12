@@ -3,7 +3,7 @@ use crate::data::token::Token;
 use crate::error::Error;
 use crate::parse;
 use crate::util::symbol::Symbol;
-use crate::util::symbol::intern;
+use crate::util::symbol::intern_static;
 use crate::util::span::Point;
 use crate::util::span::Span;
 
@@ -322,7 +322,7 @@ NoIntValue: Expression = {
     },
     <l: @L> "length" "(" <argument: Expression> ")" <r: @R> => {
         Expression::Call(Call {
-            name: intern("length"),
+            name: intern_static("length"),
             arguments: vec![argument],
             span: Span::new(l, r)
         })

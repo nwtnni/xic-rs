@@ -20,7 +20,7 @@ pub enum Label {
 impl Label {
     pub fn fresh(label: &'static str) -> Self {
         let index = LABELS.fetch_add(1, Ordering::SeqCst);
-        let symbol = symbol::intern(label);
+        let symbol = symbol::intern_static(label);
         Label::Fresh(symbol, index)
     }
 }
@@ -36,7 +36,7 @@ pub enum Temporary {
 impl Temporary {
     pub fn fresh(label: &'static str) -> Self {
         let index = TEMPS.fetch_add(1, Ordering::SeqCst);
-        let symbol = symbol::intern(label);
+        let symbol = symbol::intern_static(label);
         Temporary::Fresh(symbol, index)
     }
 }

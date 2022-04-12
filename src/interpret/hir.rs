@@ -15,7 +15,7 @@ pub fn interpret_unit(unit: &ir::Unit<hir::Function>) -> anyhow::Result<()> {
     let unit = Postorder::traverse_hir_unit(unit);
 
     let mut global = Global::new();
-    let mut local = Local::new(&unit, &symbol::intern("_Imain_paai"), &[0]);
+    let mut local = Local::new(&unit, &symbol::intern_static("_Imain_paai"), &[0]);
 
     debug_assert!(local.interpret_hir(&unit, &mut global)?.is_empty());
 

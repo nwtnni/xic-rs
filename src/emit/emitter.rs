@@ -210,12 +210,12 @@ impl<'env> Emitter<'env> {
                             (LABEL high)
                             (JUMP (NAME r#in))
                             (LABEL out)
-                            (SCALL (NAME (operand::Label::Fixed(symbol::intern(constants::XI_OUT_OF_BOUNDS)))))
+                            (SCALL (NAME (operand::Label::Fixed(symbol::intern_static(constants::XI_OUT_OF_BOUNDS)))))
                             (LABEL r#in))
                         (MEM (Add (TEMP base) (Mul (TEMP index) (CONST constants::WORD_SIZE)))))
                 ).into()
             }
-            Call(call) if call.name == symbol::intern("length") => {
+            Call(call) if symbol::resolve(call.name) == "length" => {
                 use ir::Binary::Sub;
                 let address = self.emit_expression(&call.arguments[0], variables).into();
                 hir!((MEM (Sub address (CONST constants::WORD_SIZE)))).into()
@@ -244,7 +244,7 @@ impl<'env> Emitter<'env> {
     fn emit_alloc(length: usize) -> hir::Statement {
         hir!(
             (SCALL
-                (NAME operand::Label::Fixed(symbol::intern(constants::XI_ALLOC)))
+                (NAME operand::Label::Fixed(symbol::intern_static(constants::XI_ALLOC)))
                 (CONST (length + 1) as i64 * constants::WORD_SIZE))
         )
     }
