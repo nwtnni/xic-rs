@@ -1,3 +1,4 @@
+use std::collections::BTreeMap;
 use std::convert::TryFrom as _;
 use std::io::Read as _;
 
@@ -6,28 +7,35 @@ use rand::rngs::ThreadRng;
 use rand::Rng as _;
 
 use crate::constants;
+use crate::data::operand;
 use crate::util::symbol;
 use crate::util::symbol::Symbol;
 
 const HEAP_SIZE: usize = 1024;
 
 pub struct Global {
+    #[allow(dead_code)]
+    data: BTreeMap<operand::Label, Vec<i64>>,
     heap: Vec<i64>,
     rng: ThreadRng,
 }
 
-impl Default for Global {
-    fn default() -> Self {
-        Self {
+impl Global {
+    pub fn new(data: &BTreeMap<Symbol, operand::Label>) -> Self {
+        Global {
+            data: data
+                .iter()
+                .map(|(symbol, label)| {
+                    let string = symbol::resolve(*symbol)
+                        .bytes()
+                        .map(|byte| byte as i64)
+                        .collect::<Vec<_>>();
+                    (*label, string)
+                })
+                .collect(),
             heap: Vec::new(),
             rng: rand::thread_rng(),
         }
-    }
-}
-
-impl Global {
-    pub fn new() -> Self {
-        Self::default()
     }
 
     pub fn interpret_library(
