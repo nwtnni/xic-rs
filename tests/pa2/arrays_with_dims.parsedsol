@@ -1,9 +1,0 @@
-(()
- ((foo
-   ()
-   ()
-   ((a ([] int))
-    (b ([] ([] int 3) 2))
-    (c ([] int ([] a 0)))
-    (d ([] ([] bool ([] "test" (bar))) (bar)))))
-  (bar () (int) ((return 1)))))

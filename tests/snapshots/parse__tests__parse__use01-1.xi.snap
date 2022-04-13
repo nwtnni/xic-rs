@@ -1,0 +1,6 @@
+---
+source: tests/parse.rs
+assertion_line: 29
+expression: Snapshot(parsed)
+---
+(((use A)) ((f () () ())))

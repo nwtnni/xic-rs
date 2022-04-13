@@ -1,0 +1,12 @@
+---
+source: tests/parse.rs
+assertion_line: 29
+expression: Snapshot(parsed)
+---
+(((use foo)
+    (use bar)
+    (use freddie1)
+    (use charlie_qian)
+    (use frank'lin)
+    (use edward_chen'))
+((foo () () ())))

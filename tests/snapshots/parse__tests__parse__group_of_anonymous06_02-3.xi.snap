@@ -1,0 +1,13 @@
+---
+source: tests/parse.rs
+assertion_line: 29
+expression: Snapshot(parsed)
+---
+(()
+((foo
+        ((foo int))
+        (bool)
+        ((if
+                (< foo 0)
+                ((return ([] (foo ([] (foo 0) 0)) 0)))
+                ((return true)))))))

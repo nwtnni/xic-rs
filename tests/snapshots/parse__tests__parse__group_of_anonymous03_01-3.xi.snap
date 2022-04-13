@@ -1,0 +1,7 @@
+---
+source: tests/parse.rs
+assertion_line: 29
+expression: Snapshot(parsed)
+---
+(()
+((main ((args ([] ([] int)))) () ((= c (+ a ([] b 1))) (= z ([] (+ x y) 2))))))

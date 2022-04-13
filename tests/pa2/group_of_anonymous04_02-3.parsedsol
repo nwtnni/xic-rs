@@ -1,8 +1,0 @@
-(()
-  ((foo
-    ()
-    ()
-    ((if a (foo)
-        (if b (foo) (bar)))
-      (if a ((if a (foo 2)) (if b (if b (if c (foo 3) (foo 4)) (foo 5))))
-        (if (foo) (bar) (foo)))))))

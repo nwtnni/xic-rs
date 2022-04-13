@@ -1,0 +1,6 @@
+---
+source: tests/parse.rs
+assertion_line: 29
+expression: Snapshot(parsed)
+---
+(() ((foo () () (((= x 1) ((= y 2) ((if (== 3 3) (= z 4)))))))))

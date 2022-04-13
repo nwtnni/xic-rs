@@ -6,6 +6,6 @@ mod error;
 mod interpret;
 pub mod lex;
 pub mod parse;
-mod util;
+pub mod util;
 
 pub use error::Error;
