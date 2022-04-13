@@ -73,7 +73,8 @@ fn main() -> anyhow::Result<()> {
         let tokens = lexer.drive(&path)?;
         let ast = parser.drive(&path, tokens)?;
         let context = checker.drive(&path, &ast)?;
-        let _lir = emitter.drive(&path, &ast, &context)?;
+        let hir = emitter.emit_hir(&path, &ast, &context)?;
+        let _lir = emitter.emit_lir(&path, &hir)?;
     }
 
     Ok(())

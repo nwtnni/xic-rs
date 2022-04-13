@@ -1,3 +1,7 @@
+#![allow(dead_code)]
+
+use std::io;
+
 use anyhow::anyhow;
 use anyhow::Context as _;
 
@@ -12,10 +16,14 @@ use crate::interpret::Postorder;
 use crate::interpret::Value;
 use crate::util::symbol;
 
-pub fn interpret_unit(unit: &ir::Unit<hir::Function>) -> anyhow::Result<()> {
+pub fn interpret_unit<R: io::BufRead + 'static, W: io::Write + 'static>(
+    unit: &ir::Unit<hir::Function>,
+    stdin: R,
+    stdout: W,
+) -> anyhow::Result<()> {
     let unit = Postorder::traverse_hir_unit(unit);
 
-    let mut global = Global::new(&unit.data);
+    let mut global = Global::new(&unit.data, stdin, stdout);
     let mut local = Local::new(
         &unit,
         &symbol::intern_static("_Imain_paai"),

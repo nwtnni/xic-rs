@@ -1,8 +1,8 @@
 use std::collections::BTreeMap;
 use std::convert::TryFrom as _;
-use std::io;
-use std::io::Read as _;
-use std::io::Write as _;
+use std::io::BufRead;
+use std::io::Read;
+use std::io::Write;
 
 use anyhow::anyhow;
 use rand::rngs::ThreadRng;
@@ -20,10 +20,16 @@ pub struct Global {
     data: BTreeMap<operand::Label, Vec<Value>>,
     heap: Vec<Value>,
     rng: ThreadRng,
+    stdin: Box<dyn BufRead>,
+    stdout: Box<dyn Write>,
 }
 
 impl Global {
-    pub fn new(data: &BTreeMap<Symbol, operand::Label>) -> Self {
+    pub fn new<R: BufRead + 'static, W: Write + 'static>(
+        data: &BTreeMap<Symbol, operand::Label>,
+        stdin: R,
+        stdout: W,
+    ) -> Self {
         Global {
             data: data
                 .iter()
@@ -39,6 +45,8 @@ impl Global {
                 .collect(),
             heap: Vec::new(),
             rng: rand::thread_rng(),
+            stdin: Box::new(stdin),
+            stdout: Box::new(stdout),
         }
     }
 
@@ -50,24 +58,35 @@ impl Global {
         let r#returns = match symbol::resolve(name) {
             "_Iprint_pai" => {
                 debug_assert_eq!(arguments.len(), 1);
-                for byte in self.read_array(arguments[0]) {
-                    print!("{}", u8::try_from(byte.into_integer()).unwrap() as char);
+                for byte in self.read_array(arguments[0]).to_vec() {
+                    write!(
+                        &mut self.stdout,
+                        "{}",
+                        u8::try_from(byte.into_integer()).unwrap() as char
+                    )
+                    .unwrap();
                 }
-                io::stdout().flush().unwrap();
+                self.stdout.flush().unwrap();
                 Vec::new()
             }
             "_Iprintln_pai" => {
                 debug_assert_eq!(arguments.len(), 1);
-                for byte in self.read_array(arguments[0]) {
-                    print!("{}", u8::try_from(byte.into_integer()).unwrap() as char);
+                for byte in self.read_array(arguments[0]).to_vec() {
+                    write!(
+                        &mut self.stdout,
+                        "{}",
+                        u8::try_from(byte.into_integer()).unwrap() as char
+                    )
+                    .unwrap();
                 }
-                println!();
+                writeln!(&mut self.stdout).unwrap();
+                self.stdout.flush().unwrap();
                 Vec::new()
             }
             "_Ireadln_ai" => {
                 debug_assert_eq!(arguments.len(), 0);
                 let mut buffer = String::new();
-                io::stdin().read_line(&mut buffer).unwrap();
+                self.stdin.read_line(&mut buffer).unwrap();
                 debug_assert_eq!(buffer.pop(), Some('\n'));
                 vec![self.write_array(
                     &buffer
@@ -80,7 +99,7 @@ impl Global {
             "_Igetchar_i" => {
                 debug_assert_eq!(arguments.len(), 0);
                 let mut char = [0];
-                io::stdin().read_exact(&mut char).unwrap();
+                self.stdin.read_exact(&mut char).unwrap();
                 vec![Value::Integer(char[0] as i64)]
             }
             "_Ieof_b" => unimplemented!(),

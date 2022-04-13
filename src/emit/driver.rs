@@ -1,7 +1,9 @@
+use std::io;
 use std::io::BufWriter;
 
 use crate::check;
 use crate::data::ast;
+use crate::data::hir;
 use crate::data::ir;
 use crate::data::lir;
 use crate::emit;
@@ -28,13 +30,12 @@ impl<'main> Driver<'main> {
         }
     }
 
-    pub fn drive(
+    pub fn emit_hir(
         &self,
         path: &std::path::Path,
         ast: &ast::Program,
         env: &check::Context,
-    ) -> anyhow::Result<ir::Unit<lir::Function>> {
-        let canonizer = emit::Canonizer::new();
+    ) -> anyhow::Result<ir::Unit<hir::Function>> {
         let emitter = emit::Emitter::new(env);
         let mut hir = emitter.emit_unit(path, ast);
         if self.fold {
@@ -52,6 +53,15 @@ impl<'main> Driver<'main> {
             hir.sexp().write(80, &mut log)?;
         }
 
+        Ok(hir)
+    }
+
+    pub fn emit_lir(
+        &self,
+        path: &std::path::Path,
+        hir: &ir::Unit<hir::Function>,
+    ) -> anyhow::Result<ir::Unit<lir::Function>> {
+        let canonizer = emit::Canonizer::new();
         let mut lir = canonizer.canonize_unit(hir.clone());
 
         if self.fold {
@@ -70,11 +80,7 @@ impl<'main> Driver<'main> {
         }
 
         if self.run {
-            interpret::hir::interpret_unit(&hir)?;
-        }
-
-        if self.run {
-            interpret::lir::interpret_unit(&lir)?;
+            interpret::lir::interpret_unit(&lir, io::BufReader::new(io::stdin()), io::stdout())?;
         }
 
         Ok(lir)
