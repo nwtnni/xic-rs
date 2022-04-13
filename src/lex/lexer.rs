@@ -176,8 +176,8 @@ impl<'source> Lexer<'source> {
                 Some('b') => Ok('\x08'),
                 Some('f') => Ok('\x0C'),
                 Some('\\') => Ok('\\'),
-                Some('\'') if !string => Ok('\''),
-                Some('\"') if string => Ok('\"'),
+                Some('\'') => Ok('\''),
+                Some('\"') => Ok('\"'),
                 Some('u') | Some('x') => {
                     let mut count = 0;
                     let start = self.point();
