@@ -4,7 +4,6 @@ use structopt::StructOpt;
 
 use xic::check;
 use xic::emit;
-use xic::parse;
 
 #[derive(Debug, StructOpt)]
 #[structopt(name = "xic", about = "Compiler for the Xi programming language.")]
@@ -53,7 +52,6 @@ struct Command {
 fn main() -> anyhow::Result<()> {
     let command = Command::from_args();
 
-    let parser = parse::Driver::new(&command.directory_output, command.debug_parse);
     let checker = check::Driver::new(
         &command.directory_output,
         command.debug_check,
@@ -78,7 +76,16 @@ fn main() -> anyhow::Result<()> {
             },
         )?;
 
-        let ast = parser.drive(&path, tokens)?;
+        let ast = xic::parse(
+            &path,
+            if command.debug_parse {
+                Some(&command.directory_output)
+            } else {
+                None
+            },
+            tokens,
+        )?;
+
         let context = checker.drive(&path, &ast)?;
         let hir = emitter.emit_hir(&path, &ast, &context)?;
         let _lir = emitter.emit_lir(&path, &hir)?;
