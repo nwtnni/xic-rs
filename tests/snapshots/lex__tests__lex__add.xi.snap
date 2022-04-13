@@ -1,0 +1,9 @@
+---
+source: tests/lex.rs
+assertion_line: 22
+expression: Snapshot(lexed)
+---
+1:1 +
+1:2 +
+1:3 +
+
