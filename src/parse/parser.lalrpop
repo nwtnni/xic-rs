@@ -12,11 +12,11 @@ use crate::util::span::Span;
 grammar;
 
 pub Program: Program = {
-    <uses: Use*> <functions: Function+> => Program { uses, functions },
+    <uses: Use*> <functions: Function*> => Program { uses, functions },
 }
 
 pub Interface: Interface = {
-    <signatures: Signature+> => Interface { signatures },
+    <signatures: Signature*> => Interface { signatures },
 }
 
 Use: Use = {
