@@ -6,7 +6,7 @@ use crate::error;
 use crate::util::Tap;
 
 pub struct Driver<'main> {
-    lib: Option<&'main std::path::PathBuf>,
+    lib: Option<&'main std::path::Path>,
     directory: &'main std::path::Path,
     diagnostic: bool,
 }
@@ -15,7 +15,7 @@ impl<'main> Driver<'main> {
     pub fn new(
         directory: &'main std::path::Path,
         diagnostic: bool,
-        lib: Option<&'main std::path::PathBuf>,
+        lib: Option<&'main std::path::Path>,
     ) -> Self {
         Driver {
             lib,

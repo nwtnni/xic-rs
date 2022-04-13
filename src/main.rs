@@ -59,7 +59,7 @@ fn main() -> anyhow::Result<()> {
     let checker = check::Driver::new(
         &command.directory_output,
         command.debug_check,
-        command.directory_library.as_ref(),
+        command.directory_library.as_deref(),
     );
     let emitter = emit::Driver::new(
         &command.directory_output,
