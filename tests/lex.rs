@@ -1,9 +1,9 @@
 use std::fmt;
 use std::path::Path;
 
-struct Snapshot(Vec<xic::lex::Spanned>);
+struct Snapshot<P, T, E>(Vec<Result<(P, T, P), E>>);
 
-impl fmt::Display for Snapshot {
+impl<P: fmt::Display, T: fmt::Display, E: fmt::Display> fmt::Display for Snapshot<P, T, E> {
     fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
         for spanned in &self.0 {
             match spanned {
@@ -17,7 +17,6 @@ impl fmt::Display for Snapshot {
 
 #[test_generator::test_resources("tests/lex/*.xi")]
 pub fn lex(path: &str) {
-    let lexer = xic::lex::Driver::new(Path::new("."), false);
-    let lexed = lexer.drive(Path::new(path)).unwrap();
+    let lexed = xic::lex(Path::new(path), None).unwrap();
     insta::assert_display_snapshot!(path, Snapshot(lexed));
 }

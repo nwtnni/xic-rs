@@ -20,10 +20,9 @@ impl fmt::Display for Snapshot {
 
 #[test_generator::test_resources("tests/parse/*.xi")]
 pub fn parse(path: &str) {
-    let lexer = xic::lex::Driver::new(Path::new("."), false);
     let parser = xic::parse::Driver::new(Path::new("."), false);
 
-    let lexed = lexer.drive(Path::new(path)).unwrap();
+    let lexed = xic::lex(Path::new(path), None).unwrap();
     let parsed = parser.drive(Path::new(path), lexed);
 
     insta::assert_display_snapshot!(path, Snapshot(parsed));

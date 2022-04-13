@@ -14,11 +14,10 @@ impl fmt::Display for Snapshot {
 
 #[test_generator::test_resources("tests/check/*.xi")]
 pub fn check(path: &str) {
-    let lexer = xic::lex::Driver::new(Path::new("."), false);
     let parser = xic::parse::Driver::new(Path::new("."), false);
     let checker = xic::check::Driver::new(Path::new("."), false, None);
 
-    let lexed = lexer.drive(Path::new(path)).unwrap();
+    let lexed = xic::lex(Path::new(path), None).unwrap();
     let parsed = parser.drive(Path::new(path), lexed).unwrap();
     let checked = checker.drive(Path::new(path), &parsed).map(|_| ());
 

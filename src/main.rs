@@ -4,7 +4,6 @@ use structopt::StructOpt;
 
 use xic::check;
 use xic::emit;
-use xic::lex;
 use xic::parse;
 
 #[derive(Debug, StructOpt)]
@@ -54,7 +53,6 @@ struct Command {
 fn main() -> anyhow::Result<()> {
     let command = Command::from_args();
 
-    let lexer = lex::Driver::new(&command.directory_output, command.debug_lex);
     let parser = parse::Driver::new(&command.directory_output, command.debug_parse);
     let checker = check::Driver::new(
         &command.directory_output,
@@ -70,7 +68,16 @@ fn main() -> anyhow::Result<()> {
 
     for path in &command.input {
         let path = command.directory_source.join(path);
-        let tokens = lexer.drive(&path)?;
+
+        let tokens = xic::lex(
+            &path,
+            if command.debug_lex {
+                Some(&command.directory_output)
+            } else {
+                None
+            },
+        )?;
+
         let ast = parser.drive(&path, tokens)?;
         let context = checker.drive(&path, &ast)?;
         let hir = emitter.emit_hir(&path, &ast, &context)?;
