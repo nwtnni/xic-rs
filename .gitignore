@@ -20,5 +20,6 @@ xic
 *.ir
 *.hir
 *.lir
+*.snap.new
 
 test.xi
