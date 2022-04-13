@@ -240,61 +240,66 @@ impl Checker {
                 Ok(r#type::Expression::Array(Box::new(bound)))
             }
 
-            ast::Expression::Binary(ast::Binary::Add, left, right, _) => {
-                let span = right.span();
-                match (self.check_expression(left)?, self.check_expression(right)?) {
-                    (r#type::Expression::Array(left), r#type::Expression::Array(right)) => {
-                        match left.least_upper_bound(&right) {
-                            None => expected!(span, *left, *right),
-                            Some(bound) => Ok(r#type::Expression::Array(Box::new(bound))),
-                        }
+            ast::Expression::Binary(binary, left, right, _) => {
+                match binary.get() {
+                    ast::Binary::Add => (),
+                    ast::Binary::Cat => unreachable!(),
+                    ast::Binary::Mul
+                    | ast::Binary::Hul
+                    | ast::Binary::Div
+                    | ast::Binary::Mod
+                    | ast::Binary::Sub => {
+                        return self.check_binary(
+                            left,
+                            right,
+                            r#type::Expression::Integer,
+                            r#type::Expression::Integer,
+                        )
                     }
-                    (_, _) => self.check_binary(
-                        left,
-                        right,
-                        r#type::Expression::Integer,
-                        r#type::Expression::Integer,
-                    ),
+                    ast::Binary::Lt
+                    | ast::Binary::Le
+                    | ast::Binary::Ge
+                    | ast::Binary::Gt
+                    | ast::Binary::Ne
+                    | ast::Binary::Eq => {
+                        return self.check_binary(
+                            left,
+                            right,
+                            r#type::Expression::Integer,
+                            r#type::Expression::Boolean,
+                        )
+                    }
+                    ast::Binary::And | ast::Binary::Or => {
+                        return self.check_binary(
+                            left,
+                            right,
+                            r#type::Expression::Boolean,
+                            r#type::Expression::Boolean,
+                        )
+                    }
                 }
-            }
-            ast::Expression::Binary(
-                ast::Binary::Mul
-                | ast::Binary::Hul
-                | ast::Binary::Div
-                | ast::Binary::Mod
-                | ast::Binary::Sub,
-                left,
-                right,
-                _,
-            ) => self.check_binary(
-                left,
-                right,
-                r#type::Expression::Integer,
-                r#type::Expression::Integer,
-            ),
-            ast::Expression::Binary(
-                ast::Binary::Lt
-                | ast::Binary::Le
-                | ast::Binary::Ge
-                | ast::Binary::Gt
-                | ast::Binary::Ne
-                | ast::Binary::Eq,
-                left,
-                right,
-                _,
-            ) => self.check_binary(
-                left,
-                right,
-                r#type::Expression::Integer,
-                r#type::Expression::Boolean,
-            ),
-            ast::Expression::Binary(ast::Binary::And | ast::Binary::Or, left, right, _) => self
-                .check_binary(
+
+                let span = right.span();
+
+                if let (r#type::Expression::Array(left), r#type::Expression::Array(right)) =
+                    (self.check_expression(left)?, self.check_expression(right)?)
+                {
+                    return match left.least_upper_bound(&right) {
+                        None => expected!(span, *left, *right),
+                        Some(bound) => {
+                            binary.set(ast::Binary::Cat);
+                            Ok(r#type::Expression::Array(Box::new(bound)))
+                        }
+                    };
+                }
+
+                self.check_binary(
                     left,
                     right,
-                    r#type::Expression::Boolean,
-                    r#type::Expression::Boolean,
-                ),
+                    r#type::Expression::Integer,
+                    r#type::Expression::Integer,
+                )
+            }
 
             ast::Expression::Unary(ast::Unary::Neg, expression, _) => {
                 match self.check_expression(expression)? {

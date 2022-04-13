@@ -1,3 +1,5 @@
+use std::cell::Cell;
+
 use crate::util::span::Span;
 use crate::util::symbol::Symbol;
 
@@ -106,6 +108,7 @@ pub enum Binary {
     Div,
     Mod,
     Add,
+    Cat,
     Sub,
     Lt,
     Le,
@@ -146,7 +149,7 @@ pub enum Expression {
     Array(Vec<Expression>, Span),
 
     /// Binary operation
-    Binary(Binary, Box<Expression>, Box<Expression>, Span),
+    Binary(Cell<Binary>, Box<Expression>, Box<Expression>, Span),
 
     /// Unary operation
     Unary(Unary, Box<Expression>, Span),

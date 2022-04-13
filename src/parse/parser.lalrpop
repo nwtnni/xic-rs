@@ -1,3 +1,5 @@
+use std::cell::Cell;
+
 use crate::data::ast::*;
 use crate::data::token::Token;
 use crate::error::Error;
@@ -184,7 +186,7 @@ Expression: Expression = Or;
 
 Binary<Op, Next>: Expression = {
     <l: @L> <lhs: Binary<Op, Next>> <binary: Op> <rhs: Next> <r: @R> => {
-        Expression::Binary(binary, Box::new(lhs), Box::new(rhs), Span::new(l, r))
+        Expression::Binary(Cell::new(binary), Box::new(lhs), Box::new(rhs), Span::new(l, r))
     },
     <Next>
 }

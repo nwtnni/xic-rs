@@ -122,9 +122,81 @@ impl<'env> Emitter<'env> {
                         (Add (TEMP base) (CONST constants::WORD_SIZE))))
                 .into()
             }
+            Binary(binary, left, right, _) if binary.get() == ast::Binary::Cat => {
+                let left = self.emit_expression(left, variables);
+                let right = self.emit_expression(right, variables);
 
+                let address_left = operand::Temporary::fresh("array");
+                let address_right = operand::Temporary::fresh("array");
+                let address = operand::Temporary::fresh("array");
+
+                let length_left = operand::Temporary::fresh("length");
+                let length_right = operand::Temporary::fresh("length");
+                let length = operand::Temporary::fresh("length");
+
+                let alloc = operand::Label::Fixed(symbol::intern_static(constants::XI_ALLOC));
+
+                let while_left = operand::Label::fresh("while");
+                let true_left = operand::Label::fresh("true");
+                let false_left = operand::Label::fresh("false");
+
+                let while_right = operand::Label::fresh("while");
+                let true_right = operand::Label::fresh("true");
+                let false_right = operand::Label::fresh("false");
+
+                let index = operand::Temporary::fresh("index");
+
+                use ir::Binary::Add;
+                use ir::Binary::Lt;
+                use ir::Binary::Mul;
+                use ir::Binary::Sub;
+
+                hir!(
+                    (ESEQ
+                        (SEQ
+                            (MOVE (TEMP address_left) (left.into()))
+                            (MOVE (TEMP length_left) (MEM (Sub (TEMP address_left) (CONST constants::WORD_SIZE))))
+
+                            (MOVE (TEMP address_right) (right.into()))
+                            (MOVE (TEMP length_right) (MEM (Sub (TEMP address_right) (CONST constants::WORD_SIZE))))
+
+                            // Allocate destination with correct length (+1 for length metadata)
+                            (MOVE (TEMP length) (Add (TEMP length_left) (TEMP length_right)))
+                            (MOVE
+                                (TEMP address)
+                                (ECALL (NAME alloc) (Mul (Add (TEMP length) (CONST 1)) (CONST constants::WORD_SIZE))))
+                            (MOVE (MEM (TEMP address)) (TEMP length))
+                            (MOVE (TEMP index) (CONST 1))
+
+                            // Copy left array into final destination, starting at
+                            // `address + WORD_SIZE`
+                            (LABEL while_left)
+                            (CJUMP (Lt (TEMP index) (Add (TEMP length_left) (CONST 1))) true_left false_left)
+                            (LABEL true_left)
+                            (MOVE
+                                (MEM (Add (TEMP address) (Mul (TEMP index) (CONST constants::WORD_SIZE))))
+                                (MEM (Add (TEMP address_left) (Mul (Sub (TEMP index) (CONST 1)) (CONST constants::WORD_SIZE)))))
+                            (MOVE (TEMP index) (Add (TEMP index) (CONST 1)))
+                            (JUMP (NAME while_left))
+                            (LABEL false_left)
+
+                            // Copy right array into final destination, starting at
+                            // `address + WORD_SIZE + length_left * WORD_SIZE`
+                            (LABEL while_right)
+                            (CJUMP (Lt (TEMP index) (Add (TEMP length) (CONST 1))) true_right false_right)
+                            (LABEL true_right)
+                            (MOVE
+                                (MEM (Add (TEMP address) (Mul (TEMP index) (CONST constants::WORD_SIZE))))
+                                (MEM (Add (TEMP address_right) (Mul (Sub (Sub (TEMP index) (TEMP length_left)) (CONST 1)) (CONST constants::WORD_SIZE)))))
+                            (MOVE (TEMP index) (Add (TEMP index) (CONST 1)))
+                            (JUMP (NAME while_right))
+                            (LABEL false_right))
+                        (Add (TEMP address) (CONST constants::WORD_SIZE)))
+                )
+                .into()
+            }
             Binary(binary, left, right, _) => {
-                let binary = ir::Binary::from(*binary);
+                let binary = ir::Binary::from(binary.get());
                 let left = self.emit_expression(left, variables);
                 let right = self.emit_expression(right, variables);
 

@@ -22,7 +22,7 @@ pub fn interpret_unit(unit: &ir::Unit<hir::Function>) -> anyhow::Result<()> {
         &[Value::Integer(0)],
     );
 
-    debug_assert!(local.interpret_hir(&unit, &mut global)?.is_empty());
+    assert!(local.interpret_hir(&unit, &mut global)?.is_empty());
 
     Ok(())
 }

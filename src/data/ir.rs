@@ -55,6 +55,7 @@ impl From<ast::Binary> for Binary {
             ast::Binary::Div => Binary::Div,
             ast::Binary::Mod => Binary::Mod,
             ast::Binary::Add => Binary::Add,
+            ast::Binary::Cat => unreachable!(),
             ast::Binary::Sub => Binary::Sub,
             ast::Binary::Lt => Binary::Lt,
             ast::Binary::Le => Binary::Le,
