@@ -1,12 +1,11 @@
-use std::io::{BufWriter, Write};
+use std::io::BufWriter;
+use std::io::Write;
 
-use crate::data::token;
 use crate::error;
 use crate::lex;
-use crate::util::span;
-use crate::util::{TakeUntil, Tap};
-
-type Spanned = Result<(span::Point, token::Token, span::Point), error::Error>;
+use crate::lex::Spanned;
+use crate::util::TakeUntil;
+use crate::util::Tap;
 
 pub struct Driver<'main> {
     directory: &'main std::path::Path,

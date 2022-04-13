@@ -14,3 +14,7 @@ rand = "0.8"
 
 [build-dependencies]
 lalrpop = "0.19"
+
+[dev-dependencies]
+insta = "1.14"
+test-generator = "0.3"

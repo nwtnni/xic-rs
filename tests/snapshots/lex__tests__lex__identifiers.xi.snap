@@ -1,3 +1,8 @@
+---
+source: tests/lex.rs
+assertion_line: 22
+expression: Snapshot(lexed)
+---
 1:1 id ifwhileelsereturn
 2:1 id a0012393852
 3:1 id d''''''''''''''
@@ -5,3 +10,4 @@
 5:1 id d'_123021293'test''___
 6:1 _
 7:1 id truefalse
+
