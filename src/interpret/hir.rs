@@ -7,6 +7,7 @@ use crate::data::operand;
 use crate::interpret::postorder;
 use crate::interpret::Global;
 use crate::interpret::Local;
+use crate::interpret::Operand;
 use crate::interpret::Postorder;
 use crate::interpret::Value;
 use crate::util::symbol;
@@ -15,7 +16,11 @@ pub fn interpret_unit(unit: &ir::Unit<hir::Function>) -> anyhow::Result<()> {
     let unit = Postorder::traverse_hir_unit(unit);
 
     let mut global = Global::new(&unit.data);
-    let mut local = Local::new(&unit, &symbol::intern_static("_Imain_paai"), &[0]);
+    let mut local = Local::new(
+        &unit,
+        &symbol::intern_static("_Imain_paai"),
+        &[Value::Integer(0)],
+    );
 
     debug_assert!(local.interpret_hir(&unit, &mut global)?.is_empty());
 
@@ -27,7 +32,7 @@ impl<'a> Local<'a, postorder::Hir<'a>> {
         &mut self,
         unit: &ir::Unit<Postorder<postorder::Hir<'a>>>,
         global: &mut Global,
-    ) -> anyhow::Result<Vec<i64>> {
+    ) -> anyhow::Result<Vec<Value>> {
         loop {
             let instruction = match self.step() {
                 Some(instruction) => instruction,
@@ -55,18 +60,18 @@ impl<'a> Local<'a, postorder::Hir<'a>> {
     ) -> anyhow::Result<()> {
         match expression {
             hir::Expression::Sequence(_, _) => unreachable!(),
-            hir::Expression::Integer(integer) => self.push(Value::Integer(*integer)),
-            hir::Expression::Label(label) => self.push(Value::Label(*label)),
-            hir::Expression::Temporary(temporary) => self.push(Value::Temporary(*temporary)),
+            hir::Expression::Integer(integer) => self.push(Operand::Integer(*integer)),
+            hir::Expression::Label(label) => self.push(Operand::Label(*label, 8)),
+            hir::Expression::Temporary(temporary) => self.push(Operand::Temporary(*temporary)),
             hir::Expression::Memory(_) => {
-                let address = self.pop_integer(global);
-                self.push(Value::Memory(address));
+                let address = self.pop(global);
+                self.push(Operand::Memory(address));
             }
             hir::Expression::Binary(binary, _, _) => self.interpret_binary(global, binary),
             hir::Expression::Call(call) => {
                 let mut r#return = self.interpret_call(unit, global, call)?;
                 debug_assert_eq!(r#return.len(), 1);
-                self.push(Value::Integer(r#return.remove(0)));
+                self.push(r#return.remove(0).into_operand());
             }
         }
 
@@ -78,12 +83,12 @@ impl<'a> Local<'a, postorder::Hir<'a>> {
         unit: &ir::Unit<Postorder<postorder::Hir<'a>>>,
         global: &mut Global,
         statement: &hir::Statement,
-    ) -> anyhow::Result<Option<Vec<i64>>> {
+    ) -> anyhow::Result<Option<Vec<Value>>> {
         match statement {
             hir::Statement::Label(_) => unreachable!(),
             hir::Statement::Sequence(_) => unreachable!(),
             hir::Statement::Jump(_) => {
-                self.interpret_jump();
+                self.interpret_jump(global);
                 return Ok(None);
             }
             hir::Statement::CJump(_, r#true, r#false) => {
@@ -113,12 +118,9 @@ impl<'a> Local<'a, postorder::Hir<'a>> {
         unit: &ir::Unit<Postorder<postorder::Hir<'a>>>,
         global: &mut Global,
         call: &hir::Call,
-    ) -> anyhow::Result<Vec<i64>> {
+    ) -> anyhow::Result<Vec<Value>> {
         let arguments = self.pop_arguments(global, call.arguments.len());
-        let name = match self.pop_label() {
-            operand::Label::Fixed(name) => name,
-            operand::Label::Fresh(_, _) => panic!("calling fresh function name"),
-        };
+        let name = self.pop_name(global);
 
         global
             .interpret_library(name, &arguments)

@@ -3,6 +3,7 @@ use std::collections::BTreeMap;
 use crate::data::ir;
 use crate::data::operand;
 use crate::interpret::Global;
+use crate::interpret::Operand;
 use crate::interpret::Postorder;
 use crate::interpret::Value;
 use crate::util::symbol::Symbol;
@@ -10,12 +11,12 @@ use crate::util::symbol::Symbol;
 pub struct Local<'a, T: 'a> {
     postorder: &'a Postorder<T>,
     index: usize,
-    temporaries: BTreeMap<operand::Temporary, i64>,
-    stack: Vec<Value>,
+    temporaries: BTreeMap<operand::Temporary, Value>,
+    stack: Vec<Operand>,
 }
 
 impl<'a, T: 'a> Local<'a, T> {
-    pub fn new(unit: &'a ir::Unit<Postorder<T>>, name: &Symbol, arguments: &[i64]) -> Self {
+    pub fn new(unit: &'a ir::Unit<Postorder<T>>, name: &Symbol, arguments: &[Value]) -> Self {
         let postorder = unit.functions.get(name).unwrap();
 
         let mut temporaries = BTreeMap::new();
@@ -42,83 +43,94 @@ impl<'a, T: 'a> Local<'a, T> {
         self.index = self.postorder.get_label(label).copied().unwrap();
     }
 
-    pub fn insert(&mut self, temporary: operand::Temporary, value: i64) {
+    pub fn insert(&mut self, temporary: operand::Temporary, value: Value) {
         self.temporaries.insert(temporary, value);
     }
 
-    pub fn push(&mut self, value: Value) {
+    pub fn push(&mut self, value: Operand) {
         self.stack.push(value);
     }
 
-    pub fn pop(&mut self) -> Value {
-        self.stack.pop().unwrap()
+    pub fn pop(&mut self, global: &Global) -> Value {
+        match self.stack.pop() {
+            None => panic!("empty stack"),
+            Some(Operand::Integer(integer)) => Value::Integer(integer),
+            Some(Operand::Memory(address)) => global.read(address),
+            Some(Operand::Label(label, offset)) => Value::Label(label, offset),
+            Some(Operand::Temporary(temporary)) => self.temporaries[&temporary],
+        }
     }
 
-    pub fn pop_arguments(&mut self, global: &Global, len: usize) -> Vec<i64> {
-        let mut arguments = (0..len)
-            .map(|_| self.pop_integer(global))
-            .collect::<Vec<_>>();
+    pub fn pop_name(&mut self, global: &Global) -> Symbol {
+        match self.pop(global) {
+            Value::Label(operand::Label::Fixed(name), 8) => name,
+            Value::Label(operand::Label::Fixed(_), _) => panic!("calling label offset"),
+            Value::Label(operand::Label::Fresh(_, _), _) => panic!("calling fresh function name"),
+            Value::Integer(_) => panic!("calling integer"),
+        }
+    }
 
+    pub fn pop_arguments(&mut self, global: &Global, len: usize) -> Vec<Value> {
+        let mut arguments = (0..len).map(|_| self.pop(global)).collect::<Vec<_>>();
         arguments.reverse();
         arguments
     }
 
-    pub fn pop_integer(&mut self, global: &Global) -> i64 {
-        match self.stack.pop() {
-            None => panic!("empty stack"),
-            Some(Value::Integer(integer)) => integer,
-            Some(Value::Memory(address)) => global.read(address),
-            Some(Value::Label(_)) => panic!("using label as integer"),
-            Some(Value::Temporary(temporary)) => self.temporaries[&temporary],
-        }
-    }
-
-    pub fn pop_label(&mut self) -> operand::Label {
-        match self.stack.pop() {
-            None => panic!("empty stack"),
-            Some(Value::Integer(_)) => panic!("using integer as label"),
-            Some(Value::Memory(_)) => panic!("using memory as label"),
-            Some(Value::Label(label)) => label,
-            Some(Value::Temporary(_)) => panic!("using temporary as label"),
-        }
-    }
-
     pub fn interpret_binary(&mut self, global: &Global, binary: &ir::Binary) {
-        let right = self.pop_integer(global);
-        let left = self.pop_integer(global);
-        let value = match binary {
-            ir::Binary::Add => left.wrapping_add(right),
-            ir::Binary::Sub => left.wrapping_sub(right),
-            ir::Binary::Mul => left.wrapping_mul(right),
-            ir::Binary::Hul => (((left as i128) * (right as i128)) >> 64) as i64,
-            ir::Binary::Div => left / right,
-            ir::Binary::Mod => left % right,
-            ir::Binary::Xor => left ^ right,
-            ir::Binary::Ls => left << right,
-            ir::Binary::Rs => ((left as u64) >> right) as i64,
-            ir::Binary::ARs => left >> right,
-            ir::Binary::Lt => (left < right) as bool as i64,
-            ir::Binary::Le => (left <= right) as bool as i64,
-            ir::Binary::Ge => (left >= right) as bool as i64,
-            ir::Binary::Gt => (left > right) as bool as i64,
-            ir::Binary::Ne => (left != right) as bool as i64,
-            ir::Binary::Eq => (left == right) as bool as i64,
-            ir::Binary::And => {
-                debug_assert!(left == 0 || left == 1);
-                debug_assert!(right == 0 || right == 1);
-                left & right
+        let right = self.pop(global);
+        let left = self.pop(global);
+
+        use ir::Binary::*;
+
+        let value = match (binary, left, right) {
+            (Add, Value::Label(label, l), Value::Integer(r)) => Operand::Label(label, l + r),
+            (Add, Value::Integer(l), Value::Label(label, r)) => Operand::Label(label, l + r),
+            (Sub, Value::Label(label, l), Value::Integer(r)) => Operand::Label(label, l - r),
+
+            (Add, Value::Integer(l), Value::Integer(r)) => Operand::Integer(l.wrapping_add(r)),
+            (Sub, Value::Integer(l), Value::Integer(r)) => Operand::Integer(l.wrapping_sub(r)),
+            (Mul, Value::Integer(l), Value::Integer(r)) => Operand::Integer(l.wrapping_mul(r)),
+            (Hul, Value::Integer(l), Value::Integer(r)) => {
+                Operand::Integer((((l as i128) * (r as i128)) >> 64) as i64)
             }
-            ir::Binary::Or => {
-                debug_assert!(left == 0 || left == 1);
-                debug_assert!(right == 0 || right == 1);
-                left | right
+            // TODO: handle divide by 0
+            (Div, Value::Integer(l), Value::Integer(r)) => Operand::Integer(l / r),
+            (Mod, Value::Integer(l), Value::Integer(r)) => Operand::Integer(l % r),
+            (Xor, Value::Integer(l), Value::Integer(r)) => Operand::Integer(l ^ r),
+            (Ls, Value::Integer(l), Value::Integer(r)) => Operand::Integer(l << r),
+            (Rs, Value::Integer(l), Value::Integer(r)) => {
+                Operand::Integer(((l as u64) >> r) as i64)
             }
+            (ARs, Value::Integer(l), Value::Integer(r)) => Operand::Integer(l >> r),
+            (Lt, Value::Integer(l), Value::Integer(r)) => Operand::Integer((l < r) as bool as i64),
+            (Le, Value::Integer(l), Value::Integer(r)) => Operand::Integer((l <= r) as bool as i64),
+            (Ge, Value::Integer(l), Value::Integer(r)) => Operand::Integer((l >= r) as bool as i64),
+            (Gt, Value::Integer(l), Value::Integer(r)) => Operand::Integer((l > r) as bool as i64),
+            (Ne, Value::Integer(l), Value::Integer(r)) => Operand::Integer((l != r) as bool as i64),
+            (Eq, Value::Integer(l), Value::Integer(r)) => Operand::Integer((l == r) as bool as i64),
+            (And, Value::Integer(l), Value::Integer(r)) => {
+                debug_assert!(l == 0 || l == 1);
+                debug_assert!(r == 0 || r == 1);
+                Operand::Integer(l & r)
+            }
+            (Or, Value::Integer(l), Value::Integer(r)) => {
+                debug_assert!(l == 0 || l == 1);
+                debug_assert!(r == 0 || r == 1);
+                Operand::Integer(l | r)
+            }
+
+            _ => unreachable!(),
         };
-        self.push(Value::Integer(value));
+
+        self.push(value);
     }
 
-    pub fn interpret_jump(&mut self) {
-        let label = self.pop_label();
+    pub fn interpret_jump(&mut self, global: &Global) {
+        let label = match self.pop(global) {
+            Value::Label(label, 8) => label,
+            Value::Label(_, _) => panic!("jumping to label offset"),
+            Value::Integer(_) => panic!("jumping to integer"),
+        };
         self.jump(&label);
     }
 
@@ -128,22 +140,23 @@ impl<'a, T: 'a> Local<'a, T> {
         r#true: &operand::Label,
         r#false: &operand::Label,
     ) {
-        let label = match self.pop_integer(global) {
-            0 => r#false,
-            1 => r#true,
-            _ => unreachable!(),
+        let label = match self.pop(global) {
+            Value::Integer(0) => r#false,
+            Value::Integer(1) => r#true,
+            Value::Integer(_) => panic!("cjump on non-boolean condition"),
+            Value::Label(_, _) => panic!("cjump on label condition"),
         };
         self.jump(label);
     }
 
     pub fn interpret_move(&mut self, global: &mut Global) {
-        let from = self.pop_integer(global);
-        let into = self.pop();
+        let from = self.pop(global);
+        let into = self.stack.pop().unwrap();
         match into {
-            Value::Integer(_) => panic!("writing into integer"),
-            Value::Memory(address) => global.write(address, from),
-            Value::Temporary(temporary) => self.insert(temporary, from),
-            Value::Label(_) => panic!("writing into label"),
+            Operand::Integer(_) => panic!("writing into integer"),
+            Operand::Memory(address) => global.write(address, from),
+            Operand::Temporary(temporary) => self.insert(temporary, from),
+            Operand::Label(_, _) => panic!("writing into label"),
         }
     }
 }
