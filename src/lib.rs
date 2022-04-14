@@ -9,6 +9,9 @@ mod parse;
 pub mod util;
 
 pub use error::Error;
-pub use lex::lex;
-pub use parse::parse;
-pub use check::check;
+
+pub mod api {
+    pub use crate::check::check;
+    pub use crate::lex::lex;
+    pub use crate::parse::parse;
+}

@@ -61,7 +61,7 @@ fn main() -> anyhow::Result<()> {
     for path in &command.input {
         let path = command.directory_source.join(path);
 
-        let tokens = xic::lex(
+        let tokens = xic::api::lex(
             &path,
             if command.debug_lex {
                 Some(&command.directory_output)
@@ -70,7 +70,7 @@ fn main() -> anyhow::Result<()> {
             },
         )?;
 
-        let program = xic::parse(
+        let program = xic::api::parse(
             &path,
             if command.debug_parse {
                 Some(&command.directory_output)
@@ -80,7 +80,7 @@ fn main() -> anyhow::Result<()> {
             tokens,
         )?;
 
-        let context = xic::check(
+        let context = xic::api::check(
             &path,
             command.directory_library.as_deref(),
             if command.debug_check {

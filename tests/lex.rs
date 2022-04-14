@@ -17,6 +17,6 @@ impl<P: fmt::Display, T: fmt::Display, E: fmt::Display> fmt::Display for Snapsho
 
 #[test_generator::test_resources("tests/lex/*.xi")]
 pub fn lex(path: &str) {
-    let lexed = xic::lex(Path::new(path), None).unwrap();
+    let lexed = xic::api::lex(Path::new(path), None).unwrap();
     insta::assert_display_snapshot!(path, Snapshot(lexed));
 }

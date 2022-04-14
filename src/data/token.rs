@@ -1,5 +1,32 @@
+use std::fmt;
+use std::vec;
+
 use crate::util;
+use crate::util::span;
 use crate::util::symbol;
+
+#[derive(Debug)]
+pub struct Tokens(Vec<Result<(span::Point, Token, span::Point), crate::Error>>);
+
+impl IntoIterator for Tokens {
+    type Item = Result<(span::Point, Token, span::Point), crate::Error>;
+    type IntoIter = vec::IntoIter<Self::Item>;
+    fn into_iter(self) -> Self::IntoIter {
+        self.0.into_iter()
+    }
+}
+
+impl fmt::Display for Tokens {
+    fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
+        for spanned in &self.0 {
+            match spanned {
+                Ok((left, token, _)) => writeln!(fmt, "{} {}", left, token)?,
+                Err(error) => writeln!(fmt, "{}", error)?,
+            }
+        }
+        Ok(())
+    }
+}
 
 /// Represents a possible lexical token in the Xi language.
 #[derive(Clone, Debug, PartialEq, Eq)]

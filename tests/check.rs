@@ -14,9 +14,9 @@ impl fmt::Display for Snapshot {
 
 #[test_generator::test_resources("tests/check/*.xi")]
 pub fn check(path: &str) {
-    let lexed = xic::lex(Path::new(path), None).unwrap();
-    let parsed = xic::parse(Path::new(path), None, lexed).unwrap();
-    let checked = xic::check(Path::new(path), None, None, &parsed).map(|_| ());
+    let lexed = xic::api::lex(Path::new(path), None).unwrap();
+    let parsed = xic::api::parse(Path::new(path), None, lexed).unwrap();
+    let checked = xic::api::check(Path::new(path), None, None, &parsed).map(|_| ());
 
     insta::assert_display_snapshot!(path, Snapshot(checked));
 }
