@@ -1,8 +1,11 @@
 mod global;
-pub mod hir;
-pub mod lir;
+mod hir;
+mod lir;
 mod local;
 mod postorder;
+
+pub use hir::interpret_hir;
+pub use lir::interpret_lir;
 
 pub(crate) use global::Global;
 pub(crate) use local::Local;

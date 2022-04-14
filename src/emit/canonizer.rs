@@ -15,15 +15,15 @@ impl Canonizer {
         Canonizer::default()
     }
 
-    pub fn canonize_unit(mut self, unit: ir::Unit<hir::Function>) -> ir::Unit<lir::Function> {
+    pub fn canonize_unit(mut self, unit: &ir::Unit<hir::Function>) -> ir::Unit<lir::Function> {
         let mut functions = BTreeMap::default();
-        for (name, function) in unit.functions {
-            functions.insert(name, self.canonize_function(&function));
+        for (name, function) in &unit.functions {
+            functions.insert(*name, self.canonize_function(function));
         }
         ir::Unit {
             name: unit.name,
             functions,
-            data: unit.data,
+            data: unit.data.clone(),
         }
     }
 

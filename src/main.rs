@@ -7,7 +7,6 @@ use std::path::PathBuf;
 use structopt::StructOpt;
 
 use xic::data::sexp::Serialize as _;
-use xic::emit;
 
 #[derive(Debug, StructOpt)]
 #[structopt(name = "xic", about = "Compiler for the Xi programming language.")]
@@ -28,9 +27,9 @@ struct Command {
     #[structopt(short = "g", long = "irgen")]
     debug_ir: bool,
 
-    /// Emulate emitted IR
+    /// Interpret emitted IR
     #[structopt(short = "r", long = "irrun")]
-    run_ir: bool,
+    interpret_ir: bool,
 
     /// Disable optimizations
     #[structopt(short = "O")]
@@ -55,13 +54,6 @@ struct Command {
 
 fn main() -> anyhow::Result<()> {
     let command = Command::from_args();
-
-    let emitter = emit::Driver::new(
-        &command.directory_output,
-        command.debug_ir,
-        !command.optimize_disable,
-        command.run_ir,
-    );
 
     for path in &command.input {
         let path = command.directory_source.join(path);
@@ -103,8 +95,29 @@ fn main() -> anyhow::Result<()> {
             }
         }
 
-        let hir = emitter.emit_hir(&path, &program, &context?)?;
-        let _lir = emitter.emit_lir(&path, &hir)?;
+        let mut hir = xic::api::emit_hir(&path, &program, &context?);
+
+        if !command.optimize_disable {
+            hir = xic::api::fold_hir(hir);
+        }
+
+        let mut lir = xic::api::emit_lir(&hir);
+
+        if !command.optimize_disable {
+            lir = xic::api::fold_lir(lir);
+        }
+
+        if command.debug_ir {
+            write!(
+                debug(&command.directory_output, &path, "ir")?,
+                "{}",
+                lir.sexp(),
+            )?;
+        }
+
+        if command.interpret_ir {
+            xic::api::interpret_lir(&lir, io::BufReader::new(io::stdin()), io::stdout())?;
+        }
     }
 
     Ok(())

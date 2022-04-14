@@ -8,15 +8,15 @@ use anyhow::Context as _;
 use crate::data::hir;
 use crate::data::ir;
 use crate::data::operand;
+use crate::data::symbol;
 use crate::interpret::postorder;
 use crate::interpret::Global;
 use crate::interpret::Local;
 use crate::interpret::Operand;
 use crate::interpret::Postorder;
 use crate::interpret::Value;
-use crate::data::symbol;
 
-pub fn interpret_unit<R: io::BufRead + 'static, W: io::Write + 'static>(
+pub fn interpret_hir<R: io::BufRead + 'static, W: io::Write + 'static>(
     unit: &ir::Unit<hir::Function>,
     stdin: R,
     stdout: W,
