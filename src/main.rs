@@ -7,7 +7,6 @@ use std::path::PathBuf;
 use structopt::StructOpt;
 
 use xic::data::sexp::Serialize as _;
-use xic::util::Tap as _;
 use xic::emit;
 
 #[derive(Debug, StructOpt)]
@@ -112,9 +111,5 @@ fn main() -> anyhow::Result<()> {
 }
 
 fn debug(directory: &Path, path: &Path, extension: &str) -> io::Result<io::BufWriter<fs::File>> {
-    directory
-        .join(path)
-        .with_extension(extension)
-        .tap(fs::File::create)
-        .map(io::BufWriter::new)
+    fs::File::create(directory.join(path).with_extension(extension)).map(io::BufWriter::new)
 }
