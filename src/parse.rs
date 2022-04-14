@@ -11,40 +11,14 @@ pub(crate) use error::Error;
 pub(crate) use parser::InterfaceParser;
 pub(crate) use parser::ProgramParser;
 
-use std::fs;
-use std::io;
-use std::io::Write as _;
-use std::path::Path;
-
 use crate::data::ast;
 use crate::data::token;
-use crate::util::sexp::Serialize as _;
-use crate::util::Tap as _;
 
-pub fn parse<I>(
-    path: &Path,
-    diagnostic: Option<&Path>,
-    tokens: I,
-) -> Result<ast::Program, crate::Error>
+pub fn parse<I>(tokens: I) -> Result<ast::Program, crate::Error>
 where
     I: IntoIterator<Item = token::Spanned>,
 {
-    let program = ProgramParser::new()
+    ProgramParser::new()
         .parse(tokens)
-        .map_err(crate::Error::from);
-
-    if let Some(directory) = diagnostic {
-        let mut log = directory
-            .join(path)
-            .with_extension("parsed")
-            .tap(fs::File::create)
-            .map(io::BufWriter::new)?;
-
-        match &program {
-            Ok(program) => program.sexp().write(80, &mut log)?,
-            Err(error) => write!(&mut log, "{}", error)?,
-        };
-    }
-
-    program
+        .map_err(crate::Error::from)
 }

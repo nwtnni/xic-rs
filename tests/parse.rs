@@ -8,11 +8,7 @@ struct Snapshot(Result<xic::data::ast::Program, xic::Error>);
 impl fmt::Display for Snapshot {
     fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
         match &self.0 {
-            Ok(program) => {
-                let mut buffer = Vec::new();
-                program.sexp().write(80, &mut buffer).unwrap();
-                write!(fmt, "{}", std::str::from_utf8(&buffer).unwrap())
-            }
+            Ok(program) => write!(fmt, "{}", program.sexp()),
             Err(error) => write!(fmt, "{}", error),
         }
     }
@@ -20,8 +16,8 @@ impl fmt::Display for Snapshot {
 
 #[test_generator::test_resources("tests/parse/*.xi")]
 pub fn parse(path: &str) {
-    let lexed = xic::api::lex(Path::new(path), None).unwrap();
-    let parsed = xic::api::parse(Path::new(path), None, lexed);
+    let lexed = xic::api::lex(Path::new(path)).unwrap();
+    let parsed = xic::api::parse(lexed);
 
     insta::assert_display_snapshot!(path, Snapshot(parsed));
 }

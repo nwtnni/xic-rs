@@ -1,8 +1,14 @@
+use std::fs;
+use std::io;
+use std::io::Write as _;
+use std::path::Path;
 use std::path::PathBuf;
 
 use structopt::StructOpt;
 
 use xic::emit;
+use xic::util::sexp::Serialize as _;
+use xic::util::Tap as _;
 
 #[derive(Debug, StructOpt)]
 #[structopt(name = "xic", about = "Compiler for the Xi programming language.")]
@@ -61,39 +67,54 @@ fn main() -> anyhow::Result<()> {
     for path in &command.input {
         let path = command.directory_source.join(path);
 
-        let tokens = xic::api::lex(
-            &path,
-            if command.debug_lex {
-                Some(&command.directory_output)
-            } else {
-                None
-            },
-        )?;
+        let tokens = xic::api::lex(&path)?;
 
-        let program = xic::api::parse(
-            &path,
-            if command.debug_parse {
-                Some(&command.directory_output)
-            } else {
-                None
-            },
-            tokens,
-        )?;
+        if command.debug_lex {
+            write!(
+                debug(&command.directory_output, &path, "lexed")?,
+                "{}",
+                tokens
+            )?;
+        }
+
+        let program = xic::api::parse(tokens)?;
+
+        if command.debug_parse {
+            write!(
+                debug(&command.directory_output, &path, "parsed")?,
+                "{}",
+                program.sexp(),
+            )?;
+        }
 
         let context = xic::api::check(
-            &path,
-            command.directory_library.as_deref(),
-            if command.debug_check {
-                Some(&command.directory_output)
-            } else {
-                None
-            },
+            command
+                .directory_library
+                .as_deref()
+                .or_else(|| path.parent())
+                .unwrap(),
             &program,
-        )?;
+        );
 
-        let hir = emitter.emit_hir(&path, &program, &context)?;
+        if command.debug_check {
+            let mut file = debug(&command.directory_output, &path, "typed")?;
+            match &context {
+                Ok(_) => write!(file, "Valid Xi Program")?,
+                Err(error) => write!(file, "{}", error)?,
+            }
+        }
+
+        let hir = emitter.emit_hir(&path, &program, &context?)?;
         let _lir = emitter.emit_lir(&path, &hir)?;
     }
 
     Ok(())
+}
+
+fn debug(directory: &Path, path: &Path, extension: &str) -> io::Result<io::BufWriter<fs::File>> {
+    directory
+        .join(path)
+        .with_extension(extension)
+        .tap(fs::File::create)
+        .map(io::BufWriter::new)
 }

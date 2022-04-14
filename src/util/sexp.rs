@@ -1,4 +1,5 @@
 use std::borrow::Cow;
+use std::fmt;
 
 use pretty::Arena;
 use pretty::DocAllocator;
@@ -12,6 +13,13 @@ use crate::util::Tap;
 pub enum Sexp {
     Atom(Cow<'static, str>),
     List(Vec<Sexp>),
+}
+
+impl fmt::Display for Sexp {
+    fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
+        let arena = Arena::new();
+        self.to_doc(&arena).render_fmt(80, fmt)
+    }
 }
 
 impl Sexp {
@@ -45,6 +53,7 @@ impl Sexp {
 
 pub trait Serialize: Sized {
     fn sexp(&self) -> Sexp;
+
     fn sexp_move(self) -> Sexp {
         self.sexp()
     }
@@ -54,6 +63,7 @@ impl Serialize for Sexp {
     fn sexp(&self) -> Sexp {
         self.clone()
     }
+
     fn sexp_move(self) -> Sexp {
         self
     }
@@ -81,6 +91,7 @@ impl Serialize for String {
     fn sexp(&self) -> Sexp {
         Sexp::Atom(Cow::from(self.clone()))
     }
+
     fn sexp_move(self) -> Sexp {
         Sexp::Atom(Cow::from(self))
     }
