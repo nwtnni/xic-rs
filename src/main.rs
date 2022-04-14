@@ -2,7 +2,6 @@ use std::path::PathBuf;
 
 use structopt::StructOpt;
 
-use xic::check;
 use xic::emit;
 
 #[derive(Debug, StructOpt)]
@@ -52,11 +51,6 @@ struct Command {
 fn main() -> anyhow::Result<()> {
     let command = Command::from_args();
 
-    let checker = check::Driver::new(
-        &command.directory_output,
-        command.debug_check,
-        command.directory_library.as_deref(),
-    );
     let emitter = emit::Driver::new(
         &command.directory_output,
         command.debug_ir,
@@ -76,7 +70,7 @@ fn main() -> anyhow::Result<()> {
             },
         )?;
 
-        let ast = xic::parse(
+        let program = xic::parse(
             &path,
             if command.debug_parse {
                 Some(&command.directory_output)
@@ -86,8 +80,18 @@ fn main() -> anyhow::Result<()> {
             tokens,
         )?;
 
-        let context = checker.drive(&path, &ast)?;
-        let hir = emitter.emit_hir(&path, &ast, &context)?;
+        let context = xic::check(
+            &path,
+            command.directory_library.as_deref(),
+            if command.debug_check {
+                Some(&command.directory_output)
+            } else {
+                None
+            },
+            &program,
+        )?;
+
+        let hir = emitter.emit_hir(&path, &program, &context)?;
         let _lir = emitter.emit_lir(&path, &hir)?;
     }
 
