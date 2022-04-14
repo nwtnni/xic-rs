@@ -53,25 +53,3 @@ impl<T, I: Iterator<Item = T>, F: FnMut(&T) -> bool> Iterator for Until<I, F> {
         }
     }
 }
-
-pub fn unescape_char(char: char) -> Option<&'static str> {
-    match char {
-        '\n' => Some("\\n"),
-        '\r' => Some("\\r"),
-        '\t' => Some("\\t"),
-        '\x08' => Some("\\b"),
-        '\x0C' => Some("\\f"),
-        _ => None,
-    }
-}
-
-pub fn unescape_str(string: &str) -> String {
-    let mut buffer = String::new();
-    for char in string.chars() {
-        match unescape_char(char) {
-            Some(unescaped) => buffer.push_str(unescaped),
-            None => buffer.push(char),
-        }
-    }
-    buffer
-}

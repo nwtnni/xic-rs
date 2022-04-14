@@ -1,7 +1,6 @@
 use std::fmt;
 use std::vec;
 
-use crate::util;
 use crate::data::span;
 use crate::data::symbol;
 
@@ -163,11 +162,11 @@ pub enum Token {
 impl std::fmt::Display for Token {
     fn fmt(&self, fmt: &mut std::fmt::Formatter) -> std::fmt::Result {
         match self {
-            Token::CHARACTER(c) => match util::unescape_char(*c) {
+            Token::CHARACTER(c) => match unescape_char(*c) {
                 Some(s) => write!(fmt, "character {}", s),
                 None => write!(fmt, "character {}", c),
             },
-            Token::STRING(s) => write!(fmt, "string {}", util::unescape_str(s)),
+            Token::STRING(s) => write!(fmt, "string {}", unescape_str(s)),
             Token::IDENT(i) => write!(fmt, "id {}", symbol::resolve(*i)),
             Token::INTEGER(i) => write!(fmt, "integer {}", i),
             Token::USE => write!(fmt, "use"),
@@ -208,4 +207,26 @@ impl std::fmt::Display for Token {
             Token::UNDERSCORE => write!(fmt, "_"),
         }
     }
+}
+
+pub fn unescape_char(char: char) -> Option<&'static str> {
+    match char {
+        '\n' => Some("\\n"),
+        '\r' => Some("\\r"),
+        '\t' => Some("\\t"),
+        '\x08' => Some("\\b"),
+        '\x0C' => Some("\\f"),
+        _ => None,
+    }
+}
+
+pub fn unescape_str(string: &str) -> String {
+    let mut buffer = String::new();
+    for char in string.chars() {
+        match unescape_char(char) {
+            Some(unescaped) => buffer.push_str(unescaped),
+            None => buffer.push(char),
+        }
+    }
+    buffer
 }

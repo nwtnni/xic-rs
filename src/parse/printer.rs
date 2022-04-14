@@ -1,7 +1,7 @@
 use crate::data::ast;
-use crate::util;
 use crate::data::sexp::Serialize;
 use crate::data::sexp::Sexp;
+use crate::data::token;
 use crate::util::Tap;
 
 impl Serialize for ast::Interface {
@@ -97,11 +97,11 @@ impl Serialize for ast::Expression {
         match self {
             Boolean(false, _) => "false".sexp(),
             Boolean(true, _) => "true".sexp(),
-            Character(c, _) => match util::unescape_char(*c) {
+            Character(c, _) => match token::unescape_char(*c) {
                 Some(s) => format!("\'{}\'", s).sexp_move(),
                 None => format!("\'{}\'", c).sexp_move(),
             },
-            String(s, _) => format!("\"{}\"", util::unescape_str(s)).sexp_move(),
+            String(s, _) => format!("\"{}\"", token::unescape_str(s)).sexp_move(),
             Integer(i, _) if *i < 0 => {
                 ["-".sexp(), (-(*i as i128)).to_string().sexp_move()].sexp_move()
             }
