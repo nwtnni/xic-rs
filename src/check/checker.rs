@@ -242,8 +242,7 @@ impl Checker {
 
             ast::Expression::Binary(binary, left, right, _) => {
                 match binary.get() {
-                    ast::Binary::Add => (),
-                    ast::Binary::Cat => unreachable!(),
+                    ast::Binary::Add | ast::Binary::Cat => (),
                     ast::Binary::Mul
                     | ast::Binary::Hul
                     | ast::Binary::Div
