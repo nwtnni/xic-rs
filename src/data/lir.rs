@@ -1,6 +1,6 @@
 use crate::data::ir;
 use crate::data::operand;
-use crate::util::symbol;
+use crate::data::symbol;
 
 #[derive(Clone, Debug)]
 pub struct Function {

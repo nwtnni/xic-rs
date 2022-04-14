@@ -14,7 +14,7 @@ use crate::interpret::Local;
 use crate::interpret::Operand;
 use crate::interpret::Postorder;
 use crate::interpret::Value;
-use crate::util::symbol;
+use crate::data::symbol;
 
 pub fn interpret_unit<R: io::BufRead + 'static, W: io::Write + 'static>(
     unit: &ir::Unit<hir::Function>,

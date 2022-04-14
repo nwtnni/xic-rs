@@ -1,7 +1,7 @@
 use crate::data::ast;
 use crate::util;
-use crate::util::sexp::Serialize;
-use crate::util::sexp::Sexp;
+use crate::data::sexp::Serialize;
+use crate::data::sexp::Sexp;
 use crate::util::Tap;
 
 impl Serialize for ast::Interface {

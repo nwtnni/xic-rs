@@ -1,7 +1,7 @@
 use std::fmt;
 use std::path::Path;
 
-use xic::util::sexp::Serialize as _;
+use xic::data::sexp::Serialize as _;
 
 struct Snapshot(Result<xic::data::ast::Program, xic::Error>);
 

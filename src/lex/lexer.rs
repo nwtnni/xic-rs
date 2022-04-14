@@ -2,8 +2,8 @@ use crate::data::token;
 use crate::error;
 use crate::lex::Error;
 use crate::lex::ErrorKind;
-use crate::util::span;
-use crate::util::symbol;
+use crate::data::span;
+use crate::data::symbol;
 use crate::util::TakeUntil as _;
 use crate::util::Tap as _;
 

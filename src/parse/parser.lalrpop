@@ -4,10 +4,10 @@ use crate::data::ast::*;
 use crate::data::token::Token;
 use crate::error::Error;
 use crate::parse;
-use crate::util::symbol::Symbol;
-use crate::util::symbol::intern_static;
-use crate::util::span::Point;
-use crate::util::span::Span;
+use crate::data::symbol::Symbol;
+use crate::data::symbol::intern_static;
+use crate::data::span::Point;
+use crate::data::span::Span;
 
 grammar;
 

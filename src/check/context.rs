@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
 use crate::data::r#type;
-use crate::util::symbol;
+use crate::data::symbol;
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Entry {

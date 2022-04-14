@@ -2,7 +2,7 @@ use std::collections::BTreeMap;
 
 use crate::data::ast;
 use crate::data::operand;
-use crate::util::symbol;
+use crate::data::symbol;
 
 #[derive(Clone, Debug)]
 pub struct Unit<T> {

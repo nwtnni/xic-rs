@@ -7,7 +7,7 @@ use crate::data::r#type;
 use crate::error;
 use crate::lex;
 use crate::parse;
-use crate::util::symbol;
+use crate::data::symbol;
 
 macro_rules! bail {
     ($span:expr, $kind:expr) => {

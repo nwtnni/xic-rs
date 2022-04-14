@@ -2,8 +2,8 @@ use crate::data::hir;
 use crate::data::ir;
 use crate::data::lir;
 use crate::data::operand;
-use crate::util::sexp::{Serialize, Sexp};
-use crate::util::symbol;
+use crate::data::sexp::{Serialize, Sexp};
+use crate::data::symbol;
 
 impl<T: Serialize> Serialize for ir::Unit<T> {
     fn sexp(&self) -> Sexp {

@@ -2,8 +2,8 @@ use std::fmt;
 use std::vec;
 
 use crate::util;
-use crate::util::span;
-use crate::util::symbol;
+use crate::data::span;
+use crate::data::symbol;
 
 pub type Spanned = Result<(span::Point, Token, span::Point), crate::Error>;
 

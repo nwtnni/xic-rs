@@ -6,9 +6,9 @@ use std::path::PathBuf;
 
 use structopt::StructOpt;
 
-use xic::emit;
-use xic::util::sexp::Serialize as _;
+use xic::data::sexp::Serialize as _;
 use xic::util::Tap as _;
+use xic::emit;
 
 #[derive(Debug, StructOpt)]
 #[structopt(name = "xic", about = "Compiler for the Xi programming language.")]

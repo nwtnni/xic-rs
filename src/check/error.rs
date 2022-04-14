@@ -1,6 +1,6 @@
 use crate::data::r#type;
-use crate::util::span;
-use crate::util::symbol;
+use crate::data::span;
+use crate::data::symbol;
 
 #[derive(Clone, Debug)]
 pub struct Error {

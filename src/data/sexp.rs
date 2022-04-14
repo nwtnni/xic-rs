@@ -6,7 +6,7 @@ use pretty::DocAllocator;
 use pretty::DocBuilder;
 
 use crate::error;
-use crate::util::symbol;
+use crate::data::symbol;
 use crate::util::Tap;
 
 #[derive(Clone, Debug)]

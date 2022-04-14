@@ -11,7 +11,7 @@ use crate::data::ir;
 use crate::data::operand;
 use crate::data::r#type;
 use crate::hir;
-use crate::util::symbol;
+use crate::data::symbol;
 
 #[derive(Debug)]
 pub struct Emitter<'env> {

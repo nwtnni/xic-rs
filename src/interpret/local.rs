@@ -6,7 +6,7 @@ use crate::interpret::Global;
 use crate::interpret::Operand;
 use crate::interpret::Postorder;
 use crate::interpret::Value;
-use crate::util::symbol::Symbol;
+use crate::data::symbol::Symbol;
 
 pub struct Local<'a, T: 'a> {
     postorder: &'a Postorder<T>,

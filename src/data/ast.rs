@@ -1,7 +1,7 @@
 use std::cell::Cell;
 
-use crate::util::span::Span;
-use crate::util::symbol::Symbol;
+use crate::data::span::Span;
+use crate::data::symbol::Symbol;
 
 /// Represents a Xi interface file.
 #[derive(Clone, Debug)]

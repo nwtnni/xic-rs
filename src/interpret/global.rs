@@ -11,8 +11,8 @@ use rand::Rng as _;
 use crate::constants;
 use crate::data::operand;
 use crate::interpret::Value;
-use crate::util::symbol;
-use crate::util::symbol::Symbol;
+use crate::data::symbol;
+use crate::data::symbol::Symbol;
 
 const HEAP_SIZE: usize = 1024;
 

@@ -9,7 +9,7 @@ use crate::data::lir;
 use crate::emit;
 use crate::emit::Foldable;
 use crate::interpret;
-use crate::util::sexp::Serialize;
+use crate::data::sexp::Serialize;
 use crate::util::Tap;
 
 #[derive(Debug)]

@@ -1,6 +1,6 @@
 use std::sync::atomic::{AtomicUsize, Ordering};
 
-use crate::util::symbol;
+use crate::data::symbol;
 
 static LABELS: AtomicUsize = AtomicUsize::new(0);
 static TEMPS: AtomicUsize = AtomicUsize::new(0);
