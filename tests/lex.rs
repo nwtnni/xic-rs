@@ -1,17 +1,11 @@
 use std::fmt;
 use std::path::Path;
 
-struct Snapshot<P, T, E>(Vec<Result<(P, T, P), E>>);
+struct Snapshot(xic::data::token::Tokens);
 
-impl<P: fmt::Display, T: fmt::Display, E: fmt::Display> fmt::Display for Snapshot<P, T, E> {
+impl fmt::Display for Snapshot {
     fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
-        for spanned in &self.0 {
-            match spanned {
-                Ok((left, token, _)) => writeln!(fmt, "{} {}", left, token)?,
-                Err(error) => writeln!(fmt, "{}", error)?,
-            }
-        }
-        Ok(())
+        write!(fmt, "{}", &self.0)
     }
 }
 

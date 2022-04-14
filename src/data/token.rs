@@ -5,11 +5,19 @@ use crate::util;
 use crate::util::span;
 use crate::util::symbol;
 
+pub type Spanned = Result<(span::Point, Token, span::Point), crate::Error>;
+
 #[derive(Debug)]
-pub struct Tokens(Vec<Result<(span::Point, Token, span::Point), crate::Error>>);
+pub struct Tokens(Vec<Spanned>);
+
+impl Tokens {
+    pub fn new(tokens: Vec<Spanned>) -> Self {
+        Tokens(tokens)
+    }
+}
 
 impl IntoIterator for Tokens {
-    type Item = Result<(span::Point, Token, span::Point), crate::Error>;
+    type Item = Spanned;
     type IntoIter = vec::IntoIter<Self::Item>;
     fn into_iter(self) -> Self::IntoIter {
         self.0.into_iter()

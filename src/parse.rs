@@ -17,7 +17,7 @@ use std::io::Write as _;
 use std::path::Path;
 
 use crate::data::ast;
-use crate::lex;
+use crate::data::token;
 use crate::util::sexp::Serialize as _;
 use crate::util::Tap as _;
 
@@ -27,7 +27,7 @@ pub fn parse<I>(
     tokens: I,
 ) -> Result<ast::Program, crate::Error>
 where
-    I: IntoIterator<Item = lex::Spanned>,
+    I: IntoIterator<Item = token::Spanned>,
 {
     let program = ProgramParser::new()
         .parse(tokens)

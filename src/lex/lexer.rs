@@ -1,9 +1,11 @@
 use crate::data::token;
 use crate::error;
-use crate::lex::{Error, ErrorKind};
+use crate::lex::Error;
+use crate::lex::ErrorKind;
 use crate::util::span;
 use crate::util::symbol;
-use crate::util::Tap;
+use crate::util::TakeUntil as _;
+use crate::util::Tap as _;
 
 /// Stateful Xi lexer.
 /// Converts a stream of source characters into a stream of `Token`s.
@@ -52,6 +54,12 @@ impl<'source> Lexer<'source> {
             row: 1,
             col: 1,
         }
+    }
+
+    pub fn lex(&mut self) -> token::Tokens {
+        self.take_until(Result::is_err)
+            .collect::<Vec<_>>()
+            .tap(token::Tokens::new)
     }
 
     /// Look at the next character without consuming
@@ -124,7 +132,7 @@ impl<'source> Lexer<'source> {
     }
 
     /// Lex a single identifier
-    fn lex_ident(&mut self, start: span::Point) -> Spanned {
+    fn lex_ident(&mut self, start: span::Point) -> token::Spanned {
         use token::Token::*;
         let end = self.take_while(is_ident);
         let token = match &self.source[start.idx..end.idx] {
@@ -144,7 +152,7 @@ impl<'source> Lexer<'source> {
     }
 
     /// Lex a single integer literal
-    fn lex_integer(&mut self, start: span::Point) -> Spanned {
+    fn lex_integer(&mut self, start: span::Point) -> token::Spanned {
         let end = self.take_while(is_digit);
         let int = self.source[start.idx..end.idx]
             .to_string()
@@ -207,7 +215,7 @@ impl<'source> Lexer<'source> {
     }
 
     /// Lex a single character literal
-    fn lex_character(&mut self, start: span::Point) -> Spanned {
+    fn lex_character(&mut self, start: span::Point) -> token::Spanned {
         let ch = self.lex_char(start, false).map(token::Token::CHARACTER)?;
         if let Some('\'') = self.advance() {
             Ok((start, ch, self.point()))
@@ -219,7 +227,7 @@ impl<'source> Lexer<'source> {
     }
 
     /// Lex a single string literal
-    fn lex_string(&mut self, start: span::Point) -> Spanned {
+    fn lex_string(&mut self, start: span::Point) -> token::Spanned {
         let mut buffer = String::new();
         while let Some(ch) = self.peek() {
             if ch == '\"' {
@@ -235,11 +243,8 @@ impl<'source> Lexer<'source> {
     }
 }
 
-/// Result of attempting to lex the next token
-type Spanned = Result<(span::Point, token::Token, span::Point), error::Error>;
-
 impl<'source> Iterator for Lexer<'source> {
-    type Item = Spanned;
+    type Item = token::Spanned;
 
     fn next(&mut self) -> Option<Self::Item> {
         use token::Token::*;
