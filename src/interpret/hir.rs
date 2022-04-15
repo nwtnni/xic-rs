@@ -16,7 +16,7 @@ use crate::interpret::Operand;
 use crate::interpret::Postorder;
 use crate::interpret::Value;
 
-pub fn interpret_hir<R: io::BufRead + 'static, W: io::Write + 'static>(
+pub fn interpret_hir<'io, R: io::BufRead + 'io, W: io::Write + 'io>(
     unit: &ir::Unit<hir::Function>,
     stdin: R,
     stdout: W,

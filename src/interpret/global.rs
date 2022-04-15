@@ -10,22 +10,22 @@ use rand::Rng as _;
 
 use crate::constants;
 use crate::data::operand;
-use crate::interpret::Value;
 use crate::data::symbol;
 use crate::data::symbol::Symbol;
+use crate::interpret::Value;
 
 const HEAP_SIZE: usize = 1024;
 
-pub struct Global {
+pub struct Global<'io> {
     data: BTreeMap<operand::Label, Vec<Value>>,
     heap: Vec<Value>,
     rng: ThreadRng,
-    stdin: Box<dyn BufRead>,
-    stdout: Box<dyn Write>,
+    stdin: Box<dyn BufRead + 'io>,
+    stdout: Box<dyn Write + 'io>,
 }
 
-impl Global {
-    pub fn new<R: BufRead + 'static, W: Write + 'static>(
+impl<'io> Global<'io> {
+    pub fn new<R: BufRead + 'io, W: Write + 'io>(
         data: &BTreeMap<Symbol, operand::Label>,
         stdin: R,
         stdout: W,

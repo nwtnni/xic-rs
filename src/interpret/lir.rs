@@ -14,7 +14,7 @@ use crate::interpret::Operand;
 use crate::interpret::Value;
 use crate::data::symbol;
 
-pub fn interpret_lir<R: io::BufRead + 'static, W: io::Write + 'static>(
+pub fn interpret_lir<'io, R: io::BufRead + 'io, W: io::Write + 'io>(
     unit: &ir::Unit<lir::Function>,
     stdin: R,
     stdout: W,
