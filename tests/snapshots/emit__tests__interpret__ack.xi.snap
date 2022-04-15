@@ -1,0 +1,7 @@
+---
+source: tests/emit.rs
+assertion_line: 41
+expression: lir_stdout
+---
+Ack(2,11): 25
+

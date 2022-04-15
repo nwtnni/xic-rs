@@ -17,4 +17,5 @@ lalrpop = "0.19"
 
 [dev-dependencies]
 insta = "1.14"
+pretty_assertions = "1.2"
 test-generator = "0.3"
