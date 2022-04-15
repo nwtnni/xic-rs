@@ -1,0 +1,10 @@
+---
+source: tests/emit.rs
+assertion_line: 22
+expression: Snapshot(hir)
+---
+(COMPUNIT
+tests/emit-hir/true.xi
+(FUNC
+    _Imain_paai
+    (SEQ (MOVE (TEMP t1) (TEMP _ARG0)) (SEQ (MOVE (TEMP t2) (CONST 1))))))
