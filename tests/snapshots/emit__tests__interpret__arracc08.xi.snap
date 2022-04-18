@@ -1,0 +1,9 @@
+---
+source: tests/emit.rs
+assertion_line: 41
+expression: lir_stdout
+---
+Index: 4 2
+Index: 4 2
+8
+

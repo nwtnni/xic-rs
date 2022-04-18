@@ -1,0 +1,9 @@
+---
+source: tests/emit.rs
+assertion_line: 41
+expression: lir_stdout
+---
+1, 2, 3, 4, 5
+2, 4, 6, 8, 10
+3, 6, 9, 12, 15
+
