@@ -96,7 +96,7 @@ impl<'a> Local<'a, postorder::Lir<'a>> {
                 self.interpret_cjump(global, r#true, r#false);
                 return Ok(None);
             }
-            lir::Statement::Call(_, arguments) => {
+            lir::Statement::Call(_, arguments, _) => {
                 let arguments = self.pop_arguments(global, arguments.len());
                 let name = self.pop_name(global);
 

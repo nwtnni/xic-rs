@@ -103,6 +103,7 @@ impl<'env> Emitter<'env> {
                             (TEMP array.clone())
                             (CALL
                                 (NAME operand::Label::Fixed(symbol::intern_static(constants::XI_ALLOC)))
+                                1
                                 (CONST (expressions.len() + 1) as i64 * constants::WORD_SIZE)))
                     ),
                     hir!((MOVE (TEMP array.clone()) (TEMP operand::Temporary::Return(0)))),
@@ -169,7 +170,7 @@ impl<'env> Emitter<'env> {
                             (MOVE (TEMP length) (Add (TEMP length_left) (TEMP length_right)))
                             (MOVE
                                 (TEMP address)
-                                (CALL (NAME alloc) (Mul (Add (TEMP length) (CONST 1)) (CONST constants::WORD_SIZE))))
+                                (CALL (NAME alloc) 1 (Mul (Add (TEMP length) (CONST 1)) (CONST constants::WORD_SIZE))))
                             (MOVE (MEM (TEMP address)) (TEMP length))
                             (MOVE (TEMP index) (CONST 1))
 
@@ -287,7 +288,7 @@ impl<'env> Emitter<'env> {
                             (LABEL high)
                             (JUMP (NAME r#in))
                             (LABEL out)
-                            (EXP (CALL (NAME (operand::Label::Fixed(symbol::intern_static(constants::XI_OUT_OF_BOUNDS))))))
+                            (EXP (CALL (NAME (operand::Label::Fixed(symbol::intern_static(constants::XI_OUT_OF_BOUNDS)))) 0))
                             (LABEL r#in))
                         (MEM (Add (TEMP base) (Mul (TEMP index) (CONST constants::WORD_SIZE)))))
                 ).into()
@@ -314,6 +315,7 @@ impl<'env> Emitter<'env> {
                 .iter()
                 .map(|argument| self.emit_expression(argument, variables).into())
                 .collect(),
+            self.get_returns(call.name),
         )
     }
 
@@ -362,6 +364,7 @@ impl<'env> Emitter<'env> {
             hir!((MOVE (TEMP array)
                 (CALL
                     (NAME alloc)
+                    1
                     (Mul (Add (TEMP length) (CONST 1)) (CONST constants::WORD_SIZE))))),
             hir!((MOVE (MEM (TEMP array)) (TEMP length))),
         ];
@@ -495,6 +498,14 @@ impl<'env> Emitter<'env> {
                         (LABEL r#false))
                 )
             }
+        }
+    }
+
+    fn get_returns(&self, name: symbol::Symbol) -> usize {
+        match self.context.get(name) {
+            Some(check::Entry::Function(_, returns))
+            | Some(check::Entry::Signature(_, returns)) => returns.len(),
+            _ => panic!("[INTERNAL ERROR]: type checking failed"),
         }
     }
 

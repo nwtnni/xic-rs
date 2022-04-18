@@ -78,24 +78,24 @@ impl<'a> Local<'a, postorder::Hir<'a>> {
                 self.push(Operand::Memory(address));
             }
             hir::Expression::Binary(binary, _, _) => self.interpret_binary(global, binary),
-            hir::Expression::Call(_, arguments) => {
+            hir::Expression::Call(_, arguments, _) => {
                 let arguments = self.pop_arguments(global, arguments.len());
                 let name = self.pop_name(global);
 
                 log::info!("Calling function {} with arguments {:?}", name, arguments);
 
-                let r#returns = global
+                let returns = global
                     .interpret_library(name, &arguments)
                     .unwrap_or_else(|| {
                         Local::new(unit, &name, &arguments).interpret_hir(unit, global)
                     })
                     .with_context(|| anyhow!("Calling function {}", name))?;
 
-                if !r#returns.is_empty() {
-                    self.push(r#returns[0].into_operand());
+                if let Some(r#return) = returns.first() {
+                    self.push(r#return.into_operand());
                 }
 
-                r#returns
+                returns
                     .into_iter()
                     .enumerate()
                     .for_each(|(index, r#return)| {

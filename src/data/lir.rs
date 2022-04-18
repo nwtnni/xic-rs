@@ -21,7 +21,7 @@ pub enum Expression {
 pub enum Statement {
     Jump(Expression),
     CJump(Expression, operand::Label, operand::Label),
-    Call(Expression, Vec<Expression>),
+    Call(Expression, Vec<Expression>, usize),
     Label(operand::Label),
     Move(Expression, Expression),
     Return(Vec<Expression>),

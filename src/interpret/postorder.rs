@@ -95,7 +95,7 @@ impl<'a> Postorder<Hir<'a>> {
                 self.traverse_hir_expression(left);
                 self.traverse_hir_expression(right);
             }
-            hir::Expression::Call(name, arguments) => {
+            hir::Expression::Call(name, arguments, _) => {
                 self.traverse_hir_expression(name);
                 arguments
                     .iter()
@@ -189,7 +189,7 @@ impl<'a> Postorder<Lir<'a>> {
                 self.labels.insert(*label, self.instructions.len());
                 return;
             }
-            lir::Statement::Call(name, arguments) => {
+            lir::Statement::Call(name, arguments, _) => {
                 self.traverse_lir_expression(name);
                 arguments
                     .iter()

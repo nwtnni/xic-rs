@@ -28,7 +28,7 @@ impl Serialize for hir::Expression {
             Integer(integer) => ["CONST".sexp(), integer.sexp()].sexp_move(),
             Memory(expression) => ["MEM".sexp(), expression.sexp()].sexp_move(),
             Binary(binary, left, right) => [binary.sexp(), left.sexp(), right.sexp()].sexp_move(),
-            Call(name, arguments) => std::iter::once("CALL".sexp())
+            Call(name, arguments, _) => std::iter::once("CALL".sexp())
                 .chain(std::iter::once(name.sexp()))
                 .chain(arguments.iter().map(|argument| argument.sexp()))
                 .collect::<Vec<_>>()
@@ -100,7 +100,7 @@ impl Serialize for lir::Statement {
     fn sexp(&self) -> Sexp {
         use lir::Statement::*;
         match self {
-            Call(function, arguments) => {
+            Call(function, arguments, _) => {
                 let call = std::iter::once("CALL".sexp())
                     .chain(std::iter::once(function.sexp()))
                     .chain(arguments.iter().map(|argument| argument.sexp()))

@@ -51,10 +51,11 @@ macro_rules! hir {
     ((MEM $expression:tt)) => {
         crate::data::hir::Expression::Memory(Box::new(hir!($expression)))
     };
-    ((CALL $function:tt $($argument:tt)*)) => {
+    ((CALL $function:tt $returns:tt $($argument:tt)*)) => {
         crate::data::hir::Expression::Call(
             Box::new(hir!($function)),
             vec![$(hir!($argument),)*],
+            $returns,
         )
     };
     ((ESEQ $statement:tt $expression:tt)) => {
@@ -118,7 +119,7 @@ pub enum Expression {
     Temporary(operand::Temporary),
     Memory(Box<Expression>),
     Binary(ir::Binary, Box<Expression>, Box<Expression>),
-    Call(Box<Expression>, Vec<Expression>),
+    Call(Box<Expression>, Vec<Expression>, usize),
     Sequence(Box<Statement>, Box<Expression>),
 }
 

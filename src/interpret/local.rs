@@ -57,11 +57,6 @@ impl<'a, T: 'a> Local<'a, T> {
             Some(Operand::Integer(integer)) => Value::Integer(integer),
             Some(Operand::Memory(address)) => global.read(address),
             Some(Operand::Label(label, offset)) => Value::Label(label, offset),
-            Some(Operand::Temporary(temporary @ operand::Temporary::Return(0))) => self
-                .temporaries
-                .get(&temporary)
-                .copied()
-                .unwrap_or(Value::Integer(0)),
             Some(Operand::Temporary(temporary)) => self.temporaries[&temporary],
         }
     }

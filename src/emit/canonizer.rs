@@ -66,7 +66,8 @@ impl Canonizer {
                 let right = self.canonize_expression(right);
                 lir::Expression::Binary(*binary, Box::new(save), Box::new(right))
             }
-            Call(name, arguments) => {
+            Call(_, _, 0) => unreachable!("[TYPE ERROR]: procedure call"),
+            Call(name, arguments, returns) => {
                 let save = lir::Expression::Temporary(operand::Temporary::fresh("save"));
                 let name = match &**name {
                     hir::Expression::Label(name) => name,
@@ -77,6 +78,7 @@ impl Canonizer {
                 self.canonized.push(lir::Statement::Call(
                     lir::Expression::Label(*name),
                     arguments,
+                    *returns,
                 ));
 
                 self.canonized.push(lir::Statement::Move(
@@ -92,6 +94,22 @@ impl Canonizer {
     fn canonize_statement(&mut self, statement: &hir::Statement) {
         use hir::Statement::*;
         match statement {
+            Expression(hir::Expression::Call(name, arguments, 0)) => {
+                let name = match &**name {
+                    hir::Expression::Label(name) => name,
+                    _ => unimplemented!("Calls to arbitrary expressions not yet implemented"),
+                };
+
+                let arguments = self.canonize_expressions(arguments);
+                self.canonized.push(lir::Statement::Call(
+                    lir::Expression::Label(*name),
+                    arguments,
+                    0,
+                ));
+            }
+            Expression(hir::Expression::Call(_, _, _)) => {
+                unreachable!("[TYPE ERROR]: function call")
+            }
             Expression(expression) => {
                 self.canonize_expression(expression);
             }
@@ -163,7 +181,7 @@ fn commute(before: &hir::Expression, after: &hir::Expression) -> bool {
     match before {
         Integer(_) => true,
         Binary(_, left, right) => commute(left, after) && commute(right, after),
-        Label(_) | Temporary(_) | Memory(_) | Call(_, _) | Sequence(_, _) => pure(after),
+        Label(_) | Temporary(_) | Memory(_) | Call(_, _, _) | Sequence(_, _) => pure(after),
     }
 }
 
@@ -173,6 +191,6 @@ fn pure(expression: &hir::Expression) -> bool {
         Integer(_) | Label(_) | Temporary(_) => true,
         Memory(expression) => pure(expression),
         Binary(_, left, right) => pure(left) && pure(right),
-        Call(_, _) | Sequence(_, _) => false,
+        Call(_, _, _) | Sequence(_, _) => false,
     }
 }

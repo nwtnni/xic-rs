@@ -41,9 +41,10 @@ impl Foldable for hir::Expression {
             Sequence(statements, expression) => {
                 Sequence(Box::new(statements.fold()), Box::new(expression.fold()))
             }
-            Call(name, arguments) => Call(
+            Call(name, arguments, returns) => Call(
                 Box::new(name.fold()),
                 arguments.into_iter().map(Foldable::fold).collect(),
+                returns,
             ),
             Binary(binary, left, right) => match (binary, left.fold(), right.fold()) {
                 (Add, Integer(l), Integer(r)) => Integer(l + r),
@@ -210,9 +211,10 @@ impl Foldable for lir::Statement {
         use lir::Statement::*;
         match self {
             Jump(expression) => Jump(expression.fold()),
-            Call(function, expressions) => Call(
+            Call(function, expressions, returns) => Call(
                 function.fold(),
                 expressions.into_iter().map(Foldable::fold).collect(),
+                returns,
             ),
             Move(into, from) => Move(into.fold(), from.fold()),
             Return(expressions) => Return(expressions.into_iter().map(Foldable::fold).collect()),
