@@ -6,13 +6,14 @@ use anyhow::Context as _;
 use crate::data::ir;
 use crate::data::lir;
 use crate::data::operand;
+use crate::data::sexp::Serialize as _;
+use crate::data::symbol;
 use crate::interpret::postorder;
 use crate::interpret::postorder::Postorder;
 use crate::interpret::Global;
 use crate::interpret::Local;
 use crate::interpret::Operand;
 use crate::interpret::Value;
-use crate::data::symbol;
 
 pub fn interpret_lir<'io, R: io::BufRead + 'io, W: io::Write + 'io>(
     unit: &ir::Unit<lir::Function>,
@@ -63,6 +64,7 @@ impl<'a> Local<'a, postorder::Lir<'a>> {
         global: &mut Global,
         expression: &lir::Expression,
     ) -> anyhow::Result<()> {
+        log::trace!("E> {}", expression.sexp());
         match expression {
             lir::Expression::Integer(integer) => self.push(Operand::Integer(*integer)),
             lir::Expression::Label(label) => self.push(Operand::Label(*label, 8)),
@@ -83,6 +85,7 @@ impl<'a> Local<'a, postorder::Lir<'a>> {
         global: &mut Global,
         statement: &lir::Statement,
     ) -> anyhow::Result<Option<Vec<Value>>> {
+        log::debug!("S> {}", statement.sexp());
         match statement {
             lir::Statement::Label(_) => unreachable!(),
             lir::Statement::Jump(_) => {
@@ -96,6 +99,8 @@ impl<'a> Local<'a, postorder::Lir<'a>> {
             lir::Statement::Call(_, arguments) => {
                 let arguments = self.pop_arguments(global, arguments.len());
                 let name = self.pop_name(global);
+
+                log::info!("Calling function {} with arguments {:?}", name, arguments);
 
                 let r#returns = global
                     .interpret_library(name, &arguments)

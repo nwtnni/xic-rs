@@ -8,6 +8,7 @@ use anyhow::Context as _;
 use crate::data::hir;
 use crate::data::ir;
 use crate::data::operand;
+use crate::data::sexp::Serialize as _;
 use crate::data::symbol;
 use crate::interpret::postorder;
 use crate::interpret::Global;
@@ -66,6 +67,7 @@ impl<'a> Local<'a, postorder::Hir<'a>> {
         global: &mut Global,
         expression: &hir::Expression,
     ) -> anyhow::Result<()> {
+        log::trace!("E> {}", expression.sexp());
         match expression {
             hir::Expression::Sequence(_, _) => unreachable!(),
             hir::Expression::Integer(integer) => self.push(Operand::Integer(*integer)),
@@ -92,6 +94,7 @@ impl<'a> Local<'a, postorder::Hir<'a>> {
         global: &mut Global,
         statement: &hir::Statement,
     ) -> anyhow::Result<Option<Vec<Value>>> {
+        log::trace!("S> {}", statement.sexp());
         match statement {
             hir::Statement::Label(_) => unreachable!(),
             hir::Statement::Sequence(_) => unreachable!(),
@@ -129,6 +132,8 @@ impl<'a> Local<'a, postorder::Hir<'a>> {
     ) -> anyhow::Result<Vec<Value>> {
         let arguments = self.pop_arguments(global, call.arguments.len());
         let name = self.pop_name(global);
+
+        log::info!("Calling function {} with arguments {:?}", name, arguments);
 
         global
             .interpret_library(name, &arguments)

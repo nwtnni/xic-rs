@@ -53,6 +53,8 @@ struct Command {
 }
 
 fn main() -> anyhow::Result<()> {
+    pretty_env_logger::init_timed();
+
     let command = Command::from_args();
 
     for path in &command.input {

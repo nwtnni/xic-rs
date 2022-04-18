@@ -149,6 +149,7 @@ impl<'io> Global<'io> {
     }
 
     pub fn read(&self, address: Value) -> Value {
+        log::debug!("Reading memory at address {:?}", address);
         match address {
             Value::Integer(address) => {
                 let index = Self::index(address);
@@ -162,6 +163,11 @@ impl<'io> Global<'io> {
     }
 
     pub fn write(&mut self, address: Value, value: Value) {
+        log::debug!(
+            "Writing value {:?} to memory at address {:?}",
+            value,
+            address
+        );
         match address {
             Value::Integer(address) => {
                 let index = Self::index(address);
@@ -175,6 +181,7 @@ impl<'io> Global<'io> {
     }
 
     pub fn read_array(&self, address: Value) -> &[Value] {
+        log::debug!("Reading array from memory at address {:?}", address);
         match address {
             Value::Integer(address) => {
                 let index = Self::index(address);
@@ -196,6 +203,7 @@ impl<'io> Global<'io> {
     }
 
     pub fn write_array(&mut self, array: &[Value]) -> Value {
+        log::debug!("Writing array {:?} to memory", array);
         let len = array.len() as i64;
         let address = self
             .malloc(Value::Integer((len + 1) * constants::WORD_SIZE))
@@ -224,6 +232,7 @@ impl<'io> Global<'io> {
     }
 
     fn malloc(&mut self, bytes: Value) -> Value {
+        log::debug!("Calling malloc for {:?} bytes", bytes);
         let bytes = bytes.into_integer();
 
         if bytes < 0 {
