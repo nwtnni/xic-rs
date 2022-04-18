@@ -332,12 +332,17 @@ impl<'env> Emitter<'env> {
             ast::Type::Bool(_) | ast::Type::Int(_) | ast::Type::Array(_, None, _) => {
                 hir!((TEMP fresh))
             }
-            ast::Type::Array(r#type, Some(length), _) => hir::Expression::Sequence(
-                Box::new(
-                    hir!((MOVE (TEMP fresh) (self.emit_array_declaration(r#type, length, variables)))),
-                ),
-                Box::new(hir!((TEMP fresh))),
-            ),
+            ast::Type::Array(r#type, Some(length), _) => {
+                let mut lengths = Vec::new();
+                let declaration =
+                    self.emit_array_declaration(r#type, length, variables, &mut lengths);
+                lengths.push(hir!((MOVE (TEMP fresh) (declaration))));
+
+                hir::Expression::Sequence(
+                    Box::new(hir!((SEQ lengths))),
+                    Box::new(hir!((TEMP fresh))),
+                )
+            }
         }
     }
 
@@ -346,6 +351,7 @@ impl<'env> Emitter<'env> {
         r#type: &ast::Type,
         len: &ast::Expression,
         variables: &mut HashMap<symbol::Symbol, operand::Temporary>,
+        lengths: &mut Vec<hir::Statement>,
     ) -> hir::Expression {
         let length = operand::Temporary::fresh("length");
         let array = operand::Temporary::fresh("array");
@@ -354,8 +360,9 @@ impl<'env> Emitter<'env> {
         use ir::Binary::Add;
         use ir::Binary::Mul;
 
+        lengths.push(hir!((MOVE (TEMP length) (self.emit_expression(len, variables).into()))));
+
         let mut statements = vec![
-            hir!((MOVE (TEMP length) (self.emit_expression(len, variables).into()))),
             hir!((MOVE (TEMP array)
                 (ECALL
                     (NAME alloc)
@@ -381,7 +388,7 @@ impl<'env> Emitter<'env> {
                     hir!(
                         (MOVE
                             (MEM (Add (TEMP array) (Mul (Add (TEMP index) (CONST 1)) (CONST constants::WORD_SIZE))))
-                            (self.emit_array_declaration(r#type, len, variables)))),
+                            (self.emit_array_declaration(r#type, len, variables, lengths)))),
                     hir!((MOVE (TEMP index) (Add (TEMP index) (CONST 1)))),
                     hir!((JUMP (NAME r#while))),
                     hir!((LABEL r#false)),
