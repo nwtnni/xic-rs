@@ -10,8 +10,8 @@ use crate::data::hir;
 use crate::data::ir;
 use crate::data::operand;
 use crate::data::r#type;
-use crate::hir;
 use crate::data::symbol;
+use crate::hir;
 
 #[derive(Debug)]
 pub struct Emitter<'env> {
@@ -328,7 +328,68 @@ impl<'env> Emitter<'env> {
     ) -> hir::Expression {
         let fresh = operand::Temporary::fresh("t");
         variables.insert(declaration.name, fresh);
-        hir!((TEMP fresh))
+        match &declaration.r#type {
+            ast::Type::Bool(_) | ast::Type::Int(_) | ast::Type::Array(_, None, _) => {
+                hir!((TEMP fresh))
+            }
+            ast::Type::Array(r#type, Some(length), _) => hir::Expression::Sequence(
+                Box::new(
+                    hir!((MOVE (TEMP fresh) (self.emit_array_declaration(r#type, length, variables)))),
+                ),
+                Box::new(hir!((TEMP fresh))),
+            ),
+        }
+    }
+
+    fn emit_array_declaration(
+        &mut self,
+        r#type: &ast::Type,
+        len: &ast::Expression,
+        variables: &mut HashMap<symbol::Symbol, operand::Temporary>,
+    ) -> hir::Expression {
+        let length = operand::Temporary::fresh("length");
+        let array = operand::Temporary::fresh("array");
+        let alloc = operand::Label::Fixed(symbol::intern_static(constants::XI_ALLOC));
+
+        use ir::Binary::Add;
+        use ir::Binary::Mul;
+
+        let mut statements = vec![
+            hir!((MOVE (TEMP length) (self.emit_expression(len, variables).into()))),
+            hir!((MOVE (TEMP array)
+                (ECALL
+                    (NAME alloc)
+                    (Mul (Add (TEMP length) (CONST 1)) (CONST constants::WORD_SIZE))))),
+            hir!((MOVE (MEM (TEMP array)) (TEMP length))),
+        ];
+
+        match r#type {
+            ast::Type::Bool(_) | ast::Type::Int(_) | ast::Type::Array(_, None, _) => (),
+            ast::Type::Array(r#type, Some(len), _) => {
+                let r#while = operand::Label::fresh("while");
+                let r#true = operand::Label::fresh("true");
+                let r#false = operand::Label::fresh("false");
+                let index = operand::Temporary::fresh("index");
+
+                use ir::Binary::Lt;
+
+                statements.extend([
+                    hir!((MOVE (TEMP index) (CONST 0))),
+                    hir!((LABEL r#while)),
+                    hir!((CJUMP (Lt (TEMP index) (TEMP length)) r#true r#false)),
+                    hir!((LABEL r#true)),
+                    hir!(
+                        (MOVE
+                            (MEM (Add (TEMP array) (Mul (Add (TEMP index) (CONST 1)) (CONST constants::WORD_SIZE))))
+                            (self.emit_array_declaration(r#type, len, variables)))),
+                    hir!((MOVE (TEMP index) (Add (TEMP index) (CONST 1)))),
+                    hir!((JUMP (NAME r#while))),
+                    hir!((LABEL r#false)),
+                ]);
+            }
+        }
+
+        hir!((ESEQ (SEQ statements) (Add (TEMP array) (CONST constants::WORD_SIZE))))
     }
 
     fn emit_statement(
