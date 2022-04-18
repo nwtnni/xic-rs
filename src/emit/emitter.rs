@@ -106,7 +106,6 @@ impl<'env> Emitter<'env> {
                                 1
                                 (CONST (expressions.len() + 1) as i64 * constants::WORD_SIZE)))
                     ),
-                    hir!((MOVE (TEMP array.clone()) (TEMP operand::Temporary::Return(0)))),
                     hir!((MOVE (MEM (array.clone())) (CONST expressions.len() as i64))),
                 ];
 
