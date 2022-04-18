@@ -66,8 +66,7 @@ impl Canonizer {
                 let right = self.canonize_expression(right);
                 lir::Expression::Binary(*binary, Box::new(save), Box::new(right))
             }
-            Call(_, _, 0) => unreachable!("[TYPE ERROR]: procedure call"),
-            Call(name, arguments, returns) => {
+            Call(name, arguments, 1) => {
                 let save = lir::Expression::Temporary(operand::Temporary::fresh("save"));
                 let name = match &**name {
                     hir::Expression::Label(name) => name,
@@ -78,7 +77,7 @@ impl Canonizer {
                 self.canonized.push(lir::Statement::Call(
                     lir::Expression::Label(*name),
                     arguments,
-                    *returns,
+                    1,
                 ));
 
                 self.canonized.push(lir::Statement::Move(
@@ -88,13 +87,19 @@ impl Canonizer {
 
                 save
             }
+            // 0- and multiple-return calls should be in (EXP (CALL ...)) statements.
+            Call(_, _, _) => unreachable!("[TYPE ERROR]"),
         }
     }
 
     fn canonize_statement(&mut self, statement: &hir::Statement) {
         use hir::Statement::*;
         match statement {
-            Expression(hir::Expression::Call(name, arguments, 0)) => {
+            // Single-return calls should be in (MOVE (...) (CALL ...)) statements.
+            Expression(hir::Expression::Call(_, _, 1)) => {
+                unreachable!("[TYPE ERROR]")
+            }
+            Expression(hir::Expression::Call(name, arguments, _)) => {
                 let name = match &**name {
                     hir::Expression::Label(name) => name,
                     _ => unimplemented!("Calls to arbitrary expressions not yet implemented"),
@@ -106,9 +111,6 @@ impl Canonizer {
                     arguments,
                     0,
                 ));
-            }
-            Expression(hir::Expression::Call(_, _, _)) => {
-                unreachable!("[TYPE ERROR]: function call")
             }
             Expression(expression) => {
                 self.canonize_expression(expression);
