@@ -413,6 +413,15 @@ impl<'env> Emitter<'env> {
                 )
             }
             Call(call) => hir::Statement::Expression(self.emit_call(call, variables)),
+            #[rustfmt::skip]
+            Initialization(declarations, expression, _) if declarations.len() == 1 => {
+                let declaration = declarations[0].as_ref().unwrap();
+                hir!(
+                    (MOVE
+                        (self.emit_declaration(declaration, variables))
+                        (self.emit_expression(expression, variables).into()))
+                )
+            }
             Initialization(declarations, ast::Expression::Call(call), _) => {
                 let mut statements =
                     vec![hir::Statement::Expression(self.emit_call(call, variables))];
@@ -429,16 +438,10 @@ impl<'env> Emitter<'env> {
 
                 hir::Statement::Sequence(statements)
             }
-            #[rustfmt::skip]
-            Initialization(declarations, expression, _) => {
-                assert!(declarations.len() == 1 && declarations[0].is_some());
-                let declaration = declarations[0].as_ref().unwrap();
-                hir!(
-                    (MOVE
-                        (self.emit_declaration(declaration, variables))
-                        (self.emit_expression(expression, variables).into()))
-                )
+            Initialization(_, _, _) => {
+                unreachable!("[TYPE ERROR]: multiple non-function initialization")
             }
+
             Declaration(declaration, _) => {
                 hir::Statement::Expression(self.emit_declaration(declaration, variables))
             }
