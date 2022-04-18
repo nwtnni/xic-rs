@@ -14,7 +14,7 @@ use crate::data::symbol;
 use crate::data::symbol::Symbol;
 use crate::interpret::Value;
 
-const HEAP_SIZE: usize = 1024;
+const HEAP_SIZE: usize = 64 * 1024;
 
 pub struct Global<'io> {
     data: BTreeMap<operand::Label, Vec<Value>>,
