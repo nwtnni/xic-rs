@@ -102,14 +102,14 @@ impl<'a> Local<'a, postorder::Lir<'a>> {
 
                 log::info!("Calling function {} with arguments {:?}", name, arguments);
 
-                let r#returns = global
+                let returns = global
                     .interpret_library(name, &arguments)
                     .unwrap_or_else(|| {
                         Local::new(unit, &name, &arguments).interpret_lir(unit, global)
                     })
                     .with_context(|| anyhow!("Calling function {}", name))?;
 
-                for (index, r#return) in r#returns.into_iter().enumerate() {
+                for (index, r#return) in returns.into_iter().enumerate() {
                     self.insert(operand::Temporary::Return(index), r#return);
                 }
             }

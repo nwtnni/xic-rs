@@ -95,7 +95,12 @@ impl<'a> Postorder<Hir<'a>> {
                 self.traverse_hir_expression(left);
                 self.traverse_hir_expression(right);
             }
-            hir::Expression::Call(call) => self.traverse_call(call),
+            hir::Expression::Call(name, arguments) => {
+                self.traverse_hir_expression(name);
+                arguments
+                    .iter()
+                    .for_each(|argument| self.traverse_hir_expression(argument));
+            }
             hir::Expression::Sequence(statement, expression) => {
                 self.traverse_hir_statement(statement);
                 self.traverse_hir_expression(expression);
@@ -114,7 +119,10 @@ impl<'a> Postorder<Hir<'a>> {
                 self.labels.insert(*label, self.instructions.len());
                 return;
             }
-            hir::Statement::Call(call) => self.traverse_call(call),
+            hir::Statement::Expression(expression) => {
+                self.traverse_hir_expression(expression);
+                return;
+            }
             hir::Statement::Move(into, from) => {
                 self.traverse_hir_expression(into);
                 self.traverse_hir_expression(from);
@@ -133,13 +141,6 @@ impl<'a> Postorder<Hir<'a>> {
         }
 
         self.instructions.push(Hir::Statement(statement));
-    }
-
-    fn traverse_call(&mut self, hir::Call { name, arguments }: &'a hir::Call) {
-        self.traverse_hir_expression(name);
-        arguments
-            .iter()
-            .for_each(|argument| self.traverse_hir_expression(argument));
     }
 }
 

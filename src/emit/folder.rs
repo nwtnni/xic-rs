@@ -41,7 +41,10 @@ impl Foldable for hir::Expression {
             Sequence(statements, expression) => {
                 Sequence(Box::new(statements.fold()), Box::new(expression.fold()))
             }
-            Call(call) => Call(call.fold()),
+            Call(name, arguments) => Call(
+                Box::new(name.fold()),
+                arguments.into_iter().map(Foldable::fold).collect(),
+            ),
             Binary(binary, left, right) => match (binary, left.fold(), right.fold()) {
                 (Add, Integer(l), Integer(r)) => Integer(l + r),
                 (Sub, Integer(l), Integer(r)) => Integer(l - r),
@@ -110,9 +113,9 @@ impl Foldable for hir::Statement {
     fn fold(self) -> Self {
         use hir::Statement::*;
         match self {
+            Expression(expression) => Expression(expression.fold()),
             Jump(expression) => Jump(expression.fold()),
             Label(label) => Label(label),
-            Call(call) => Call(call.fold()),
             Move(into, from) => Move(into.fold(), from.fold()),
             Return(expressions) => Return(expressions.into_iter().map(Foldable::fold).collect()),
             Sequence(statements) => Sequence(statements.into_iter().map(Foldable::fold).collect()),
@@ -121,15 +124,6 @@ impl Foldable for hir::Statement {
                 hir::Expression::Integer(0) => Jump(hir::Expression::Label(r#false)),
                 expression => CJump(expression, r#true, r#false),
             },
-        }
-    }
-}
-
-impl Foldable for hir::Call {
-    fn fold(self) -> Self {
-        Self {
-            name: Box::new(self.name.fold()),
-            arguments: self.arguments.into_iter().map(Foldable::fold).collect(),
         }
     }
 }

@@ -66,9 +66,18 @@ impl Canonizer {
                 let right = self.canonize_expression(right);
                 lir::Expression::Binary(*binary, Box::new(save), Box::new(right))
             }
-            Call(call) => {
+            Call(name, arguments) => {
                 let save = lir::Expression::Temporary(operand::Temporary::fresh("save"));
-                self.canonize_call(call);
+                let name = match &**name {
+                    hir::Expression::Label(name) => name,
+                    _ => unimplemented!("Calls to arbitrary expressions not yet implemented"),
+                };
+
+                let arguments = self.canonize_expressions(arguments);
+                self.canonized.push(lir::Statement::Call(
+                    lir::Expression::Label(*name),
+                    arguments,
+                ));
 
                 self.canonized.push(lir::Statement::Move(
                     save.clone(),
@@ -83,6 +92,9 @@ impl Canonizer {
     fn canonize_statement(&mut self, statement: &hir::Statement) {
         use hir::Statement::*;
         match statement {
+            Expression(expression) => {
+                self.canonize_expression(expression);
+            }
             Label(label) => self.canonized.push(lir::Statement::Label(*label)),
             Sequence(statements) => {
                 for statement in statements {
@@ -125,25 +137,11 @@ impl Canonizer {
                 }
                 _ => unimplemented!(),
             },
-            Call(call) => self.canonize_call(call),
             Return(r#returns) => {
                 let r#returns = self.canonize_expressions(r#returns);
                 self.canonized.push(lir::Statement::Return(r#returns));
             }
         }
-    }
-
-    fn canonize_call(&mut self, call: &hir::Call) {
-        let name = match &*call.name {
-            hir::Expression::Label(name) => name,
-            _ => unimplemented!("Calls to arbitrary expressions not yet implemented"),
-        };
-
-        let arguments = self.canonize_expressions(&call.arguments);
-        self.canonized.push(lir::Statement::Call(
-            lir::Expression::Label(*name),
-            arguments,
-        ));
     }
 
     fn canonize_expressions(&mut self, expressions: &[hir::Expression]) -> Vec<lir::Expression> {
@@ -165,7 +163,7 @@ fn commute(before: &hir::Expression, after: &hir::Expression) -> bool {
     match before {
         Integer(_) => true,
         Binary(_, left, right) => commute(left, after) && commute(right, after),
-        Label(_) | Temporary(_) | Memory(_) | Call(_) | Sequence(_, _) => pure(after),
+        Label(_) | Temporary(_) | Memory(_) | Call(_, _) | Sequence(_, _) => pure(after),
     }
 }
 
@@ -175,6 +173,6 @@ fn pure(expression: &hir::Expression) -> bool {
         Integer(_) | Label(_) | Temporary(_) => true,
         Memory(expression) => pure(expression),
         Binary(_, left, right) => pure(left) && pure(right),
-        Call(_) | Sequence(_, _) => false,
+        Call(_, _) | Sequence(_, _) => false,
     }
 }

@@ -51,9 +51,10 @@ macro_rules! hir {
     ((MEM $expression:tt)) => {
         crate::data::hir::Expression::Memory(Box::new(hir!($expression)))
     };
-    ((ECALL $function:tt $($argument:tt)*)) => {
+    ((CALL $function:tt $($argument:tt)*)) => {
         crate::data::hir::Expression::Call(
-            hir!((CALL $function $($argument)*))
+            Box::new(hir!($function)),
+            vec![$(hir!($argument),)*],
         )
     };
     ((ESEQ $statement:tt $expression:tt)) => {
@@ -76,10 +77,8 @@ macro_rules! hir {
     ((LABEL $label:tt)) => {
         crate::data::hir::Statement::Label($label)
     };
-    ((SCALL $function:tt $($argument:tt)*)) => {
-        crate::data::hir::Statement::Call(
-            hir!((CALL $function $($argument)*))
-        )
+    ((EXP $expression:tt)) => {
+        crate::data::hir::Statement::Expression(hir!($expression))
     };
     ((MOVE $into:tt $from:tt)) => {
         crate::data::hir::Statement::Move(
@@ -98,13 +97,6 @@ macro_rules! hir {
     };
     ((SEQ $statements:expr)) => {
         crate::data::hir::Statement::Sequence($statements)
-    };
-
-    ((CALL $function:tt $($argument:tt)*)) => {
-        crate::data::hir::Call {
-            name: Box::new(hir!($function)),
-            arguments: vec![$(hir!($argument),)*],
-        }
     };
 
     (($binary:ident $left:tt $right:tt)) => {
@@ -126,7 +118,7 @@ pub enum Expression {
     Temporary(operand::Temporary),
     Memory(Box<Expression>),
     Binary(ir::Binary, Box<Expression>, Box<Expression>),
-    Call(Call),
+    Call(Box<Expression>, Vec<Expression>),
     Sequence(Box<Statement>, Box<Expression>),
 }
 
@@ -182,14 +174,8 @@ pub enum Statement {
     Jump(Expression),
     CJump(Expression, operand::Label, operand::Label),
     Label(operand::Label),
-    Call(Call),
+    Expression(Expression),
     Move(Expression, Expression),
     Return(Vec<Expression>),
     Sequence(Vec<Statement>),
-}
-
-#[derive(Clone, Debug)]
-pub struct Call {
-    pub name: Box<Expression>,
-    pub arguments: Vec<Expression>,
 }

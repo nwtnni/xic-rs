@@ -2,11 +2,11 @@ use std::collections::BTreeMap;
 
 use crate::data::ir;
 use crate::data::operand;
+use crate::data::symbol::Symbol;
 use crate::interpret::Global;
 use crate::interpret::Operand;
 use crate::interpret::Postorder;
 use crate::interpret::Value;
-use crate::data::symbol::Symbol;
 
 pub struct Local<'a, T: 'a> {
     postorder: &'a Postorder<T>,
@@ -57,6 +57,11 @@ impl<'a, T: 'a> Local<'a, T> {
             Some(Operand::Integer(integer)) => Value::Integer(integer),
             Some(Operand::Memory(address)) => global.read(address),
             Some(Operand::Label(label, offset)) => Value::Label(label, offset),
+            Some(Operand::Temporary(temporary @ operand::Temporary::Return(0))) => self
+                .temporaries
+                .get(&temporary)
+                .copied()
+                .unwrap_or(Value::Integer(0)),
             Some(Operand::Temporary(temporary)) => self.temporaries[&temporary],
         }
     }

@@ -53,7 +53,7 @@ impl<'a> Local<'a, postorder::Hir<'a>> {
                     self.interpret_expression(unit, global, expression)?
                 }
                 postorder::Hir::Statement(statement) => {
-                    if let Some(r#returns) = self.interpret_statement(unit, global, statement)? {
+                    if let Some(r#returns) = self.interpret_statement(global, statement)? {
                         return Ok(r#returns);
                     }
                 }
@@ -78,10 +78,29 @@ impl<'a> Local<'a, postorder::Hir<'a>> {
                 self.push(Operand::Memory(address));
             }
             hir::Expression::Binary(binary, _, _) => self.interpret_binary(global, binary),
-            hir::Expression::Call(call) => {
-                let mut r#return = self.interpret_call(unit, global, call)?;
-                debug_assert_eq!(r#return.len(), 1);
-                self.push(r#return.remove(0).into_operand());
+            hir::Expression::Call(_, arguments) => {
+                let arguments = self.pop_arguments(global, arguments.len());
+                let name = self.pop_name(global);
+
+                log::info!("Calling function {} with arguments {:?}", name, arguments);
+
+                let r#returns = global
+                    .interpret_library(name, &arguments)
+                    .unwrap_or_else(|| {
+                        Local::new(unit, &name, &arguments).interpret_hir(unit, global)
+                    })
+                    .with_context(|| anyhow!("Calling function {}", name))?;
+
+                if !r#returns.is_empty() {
+                    self.push(r#returns[0].into_operand());
+                }
+
+                r#returns
+                    .into_iter()
+                    .enumerate()
+                    .for_each(|(index, r#return)| {
+                        self.insert(operand::Temporary::Return(index), r#return)
+                    });
             }
         }
 
@@ -90,12 +109,12 @@ impl<'a> Local<'a, postorder::Hir<'a>> {
 
     fn interpret_statement(
         &mut self,
-        unit: &ir::Unit<Postorder<postorder::Hir<'a>>>,
         global: &mut Global,
         statement: &hir::Statement,
     ) -> anyhow::Result<Option<Vec<Value>>> {
         log::trace!("S> {}", statement.sexp());
         match statement {
+            hir::Statement::Expression(_) => unreachable!(),
             hir::Statement::Label(_) => unreachable!(),
             hir::Statement::Sequence(_) => unreachable!(),
             hir::Statement::Jump(_) => {
@@ -106,15 +125,6 @@ impl<'a> Local<'a, postorder::Hir<'a>> {
                 self.interpret_cjump(global, r#true, r#false);
                 return Ok(None);
             }
-            hir::Statement::Call(call) => {
-                for (index, r#return) in self
-                    .interpret_call(unit, global, call)?
-                    .into_iter()
-                    .enumerate()
-                {
-                    self.insert(operand::Temporary::Return(index), r#return);
-                }
-            }
             hir::Statement::Move(_, _) => self.interpret_move(global),
             hir::Statement::Return(r#returns) => {
                 return Ok(Some(self.pop_arguments(global, r#returns.len())));
@@ -122,22 +132,5 @@ impl<'a> Local<'a, postorder::Hir<'a>> {
         }
 
         Ok(None)
-    }
-
-    fn interpret_call(
-        &mut self,
-        unit: &ir::Unit<Postorder<postorder::Hir<'a>>>,
-        global: &mut Global,
-        call: &hir::Call,
-    ) -> anyhow::Result<Vec<Value>> {
-        let arguments = self.pop_arguments(global, call.arguments.len());
-        let name = self.pop_name(global);
-
-        log::info!("Calling function {} with arguments {:?}", name, arguments);
-
-        global
-            .interpret_library(name, &arguments)
-            .unwrap_or_else(|| Local::new(unit, &name, &arguments).interpret_hir(unit, global))
-            .with_context(|| anyhow!("Calling function {}", name))
     }
 }

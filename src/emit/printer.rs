@@ -28,7 +28,11 @@ impl Serialize for hir::Expression {
             Integer(integer) => ["CONST".sexp(), integer.sexp()].sexp_move(),
             Memory(expression) => ["MEM".sexp(), expression.sexp()].sexp_move(),
             Binary(binary, left, right) => [binary.sexp(), left.sexp(), right.sexp()].sexp_move(),
-            Call(call) => call.sexp(),
+            Call(name, arguments) => std::iter::once("CALL".sexp())
+                .chain(std::iter::once(name.sexp()))
+                .chain(arguments.iter().map(|argument| argument.sexp()))
+                .collect::<Vec<_>>()
+                .sexp_move(),
             Label(label) => ["NAME".sexp(), label.sexp()].sexp_move(),
             Temporary(temporary) => ["TEMP".sexp(), temporary.sexp()].sexp_move(),
             Sequence(sequence, expression) => {
@@ -51,7 +55,7 @@ impl Serialize for hir::Statement {
             ]
             .sexp_move(),
             Label(label) => ["LABEL".sexp(), label.sexp()].sexp_move(),
-            Call(call) => ["EXP".sexp(), call.sexp()].sexp_move(),
+            Expression(expression) => ["EXP".sexp(), expression.sexp()].sexp_move(),
             Move(into, from) => ["MOVE".sexp(), into.sexp(), from.sexp()].sexp_move(),
             Return(expressions) => std::iter::once("RETURN".sexp())
                 .chain(expressions.iter().map(|expression| expression.sexp()))
@@ -62,16 +66,6 @@ impl Serialize for hir::Statement {
                 .collect::<Vec<_>>()
                 .sexp_move(),
         }
-    }
-}
-
-impl Serialize for hir::Call {
-    fn sexp(&self) -> Sexp {
-        std::iter::once("CALL".sexp())
-            .chain(std::iter::once(self.name.sexp()))
-            .chain(self.arguments.iter().map(|argument| argument.sexp()))
-            .collect::<Vec<_>>()
-            .sexp_move()
     }
 }
 

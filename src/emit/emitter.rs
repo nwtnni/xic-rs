@@ -95,13 +95,18 @@ impl<'env> Emitter<'env> {
             }
             Variable(variable, _) => hir!((TEMP variables[variable])).into(),
             Array(expressions, _) => {
-                let alloc = Self::emit_alloc(expressions.len());
-                let base = hir!((TEMP operand::Temporary::fresh("array")));
+                let array = hir!((TEMP operand::Temporary::fresh("array")));
 
                 let mut statements = vec![
-                    alloc,
-                    hir!((MOVE (TEMP base.clone()) (TEMP operand::Temporary::Return(0)))),
-                    hir!((MOVE (MEM (base.clone())) (CONST expressions.len() as i64))),
+                    hir!(
+                        (MOVE
+                            (TEMP array.clone())
+                            (CALL
+                                (NAME operand::Label::Fixed(symbol::intern_static(constants::XI_ALLOC)))
+                                (CONST (expressions.len() + 1) as i64 * constants::WORD_SIZE)))
+                    ),
+                    hir!((MOVE (TEMP array.clone()) (TEMP operand::Temporary::Return(0)))),
+                    hir!((MOVE (MEM (array.clone())) (CONST expressions.len() as i64))),
                 ];
 
                 use ir::Binary::Add;
@@ -111,7 +116,7 @@ impl<'env> Emitter<'env> {
                     statements.push(
                         hir!(
                         (MOVE
-                            (MEM (Add (TEMP base.clone()) (CONST (index + 1) as i64 * constants::WORD_SIZE)))
+                            (MEM (Add (TEMP array.clone()) (CONST (index + 1) as i64 * constants::WORD_SIZE)))
                             expression)
                     ));
                 }
@@ -119,7 +124,7 @@ impl<'env> Emitter<'env> {
                 hir!(
                     (ESEQ
                         (SEQ statements)
-                        (Add (TEMP base) (CONST constants::WORD_SIZE))))
+                        (Add (TEMP array) (CONST constants::WORD_SIZE))))
                 .into()
             }
             Binary(binary, left, right, _) if binary.get() == ast::Binary::Cat => {
@@ -164,7 +169,7 @@ impl<'env> Emitter<'env> {
                             (MOVE (TEMP length) (Add (TEMP length_left) (TEMP length_right)))
                             (MOVE
                                 (TEMP address)
-                                (ECALL (NAME alloc) (Mul (Add (TEMP length) (CONST 1)) (CONST constants::WORD_SIZE))))
+                                (CALL (NAME alloc) (Mul (Add (TEMP length) (CONST 1)) (CONST constants::WORD_SIZE))))
                             (MOVE (MEM (TEMP address)) (TEMP length))
                             (MOVE (TEMP index) (CONST 1))
 
@@ -282,7 +287,7 @@ impl<'env> Emitter<'env> {
                             (LABEL high)
                             (JUMP (NAME r#in))
                             (LABEL out)
-                            (SCALL (NAME (operand::Label::Fixed(symbol::intern_static(constants::XI_OUT_OF_BOUNDS)))))
+                            (EXP (CALL (NAME (operand::Label::Fixed(symbol::intern_static(constants::XI_OUT_OF_BOUNDS))))))
                             (LABEL r#in))
                         (MEM (Add (TEMP base) (Mul (TEMP index) (CONST constants::WORD_SIZE)))))
                 ).into()
@@ -292,7 +297,7 @@ impl<'env> Emitter<'env> {
                 let address = self.emit_expression(&call.arguments[0], variables).into();
                 hir!((MEM (Sub address (CONST constants::WORD_SIZE)))).into()
             }
-            Call(call) => hir::Expression::Call(self.emit_call(call, variables)).into(),
+            Call(call) => self.emit_call(call, variables).into(),
         }
     }
 
@@ -300,24 +305,15 @@ impl<'env> Emitter<'env> {
         &mut self,
         call: &ast::Call,
         variables: &HashMap<symbol::Symbol, operand::Temporary>,
-    ) -> hir::Call {
-        hir::Call {
-            name: Box::new(hir::Expression::from(operand::Label::Fixed(
+    ) -> hir::Expression {
+        hir::Expression::Call(
+            Box::new(hir::Expression::from(operand::Label::Fixed(
                 self.mangle_function(call.name),
             ))),
-            arguments: call
-                .arguments
+            call.arguments
                 .iter()
                 .map(|argument| self.emit_expression(argument, variables).into())
                 .collect(),
-        }
-    }
-
-    fn emit_alloc(length: usize) -> hir::Statement {
-        hir!(
-            (SCALL
-                (NAME operand::Label::Fixed(symbol::intern_static(constants::XI_ALLOC)))
-                (CONST (length + 1) as i64 * constants::WORD_SIZE))
         )
     }
 
@@ -364,7 +360,7 @@ impl<'env> Emitter<'env> {
 
         let mut statements = vec![
             hir!((MOVE (TEMP array)
-                (ECALL
+                (CALL
                     (NAME alloc)
                     (Mul (Add (TEMP length) (CONST 1)) (CONST constants::WORD_SIZE))))),
             hir!((MOVE (MEM (TEMP array)) (TEMP length))),
@@ -414,9 +410,10 @@ impl<'env> Emitter<'env> {
                         (self.emit_expression(right, variables).into()))
                 )
             }
-            Call(call) => hir::Statement::Call(self.emit_call(call, variables)),
+            Call(call) => hir::Statement::Expression(self.emit_call(call, variables)),
             Initialization(declarations, ast::Expression::Call(call), _) => {
-                let mut statements = vec![hir::Statement::Call(self.emit_call(call, variables))];
+                let mut statements =
+                    vec![hir::Statement::Expression(self.emit_call(call, variables))];
 
                 for (index, declaration) in declarations.iter().enumerate() {
                     if let Some(declaration) = declaration {
@@ -441,11 +438,7 @@ impl<'env> Emitter<'env> {
                 )
             }
             Declaration(declaration, _) => {
-                hir!(
-                    (MOVE
-                        (self.emit_declaration(declaration, variables))
-                        (CONST 0))
-                )
+                hir::Statement::Expression(self.emit_declaration(declaration, variables))
             }
             Return(expressions, _) => hir::Statement::Return(
                 expressions
