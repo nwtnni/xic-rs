@@ -103,6 +103,14 @@ fn main() -> anyhow::Result<()> {
             hir = xic::api::fold_hir(hir);
         }
 
+        if command.debug_ir {
+            write!(
+                debug(&command.directory_output, &path, "hir")?,
+                "{}",
+                hir.sexp(),
+            )?;
+        }
+
         let mut lir = xic::api::emit_lir(&hir);
 
         if !command.optimize_disable {
@@ -111,7 +119,7 @@ fn main() -> anyhow::Result<()> {
 
         if command.debug_ir {
             write!(
-                debug(&command.directory_output, &path, "ir")?,
+                debug(&command.directory_output, &path, "lir")?,
                 "{}",
                 lir.sexp(),
             )?;
