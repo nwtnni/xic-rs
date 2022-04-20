@@ -1,9 +1,11 @@
 use std::collections::BTreeMap;
 
+use crate::constants;
 use crate::data::hir;
 use crate::data::ir;
 use crate::data::lir;
 use crate::data::operand;
+use crate::data::symbol;
 
 #[derive(Debug, Default)]
 pub struct Canonizer {
@@ -136,7 +138,7 @@ impl Canonizer {
                     self.canonized
                         .push(lir::Statement::Move(lir::Expression::Temporary(into), from));
                 }
-                lir::Expression::Memory(into) if pure(from) => {
+                lir::Expression::Memory(into) if pure_expression(from) => {
                     let from = self.canonize_expression(from);
                     self.canonized.push(lir::Statement::Move(
                         lir::Expression::Memory(Box::new(*into)),
@@ -183,16 +185,49 @@ fn commute(before: &hir::Expression, after: &hir::Expression) -> bool {
     match before {
         Integer(_) => true,
         Binary(_, left, right) => commute(left, after) && commute(right, after),
-        Label(_) | Temporary(_) | Memory(_) | Call(_, _, _) | Sequence(_, _) => pure(after),
+        Label(_) | Temporary(_) | Memory(_) | Call(_, _, _) | Sequence(_, _) => {
+            pure_expression(after)
+        }
     }
 }
 
-fn pure(expression: &hir::Expression) -> bool {
+fn pure_expression(expression: &hir::Expression) -> bool {
     use hir::Expression::*;
     match expression {
         Integer(_) | Label(_) | Temporary(_) => true,
-        Memory(expression) => pure(expression),
-        Binary(_, left, right) => pure(left) && pure(right),
-        Call(_, _, _) | Sequence(_, _) => false,
+        Memory(expression) => pure_expression(expression),
+        Binary(_, left, right) => pure_expression(left) && pure_expression(right),
+        Sequence(statement, expression) => pure_statement(statement) && pure_expression(expression),
+        Call(name, _, _) => {
+            let name = match &**name {
+                Label(operand::Label::Fixed(name)) => symbol::resolve(*name),
+                _ => return false,
+            };
+
+            // Specialize standard library functions
+            matches!(
+                name,
+                constants::XI_ALLOC
+                    | constants::XI_PRINT
+                    | constants::XI_PRINTLN
+                    | constants::XI_READLN
+                    | constants::XI_GETCHAR
+                    | constants::XI_EOF
+                    | constants::XI_UNPARSE_INT
+                    | constants::XI_PARSE_INT,
+            )
+        }
+    }
+}
+
+fn pure_statement(statement: &hir::Statement) -> bool {
+    match statement {
+        hir::Statement::Jump(_)
+        | hir::Statement::CJump(_, _, _)
+        | hir::Statement::Move(_, _)
+        | hir::Statement::Return(_) => false,
+        hir::Statement::Label(_) => true,
+        hir::Statement::Expression(expression) => pure_expression(expression),
+        hir::Statement::Sequence(statements) => statements.iter().all(pure_statement),
     }
 }
