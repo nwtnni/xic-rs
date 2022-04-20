@@ -1,7 +1,6 @@
 ---
 source: tests/lex.rs
-assertion_line: 22
-expression: Snapshot(lexed)
+expression: Snapshot(tokens)
 ---
 1:1 id ifwhileelsereturn
 2:1 id a0012393852

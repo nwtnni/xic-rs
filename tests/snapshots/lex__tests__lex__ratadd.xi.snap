@@ -1,7 +1,6 @@
 ---
 source: tests/lex.rs
-assertion_line: 22
-expression: Snapshot(lexed)
+expression: Snapshot(tokens)
 ---
 3:1 id ratadd
 3:7 (

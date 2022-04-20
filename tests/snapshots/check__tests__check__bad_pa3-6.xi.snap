@@ -1,6 +1,0 @@
----
-source: tests/check.rs
-assertion_line: 25
-expression: Snapshot(checked)
----
-1:22 error:Unbound function baz

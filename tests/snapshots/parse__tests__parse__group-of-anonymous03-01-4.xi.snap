@@ -1,0 +1,6 @@
+---
+source: tests/parse.rs
+assertion_line: 23
+expression: Snapshot(program)
+---
+8:29 error:Unexpected token ;

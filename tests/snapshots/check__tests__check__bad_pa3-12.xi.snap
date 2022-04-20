@@ -1,6 +1,0 @@
----
-source: tests/check.rs
-assertion_line: 25
-expression: Snapshot(checked)
----
-2:9 error:Cannot initialize with a procedure

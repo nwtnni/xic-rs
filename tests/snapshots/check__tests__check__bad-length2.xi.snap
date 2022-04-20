@@ -1,0 +1,6 @@
+---
+source: tests/check.rs
+assertion_line: 21
+expression: Snapshot(context)
+---
+2:13 error:Expected any[] but found bool

@@ -1,6 +1,5 @@
 ---
 source: tests/parse.rs
-assertion_line: 29
-expression: Snapshot(parsed)
+expression: Snapshot(program)
 ---
 2:12 error:Undeclared length before declared length

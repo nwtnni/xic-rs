@@ -1,6 +1,5 @@
 ---
 source: tests/emit.rs
-assertion_line: 41
 expression: lir_stdout
 ---
 2 >= 2 = True

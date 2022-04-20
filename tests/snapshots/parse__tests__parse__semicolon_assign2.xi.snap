@@ -1,6 +1,0 @@
----
-source: tests/parse.rs
-assertion_line: 29
-expression: Snapshot(parsed)
----
-(() ((foo () () ((= (x bool) false)))))

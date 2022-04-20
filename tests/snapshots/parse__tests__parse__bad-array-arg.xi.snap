@@ -1,0 +1,6 @@
+---
+source: tests/parse.rs
+assertion_line: 23
+expression: Snapshot(program)
+---
+1:12 error:Unexpected token integer 1

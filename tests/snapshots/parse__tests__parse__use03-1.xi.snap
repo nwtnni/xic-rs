@@ -1,7 +1,6 @@
 ---
 source: tests/parse.rs
-assertion_line: 29
-expression: Snapshot(parsed)
+expression: Snapshot(program)
 ---
 (((use A01)
     (use A02)
