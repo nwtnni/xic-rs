@@ -1,10 +1,9 @@
-#![allow(dead_code)]
-
 use std::io;
 
 use anyhow::anyhow;
 use anyhow::Context as _;
 
+use crate::constants;
 use crate::data::hir;
 use crate::data::ir;
 use crate::data::operand;
@@ -27,7 +26,7 @@ pub fn interpret_hir<'io, R: io::BufRead + 'io, W: io::Write + 'io>(
     let mut global = Global::new(&unit.data, stdin, stdout);
     let mut local = Local::new(
         &unit,
-        &symbol::intern_static("_Imain_paai"),
+        &symbol::intern_static(constants::XI_MAIN),
         &[Value::Integer(0)],
     );
 

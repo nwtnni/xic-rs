@@ -56,7 +56,7 @@ impl<'io> Global<'io> {
         arguments: &[Value],
     ) -> Option<anyhow::Result<Vec<Value>>> {
         let r#returns = match symbol::resolve(name) {
-            "_Iprint_pai" => {
+            constants::XI_PRINT => {
                 debug_assert_eq!(arguments.len(), 1);
                 for byte in self.read_array(arguments[0]).to_vec() {
                     write!(
@@ -69,7 +69,7 @@ impl<'io> Global<'io> {
                 self.stdout.flush().unwrap();
                 Vec::new()
             }
-            "_Iprintln_pai" => {
+            constants::XI_PRINTLN => {
                 debug_assert_eq!(arguments.len(), 1);
                 for byte in self.read_array(arguments[0]).to_vec() {
                     write!(
@@ -83,7 +83,7 @@ impl<'io> Global<'io> {
                 self.stdout.flush().unwrap();
                 Vec::new()
             }
-            "_Ireadln_ai" => {
+            constants::XI_READLN => {
                 debug_assert_eq!(arguments.len(), 0);
                 let mut buffer = String::new();
                 self.stdin.read_line(&mut buffer).unwrap();
@@ -96,14 +96,14 @@ impl<'io> Global<'io> {
                         .collect::<Vec<_>>(),
                 )]
             }
-            "_Igetchar_i" => {
+            constants::XI_GETCHAR => {
                 debug_assert_eq!(arguments.len(), 0);
                 let mut char = [0];
                 self.stdin.read_exact(&mut char).unwrap();
                 vec![Value::Integer(char[0] as i64)]
             }
-            "_Ieof_b" => unimplemented!(),
-            "_IunparseInt_aii" => {
+            constants::XI_EOF => unimplemented!(),
+            constants::XI_UNPARSE_INT => {
                 debug_assert_eq!(arguments.len(), 1);
                 vec![self.write_array(
                     &arguments[0]
@@ -115,7 +115,7 @@ impl<'io> Global<'io> {
                         .collect::<Vec<_>>(),
                 )]
             }
-            "_IparseInt_t2ibai" => {
+            constants::XI_PARSE_INT => {
                 debug_assert_eq!(arguments.len(), 1);
 
                 let integer = self
@@ -130,12 +130,12 @@ impl<'io> Global<'io> {
                     Err(_) => vec![Value::Integer(0), Value::Integer(0)],
                 }
             }
-            "_xi_alloc" => {
+            constants::XI_ALLOC => {
                 debug_assert_eq!(arguments.len(), 1);
                 vec![self.calloc(arguments[0])]
             }
-            "_xi_out_of_bounds" => panic!("out of bounds"),
-            "_Iassert_pb" => {
+            constants::XI_OUT_OF_BOUNDS => panic!("out of bounds"),
+            constants::XI_ASSERT => {
                 debug_assert_eq!(arguments.len(), 1);
                 if arguments[0].into_integer() != 1 {
                     return Some(Err(anyhow!("Assertion error: {:?}", arguments[0])));
