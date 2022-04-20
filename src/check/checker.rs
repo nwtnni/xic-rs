@@ -4,10 +4,10 @@ use crate::check::Error;
 use crate::check::ErrorKind;
 use crate::data::ast;
 use crate::data::r#type;
+use crate::data::symbol;
 use crate::error;
 use crate::lex;
 use crate::parse;
-use crate::data::symbol;
 
 macro_rules! bail {
     ($span:expr, $kind:expr) => {
@@ -255,12 +255,7 @@ impl Checker {
                             r#type::Expression::Integer,
                         )
                     }
-                    ast::Binary::Lt
-                    | ast::Binary::Le
-                    | ast::Binary::Ge
-                    | ast::Binary::Gt
-                    | ast::Binary::Ne
-                    | ast::Binary::Eq => {
+                    ast::Binary::Lt | ast::Binary::Le | ast::Binary::Ge | ast::Binary::Gt => {
                         return self.check_binary(
                             left,
                             right,
@@ -275,6 +270,16 @@ impl Checker {
                             r#type::Expression::Boolean,
                             r#type::Expression::Boolean,
                         )
+                    }
+                    ast::Binary::Ne | ast::Binary::Eq => {
+                        let span = right.span();
+                        let left = self.check_expression(left)?;
+                        let right = self.check_expression(right)?;
+                        if left.subtypes(&right) || right.subtypes(&left) {
+                            return Ok(r#type::Expression::Boolean);
+                        } else {
+                            expected!(span, left, right);
+                        }
                     }
                 }
 

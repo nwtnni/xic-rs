@@ -3,4 +3,4 @@ source: tests/check.rs
 assertion_line: 21
 expression: Snapshot(context)
 ---
-Valid Xi Program
+4:20 error:Expected int[][] but found bool[][]
