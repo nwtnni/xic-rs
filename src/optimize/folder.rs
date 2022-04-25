@@ -115,14 +115,14 @@ impl Foldable for hir::Statement {
         use hir::Statement::*;
         match self {
             Expression(expression) => Expression(expression.fold()),
-            Jump(expression) => Jump(expression.fold()),
+            Jump(label) => Jump(label),
             Label(label) => Label(label),
             Move(into, from) => Move(into.fold(), from.fold()),
             Return(expressions) => Return(expressions.into_iter().map(Foldable::fold).collect()),
             Sequence(statements) => Sequence(statements.into_iter().map(Foldable::fold).collect()),
             CJump(condition, r#true, r#false) => match condition.fold() {
-                hir::Expression::Integer(1) => Jump(hir::Expression::Label(r#true)),
-                hir::Expression::Integer(0) => Jump(hir::Expression::Label(r#false)),
+                hir::Expression::Integer(1) => Jump(r#true),
+                hir::Expression::Integer(0) => Jump(r#false),
                 expression => CJump(expression, r#true, r#false),
             },
         }
@@ -210,7 +210,7 @@ impl Foldable for lir::Statement {
     fn fold(self) -> Self {
         use lir::Statement::*;
         match self {
-            Jump(expression) => Jump(expression.fold()),
+            Jump(label) => Jump(label),
             Call(function, expressions, returns) => Call(
                 function.fold(),
                 expressions.into_iter().map(Foldable::fold).collect(),
@@ -220,8 +220,8 @@ impl Foldable for lir::Statement {
             Return(expressions) => Return(expressions.into_iter().map(Foldable::fold).collect()),
             Label(label) => Label(label),
             CJump(condition, r#true, r#false) => match condition.fold() {
-                lir::Expression::Integer(1) => Jump(lir::Expression::Label(r#true)),
-                lir::Expression::Integer(0) => Jump(lir::Expression::Label(r#false)),
+                lir::Expression::Integer(1) => Jump(r#true),
+                lir::Expression::Integer(0) => Jump(r#false),
                 condition => CJump(condition, r#true, r#false),
             },
         }

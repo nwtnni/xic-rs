@@ -116,8 +116,8 @@ impl<'a> Local<'a, postorder::Hir<'a>> {
             hir::Statement::Expression(_) => unreachable!(),
             hir::Statement::Label(_) => unreachable!(),
             hir::Statement::Sequence(_) => unreachable!(),
-            hir::Statement::Jump(_) => {
-                self.interpret_jump(global);
+            hir::Statement::Jump(label) => {
+                self.interpret_jump(label);
                 return Ok(None);
             }
             hir::Statement::CJump(_, r#true, r#false) => {

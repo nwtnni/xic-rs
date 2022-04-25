@@ -123,10 +123,7 @@ impl Canonizer {
                     self.canonize_statement(statement);
                 }
             }
-            Jump(expression) => {
-                let jump = lir::Statement::Jump(self.canonize_expression(expression));
-                self.canonized.push(jump);
-            }
+            Jump(label) => self.canonized.push(lir::Statement::Jump(*label)),
             CJump(condition, r#true, r#false) => {
                 let cjump =
                     lir::Statement::CJump(self.canonize_expression(condition), *r#true, *r#false);

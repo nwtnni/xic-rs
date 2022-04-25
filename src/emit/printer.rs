@@ -46,7 +46,7 @@ impl Serialize for hir::Statement {
     fn sexp(&self) -> Sexp {
         use hir::Statement::*;
         match self {
-            Jump(expression) => ["JUMP".sexp(), expression.sexp()].sexp_move(),
+            Jump(label) => ["JUMP".sexp(), label.sexp()].sexp_move(),
             CJump(condition, r#true, r#false) => [
                 "CJUMP".sexp(),
                 condition.sexp(),
@@ -109,7 +109,7 @@ impl Serialize for lir::Statement {
 
                 ["EXP".sexp(), call].sexp_move()
             }
-            Jump(expression) => ["JUMP".sexp(), expression.sexp()].sexp_move(),
+            Jump(label) => ["JUMP".sexp(), label.sexp()].sexp_move(),
             CJump(condition, r#true, r#false) => [
                 "CJUMP".sexp(),
                 condition.sexp(),

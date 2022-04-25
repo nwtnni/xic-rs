@@ -89,8 +89,8 @@ impl<'a> Local<'a, postorder::Lir<'a>> {
         log::debug!("S> {}", statement.sexp());
         match statement {
             lir::Statement::Label(_) => unreachable!(),
-            lir::Statement::Jump(_) => {
-                self.interpret_jump(global);
+            lir::Statement::Jump(label) => {
+                self.interpret_jump(label);
                 return Ok(None);
             }
             lir::Statement::CJump(_, r#true, r#false) => {

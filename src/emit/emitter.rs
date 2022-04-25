@@ -182,7 +182,7 @@ impl<'env> Emitter<'env> {
                                 (MEM (Add (TEMP address) (Mul (TEMP index) (CONST constants::WORD_SIZE))))
                                 (MEM (Add (TEMP address_left) (Mul (Sub (TEMP index) (CONST 1)) (CONST constants::WORD_SIZE)))))
                             (MOVE (TEMP index) (Add (TEMP index) (CONST 1)))
-                            (JUMP (NAME while_left))
+                            (JUMP while_left)
                             (LABEL false_left)
 
                             // Copy right array into final destination, starting at
@@ -194,7 +194,7 @@ impl<'env> Emitter<'env> {
                                 (MEM (Add (TEMP address) (Mul (TEMP index) (CONST constants::WORD_SIZE))))
                                 (MEM (Add (TEMP address_right) (Mul (Sub (Sub (TEMP index) (TEMP length_left)) (CONST 1)) (CONST constants::WORD_SIZE)))))
                             (MOVE (TEMP index) (Add (TEMP index) (CONST 1)))
-                            (JUMP (NAME while_right))
+                            (JUMP while_right)
                             (LABEL false_right))
                         (Add (TEMP address) (CONST constants::WORD_SIZE)))
                 )
@@ -285,7 +285,7 @@ impl<'env> Emitter<'env> {
                             (LABEL low)
                             (CJUMP (Ge (TEMP index) (MEM (Sub (TEMP base) (CONST constants::WORD_SIZE)))) out high)
                             (LABEL high)
-                            (JUMP (NAME r#in))
+                            (JUMP r#in)
                             (LABEL out)
                             (EXP (CALL (NAME (operand::Label::Fixed(symbol::intern_static(constants::XI_OUT_OF_BOUNDS)))) 0))
                             (LABEL r#in))
@@ -388,7 +388,7 @@ impl<'env> Emitter<'env> {
                             (MEM (Add (TEMP array) (Mul (Add (TEMP index) (CONST 1)) (CONST constants::WORD_SIZE))))
                             (self.emit_array_declaration(r#type, len, variables, lengths)))),
                     hir!((MOVE (TEMP index) (Add (TEMP index) (CONST 1)))),
-                    hir!((JUMP (NAME r#while))),
+                    hir!((JUMP r#while)),
                     hir!((LABEL r#false)),
                 ]);
             }
@@ -479,7 +479,7 @@ impl<'env> Emitter<'env> {
                         (hir::Condition::from(self.emit_expression(condition, variables))(r#true, r#false))
                         (LABEL r#true)
                         (self.emit_statement(r#if, variables))
-                        (JUMP (NAME endif))
+                        (JUMP endif)
                         (LABEL r#false)
                         (self.emit_statement(r#else, variables))
                         (LABEL endif))
@@ -496,7 +496,7 @@ impl<'env> Emitter<'env> {
                         (hir::Condition::from(self.emit_expression(condition, variables))(r#true, r#false))
                         (LABEL r#true)
                         (self.emit_statement(statements, variables))
-                        (JUMP (NAME r#while))
+                        (JUMP r#while)
                         (LABEL r#false))
                 )
             }

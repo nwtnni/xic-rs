@@ -19,7 +19,7 @@ pub enum Expression {
 
 #[derive(Clone, Debug)]
 pub enum Statement {
-    Jump(Expression),
+    Jump(operand::Label),
     CJump(Expression, operand::Label, operand::Label),
     Call(Expression, Vec<Expression>, usize),
     Label(operand::Label),

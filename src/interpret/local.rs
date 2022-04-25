@@ -39,10 +39,6 @@ impl<'a, T: 'a> Local<'a, T> {
         self.postorder.get_instruction(index)
     }
 
-    pub fn jump(&mut self, label: &operand::Label) {
-        self.index = self.postorder.get_label(label).copied().unwrap();
-    }
-
     pub fn insert(&mut self, temporary: operand::Temporary, value: Value) {
         self.temporaries.insert(temporary, value);
     }
@@ -125,13 +121,8 @@ impl<'a, T: 'a> Local<'a, T> {
         self.push(value);
     }
 
-    pub fn interpret_jump(&mut self, global: &Global) {
-        let label = match self.pop(global) {
-            Value::Label(label, 8) => label,
-            Value::Label(_, _) => panic!("jumping to label offset"),
-            Value::Integer(_) => panic!("jumping to integer"),
-        };
-        self.jump(&label);
+    pub fn interpret_jump(&mut self, label: &operand::Label) {
+        self.index = self.postorder.get_label(label).copied().unwrap();
     }
 
     pub fn interpret_cjump(
@@ -146,7 +137,7 @@ impl<'a, T: 'a> Local<'a, T> {
             Value::Integer(_) => panic!("cjump on non-boolean condition"),
             Value::Label(_, _) => panic!("cjump on label condition"),
         };
-        self.jump(label);
+        self.interpret_jump(label);
     }
 
     pub fn interpret_move(&mut self, global: &mut Global) {

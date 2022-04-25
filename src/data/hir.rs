@@ -65,8 +65,8 @@ macro_rules! hir {
         )
     };
 
-    ((JUMP $expression:tt)) => {
-        crate::data::hir::Statement::Jump(hir!($expression))
+    ((JUMP $label:ident)) => {
+        crate::data::hir::Statement::Jump($label)
     };
     ((CJUMP $condition:tt $r#true:ident $r#false:ident)) => {
         crate::data::hir::Statement::CJump(
@@ -172,7 +172,7 @@ impl From<Tree> for Expression {
 
 #[derive(Clone, Debug)]
 pub enum Statement {
-    Jump(Expression),
+    Jump(operand::Label),
     CJump(Expression, operand::Label, operand::Label),
     Label(operand::Label),
     Expression(Expression),
