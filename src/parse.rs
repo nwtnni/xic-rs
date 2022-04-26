@@ -4,12 +4,12 @@
 #![allow(clippy::just_underscores_and_digits)]
 
 mod error;
-mod parser;
-mod printer;
+mod grammar;
+mod print;
 
 pub(crate) use error::Error;
-pub(crate) use parser::InterfaceParser;
-pub(crate) use parser::ProgramParser;
+pub(crate) use grammar::InterfaceParser;
+pub(crate) use grammar::ProgramParser;
 
 use crate::data::ast;
 use crate::data::token;
