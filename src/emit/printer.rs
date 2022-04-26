@@ -1,3 +1,5 @@
+use std::borrow;
+
 use crate::data::hir;
 use crate::data::ir;
 use crate::data::lir;
@@ -69,7 +71,7 @@ impl Serialize for hir::Statement {
     }
 }
 
-impl Serialize for lir::Function {
+impl<T: Serialize> Serialize for lir::Function<T> {
     fn sexp(&self) -> Sexp {
         [
             "FUNC".sexp(),
@@ -96,7 +98,7 @@ impl Serialize for lir::Expression {
     }
 }
 
-impl Serialize for lir::Statement {
+impl<T: Serialize> Serialize for lir::Statement<T> {
     fn sexp(&self) -> Sexp {
         use lir::Statement::*;
         match self {
@@ -124,6 +126,18 @@ impl Serialize for lir::Statement {
                 .collect::<Vec<_>>()
                 .sexp_move(),
         }
+    }
+}
+
+impl Serialize for lir::Fallthrough {
+    fn sexp(&self) -> Sexp {
+        Sexp::Atom(borrow::Cow::default())
+    }
+}
+
+impl Serialize for lir::Label {
+    fn sexp(&self) -> Sexp {
+        self.0.sexp()
     }
 }
 

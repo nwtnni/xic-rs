@@ -9,6 +9,6 @@ pub fn fold_hir(hir: ir::Unit<hir::Function>) -> ir::Unit<hir::Function> {
     hir.fold()
 }
 
-pub fn fold_lir(lir: ir::Unit<lir::Function>) -> ir::Unit<lir::Function> {
+pub fn fold_lir<T: lir::Target>(lir: ir::Unit<lir::Function<T>>) -> ir::Unit<lir::Function<T>> {
     lir.fold()
 }

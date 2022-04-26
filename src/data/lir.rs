@@ -3,9 +3,9 @@ use crate::data::operand;
 use crate::data::symbol;
 
 #[derive(Clone, Debug)]
-pub struct Function {
+pub struct Function<T> {
     pub name: symbol::Symbol,
-    pub statements: Vec<Statement>,
+    pub statements: Vec<Statement<T>>,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -18,11 +18,33 @@ pub enum Expression {
 }
 
 #[derive(Clone, Debug)]
-pub enum Statement {
+pub enum Statement<T> {
     Jump(operand::Label),
-    CJump(Expression, operand::Label, operand::Label),
+    CJump(Expression, operand::Label, T),
     Call(Expression, Vec<Expression>, usize),
     Label(operand::Label),
     Move(Expression, Expression),
     Return(Vec<Expression>),
+}
+
+#[derive(Copy, Clone, Debug, PartialEq, Eq)]
+pub struct Fallthrough;
+
+#[derive(Copy, Clone, Debug, PartialEq, Eq)]
+pub struct Label(pub(crate) operand::Label);
+
+pub trait Target: crate::data::sexp::Serialize {
+    fn label(&self) -> Option<&operand::Label>;
+}
+
+impl Target for Fallthrough {
+    fn label(&self) -> Option<&operand::Label> {
+        None
+    }
+}
+
+impl Target for Label {
+    fn label(&self) -> Option<&operand::Label> {
+        Some(&self.0)
+    }
 }

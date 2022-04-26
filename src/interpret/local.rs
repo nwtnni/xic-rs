@@ -66,6 +66,15 @@ impl<'a, T: 'a> Local<'a, T> {
         }
     }
 
+    pub fn pop_boolean(&mut self, global: &Global) -> bool {
+        match self.pop(global) {
+            Value::Integer(0) => false,
+            Value::Integer(1) => true,
+            Value::Integer(integer) => panic!("invalid boolean: {}", integer),
+            Value::Label(label, offset) => panic!("invalid boolean: {:?} + {}", label, offset),
+        }
+    }
+
     pub fn pop_arguments(&mut self, global: &Global, len: usize) -> Vec<Value> {
         let mut arguments = (0..len).map(|_| self.pop(global)).collect::<Vec<_>>();
         arguments.reverse();
@@ -123,21 +132,6 @@ impl<'a, T: 'a> Local<'a, T> {
 
     pub fn interpret_jump(&mut self, label: &operand::Label) {
         self.index = self.postorder.get_label(label).copied().unwrap();
-    }
-
-    pub fn interpret_cjump(
-        &mut self,
-        global: &Global,
-        r#true: &operand::Label,
-        r#false: &operand::Label,
-    ) {
-        let label = match self.pop(global) {
-            Value::Integer(0) => r#false,
-            Value::Integer(1) => r#true,
-            Value::Integer(_) => panic!("cjump on non-boolean condition"),
-            Value::Label(_, _) => panic!("cjump on label condition"),
-        };
-        self.interpret_jump(label);
     }
 
     pub fn interpret_move(&mut self, global: &mut Global) {

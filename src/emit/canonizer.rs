@@ -9,7 +9,7 @@ use crate::data::symbol;
 
 #[derive(Debug, Default)]
 pub struct Canonizer {
-    canonized: Vec<lir::Statement>,
+    canonized: Vec<lir::Statement<lir::Label>>,
 }
 
 impl Canonizer {
@@ -17,7 +17,10 @@ impl Canonizer {
         Canonizer::default()
     }
 
-    pub fn canonize_unit(mut self, unit: &ir::Unit<hir::Function>) -> ir::Unit<lir::Function> {
+    pub fn canonize_unit(
+        mut self,
+        unit: &ir::Unit<hir::Function>,
+    ) -> ir::Unit<lir::Function<lir::Label>> {
         let mut functions = BTreeMap::default();
         for (name, function) in &unit.functions {
             functions.insert(*name, self.canonize_function(function));
@@ -29,7 +32,7 @@ impl Canonizer {
         }
     }
 
-    fn canonize_function(&mut self, function: &hir::Function) -> lir::Function {
+    fn canonize_function(&mut self, function: &hir::Function) -> lir::Function<lir::Label> {
         self.canonize_statement(&function.statements);
         let mut canonized = std::mem::take(&mut self.canonized);
         if let Some(lir::Statement::Return(_)) = canonized.last() {
@@ -125,8 +128,11 @@ impl Canonizer {
             }
             Jump(label) => self.canonized.push(lir::Statement::Jump(*label)),
             CJump(condition, r#true, r#false) => {
-                let cjump =
-                    lir::Statement::CJump(self.canonize_expression(condition), *r#true, *r#false);
+                let cjump = lir::Statement::CJump(
+                    self.canonize_expression(condition),
+                    *r#true,
+                    lir::Label(*r#false),
+                );
                 self.canonized.push(cjump);
             }
             Move(into, from) => match self.canonize_expression(into) {

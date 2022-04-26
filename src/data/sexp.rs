@@ -5,8 +5,8 @@ use pretty::Arena;
 use pretty::DocAllocator;
 use pretty::DocBuilder;
 
-use crate::error;
 use crate::data::symbol;
+use crate::error;
 use crate::util::Tap;
 
 #[derive(Clone, Debug)]
@@ -29,6 +29,7 @@ impl Sexp {
         A::Doc: Clone,
     {
         match self {
+            Sexp::Atom(atom) if atom.is_empty() => allocator.nil(),
             Sexp::Atom(atom) => allocator.text(atom.clone()),
             Sexp::List(list) => allocator
                 .intersperse(

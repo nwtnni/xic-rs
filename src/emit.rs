@@ -21,6 +21,6 @@ pub fn emit_hir(
     Emitter::new(context).emit_unit(path, program)
 }
 
-pub fn emit_lir(hir: &ir::Unit<hir::Function>) -> ir::Unit<lir::Function> {
+pub fn emit_lir(hir: &ir::Unit<hir::Function>) -> ir::Unit<lir::Function<lir::Label>> {
     Canonizer::new().canonize_unit(hir)
 }

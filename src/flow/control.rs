@@ -13,16 +13,16 @@ pub struct Control {
     name: symbol::Symbol,
     start: operand::Label,
     graph: DiGraphMap<operand::Label, ()>,
-    blocks: BTreeMap<operand::Label, Vec<lir::Statement>>,
+    blocks: BTreeMap<operand::Label, Vec<lir::Statement<lir::Label>>>,
 }
 
-pub fn construct_unit(unit: &ir::Unit<lir::Function>) -> ir::Unit<Control> {
+pub fn construct_unit(unit: &ir::Unit<lir::Function<lir::Label>>) -> ir::Unit<Control> {
     unit.map(construct_function)
 }
 
 enum State {
     Unreachable,
-    Block(operand::Label, Vec<lir::Statement>),
+    Block(operand::Label, Vec<lir::Statement<lir::Label>>),
 }
 
 impl State {
@@ -30,14 +30,17 @@ impl State {
         State::Block(label, Vec::new())
     }
 
-    fn push(&mut self, statement: lir::Statement) {
+    fn push(&mut self, statement: lir::Statement<lir::Label>) {
         match self {
             State::Unreachable => (),
             State::Block(_, statements) => statements.push(statement),
         }
     }
 
-    fn replace(&mut self, state: State) -> Option<(operand::Label, Vec<lir::Statement>)> {
+    fn replace(
+        &mut self,
+        state: State,
+    ) -> Option<(operand::Label, Vec<lir::Statement<lir::Label>>)> {
         match mem::replace(self, state) {
             State::Unreachable => None,
             State::Block(label, statements) => Some((label, statements)),
@@ -45,7 +48,7 @@ impl State {
     }
 }
 
-fn construct_function(function: &lir::Function) -> Control {
+fn construct_function(function: &lir::Function<lir::Label>) -> Control {
     let mut graph = DiGraphMap::new();
     let mut blocks = BTreeMap::new();
 
@@ -68,7 +71,7 @@ fn construct_function(function: &lir::Function) -> Control {
 
                 if let Some((label, statements)) = block.replace(State::Unreachable) {
                     graph.add_edge(label, *r#true, ());
-                    graph.add_edge(label, *r#false, ());
+                    graph.add_edge(label, r#false.0, ());
                     blocks.insert(label, statements);
                 }
             }

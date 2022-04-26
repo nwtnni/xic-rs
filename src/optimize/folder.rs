@@ -129,7 +129,7 @@ impl Foldable for hir::Statement {
     }
 }
 
-impl Foldable for ir::Unit<lir::Function> {
+impl<T: lir::Target> Foldable for ir::Unit<lir::Function<T>> {
     fn fold(self) -> Self {
         ir::Unit {
             name: self.name,
@@ -143,7 +143,7 @@ impl Foldable for ir::Unit<lir::Function> {
     }
 }
 
-impl Foldable for lir::Function {
+impl<T: lir::Target> Foldable for lir::Function<T> {
     fn fold(self) -> Self {
         lir::Function {
             name: self.name,
@@ -206,7 +206,7 @@ impl Foldable for lir::Expression {
     }
 }
 
-impl Foldable for lir::Statement {
+impl<T: lir::Target> Foldable for lir::Statement<T> {
     fn fold(self) -> Self {
         use lir::Statement::*;
         match self {
@@ -219,10 +219,10 @@ impl Foldable for lir::Statement {
             Move(into, from) => Move(into.fold(), from.fold()),
             Return(expressions) => Return(expressions.into_iter().map(Foldable::fold).collect()),
             Label(label) => Label(label),
-            CJump(condition, r#true, r#false) => match condition.fold() {
-                lir::Expression::Integer(1) => Jump(r#true),
-                lir::Expression::Integer(0) => Jump(r#false),
-                condition => CJump(condition, r#true, r#false),
+            CJump(condition, r#true, r#false) => match (condition.fold(), r#false.label()) {
+                (lir::Expression::Integer(1), _) => Jump(r#true),
+                (lir::Expression::Integer(0), Some(label)) => Jump(*label),
+                (condition, _) => CJump(condition, r#true, r#false),
             },
         }
     }

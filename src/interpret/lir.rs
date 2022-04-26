@@ -16,11 +16,16 @@ use crate::interpret::Local;
 use crate::interpret::Operand;
 use crate::interpret::Value;
 
-pub fn interpret_lir<'io, R: io::BufRead + 'io, W: io::Write + 'io>(
-    unit: &ir::Unit<lir::Function>,
+pub fn interpret_lir<'io, R, W, T>(
+    unit: &ir::Unit<lir::Function<T>>,
     stdin: R,
     stdout: W,
-) -> anyhow::Result<()> {
+) -> anyhow::Result<()>
+where
+    R: io::BufRead + 'io,
+    W: io::Write + 'io,
+    T: lir::Target,
+{
     let unit = Postorder::traverse_lir_unit(unit);
 
     let mut global = Global::new(&unit.data, stdin, stdout);
@@ -35,10 +40,10 @@ pub fn interpret_lir<'io, R: io::BufRead + 'io, W: io::Write + 'io>(
     Ok(())
 }
 
-impl<'a> Local<'a, postorder::Lir<'a>> {
+impl<'a, T: lir::Target> Local<'a, postorder::Lir<'a, T>> {
     fn interpret_lir(
         &mut self,
-        unit: &ir::Unit<Postorder<postorder::Lir<'a>>>,
+        unit: &ir::Unit<Postorder<postorder::Lir<'a, T>>>,
         global: &mut Global,
     ) -> anyhow::Result<Vec<Value>> {
         loop {
@@ -82,9 +87,9 @@ impl<'a> Local<'a, postorder::Lir<'a>> {
 
     fn interpret_statement(
         &mut self,
-        unit: &ir::Unit<Postorder<postorder::Lir<'a>>>,
+        unit: &ir::Unit<Postorder<postorder::Lir<'a, T>>>,
         global: &mut Global,
-        statement: &lir::Statement,
+        statement: &lir::Statement<T>,
     ) -> anyhow::Result<Option<Vec<Value>>> {
         log::debug!("S> {}", statement.sexp());
         match statement {
@@ -94,7 +99,12 @@ impl<'a> Local<'a, postorder::Lir<'a>> {
                 return Ok(None);
             }
             lir::Statement::CJump(_, r#true, r#false) => {
-                self.interpret_cjump(global, r#true, r#false);
+                if self.pop_boolean(global) {
+                    self.interpret_jump(r#true);
+                } else if let Some(label) = r#false.label() {
+                    self.interpret_jump(label);
+                }
+
                 return Ok(None);
             }
             lir::Statement::Call(_, arguments, _) => {

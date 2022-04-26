@@ -145,17 +145,19 @@ impl<'a> Postorder<Hir<'a>> {
 }
 
 #[derive(Copy, Clone, Debug)]
-pub enum Lir<'a> {
+pub enum Lir<'a, T> {
     Expression(&'a lir::Expression),
-    Statement(&'a lir::Statement),
+    Statement(&'a lir::Statement<T>),
 }
 
-impl<'a> Postorder<Lir<'a>> {
-    pub fn traverse_lir_unit(unit: &'a ir::Unit<lir::Function>) -> ir::Unit<Postorder<Lir<'a>>> {
+impl<'a, T> Postorder<Lir<'a, T>> {
+    pub fn traverse_lir_unit(
+        unit: &'a ir::Unit<lir::Function<T>>,
+    ) -> ir::Unit<Postorder<Lir<'a, T>>> {
         unit.map(Self::traverse_lir_function)
     }
 
-    fn traverse_lir_function(function: &'a lir::Function) -> Postorder<Lir<'a>> {
+    fn traverse_lir_function(function: &'a lir::Function<T>) -> Postorder<Lir<'a, T>> {
         let mut flat = Postorder::default();
         function
             .statements
@@ -181,7 +183,7 @@ impl<'a> Postorder<Lir<'a>> {
         self.instructions.push(Lir::Expression(expression));
     }
 
-    fn traverse_lir_statement(&mut self, statement: &'a lir::Statement) {
+    fn traverse_lir_statement(&mut self, statement: &'a lir::Statement<T>) {
         match statement {
             lir::Statement::Jump(_) => (),
             lir::Statement::CJump(condition, _, _) => self.traverse_lir_expression(condition),
