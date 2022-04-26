@@ -1,9 +1,9 @@
-mod folder;
+mod fold;
 
 use crate::data::hir;
 use crate::data::ir;
 use crate::data::lir;
-use folder::Foldable as _;
+use fold::Foldable as _;
 
 pub fn fold_hir(hir: ir::Unit<hir::Function>) -> ir::Unit<hir::Function> {
     hir.fold()
