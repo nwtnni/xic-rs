@@ -1,9 +1,10 @@
-mod canonizer;
-mod emitter;
-mod printer;
+mod canonize;
+#[allow(clippy::module_inception)]
+mod emit;
+mod print;
 
-pub(crate) use canonizer::Canonizer;
-pub(crate) use emitter::Emitter;
+pub(crate) use canonize::Canonizer;
+pub(crate) use emit::Emitter;
 
 use std::path::Path;
 
