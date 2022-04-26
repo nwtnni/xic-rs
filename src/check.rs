@@ -1,8 +1,9 @@
-mod checker;
+#[allow(clippy::module_inception)]
+mod check;
 mod context;
 mod error;
 
-pub(crate) use checker::Checker;
+pub(crate) use check::Checker;
 pub(crate) use context::Context;
 pub(crate) use context::Entry;
 pub(crate) use error::Error;
