@@ -1,5 +1,6 @@
 use std::collections::BTreeMap;
 use std::collections::BTreeSet;
+use std::fmt;
 use std::mem;
 
 use petgraph::graphmap::DiGraphMap;
@@ -7,6 +8,7 @@ use petgraph::graphmap::DiGraphMap;
 use crate::data::ir;
 use crate::data::lir;
 use crate::data::operand;
+use crate::data::sexp::Serialize;
 use crate::data::symbol;
 
 pub struct Control {
@@ -167,5 +169,35 @@ fn fallthrough(statement: &lir::Statement<lir::Label>) -> lir::Statement<lir::Fa
         lir::Statement::Label(label) => lir::Statement::Label(*label),
         lir::Statement::Move(into, from) => lir::Statement::Move(into.clone(), from.clone()),
         lir::Statement::Return(returns) => lir::Statement::Return(returns.clone()),
+    }
+}
+
+impl fmt::Display for Control {
+    fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
+        writeln!(fmt, "digraph \"{}\" {{", self.name)?;
+
+        for (label, statements) in &self.blocks {
+            write!(
+                fmt,
+                "  \"{0}\" [shape=box nojustify=true label=\"\\\n{0}:\\l",
+                label.sexp(),
+            )?;
+
+            for statement in statements {
+                write!(fmt, "\\\n  {};\\l", statement.sexp())?;
+            }
+
+            writeln!(fmt, "\"];")?;
+        }
+
+        let mut edges = self.graph.all_edges().collect::<Vec<_>>();
+
+        edges.sort();
+
+        for (from, to, _) in edges {
+            writeln!(fmt, r#"  "{}" -> "{}";"#, from.sexp(), to.sexp())?;
+        }
+
+        writeln!(fmt, "}}")
     }
 }
