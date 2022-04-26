@@ -1,4 +1,5 @@
 use std::collections::BTreeMap;
+use std::collections::BTreeSet;
 use std::mem;
 
 use petgraph::graphmap::DiGraphMap;
@@ -8,7 +9,6 @@ use crate::data::lir;
 use crate::data::operand;
 use crate::data::symbol;
 
-#[allow(dead_code)]
 pub struct Control {
     name: symbol::Symbol,
     start: operand::Label,
@@ -24,6 +24,10 @@ pub enum Edge {
 
 pub fn construct_unit(unit: &ir::Unit<lir::Function<lir::Label>>) -> ir::Unit<Control> {
     unit.map(construct_function)
+}
+
+pub fn destruct_unit(unit: &ir::Unit<Control>) -> ir::Unit<lir::Function<lir::Fallthrough>> {
+    unit.map(destruct_function)
 }
 
 enum State {
@@ -115,5 +119,53 @@ fn construct_function(function: &lir::Function<lir::Label>) -> Control {
         start,
         graph,
         blocks,
+    }
+}
+
+fn destruct_function(function: &Control) -> lir::Function<lir::Fallthrough> {
+    let mut dfs = vec![function.start];
+    let mut statements = Vec::new();
+    let mut visited = BTreeSet::new();
+
+    while let Some(label) = dfs.pop() {
+        if !visited.insert(label) {
+            continue;
+        }
+
+        statements.push(lir::Statement::Label(label));
+        statements.extend(function.blocks[&label].iter().map(fallthrough));
+
+        let mut conditional = [None; 2];
+
+        for (_, next, edge) in function.graph.edges(label) {
+            match edge {
+                Edge::Unconditional => dfs.push(next),
+                Edge::Conditional(true) => conditional[0] = Some(next),
+                Edge::Conditional(false) if !visited.contains(&next) => conditional[1] = Some(next),
+                Edge::Conditional(false) => statements.push(lir::Statement::Jump(next)),
+            }
+        }
+
+        dfs.extend(IntoIterator::into_iter(conditional).flatten());
+    }
+
+    lir::Function {
+        name: function.name,
+        statements,
+    }
+}
+
+fn fallthrough(statement: &lir::Statement<lir::Label>) -> lir::Statement<lir::Fallthrough> {
+    match statement {
+        lir::Statement::Jump(label) => lir::Statement::Jump(*label),
+        lir::Statement::CJump(condition, r#true, _) => {
+            lir::Statement::CJump(condition.clone(), *r#true, lir::Fallthrough)
+        }
+        lir::Statement::Call(function, arguments, returns) => {
+            lir::Statement::Call(function.clone(), arguments.clone(), *returns)
+        }
+        lir::Statement::Label(label) => lir::Statement::Label(*label),
+        lir::Statement::Move(into, from) => lir::Statement::Move(into.clone(), from.clone()),
+        lir::Statement::Return(returns) => lir::Statement::Return(returns.clone()),
     }
 }
