@@ -27,6 +27,10 @@ struct Command {
     #[structopt(short = "g", long = "irgen")]
     debug_ir: bool,
 
+    /// Generate DOT file from IR CFG
+    #[structopt(short = "c", long = "optcfg")]
+    debug_cfg: bool,
+
     /// Interpret emitted IR
     #[structopt(short = "r", long = "irrun")]
     interpret_ir: bool,
@@ -112,6 +116,18 @@ fn main() -> anyhow::Result<()> {
         }
 
         let mut lir = xic::api::emit_lir(&hir);
+
+        if !command.optimize_disable {
+            lir = xic::api::fold_lir(lir);
+        }
+
+        let cfg = xic::api::construct_control_flow(&lir);
+
+        if command.debug_cfg {
+            write!(debug(&command.directory_output, &path, "dot")?, "{}", cfg)?;
+        }
+
+        let mut lir = xic::api::destruct_control_flow(&cfg);
 
         if !command.optimize_disable {
             lir = xic::api::fold_lir(lir);

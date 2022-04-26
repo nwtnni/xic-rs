@@ -21,5 +21,8 @@ xic
 *.hir
 *.lir
 *.snap.new
+*.dot
+*.png
+*.pdf
 
 test.xi

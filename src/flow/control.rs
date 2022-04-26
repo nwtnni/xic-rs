@@ -172,22 +172,37 @@ fn fallthrough(statement: &lir::Statement<lir::Label>) -> lir::Statement<lir::Fa
     }
 }
 
+impl fmt::Display for ir::Unit<Control> {
+    fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
+        writeln!(fmt, "digraph {{")?;
+        writeln!(fmt, "  label=\"{}\"", self.name)?;
+        writeln!(fmt, "  node [shape=box nojustify=true]")?;
+
+        for function in self.functions.values() {
+            write!(fmt, "{}", function)?;
+        }
+
+        writeln!(fmt, "}}")
+    }
+}
+
 impl fmt::Display for Control {
     fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
-        writeln!(fmt, "digraph \"{}\" {{", self.name)?;
+        writeln!(fmt, "  subgraph cluster_{} {{", self.name)?;
+        writeln!(fmt, "    label=\"{}\"", self.name)?;
 
         for (label, statements) in &self.blocks {
-            write!(
-                fmt,
-                "  \"{0}\" [shape=box nojustify=true label=\"\\\n{0}:\\l",
-                label.sexp(),
-            )?;
+            write!(fmt, "    \"{0}\" [label=\"\\\n{0}:\\l", label.sexp(),)?;
 
             for statement in statements {
-                write!(fmt, "\\\n  {};\\l", statement.sexp())?;
+                write!(
+                    fmt,
+                    "\\\n    {};\\l",
+                    statement.sexp().to_string().replace('\n', "\\l\\\n    ")
+                )?;
             }
 
-            writeln!(fmt, "\"];")?;
+            writeln!(fmt, "  \"];")?;
         }
 
         let mut edges = self.graph.all_edges().collect::<Vec<_>>();
@@ -195,9 +210,9 @@ impl fmt::Display for Control {
         edges.sort();
 
         for (from, to, _) in edges {
-            writeln!(fmt, r#"  "{}" -> "{}";"#, from.sexp(), to.sexp())?;
+            writeln!(fmt, r#"    "{}" -> "{}";"#, from.sexp(), to.sexp())?;
         }
 
-        writeln!(fmt, "}}")
+        writeln!(fmt, "  }}")
     }
 }
