@@ -13,7 +13,9 @@ use crate::data::symbol;
 
 pub struct Control {
     name: symbol::Symbol,
-    start: operand::Label,
+    enter: operand::Label,
+    #[allow(dead_code)]
+    exit: operand::Label,
     graph: DiGraphMap<operand::Label, Edge>,
     blocks: BTreeMap<operand::Label, Vec<lir::Statement<lir::Label>>>,
 }
@@ -38,7 +40,7 @@ enum State {
 }
 
 impl State {
-    fn start(label: operand::Label) -> Self {
+    fn block(label: operand::Label) -> Self {
         State::Block(label, Vec::new())
     }
 
@@ -64,9 +66,12 @@ fn construct_function(function: &lir::Function<lir::Label>) -> Control {
     let mut graph = DiGraphMap::new();
     let mut blocks = BTreeMap::new();
 
-    let start = operand::Label::fresh("start");
+    let enter = operand::Label::fresh("enter");
+    let exit = operand::Label::fresh("exit");
 
-    let mut block = State::Block(start, Vec::new());
+    blocks.insert(exit, vec![lir::Statement::Return]);
+
+    let mut block = State::Block(enter, Vec::new());
 
     for statement in &function.statements {
         match statement {
@@ -88,16 +93,17 @@ fn construct_function(function: &lir::Function<lir::Label>) -> Control {
                 }
             }
             lir::Statement::Label(next) => {
-                if let Some((previous, mut statements)) = block.replace(State::start(*next)) {
+                if let Some((previous, mut statements)) = block.replace(State::block(*next)) {
                     statements.push(lir::Statement::Jump(*next));
                     graph.add_edge(previous, *next, Edge::Unconditional);
                     blocks.insert(previous, statements);
                 }
             }
             lir::Statement::Return => {
-                block.push(lir::Statement::Return);
+                block.push(lir::Statement::Jump(exit));
 
                 if let Some((previous, statements)) = block.replace(State::Unreachable) {
+                    graph.add_edge(previous, exit, Edge::Unconditional);
                     blocks.insert(previous, statements);
                 }
             }
@@ -118,14 +124,15 @@ fn construct_function(function: &lir::Function<lir::Label>) -> Control {
 
     Control {
         name: function.name,
-        start,
+        enter,
+        exit,
         graph,
         blocks,
     }
 }
 
 fn destruct_function(function: &Control) -> lir::Function<lir::Fallthrough> {
-    let mut dfs = vec![function.start];
+    let mut dfs = vec![function.enter];
     let mut statements = Vec::new();
     let mut visited = BTreeSet::new();
 
