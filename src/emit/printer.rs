@@ -59,10 +59,7 @@ impl Serialize for hir::Statement {
             Label(label) => ["LABEL".sexp(), label.sexp()].sexp_move(),
             Expression(expression) => ["EXP".sexp(), expression.sexp()].sexp_move(),
             Move(into, from) => ["MOVE".sexp(), into.sexp(), from.sexp()].sexp_move(),
-            Return(expressions) => std::iter::once("RETURN".sexp())
-                .chain(expressions.iter().map(|expression| expression.sexp()))
-                .collect::<Vec<_>>()
-                .sexp_move(),
+            Return => ["RETURN".sexp()].sexp_move(),
             Sequence(statements) => std::iter::once("SEQ".sexp())
                 .chain(statements.iter().map(|statement| statement.sexp()))
                 .collect::<Vec<_>>()
@@ -121,10 +118,7 @@ impl<T: Serialize> Serialize for lir::Statement<T> {
             .sexp_move(),
             Label(label) => ["LABEL".sexp(), label.sexp()].sexp_move(),
             Move(into, from) => ["MOVE".sexp(), into.sexp(), from.sexp()].sexp_move(),
-            Return(expressions) => std::iter::once("RETURN".sexp())
-                .chain(expressions.iter().map(|expression| expression.sexp()))
-                .collect::<Vec<_>>()
-                .sexp_move(),
+            Return => ["RETURN".sexp()].sexp_move(),
         }
     }
 }

@@ -127,11 +127,7 @@ impl<'a> Postorder<Hir<'a>> {
                 self.traverse_hir_expression(into);
                 self.traverse_hir_expression(from);
             }
-            hir::Statement::Return(returns) => {
-                returns
-                    .iter()
-                    .for_each(|r#return| self.traverse_hir_expression(r#return));
-            }
+            hir::Statement::Return => (),
             hir::Statement::Sequence(statements) => {
                 statements
                     .iter()
@@ -201,11 +197,7 @@ impl<'a, T> Postorder<Lir<'a, T>> {
                 self.traverse_lir_expression(into);
                 self.traverse_lir_expression(from);
             }
-            lir::Statement::Return(returns) => {
-                returns
-                    .iter()
-                    .for_each(|r#return| self.traverse_lir_expression(r#return));
-            }
+            lir::Statement::Return => (),
         }
 
         self.instructions.push(Lir::Statement(statement));

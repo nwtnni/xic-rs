@@ -35,10 +35,21 @@ impl Canonizer {
     fn canonize_function(&mut self, function: &hir::Function) -> lir::Function<lir::Label> {
         self.canonize_statement(&function.statements);
         let mut canonized = std::mem::take(&mut self.canonized);
-        if let Some(lir::Statement::Return(_)) = canonized.last() {
-        } else {
-            canonized.push(lir::Statement::Return(vec![]));
+
+        match canonized.last() {
+            None => unreachable!(),
+            Some(
+                lir::Statement::Return | lir::Statement::Jump(_) | lir::Statement::CJump(_, _, _),
+            ) => (),
+            Some(
+                lir::Statement::Call(_, _, _)
+                | lir::Statement::Move(_, _)
+                | lir::Statement::Label(_),
+            ) => {
+                canonized.push(lir::Statement::Return);
+            }
         }
+
         lir::Function {
             name: function.name,
             statements: canonized,
@@ -162,10 +173,7 @@ impl Canonizer {
                 }
                 _ => unimplemented!(),
             },
-            Return(r#returns) => {
-                let r#returns = self.canonize_expressions(r#returns);
-                self.canonized.push(lir::Statement::Return(r#returns));
-            }
+            Return => self.canonized.push(lir::Statement::Return),
         }
     }
 
@@ -235,7 +243,7 @@ fn pure_statement(statement: &hir::Statement) -> bool {
         hir::Statement::Jump(_)
         | hir::Statement::CJump(_, _, _)
         | hir::Statement::Move(_, _)
-        | hir::Statement::Return(_) => false,
+        | hir::Statement::Return => false,
         hir::Statement::Label(_) => true,
         hir::Statement::Expression(expression) => pure_expression(expression),
         hir::Statement::Sequence(statements) => statements.iter().all(pure_statement),

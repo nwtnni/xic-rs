@@ -94,8 +94,8 @@ fn construct_function(function: &lir::Function<lir::Label>) -> Control {
                     blocks.insert(previous, statements);
                 }
             }
-            lir::Statement::Return(returns) => {
-                block.push(lir::Statement::Return(returns.clone()));
+            lir::Statement::Return => {
+                block.push(lir::Statement::Return);
 
                 if let Some((previous, statements)) = block.replace(State::Unreachable) {
                     blocks.insert(previous, statements);
@@ -168,7 +168,7 @@ fn fallthrough(statement: &lir::Statement<lir::Label>) -> lir::Statement<lir::Fa
         }
         lir::Statement::Label(label) => lir::Statement::Label(*label),
         lir::Statement::Move(into, from) => lir::Statement::Move(into.clone(), from.clone()),
-        lir::Statement::Return(returns) => lir::Statement::Return(returns.clone()),
+        lir::Statement::Return => lir::Statement::Return,
     }
 }
 

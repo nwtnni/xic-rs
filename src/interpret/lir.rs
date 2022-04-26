@@ -9,6 +9,7 @@ use crate::data::lir;
 use crate::data::operand;
 use crate::data::sexp::Serialize as _;
 use crate::data::symbol;
+use crate::interpret::local::Step;
 use crate::interpret::postorder;
 use crate::interpret::postorder::Postorder;
 use crate::interpret::Global;
@@ -35,7 +36,7 @@ where
         &[Value::Integer(0)],
     );
 
-    assert!(local.interpret_lir(&unit, &mut global)?.is_empty());
+    local.interpret_lir(&unit, &mut global)?;
 
     Ok(())
 }
@@ -45,11 +46,11 @@ impl<'a, T: lir::Target> Local<'a, postorder::Lir<'a, T>> {
         &mut self,
         unit: &ir::Unit<Postorder<postorder::Lir<'a, T>>>,
         global: &mut Global,
-    ) -> anyhow::Result<Vec<Value>> {
+    ) -> anyhow::Result<()> {
         loop {
             let instruction = match self.step() {
                 Some(instruction) => instruction,
-                None => return Ok(Vec::new()),
+                None => return Ok(()),
             };
 
             match instruction {
@@ -57,8 +58,8 @@ impl<'a, T: lir::Target> Local<'a, postorder::Lir<'a, T>> {
                     self.interpret_expression(global, expression)?
                 }
                 postorder::Lir::Statement(statement) => {
-                    if let Some(r#returns) = self.interpret_statement(unit, global, statement)? {
-                        return Ok(r#returns);
+                    if let Step::Return = self.interpret_statement(unit, global, statement)? {
+                        return Ok(());
                     }
                 }
             }
@@ -90,13 +91,13 @@ impl<'a, T: lir::Target> Local<'a, postorder::Lir<'a, T>> {
         unit: &ir::Unit<Postorder<postorder::Lir<'a, T>>>,
         global: &mut Global,
         statement: &lir::Statement<T>,
-    ) -> anyhow::Result<Option<Vec<Value>>> {
+    ) -> anyhow::Result<Step> {
         log::debug!("S> {}", statement.sexp());
         match statement {
             lir::Statement::Label(_) => unreachable!(),
             lir::Statement::Jump(label) => {
                 self.interpret_jump(label);
-                return Ok(None);
+                return Ok(Step::Continue);
             }
             lir::Statement::CJump(_, r#true, r#false) => {
                 if self.pop_boolean(global) {
@@ -105,9 +106,9 @@ impl<'a, T: lir::Target> Local<'a, postorder::Lir<'a, T>> {
                     self.interpret_jump(label);
                 }
 
-                return Ok(None);
+                return Ok(Step::Continue);
             }
-            lir::Statement::Call(_, arguments, _) => {
+            lir::Statement::Call(_, arguments, returns) => {
                 let arguments = self.pop_arguments(global, arguments.len());
                 let name = self.pop_name(global);
 
@@ -116,7 +117,9 @@ impl<'a, T: lir::Target> Local<'a, postorder::Lir<'a, T>> {
                 let returns = global
                     .interpret_library(name, &arguments)
                     .unwrap_or_else(|| {
-                        Local::new(unit, &name, &arguments).interpret_lir(unit, global)
+                        let mut frame = Local::new(unit, &name, &arguments);
+                        frame.interpret_lir(unit, global)?;
+                        Ok(frame.pop_returns(*returns))
                     })
                     .with_context(|| anyhow!("Calling function {}", name))?;
 
@@ -125,11 +128,11 @@ impl<'a, T: lir::Target> Local<'a, postorder::Lir<'a, T>> {
                 }
             }
             lir::Statement::Move(_, _) => self.interpret_move(global),
-            lir::Statement::Return(r#returns) => {
-                return Ok(Some(self.pop_arguments(global, r#returns.len())));
+            lir::Statement::Return => {
+                return Ok(Step::Return);
             }
         }
 
-        Ok(None)
+        Ok(Step::Continue)
     }
 }

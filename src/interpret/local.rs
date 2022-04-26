@@ -15,6 +15,12 @@ pub struct Local<'a, T: 'a> {
     stack: Vec<Operand>,
 }
 
+#[derive(Copy, Clone, Debug, PartialEq, Eq)]
+pub enum Step {
+    Continue,
+    Return,
+}
+
 impl<'a, T: 'a> Local<'a, T> {
     pub fn new(unit: &'a ir::Unit<Postorder<T>>, name: &Symbol, arguments: &[Value]) -> Self {
         let postorder = unit.functions.get(name).unwrap();
@@ -79,6 +85,13 @@ impl<'a, T: 'a> Local<'a, T> {
         let mut arguments = (0..len).map(|_| self.pop(global)).collect::<Vec<_>>();
         arguments.reverse();
         arguments
+    }
+
+    pub fn pop_returns(&mut self, len: usize) -> Vec<Value> {
+        (0..len)
+            .map(operand::Temporary::Return)
+            .map(|temporary| self.temporaries[&temporary])
+            .collect::<Vec<_>>()
     }
 
     pub fn interpret_binary(&mut self, global: &Global, binary: &ir::Binary) {

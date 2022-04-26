@@ -87,8 +87,8 @@ macro_rules! hir {
             hir!($from),
         )
     };
-    ((RETURN $returns:expr)) => {
-        crate::data::hir::Statement::Return($returns)
+    ((RETURN)) => {
+        crate::data::hir::Statement::Return
     };
     ((SEQ $statement:tt $($statements:tt)+)) => {
         crate::data::hir::Statement::Sequence(vec![
@@ -177,6 +177,6 @@ pub enum Statement {
     Label(operand::Label),
     Expression(Expression),
     Move(Expression, Expression),
-    Return(Vec<Expression>),
+    Return,
     Sequence(Vec<Statement>),
 }

@@ -2,6 +2,7 @@
 
 use std::collections::BTreeMap;
 use std::collections::HashMap;
+use std::iter;
 
 use crate::check;
 use crate::constants;
@@ -12,6 +13,7 @@ use crate::data::operand;
 use crate::data::r#type;
 use crate::data::symbol;
 use crate::hir;
+use crate::util::Tap as _;
 
 #[derive(Debug)]
 pub struct Emitter<'env> {
@@ -445,12 +447,16 @@ impl<'env> Emitter<'env> {
             Declaration(declaration, _) => {
                 hir::Statement::Expression(self.emit_declaration(declaration, variables))
             }
-            Return(expressions, _) => hir::Statement::Return(
+            Return(expressions, _) => {
                 expressions
                     .iter()
                     .map(|expression| self.emit_expression(expression, variables).into())
-                    .collect(),
-            ),
+                    .enumerate()
+                    .map(|(index, expression)| hir!((MOVE (TEMP operand::Temporary::Return(index)) (expression))))
+                    .chain(iter::once(hir::Statement::Return))
+                    .collect::<Vec<_>>()
+                    .tap(hir::Statement::Sequence)
+            }
             Sequence(statements, _) => hir::Statement::Sequence(
                 statements
                     .iter()

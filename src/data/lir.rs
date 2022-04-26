@@ -24,7 +24,7 @@ pub enum Statement<T> {
     Call(Expression, Vec<Expression>, usize),
     Label(operand::Label),
     Move(Expression, Expression),
-    Return(Vec<Expression>),
+    Return,
 }
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
