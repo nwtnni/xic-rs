@@ -170,6 +170,13 @@ impl Canonizer {
     }
 
     fn canonize_expressions(&mut self, expressions: &[hir::Expression]) -> Vec<lir::Expression> {
+        if expressions.iter().all(pure_expression) {
+            return expressions
+                .iter()
+                .map(|expression| self.canonize_expression(expression))
+                .collect();
+        }
+
         expressions
             .iter()
             .map(|expression| {
