@@ -1,11 +1,12 @@
 mod error;
-mod lexer;
+#[allow(clippy::module_inception)]
+mod lex;
 
 use std::path::Path;
 
 pub(crate) use error::Error;
 pub(crate) use error::ErrorKind;
-pub(crate) use lexer::Lexer;
+pub(crate) use lex::Lexer;
 
 use crate::data::token;
 
