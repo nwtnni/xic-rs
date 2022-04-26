@@ -12,8 +12,14 @@ use crate::data::symbol;
 pub struct Control {
     name: symbol::Symbol,
     start: operand::Label,
-    graph: DiGraphMap<operand::Label, ()>,
+    graph: DiGraphMap<operand::Label, Edge>,
     blocks: BTreeMap<operand::Label, Vec<lir::Statement<lir::Label>>>,
+}
+
+#[derive(Copy, Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub enum Edge {
+    Unconditional,
+    Conditional(bool),
 }
 
 pub fn construct_unit(unit: &ir::Unit<lir::Function<lir::Label>>) -> ir::Unit<Control> {
@@ -62,7 +68,7 @@ fn construct_function(function: &lir::Function<lir::Label>) -> Control {
                 block.push(lir::Statement::Jump(*target));
 
                 if let Some((label, statements)) = block.replace(State::Unreachable) {
-                    graph.add_edge(label, *target, ());
+                    graph.add_edge(label, *target, Edge::Unconditional);
                     blocks.insert(label, statements);
                 }
             }
@@ -70,15 +76,15 @@ fn construct_function(function: &lir::Function<lir::Label>) -> Control {
                 block.push(lir::Statement::CJump(expression.clone(), *r#true, *r#false));
 
                 if let Some((label, statements)) = block.replace(State::Unreachable) {
-                    graph.add_edge(label, *r#true, ());
-                    graph.add_edge(label, r#false.0, ());
+                    graph.add_edge(label, *r#true, Edge::Conditional(true));
+                    graph.add_edge(label, r#false.0, Edge::Conditional(false));
                     blocks.insert(label, statements);
                 }
             }
             lir::Statement::Label(next) => {
                 if let Some((previous, mut statements)) = block.replace(State::start(*next)) {
                     statements.push(lir::Statement::Jump(*next));
-                    graph.add_edge(previous, *next, ());
+                    graph.add_edge(previous, *next, Edge::Unconditional);
                     blocks.insert(previous, statements);
                 }
             }
