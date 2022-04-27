@@ -31,37 +31,52 @@ impl Tiler {
     }
 
     fn tile_memory(&mut self, address: &lir::Expression) -> operand::One<operand::Temporary> {
-        match address {
-            lir::Expression::Integer(offset) => operand::One::M(operand::Memory::O {
+        let memory = match address {
+            lir::Expression::Integer(offset) => operand::Memory::O {
                 offset: operand::Immediate::Constant(*offset),
-            }),
-            lir::Expression::Label(label) => operand::One::M(operand::Memory::O {
+            },
+            lir::Expression::Label(label) => operand::Memory::O {
                 offset: operand::Immediate::Label(*label),
-            }),
-            lir::Expression::Temporary(temporary) => {
-                operand::One::M(operand::Memory::B { base: *temporary })
-            }
+            },
+            lir::Expression::Temporary(temporary) => operand::Memory::B { base: *temporary },
             lir::Expression::Memory(address) => {
                 let address = self.tile_memory(address);
                 let shuttle = self.shuttle(address);
-                operand::One::M(operand::Memory::B { base: shuttle })
+                operand::Memory::B { base: shuttle }
             }
             lir::Expression::Binary(binary, left, right) => match (binary, &**left, &**right) {
                 (
                     ir::Binary::Add,
                     lir::Expression::Temporary(base),
                     lir::Expression::Integer(offset),
-                ) => operand::One::M(operand::Memory::BO {
+                )
+                | (
+                    ir::Binary::Add,
+                    lir::Expression::Integer(offset),
+                    lir::Expression::Temporary(base),
+                ) => operand::Memory::BO {
                     base: *base,
                     offset: operand::Immediate::Constant(*offset),
-                }),
+                },
+
+                (
+                    ir::Binary::Sub,
+                    lir::Expression::Temporary(base),
+                    lir::Expression::Integer(offset),
+                ) => operand::Memory::BO {
+                    base: *base,
+                    offset: operand::Immediate::Constant(-*offset),
+                },
+
                 _ => {
                     let address = self.tile_expression(address);
                     let shuttle = self.shuttle(address);
-                    operand::One::M(operand::Memory::B { base: shuttle })
+                    operand::Memory::B { base: shuttle }
                 }
             },
-        }
+        };
+
+        operand::One::M(memory)
     }
 
     fn shuttle(&mut self, operand: operand::One<operand::Temporary>) -> operand::Temporary {
