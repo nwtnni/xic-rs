@@ -70,7 +70,7 @@ impl<'a> Local<'a, postorder::Hir<'a>> {
         log::trace!("E> {}", expression.sexp());
         match expression {
             hir::Expression::Sequence(_, _) => unreachable!(),
-            hir::Expression::Immediate(operand::Immediate::Constant(integer)) => {
+            hir::Expression::Immediate(operand::Immediate::Integer(integer)) => {
                 self.push(Operand::Integer(*integer))
             }
             hir::Expression::Immediate(operand::Immediate::Label(label)) => {

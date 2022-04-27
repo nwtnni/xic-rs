@@ -9,14 +9,14 @@ static TEMPS: AtomicUsize = AtomicUsize::new(0);
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub enum Immediate {
-    Constant(i64),
+    Integer(i64),
     Label(Label),
 }
 
 impl fmt::Display for Immediate {
     fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
         match self {
-            Immediate::Constant(integer) => write!(fmt, "{:0x}", integer),
+            Immediate::Integer(integer) => write!(fmt, "{:0x}", integer),
             Immediate::Label(label) => write!(fmt, "{}", label),
         }
     }

@@ -183,7 +183,7 @@ impl Serialize for ir::Binary {
 impl Serialize for operand::Immediate {
     fn sexp(&self) -> Sexp {
         match self {
-            operand::Immediate::Constant(integer) => ["CONST".sexp(), integer.sexp()].sexp_move(),
+            operand::Immediate::Integer(integer) => ["CONST".sexp(), integer.sexp()].sexp_move(),
             operand::Immediate::Label(label) => ["NAME".sexp(), label.sexp()].sexp_move(),
         }
     }

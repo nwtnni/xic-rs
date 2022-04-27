@@ -215,7 +215,7 @@ impl Canonizer {
 fn commute(before: &hir::Expression, after: &hir::Expression) -> bool {
     use hir::Expression::*;
     match before {
-        Immediate(operand::Immediate::Constant(_)) => true,
+        Immediate(operand::Immediate::Integer(_)) => true,
         Binary(_, left, right) => commute(left, after) && commute(right, after),
         Immediate(operand::Immediate::Label(_))
         | Temporary(_)
@@ -228,7 +228,7 @@ fn commute(before: &hir::Expression, after: &hir::Expression) -> bool {
 fn pure_expression(expression: &hir::Expression) -> bool {
     use hir::Expression::*;
     match expression {
-        Immediate(operand::Immediate::Constant(_)) | Temporary(_) => true,
+        Immediate(operand::Immediate::Integer(_)) | Temporary(_) => true,
         Immediate(operand::Immediate::Label(_)) => false,
         Memory(expression) => pure_expression(expression),
         Binary(_, left, right) => pure_expression(left) && pure_expression(right),

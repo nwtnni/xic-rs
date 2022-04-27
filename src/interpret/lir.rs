@@ -73,7 +73,7 @@ impl<'a, T: lir::Target> Local<'a, postorder::Lir<'a, T>> {
     ) -> anyhow::Result<()> {
         log::trace!("E> {}", expression.sexp());
         match expression {
-            lir::Expression::Immediate(operand::Immediate::Constant(integer)) => {
+            lir::Expression::Immediate(operand::Immediate::Integer(integer)) => {
                 self.push(Operand::Integer(*integer))
             }
             lir::Expression::Immediate(operand::Immediate::Label(label)) => {

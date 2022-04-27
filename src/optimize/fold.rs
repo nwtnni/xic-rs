@@ -48,16 +48,16 @@ impl Foldable for hir::Expression {
             ),
             Binary(binary, left, right) => {
                 const ZERO: hir::Expression =
-                    hir::Expression::Immediate(operand::Immediate::Constant(0));
+                    hir::Expression::Immediate(operand::Immediate::Integer(0));
 
                 const ONE: hir::Expression =
-                    hir::Expression::Immediate(operand::Immediate::Constant(1));
+                    hir::Expression::Immediate(operand::Immediate::Integer(1));
 
                 match (binary, left.fold(), right.fold()) {
                     (
                         _,
-                        Immediate(operand::Immediate::Constant(left)),
-                        Immediate(operand::Immediate::Constant(right)),
+                        Immediate(operand::Immediate::Integer(left)),
+                        Immediate(operand::Immediate::Integer(right)),
                     ) => hir::Expression::from(fold_binary(binary, left, right)),
 
                     (Add, ZERO, Temporary(temporary))
@@ -128,8 +128,8 @@ impl Foldable for hir::Statement {
                 r#true,
                 r#false,
             } => match condition.fold() {
-                hir::Expression::Immediate(operand::Immediate::Constant(1)) => Jump(r#true),
-                hir::Expression::Immediate(operand::Immediate::Constant(0)) => Jump(r#false),
+                hir::Expression::Immediate(operand::Immediate::Integer(1)) => Jump(r#true),
+                hir::Expression::Immediate(operand::Immediate::Integer(0)) => Jump(r#false),
                 condition => CJump {
                     condition,
                     r#true,
@@ -173,17 +173,17 @@ impl Foldable for lir::Expression {
             Temporary(temporary) => Temporary(temporary),
             Binary(binary, left, right) => {
                 const ZERO: lir::Expression =
-                    lir::Expression::Immediate(operand::Immediate::Constant(0));
+                    lir::Expression::Immediate(operand::Immediate::Integer(0));
 
                 const ONE: lir::Expression =
-                    lir::Expression::Immediate(operand::Immediate::Constant(1));
+                    lir::Expression::Immediate(operand::Immediate::Integer(1));
 
                 match (binary, left.fold(), right.fold()) {
                     (
                         _,
-                        Immediate(operand::Immediate::Constant(left)),
-                        Immediate(operand::Immediate::Constant(right)),
-                    ) => Immediate(operand::Immediate::Constant(fold_binary(
+                        Immediate(operand::Immediate::Integer(left)),
+                        Immediate(operand::Immediate::Integer(right)),
+                    ) => Immediate(operand::Immediate::Integer(fold_binary(
                         binary, left, right,
                     ))),
 
@@ -252,8 +252,8 @@ impl<T: lir::Target> Foldable for lir::Statement<T> {
                 r#true,
                 r#false,
             } => match (condition.fold(), r#false.label()) {
-                (lir::Expression::Immediate(operand::Immediate::Constant(1)), _) => Jump(r#true),
-                (lir::Expression::Immediate(operand::Immediate::Constant(0)), Some(label)) => {
+                (lir::Expression::Immediate(operand::Immediate::Integer(1)), _) => Jump(r#true),
+                (lir::Expression::Immediate(operand::Immediate::Integer(0)), Some(label)) => {
                     Jump(*label)
                 }
                 (condition, _) => CJump {

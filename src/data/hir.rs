@@ -140,7 +140,7 @@ impl From<operand::Label> for Expression {
 
 impl From<i64> for Expression {
     fn from(integer: i64) -> Self {
-        Self::Immediate(operand::Immediate::Constant(integer))
+        Self::Immediate(operand::Immediate::Integer(integer))
     }
 }
 
