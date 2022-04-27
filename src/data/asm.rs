@@ -27,6 +27,7 @@ pub enum Binary {
     Xor,
     Cmp,
     Mov,
+    Lea,
 }
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -39,7 +40,7 @@ pub enum Unary {
     Pop,
     Call,
     Mul,
-    Div,
+    Div(Division),
     Jmp,
     Jcc(Condition),
 }
@@ -58,4 +59,10 @@ pub enum Condition {
     Ge,
     L,
     Le,
+}
+
+#[derive(Copy, Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub enum Division {
+    Quotient,
+    Remainder,
 }

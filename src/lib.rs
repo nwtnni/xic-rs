@@ -1,3 +1,4 @@
+mod assemble;
 mod check;
 mod constants;
 pub mod data;
