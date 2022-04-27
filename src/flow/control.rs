@@ -199,7 +199,7 @@ impl fmt::Display for Control {
         writeln!(fmt, "    label=\"{}\"", self.name)?;
 
         for (label, statements) in &self.blocks {
-            write!(fmt, "    \"{0}\" [label=\"\\\n{0}:\\l", label.sexp(),)?;
+            write!(fmt, "    \"{0}\" [label=\"\\\n{0}:\\l", label)?;
 
             for statement in statements {
                 write!(
@@ -217,7 +217,7 @@ impl fmt::Display for Control {
         edges.sort();
 
         for (from, to, _) in edges {
-            writeln!(fmt, r#"    "{}" -> "{}";"#, from.sexp(), to.sexp())?;
+            writeln!(fmt, r#"    "{}" -> "{}";"#, from, to)?;
         }
 
         writeln!(fmt, "  }}")

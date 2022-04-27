@@ -1,4 +1,6 @@
-use std::sync::atomic::{AtomicUsize, Ordering};
+use std::fmt;
+use std::sync::atomic::AtomicUsize;
+use std::sync::atomic::Ordering;
 
 use crate::data::symbol;
 
@@ -9,6 +11,15 @@ static TEMPS: AtomicUsize = AtomicUsize::new(0);
 pub enum Immediate {
     Constant(i64),
     Label(Label),
+}
+
+impl fmt::Display for Immediate {
+    fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            Immediate::Constant(integer) => write!(fmt, "{:0x}", integer),
+            Immediate::Label(label) => write!(fmt, "{}", label),
+        }
+    }
 }
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq, Hash, PartialOrd, Ord)]
@@ -25,6 +36,17 @@ impl Label {
     }
 }
 
+impl fmt::Display for Label {
+    fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            Label::Fixed(label) => write!(fmt, "{}", label),
+            Label::Fresh(label, index) => {
+                write!(fmt, "{}{}", label, index)
+            }
+        }
+    }
+}
+
 #[derive(Copy, Clone, Debug, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub enum Temporary {
     Register(Register),
@@ -38,6 +60,17 @@ impl Temporary {
         let index = TEMPS.fetch_add(1, Ordering::SeqCst);
         let symbol = symbol::intern_static(label);
         Temporary::Fresh(symbol, index)
+    }
+}
+
+impl fmt::Display for Temporary {
+    fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            Temporary::Register(register) => write!(fmt, "{}", register),
+            Temporary::Argument(index) => write!(fmt, "_ARG{}", index),
+            Temporary::Return(index) => write!(fmt, "_RET{}", index),
+            Temporary::Fresh(temporary, index) => write!(fmt, "{}{}", temporary, index),
+        }
     }
 }
 
@@ -59,6 +92,31 @@ pub enum Register {
     R13,
     R14,
     R15,
+}
+
+impl fmt::Display for Register {
+    fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
+        let register = match self {
+            Register::Rax => "rax",
+            Register::Rbx => "rbx",
+            Register::Rcx => "rcx",
+            Register::Rdx => "rdx",
+            Register::Rbp => "rbp",
+            Register::Rsp => "rsp",
+            Register::Rsi => "rsi",
+            Register::Rdi => "rdi",
+            Register::R8 => "r8",
+            Register::R9 => "r9",
+            Register::R10 => "r10",
+            Register::R11 => "r11",
+            Register::R12 => "r12",
+            Register::R13 => "r13",
+            Register::R14 => "r14",
+            Register::R15 => "r15",
+        };
+
+        write!(fmt, "{}", register)
+    }
 }
 
 pub trait Operand: Copy + Eq + std::hash::Hash + std::fmt::Debug + PartialOrd + Ord {}
@@ -107,6 +165,19 @@ pub enum Scale {
     _2,
     _4,
     _8,
+}
+
+impl fmt::Display for Scale {
+    fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
+        let scale = match self {
+            Scale::_1 => '1',
+            Scale::_2 => '2',
+            Scale::_4 => '4',
+            Scale::_8 => '8',
+        };
+
+        write!(fmt, "{}", scale)
+    }
 }
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq, Hash, PartialOrd, Ord)]

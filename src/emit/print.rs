@@ -5,7 +5,6 @@ use crate::data::ir;
 use crate::data::lir;
 use crate::data::operand;
 use crate::data::sexp::{Serialize, Sexp};
-use crate::data::symbol;
 
 impl<T: Serialize> Serialize for ir::Unit<T> {
     fn sexp(&self) -> Sexp {
@@ -164,22 +163,12 @@ impl Serialize for ir::Binary {
 
 impl Serialize for operand::Label {
     fn sexp(&self) -> Sexp {
-        use operand::Label::*;
-        match self {
-            Fixed(symbol) => symbol.sexp(),
-            Fresh(symbol, index) => format!("{}{}", symbol::resolve(*symbol), index).sexp_move(),
-        }
+        self.to_string().sexp_move()
     }
 }
 
 impl Serialize for operand::Temporary {
     fn sexp(&self) -> Sexp {
-        use operand::Temporary::*;
-        match self {
-            Argument(index) => format!("_ARG{}", index).sexp_move(),
-            Return(index) => format!("_RET{}", index).sexp_move(),
-            Fresh(symbol, index) => format!("{}{}", symbol::resolve(*symbol), index).sexp_move(),
-            Register(_) => panic!("[INTERNAL ERROR]: shouldn't be any registers in IR"),
-        }
+        self.to_string().sexp_move()
     }
 }
