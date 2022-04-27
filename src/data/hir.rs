@@ -31,7 +31,11 @@ impl From<Tree> for Condition {
                     Box::new(expression),
                     Box::new(Expression::Integer(1)),
                 );
-                Statement::CJump(condition, r#true, r#false)
+                Statement::CJump {
+                    condition,
+                    r#true,
+                    r#false,
+                }
             }),
         }
     }
@@ -69,11 +73,11 @@ macro_rules! hir {
         crate::data::hir::Statement::Jump($label)
     };
     ((CJUMP $condition:tt $r#true:ident $r#false:ident)) => {
-        crate::data::hir::Statement::CJump(
-            hir!($condition),
-            $r#true,
-            $r#false,
-        )
+        crate::data::hir::Statement::CJump {
+            condition: hir!($condition),
+            r#true: $r#true,
+            r#false: $r#false,
+        }
     };
     ((LABEL $label:tt)) => {
         crate::data::hir::Statement::Label($label)
@@ -82,10 +86,10 @@ macro_rules! hir {
         crate::data::hir::Statement::Expression(hir!($expression))
     };
     ((MOVE $into:tt $from:tt)) => {
-        crate::data::hir::Statement::Move(
-            hir!($into),
-            hir!($from),
-        )
+        crate::data::hir::Statement::Move {
+            destination: hir!($into),
+            source: hir!($from),
+        }
     };
     ((RETURN)) => {
         crate::data::hir::Statement::Return
@@ -157,10 +161,16 @@ impl From<Tree> for Expression {
                 let value = Expression::Temporary(operand::Temporary::fresh("bool"));
 
                 let sequence = vec![
-                    Statement::Move(value.clone(), Expression::Integer(0)),
+                    Statement::Move {
+                        destination: value.clone(),
+                        source: Expression::Integer(0),
+                    },
                     condition(r#true, r#false),
                     Statement::Label(r#true),
-                    Statement::Move(value.clone(), Expression::Integer(1)),
+                    Statement::Move {
+                        destination: value.clone(),
+                        source: Expression::Integer(1),
+                    },
                     Statement::Label(r#false),
                 ];
 
@@ -173,10 +183,17 @@ impl From<Tree> for Expression {
 #[derive(Clone, Debug)]
 pub enum Statement {
     Jump(operand::Label),
-    CJump(Expression, operand::Label, operand::Label),
+    CJump {
+        condition: Expression,
+        r#true: operand::Label,
+        r#false: operand::Label,
+    },
     Label(operand::Label),
     Expression(Expression),
-    Move(Expression, Expression),
+    Move {
+        destination: Expression,
+        source: Expression,
+    },
     Return,
     Sequence(Vec<Statement>),
 }

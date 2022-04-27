@@ -114,7 +114,11 @@ impl<'a> Postorder<Hir<'a>> {
     fn traverse_hir_statement(&mut self, statement: &'a hir::Statement) {
         match statement {
             hir::Statement::Jump(_) => (),
-            hir::Statement::CJump(condition, _, _) => self.traverse_hir_expression(condition),
+            hir::Statement::CJump {
+                condition,
+                r#true: _,
+                r#false: _,
+            } => self.traverse_hir_expression(condition),
             hir::Statement::Label(label) => {
                 self.labels.insert(*label, self.instructions.len());
                 return;
@@ -123,9 +127,12 @@ impl<'a> Postorder<Hir<'a>> {
                 self.traverse_hir_expression(expression);
                 return;
             }
-            hir::Statement::Move(into, from) => {
-                self.traverse_hir_expression(into);
-                self.traverse_hir_expression(from);
+            hir::Statement::Move {
+                destination,
+                source,
+            } => {
+                self.traverse_hir_expression(destination);
+                self.traverse_hir_expression(source);
             }
             hir::Statement::Return => (),
             hir::Statement::Sequence(statements) => {

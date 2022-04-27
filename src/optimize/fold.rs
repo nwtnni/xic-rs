@@ -117,13 +117,27 @@ impl Foldable for hir::Statement {
             Expression(expression) => Expression(expression.fold()),
             Jump(label) => Jump(label),
             Label(label) => Label(label),
-            Move(into, from) => Move(into.fold(), from.fold()),
+            Move {
+                destination,
+                source,
+            } => Move {
+                destination: destination.fold(),
+                source: source.fold(),
+            },
             Return => Return,
             Sequence(statements) => Sequence(statements.into_iter().map(Foldable::fold).collect()),
-            CJump(condition, r#true, r#false) => match condition.fold() {
+            CJump {
+                condition,
+                r#true,
+                r#false,
+            } => match condition.fold() {
                 hir::Expression::Integer(1) => Jump(r#true),
                 hir::Expression::Integer(0) => Jump(r#false),
-                expression => CJump(expression, r#true, r#false),
+                condition => CJump {
+                    condition,
+                    r#true,
+                    r#false,
+                },
             },
         }
     }

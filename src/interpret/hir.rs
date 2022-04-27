@@ -123,7 +123,11 @@ impl<'a> Local<'a, postorder::Hir<'a>> {
                 self.interpret_jump(label);
                 return Ok(Step::Continue);
             }
-            hir::Statement::CJump(_, r#true, r#false) => {
+            hir::Statement::CJump {
+                condition: _,
+                r#true,
+                r#false,
+            } => {
                 if self.pop_boolean(global) {
                     self.interpret_jump(r#true);
                 } else {
@@ -131,7 +135,10 @@ impl<'a> Local<'a, postorder::Hir<'a>> {
                 }
                 return Ok(Step::Continue);
             }
-            hir::Statement::Move(_, _) => self.interpret_move(global),
+            hir::Statement::Move {
+                destination: _,
+                source: _,
+            } => self.interpret_move(global),
             hir::Statement::Return => {
                 return Ok(Step::Return);
             }

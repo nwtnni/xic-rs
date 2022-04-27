@@ -48,7 +48,11 @@ impl Serialize for hir::Statement {
         use hir::Statement::*;
         match self {
             Jump(label) => ["JUMP".sexp(), label.sexp()].sexp_move(),
-            CJump(condition, r#true, r#false) => [
+            CJump {
+                condition,
+                r#true,
+                r#false,
+            } => [
                 "CJUMP".sexp(),
                 condition.sexp(),
                 r#true.sexp(),
@@ -57,7 +61,10 @@ impl Serialize for hir::Statement {
             .sexp_move(),
             Label(label) => ["LABEL".sexp(), label.sexp()].sexp_move(),
             Expression(expression) => ["EXP".sexp(), expression.sexp()].sexp_move(),
-            Move(into, from) => ["MOVE".sexp(), into.sexp(), from.sexp()].sexp_move(),
+            Move {
+                destination,
+                source,
+            } => ["MOVE".sexp(), destination.sexp(), source.sexp()].sexp_move(),
             Return => ["RETURN".sexp()].sexp_move(),
             Sequence(statements) => std::iter::once("SEQ".sexp())
                 .chain(statements.iter().map(|statement| statement.sexp()))
