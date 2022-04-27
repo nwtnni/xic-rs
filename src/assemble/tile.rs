@@ -20,10 +20,7 @@ impl Tiler {
         expression: &lir::Expression,
     ) -> operand::One<operand::Temporary> {
         match expression {
-            lir::Expression::Integer(integer) => {
-                operand::One::I(operand::Immediate::Constant(*integer))
-            }
-            lir::Expression::Label(label) => operand::One::I(operand::Immediate::Label(*label)),
+            lir::Expression::Immediate(immediate) => operand::One::I(*immediate),
             lir::Expression::Temporary(temporary) => operand::One::R(*temporary),
             lir::Expression::Memory(address) => self.tile_memory(address),
             lir::Expression::Binary(_, _, _) => todo!(),
@@ -32,51 +29,141 @@ impl Tiler {
 
     fn tile_memory(&mut self, address: &lir::Expression) -> operand::One<operand::Temporary> {
         let memory = match address {
-            lir::Expression::Integer(offset) => operand::Memory::O {
-                offset: operand::Immediate::Constant(*offset),
-            },
-            lir::Expression::Label(label) => operand::Memory::O {
-                offset: operand::Immediate::Label(*label),
-            },
+            lir::Expression::Immediate(offset) => operand::Memory::O { offset: *offset },
             lir::Expression::Temporary(temporary) => operand::Memory::B { base: *temporary },
-            lir::Expression::Memory(address) => {
-                let address = self.tile_memory(address);
-                let shuttle = self.shuttle(address);
-                operand::Memory::B { base: shuttle }
-            }
-            lir::Expression::Binary(binary, left, right) => match (binary, &**left, &**right) {
-                (
-                    ir::Binary::Add,
-                    lir::Expression::Temporary(base),
-                    lir::Expression::Integer(offset),
-                )
-                | (
-                    ir::Binary::Add,
-                    lir::Expression::Integer(offset),
-                    lir::Expression::Temporary(base),
-                ) => operand::Memory::BO {
-                    base: *base,
-                    offset: operand::Immediate::Constant(*offset),
-                },
-
-                (
-                    ir::Binary::Sub,
-                    lir::Expression::Temporary(base),
-                    lir::Expression::Integer(offset),
-                ) => operand::Memory::BO {
-                    base: *base,
-                    offset: operand::Immediate::Constant(-*offset),
-                },
-
-                _ => {
-                    let address = self.tile_expression(address);
-                    let shuttle = self.shuttle(address);
-                    operand::Memory::B { base: shuttle }
-                }
+            lir::Expression::Memory(address) => operand::Memory::B {
+                base: self.shuttle_memory(address),
             },
+            lir::Expression::Binary(binary, left, right) => {
+                use ir::Binary::Add;
+                use ir::Binary::Mul;
+                use ir::Binary::Sub;
+
+                use lir::Expression::Binary;
+                use lir::Expression::Immediate;
+                use lir::Expression::Temporary;
+
+                use operand::Immediate::Integer;
+
+                match (binary, &**left, &**right) {
+                    // Ternary addressing modes
+                    (Add, Temporary(base), tree @ Binary(binary, left, right))
+                    | (Add, tree @ Binary(binary, left, right), Temporary(base)) => {
+                        match (binary, &**left, &**right) {
+                            (Mul, Temporary(index), Immediate(operand::Immediate::Integer(8)))
+                            | (Mul, Immediate(operand::Immediate::Integer(8)), Temporary(index)) => {
+                                operand::Memory::BIS {
+                                    base: *base,
+                                    index: *index,
+                                    scale: operand::Scale::_8,
+                                }
+                            }
+                            (Mul, tree, Immediate(operand::Immediate::Integer(8)))
+                            | (Mul, Immediate(operand::Immediate::Integer(8)), tree) => {
+                                operand::Memory::BIS {
+                                    base: *base,
+                                    index: self.shuttle_expression(tree),
+                                    scale: operand::Scale::_8,
+                                }
+                            }
+
+                            (Add, Temporary(index), Immediate(offset))
+                            | (Add, Immediate(offset), Temporary(index)) => operand::Memory::BIO {
+                                base: *base,
+                                index: *index,
+                                offset: *offset,
+                            },
+                            (Add, tree, Immediate(offset)) | (Add, Immediate(offset), tree) => {
+                                operand::Memory::BIO {
+                                    base: *base,
+                                    index: self.shuttle_expression(tree),
+                                    offset: *offset,
+                                }
+                            }
+
+                            _ => operand::Memory::BI {
+                                base: *base,
+                                index: self.shuttle_expression(tree),
+                            },
+                        }
+                    }
+
+                    (Add, Immediate(offset), tree @ Binary(binary, left, right))
+                    | (Add, tree @ Binary(binary, left, right), Immediate(offset)) => {
+                        match (binary, &**left, &**right) {
+                            (Mul, Temporary(index), Immediate(operand::Immediate::Integer(8)))
+                            | (Mul, Immediate(operand::Immediate::Integer(8)), Temporary(index)) => {
+                                operand::Memory::ISO {
+                                    index: *index,
+                                    scale: operand::Scale::_8,
+                                    offset: *offset,
+                                }
+                            }
+                            (Mul, tree, Immediate(operand::Immediate::Integer(8)))
+                            | (Mul, Immediate(operand::Immediate::Integer(8)), tree) => {
+                                operand::Memory::ISO {
+                                    index: self.shuttle_expression(tree),
+                                    scale: operand::Scale::_8,
+                                    offset: *offset,
+                                }
+                            }
+
+                            _ => operand::Memory::BO {
+                                base: self.shuttle_expression(tree),
+                                offset: *offset,
+                            },
+                        }
+                    }
+
+                    // Binary addressing modes
+                    (Add, Temporary(base), Immediate(offset))
+                    | (Add, Immediate(offset), Temporary(base)) => operand::Memory::BO {
+                        base: *base,
+                        offset: *offset,
+                    },
+                    (Sub, Temporary(base), Immediate(Integer(offset))) => operand::Memory::BO {
+                        base: *base,
+                        offset: Integer(-*offset),
+                    },
+
+                    (Add, Temporary(base), Temporary(index)) => operand::Memory::BI {
+                        base: *base,
+                        index: *index,
+                    },
+
+                    // Default binary addressing modes
+                    (Add, Temporary(base), tree) | (Add, tree, Temporary(base)) => {
+                        operand::Memory::BI {
+                            base: *base,
+                            index: self.shuttle_expression(tree),
+                        }
+                    }
+                    (Add, Immediate(offset), tree) | (Add, tree, Immediate(offset)) => {
+                        operand::Memory::BO {
+                            base: self.shuttle_expression(tree),
+                            offset: *offset,
+                        }
+                    }
+
+                    // Default unary addressing mode
+                    _ => operand::Memory::B {
+                        base: self.shuttle_expression(address),
+                    },
+                }
+            }
         };
 
         operand::One::M(memory)
+    }
+
+    fn shuttle_memory(&mut self, address: &lir::Expression) -> operand::Temporary {
+        let address = self.tile_memory(address);
+        self.shuttle(address)
+    }
+
+    fn shuttle_expression(&mut self, expression: &lir::Expression) -> operand::Temporary {
+        let expression = self.tile_expression(expression);
+        self.shuttle(expression)
     }
 
     fn shuttle(&mut self, operand: operand::One<operand::Temporary>) -> operand::Temporary {
