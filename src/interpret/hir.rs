@@ -70,8 +70,12 @@ impl<'a> Local<'a, postorder::Hir<'a>> {
         log::trace!("E> {}", expression.sexp());
         match expression {
             hir::Expression::Sequence(_, _) => unreachable!(),
-            hir::Expression::Integer(integer) => self.push(Operand::Integer(*integer)),
-            hir::Expression::Label(label) => self.push(Operand::Label(*label, 8)),
+            hir::Expression::Immediate(operand::Immediate::Constant(integer)) => {
+                self.push(Operand::Integer(*integer))
+            }
+            hir::Expression::Immediate(operand::Immediate::Label(label)) => {
+                self.push(Operand::Label(*label, 8))
+            }
             hir::Expression::Temporary(temporary) => self.push(Operand::Temporary(*temporary)),
             hir::Expression::Memory(_) => {
                 let address = self.pop(global);

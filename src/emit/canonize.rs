@@ -59,9 +59,9 @@ impl Canonizer {
     fn canonize_expression(&mut self, exp: &hir::Expression) -> lir::Expression {
         use hir::Expression::*;
         match exp {
-            Integer(integer) => lir::Expression::Integer(*integer),
+            Immediate(operand::Immediate::Constant(integer)) => lir::Expression::Integer(*integer),
+            Immediate(operand::Immediate::Label(label)) => lir::Expression::Label(*label),
             Memory(memory) => lir::Expression::Memory(Box::new(self.canonize_expression(memory))),
-            Label(label) => lir::Expression::Label(*label),
             Temporary(temporary) => lir::Expression::Temporary(*temporary),
             Sequence(statements, expression) => {
                 self.canonize_statement(statements);
@@ -87,7 +87,7 @@ impl Canonizer {
             Call(name, arguments, 1) => {
                 let save = lir::Expression::Temporary(operand::Temporary::fresh("save"));
                 let name = match &**name {
-                    hir::Expression::Label(name) => name,
+                    hir::Expression::Immediate(operand::Immediate::Label(name)) => name,
                     _ => unimplemented!("Calls to arbitrary expressions not yet implemented"),
                 };
 
@@ -119,7 +119,7 @@ impl Canonizer {
             }
             Expression(hir::Expression::Call(name, arguments, _)) => {
                 let name = match &**name {
-                    hir::Expression::Label(name) => name,
+                    hir::Expression::Immediate(operand::Immediate::Label(name)) => name,
                     _ => unimplemented!("Calls to arbitrary expressions not yet implemented"),
                 };
 
@@ -216,24 +216,29 @@ impl Canonizer {
 fn commute(before: &hir::Expression, after: &hir::Expression) -> bool {
     use hir::Expression::*;
     match before {
-        Integer(_) => true,
+        Immediate(operand::Immediate::Constant(_)) => true,
         Binary(_, left, right) => commute(left, after) && commute(right, after),
-        Label(_) | Temporary(_) | Memory(_) | Call(_, _, _) | Sequence(_, _) => {
-            pure_expression(after)
-        }
+        Immediate(operand::Immediate::Label(_))
+        | Temporary(_)
+        | Memory(_)
+        | Call(_, _, _)
+        | Sequence(_, _) => pure_expression(after),
     }
 }
 
 fn pure_expression(expression: &hir::Expression) -> bool {
     use hir::Expression::*;
     match expression {
-        Integer(_) | Label(_) | Temporary(_) => true,
+        Immediate(operand::Immediate::Constant(_)) | Temporary(_) => true,
+        Immediate(operand::Immediate::Label(_)) => false,
         Memory(expression) => pure_expression(expression),
         Binary(_, left, right) => pure_expression(left) && pure_expression(right),
         Sequence(statement, expression) => pure_statement(statement) && pure_expression(expression),
         Call(name, _, _) => {
             let name = match &**name {
-                Label(operand::Label::Fixed(name)) => symbol::resolve(*name),
+                Immediate(operand::Immediate::Label(operand::Label::Fixed(name))) => {
+                    symbol::resolve(*name)
+                }
                 _ => return false,
             };
 

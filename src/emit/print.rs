@@ -26,7 +26,7 @@ impl Serialize for hir::Expression {
     fn sexp(&self) -> Sexp {
         use hir::Expression::*;
         match self {
-            Integer(integer) => ["CONST".sexp(), integer.sexp()].sexp_move(),
+            Immediate(immediate) => immediate.sexp(),
             Memory(expression) => ["MEM".sexp(), expression.sexp()].sexp_move(),
             Binary(binary, left, right) => [binary.sexp(), left.sexp(), right.sexp()].sexp_move(),
             Call(name, arguments, _) => std::iter::once("CALL".sexp())
@@ -34,7 +34,6 @@ impl Serialize for hir::Expression {
                 .chain(arguments.iter().map(|argument| argument.sexp()))
                 .collect::<Vec<_>>()
                 .sexp_move(),
-            Label(label) => ["NAME".sexp(), label.sexp()].sexp_move(),
             Temporary(temporary) => ["TEMP".sexp(), temporary.sexp()].sexp_move(),
             Sequence(sequence, expression) => {
                 ["ESEQ".sexp(), sequence.sexp(), expression.sexp()].sexp_move()
@@ -179,6 +178,15 @@ impl Serialize for ir::Binary {
             Eq => "EQ",
         }
         .sexp()
+    }
+}
+
+impl Serialize for operand::Immediate {
+    fn sexp(&self) -> Sexp {
+        match self {
+            operand::Immediate::Constant(integer) => ["CONST".sexp(), integer.sexp()].sexp_move(),
+            operand::Immediate::Label(label) => ["NAME".sexp(), label.sexp()].sexp_move(),
+        }
     }
 }
 

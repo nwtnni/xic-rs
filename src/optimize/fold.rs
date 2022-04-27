@@ -1,6 +1,7 @@
 use crate::data::hir;
 use crate::data::ir;
 use crate::data::lir;
+use crate::data::operand;
 
 pub trait Foldable {
     fn fold(self) -> Self;
@@ -34,8 +35,7 @@ impl Foldable for hir::Expression {
         use hir::Expression::*;
         use ir::Binary::*;
         match self {
-            Integer(integer) => Integer(integer),
-            Label(label) => Label(label),
+            Immediate(immediate) => Immediate(immediate),
             Temporary(temporary) => Temporary(temporary),
             Memory(memory) => Memory(Box::new(memory.fold())),
             Sequence(statements, expression) => {
@@ -46,66 +46,84 @@ impl Foldable for hir::Expression {
                 arguments.into_iter().map(Foldable::fold).collect(),
                 returns,
             ),
-            Binary(binary, left, right) => match (binary, left.fold(), right.fold()) {
-                (Add, Integer(l), Integer(r)) => Integer(l + r),
-                (Sub, Integer(l), Integer(r)) => Integer(l - r),
-                (Mul, Integer(l), Integer(r)) => Integer((l as i128 * r as i128) as i64),
-                (Hul, Integer(l), Integer(r)) => Integer(((l as i128 * r as i128) >> 64) as i64),
-                (Xor, Integer(l), Integer(r)) => Integer(l ^ r),
-                (Ls, Integer(l), Integer(r)) => Integer(l << r),
-                (Rs, Integer(l), Integer(r)) => Integer((l as u64 >> r) as i64),
-                (ARs, Integer(l), Integer(r)) => Integer(l >> r),
-                (Lt, Integer(l), Integer(r)) => Integer(if l < r { 1 } else { 0 }),
-                (Le, Integer(l), Integer(r)) => Integer(if l <= r { 1 } else { 0 }),
-                (Ge, Integer(l), Integer(r)) => Integer(if l >= r { 1 } else { 0 }),
-                (Gt, Integer(l), Integer(r)) => Integer(if l > r { 1 } else { 0 }),
-                (Ne, Integer(l), Integer(r)) => Integer(if l != r { 1 } else { 0 }),
-                (Eq, Integer(l), Integer(r)) => Integer(if l == r { 1 } else { 0 }),
-                (And, Integer(l), Integer(r)) => Integer(if (l & r) & 0b1 == 0b1 { 1 } else { 0 }),
-                (Or, Integer(l), Integer(r)) => Integer(if (l | r) & 0b1 == 0b1 { 1 } else { 0 }),
-                (Div, Integer(l), Integer(r)) if r != 0 => Integer(l / r),
-                (Mod, Integer(l), Integer(r)) if r != 0 => Integer(l % r),
+            Binary(binary, left, right) => {
+                const ZERO: hir::Expression =
+                    hir::Expression::Immediate(operand::Immediate::Constant(0));
 
-                (Add, Integer(0), Temporary(t))
-                | (Add, Temporary(t), Integer(0))
-                | (Sub, Temporary(t), Integer(0))
-                | (Mul, Temporary(t), Integer(1))
-                | (Mul, Integer(1), Temporary(t))
-                | (Div, Temporary(t), Integer(1))
-                | (Ls, Temporary(t), Integer(0))
-                | (Rs, Temporary(t), Integer(0))
-                | (ARs, Temporary(t), Integer(0)) => Temporary(t),
+                const ONE: hir::Expression =
+                    hir::Expression::Immediate(operand::Immediate::Constant(1));
 
-                (Add, Integer(0), Label(l))
-                | (Add, Label(l), Integer(0))
-                | (Sub, Label(l), Integer(0)) => Label(l),
+                use operand::Immediate::Constant;
+                use operand::Immediate::Label;
 
-                (Mul, Temporary(_), Integer(0))
-                | (Mul, Integer(0), Temporary(_))
-                | (Hul, Temporary(_), Integer(0))
-                | (Hul, Integer(0), Temporary(_))
-                | (Mod, Temporary(_), Integer(1)) => Integer(0),
+                match (binary, left.fold(), right.fold()) {
+                    (_, Immediate(Constant(left)), Immediate(Constant(right))) => {
+                        #[rustfmt::skip]
+                        let value = match binary {
+                            Add => left + right,
+                            Sub => left - right,
+                            Mul => left * right,
+                            Hul => ((left as i128 * right as i128) >> 64) as i64,
+                            Xor => left ^ right,
+                            Ls => left << right,
+                            Rs => (left as u64 >> right) as i64,
+                            ARs => left >> right,
+                            Lt => if left < right { 1 } else { 0 },
+                            Le => if left <= right { 1 } else { 0 },
+                            Ge => if left >= right { 1 } else { 0 },
+                            Gt => if left > right { 1 } else { 0 },
+                            Ne => if left != right { 1 } else { 0 },
+                            Eq => if left == right { 1 } else { 0 },
+                            And => if (left & right) & 1 > 0 { 1 } else { 0 },
+                            Or => if (left | right) & 1 > 0 { 1 } else { 0 },
+                            Div => left / right,
+                            Mod => left % right,
+                        };
 
-                (Lt, Temporary(t), Temporary(u))
-                | (Gt, Temporary(t), Temporary(u))
-                | (Ne, Temporary(t), Temporary(u))
-                | (Sub, Temporary(t), Temporary(u))
-                    if t == u =>
-                {
-                    Integer(0)
+                        hir::Expression::from(value)
+                    }
+
+                    (Add, ZERO, Temporary(temporary))
+                    | (Add, Temporary(temporary), ZERO)
+                    | (Sub, Temporary(temporary), ZERO)
+                    | (Mul, Temporary(temporary), ONE)
+                    | (Mul, ONE, Temporary(temporary))
+                    | (Div, Temporary(temporary), ONE)
+                    | (Ls, Temporary(temporary), ZERO)
+                    | (Rs, Temporary(temporary), ZERO)
+                    | (ARs, Temporary(temporary), ZERO) => Temporary(temporary),
+
+                    (Add, ZERO, Immediate(Label(label)))
+                    | (Add, Immediate(Label(label)), ZERO)
+                    | (Sub, Immediate(Label(label)), ZERO) => Immediate(Label(label)),
+
+                    (Mul, Temporary(_), ZERO)
+                    | (Mul, ZERO, Temporary(_))
+                    | (Hul, Temporary(_), ZERO)
+                    | (Hul, ZERO, Temporary(_))
+                    | (Mod, Temporary(_), ONE) => ZERO,
+
+                    (Lt, Temporary(left), Temporary(right))
+                    | (Gt, Temporary(left), Temporary(right))
+                    | (Ne, Temporary(left), Temporary(right))
+                    | (Sub, Temporary(left), Temporary(right))
+                        if left == right =>
+                    {
+                        ZERO
+                    }
+
+                    (Le, Temporary(left), Temporary(right))
+                    | (Ge, Temporary(left), Temporary(right))
+                    | (Eq, Temporary(left), Temporary(right))
+                    | (Div, Temporary(left), Temporary(right))
+                        if left == right =>
+                    {
+                        ONE
+                    }
+
+                    (binary, left, right) => Binary(binary, Box::new(left), Box::new(right)),
                 }
-
-                (Le, Temporary(t), Temporary(u))
-                | (Ge, Temporary(t), Temporary(u))
-                | (Eq, Temporary(t), Temporary(u))
-                | (Div, Temporary(t), Temporary(u))
-                    if t == u =>
-                {
-                    Integer(1)
-                }
-
-                (b, l, r) => Binary(b, Box::new(l), Box::new(r)),
-            },
+            }
         }
     }
 }
@@ -131,8 +149,8 @@ impl Foldable for hir::Statement {
                 r#true,
                 r#false,
             } => match condition.fold() {
-                hir::Expression::Integer(1) => Jump(r#true),
-                hir::Expression::Integer(0) => Jump(r#false),
+                hir::Expression::Immediate(operand::Immediate::Constant(1)) => Jump(r#true),
+                hir::Expression::Immediate(operand::Immediate::Constant(0)) => Jump(r#false),
                 condition => CJump {
                     condition,
                     r#true,

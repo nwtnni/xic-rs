@@ -29,7 +29,7 @@ impl From<Tree> for Condition {
                 let condition = Expression::Binary(
                     ir::Binary::Eq,
                     Box::new(expression),
-                    Box::new(Expression::Integer(1)),
+                    Box::new(Expression::from(1)),
                 );
                 Statement::CJump {
                     condition,
@@ -116,10 +116,9 @@ macro_rules! hir {
     }
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Expression {
-    Integer(i64),
-    Label(operand::Label),
+    Immediate(operand::Immediate),
     Temporary(operand::Temporary),
     Memory(Box<Expression>),
     Binary(ir::Binary, Box<Expression>, Box<Expression>),
@@ -135,13 +134,13 @@ impl From<operand::Temporary> for Expression {
 
 impl From<operand::Label> for Expression {
     fn from(label: operand::Label) -> Self {
-        Self::Label(label)
+        Self::Immediate(operand::Immediate::Label(label))
     }
 }
 
 impl From<i64> for Expression {
     fn from(integer: i64) -> Self {
-        Self::Integer(integer)
+        Self::Immediate(operand::Immediate::Constant(integer))
     }
 }
 
@@ -163,13 +162,13 @@ impl From<Tree> for Expression {
                 let sequence = vec![
                     Statement::Move {
                         destination: value.clone(),
-                        source: Expression::Integer(0),
+                        source: Expression::from(0),
                     },
                     condition(r#true, r#false),
                     Statement::Label(r#true),
                     Statement::Move {
                         destination: value.clone(),
-                        source: Expression::Integer(1),
+                        source: Expression::from(1),
                     },
                     Statement::Label(r#false),
                 ];
@@ -180,7 +179,7 @@ impl From<Tree> for Expression {
     }
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Statement {
     Jump(operand::Label),
     CJump {
