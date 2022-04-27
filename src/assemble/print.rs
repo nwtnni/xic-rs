@@ -59,6 +59,7 @@ impl<T: fmt::Display> fmt::Display for Intel<&operand::Memory<T>> {
     fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
         match &self.0 {
             operand::Memory::B { base } => write!(fmt, "[{}]", base),
+            operand::Memory::O { offset } => write!(fmt, "[{}]", offset),
             operand::Memory::BI { base, index } => {
                 write!(fmt, "[{} + {}]", base, index)
             }

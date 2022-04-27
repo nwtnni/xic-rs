@@ -128,6 +128,9 @@ pub enum Memory<T> {
     B {
         base: T,
     },
+    O {
+        offset: Immediate,
+    },
     BI {
         base: T,
         index: T,
