@@ -189,7 +189,11 @@ impl<'a, T> Postorder<Lir<'a, T>> {
     fn traverse_lir_statement(&mut self, statement: &'a lir::Statement<T>) {
         match statement {
             lir::Statement::Jump(_) => (),
-            lir::Statement::CJump(condition, _, _) => self.traverse_lir_expression(condition),
+            lir::Statement::CJump {
+                condition,
+                r#true: _,
+                r#false: _,
+            } => self.traverse_lir_expression(condition),
             lir::Statement::Label(label) => {
                 self.labels.insert(*label, self.instructions.len());
                 return;
@@ -200,9 +204,12 @@ impl<'a, T> Postorder<Lir<'a, T>> {
                     .iter()
                     .for_each(|argument| self.traverse_lir_expression(argument));
             }
-            lir::Statement::Move(into, from) => {
-                self.traverse_lir_expression(into);
-                self.traverse_lir_expression(from);
+            lir::Statement::Move {
+                destination,
+                source,
+            } => {
+                self.traverse_lir_expression(destination);
+                self.traverse_lir_expression(source);
             }
             lir::Statement::Return => (),
         }

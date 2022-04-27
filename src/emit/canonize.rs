@@ -39,11 +39,11 @@ impl Canonizer {
         match canonized.last() {
             None => unreachable!(),
             Some(
-                lir::Statement::Return | lir::Statement::Jump(_) | lir::Statement::CJump(_, _, _),
+                lir::Statement::Return | lir::Statement::Jump(_) | lir::Statement::CJump { .. },
             ) => (),
             Some(
                 lir::Statement::Call(_, _, _)
-                | lir::Statement::Move(_, _)
+                | lir::Statement::Move { .. }
                 | lir::Statement::Label(_),
             ) => {
                 canonized.push(lir::Statement::Return);
@@ -76,8 +76,10 @@ impl Canonizer {
                 let save = lir::Expression::Temporary(operand::Temporary::fresh("save"));
                 let left = self.canonize_expression(left);
 
-                self.canonized
-                    .push(lir::Statement::Move(save.clone(), left));
+                self.canonized.push(lir::Statement::Move {
+                    destination: save.clone(),
+                    source: left,
+                });
 
                 let right = self.canonize_expression(right);
                 lir::Expression::Binary(*binary, Box::new(save), Box::new(right))
@@ -96,10 +98,10 @@ impl Canonizer {
                     1,
                 ));
 
-                self.canonized.push(lir::Statement::Move(
-                    save.clone(),
-                    lir::Expression::Temporary(operand::Temporary::Return(0)),
-                ));
+                self.canonized.push(lir::Statement::Move {
+                    destination: save.clone(),
+                    source: lir::Expression::Temporary(operand::Temporary::Return(0)),
+                });
 
                 save
             }
@@ -143,11 +145,11 @@ impl Canonizer {
                 r#true,
                 r#false,
             } => {
-                let cjump = lir::Statement::CJump(
-                    self.canonize_expression(condition),
-                    *r#true,
-                    lir::Label(*r#false),
-                );
+                let cjump = lir::Statement::CJump {
+                    condition: self.canonize_expression(condition),
+                    r#true: *r#true,
+                    r#false: lir::Label(*r#false),
+                };
                 self.canonized.push(cjump);
             }
             Move {
@@ -156,29 +158,31 @@ impl Canonizer {
             } => match self.canonize_expression(destination) {
                 lir::Expression::Temporary(destination) => {
                     let source = self.canonize_expression(source);
-                    self.canonized.push(lir::Statement::Move(
-                        lir::Expression::Temporary(destination),
+                    self.canonized.push(lir::Statement::Move {
+                        destination: lir::Expression::Temporary(destination),
                         source,
-                    ));
+                    });
                 }
                 lir::Expression::Memory(destination) if pure_expression(source) => {
                     let source = self.canonize_expression(source);
-                    self.canonized.push(lir::Statement::Move(
-                        lir::Expression::Memory(Box::new(*destination)),
+                    self.canonized.push(lir::Statement::Move {
+                        destination: lir::Expression::Memory(Box::new(*destination)),
                         source,
-                    ));
+                    });
                 }
                 lir::Expression::Memory(destination) => {
                     let save = lir::Expression::Temporary(operand::Temporary::fresh("save"));
 
-                    self.canonized
-                        .push(lir::Statement::Move(save.clone(), *destination));
+                    self.canonized.push(lir::Statement::Move {
+                        destination: save.clone(),
+                        source: *destination,
+                    });
 
                     let source = self.canonize_expression(source);
-                    self.canonized.push(lir::Statement::Move(
-                        lir::Expression::Memory(Box::new(save)),
+                    self.canonized.push(lir::Statement::Move {
+                        destination: lir::Expression::Memory(Box::new(save)),
                         source,
-                    ));
+                    });
                 }
                 _ => unimplemented!(),
             },
@@ -199,8 +203,10 @@ impl Canonizer {
             .map(|expression| {
                 let save = lir::Expression::Temporary(operand::Temporary::fresh("save"));
                 let expression = self.canonize_expression(expression);
-                self.canonized
-                    .push(lir::Statement::Move(save.clone(), expression));
+                self.canonized.push(lir::Statement::Move {
+                    destination: save.clone(),
+                    source: expression,
+                });
                 save
             })
             .collect()

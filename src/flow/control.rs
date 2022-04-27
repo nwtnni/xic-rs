@@ -75,16 +75,20 @@ fn construct_function(function: &lir::Function<lir::Label>) -> Control {
 
     for statement in &function.statements {
         match statement {
-            lir::Statement::Jump(target) => {
-                block.push(lir::Statement::Jump(*target));
+            jump @ lir::Statement::Jump(target) => {
+                block.push(jump.clone());
 
                 if let Some((label, statements)) = block.replace(State::Unreachable) {
                     graph.add_edge(label, *target, Edge::Unconditional);
                     blocks.insert(label, statements);
                 }
             }
-            lir::Statement::CJump(expression, r#true, r#false) => {
-                block.push(lir::Statement::CJump(expression.clone(), *r#true, *r#false));
+            cjump @ lir::Statement::CJump {
+                condition: _,
+                r#true,
+                r#false,
+            } => {
+                block.push(cjump.clone());
 
                 if let Some((label, statements)) = block.replace(State::Unreachable) {
                     graph.add_edge(label, *r#true, Edge::Conditional(true));
@@ -107,14 +111,8 @@ fn construct_function(function: &lir::Function<lir::Label>) -> Control {
                     blocks.insert(previous, statements);
                 }
             }
-            lir::Statement::Call(function, arguments, returns) => block.push(lir::Statement::Call(
-                function.clone(),
-                arguments.clone(),
-                *returns,
-            )),
-            lir::Statement::Move(into, from) => {
-                block.push(lir::Statement::Move(into.clone(), from.clone()));
-            }
+            call @ lir::Statement::Call(_, _, _) => block.push(call.clone()),
+            r#move @ lir::Statement::Move { .. } => block.push(r#move.clone()),
         }
     }
 
@@ -167,14 +165,26 @@ fn destruct_function(function: &Control) -> lir::Function<lir::Fallthrough> {
 fn fallthrough(statement: &lir::Statement<lir::Label>) -> lir::Statement<lir::Fallthrough> {
     match statement {
         lir::Statement::Jump(label) => lir::Statement::Jump(*label),
-        lir::Statement::CJump(condition, r#true, _) => {
-            lir::Statement::CJump(condition.clone(), *r#true, lir::Fallthrough)
-        }
+        lir::Statement::CJump {
+            condition,
+            r#true,
+            r#false: _,
+        } => lir::Statement::CJump {
+            condition: condition.clone(),
+            r#true: *r#true,
+            r#false: lir::Fallthrough,
+        },
         lir::Statement::Call(function, arguments, returns) => {
             lir::Statement::Call(function.clone(), arguments.clone(), *returns)
         }
         lir::Statement::Label(label) => lir::Statement::Label(*label),
-        lir::Statement::Move(into, from) => lir::Statement::Move(into.clone(), from.clone()),
+        lir::Statement::Move {
+            destination,
+            source,
+        } => lir::Statement::Move {
+            destination: destination.clone(),
+            source: source.clone(),
+        },
         lir::Statement::Return => lir::Statement::Return,
     }
 }

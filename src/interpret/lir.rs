@@ -99,7 +99,11 @@ impl<'a, T: lir::Target> Local<'a, postorder::Lir<'a, T>> {
                 self.interpret_jump(label);
                 return Ok(Step::Continue);
             }
-            lir::Statement::CJump(_, r#true, r#false) => {
+            lir::Statement::CJump {
+                condition: _,
+                r#true,
+                r#false,
+            } => {
                 if self.pop_boolean(global) {
                     self.interpret_jump(r#true);
                 } else if let Some(label) = r#false.label() {
@@ -127,7 +131,10 @@ impl<'a, T: lir::Target> Local<'a, postorder::Lir<'a, T>> {
                     self.insert(operand::Temporary::Return(index), r#return);
                 }
             }
-            lir::Statement::Move(_, _) => self.interpret_move(global),
+            lir::Statement::Move {
+                destination: _,
+                source: _,
+            } => self.interpret_move(global),
             lir::Statement::Return => {
                 return Ok(Step::Return);
             }

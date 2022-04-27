@@ -230,13 +230,27 @@ impl<T: lir::Target> Foldable for lir::Statement<T> {
                 expressions.into_iter().map(Foldable::fold).collect(),
                 returns,
             ),
-            Move(into, from) => Move(into.fold(), from.fold()),
+            Move {
+                destination,
+                source,
+            } => Move {
+                destination: destination.fold(),
+                source: source.fold(),
+            },
             Return => Return,
             Label(label) => Label(label),
-            CJump(condition, r#true, r#false) => match (condition.fold(), r#false.label()) {
+            CJump {
+                condition,
+                r#true,
+                r#false,
+            } => match (condition.fold(), r#false.label()) {
                 (lir::Expression::Integer(1), _) => Jump(r#true),
                 (lir::Expression::Integer(0), Some(label)) => Jump(*label),
-                (condition, _) => CJump(condition, r#true, r#false),
+                (condition, _) => CJump {
+                    condition,
+                    r#true,
+                    r#false,
+                },
             },
         }
     }

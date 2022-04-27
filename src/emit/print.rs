@@ -115,7 +115,11 @@ impl<T: Serialize> Serialize for lir::Statement<T> {
                 ["EXP".sexp(), call].sexp_move()
             }
             Jump(label) => ["JUMP".sexp(), label.sexp()].sexp_move(),
-            CJump(condition, r#true, r#false) => {
+            CJump {
+                condition,
+                r#true,
+                r#false,
+            } => {
                 let mut sexp = Vec::with_capacity(4);
                 sexp.push("CJUMP".sexp());
                 sexp.push(condition.sexp());
@@ -130,7 +134,10 @@ impl<T: Serialize> Serialize for lir::Statement<T> {
             }
             .sexp_move(),
             Label(label) => ["LABEL".sexp(), label.sexp()].sexp_move(),
-            Move(into, from) => ["MOVE".sexp(), into.sexp(), from.sexp()].sexp_move(),
+            Move {
+                destination,
+                source,
+            } => ["MOVE".sexp(), destination.sexp(), source.sexp()].sexp_move(),
             Return => ["RETURN".sexp()].sexp_move(),
         }
     }

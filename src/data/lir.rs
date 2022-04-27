@@ -20,10 +20,17 @@ pub enum Expression {
 #[derive(Clone, Debug)]
 pub enum Statement<T> {
     Jump(operand::Label),
-    CJump(Expression, operand::Label, T),
+    CJump {
+        condition: Expression,
+        r#true: operand::Label,
+        r#false: T,
+    },
     Call(Expression, Vec<Expression>, usize),
     Label(operand::Label),
-    Move(Expression, Expression),
+    Move {
+        destination: Expression,
+        source: Expression,
+    },
     Return,
 }
 
