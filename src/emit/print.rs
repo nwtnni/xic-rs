@@ -108,12 +108,19 @@ impl<T: Serialize> Serialize for lir::Statement<T> {
                 ["EXP".sexp(), call].sexp_move()
             }
             Jump(label) => ["JUMP".sexp(), label.sexp()].sexp_move(),
-            CJump(condition, r#true, r#false) => [
-                "CJUMP".sexp(),
-                condition.sexp(),
-                r#true.sexp(),
-                r#false.sexp(),
-            ]
+            CJump(condition, r#true, r#false) => {
+                let mut sexp = Vec::with_capacity(4);
+                sexp.push("CJUMP".sexp());
+                sexp.push(condition.sexp());
+                sexp.push(r#true.sexp());
+
+                match r#false.sexp() {
+                    Sexp::Atom(atom) if atom.is_empty() => (),
+                    r#false => sexp.push(r#false),
+                }
+
+                sexp.sexp_move()
+            }
             .sexp_move(),
             Label(label) => ["LABEL".sexp(), label.sexp()].sexp_move(),
             Move(into, from) => ["MOVE".sexp(), into.sexp(), from.sexp()].sexp_move(),
