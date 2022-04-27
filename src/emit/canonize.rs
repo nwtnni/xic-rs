@@ -59,8 +59,7 @@ impl Canonizer {
     fn canonize_expression(&mut self, exp: &hir::Expression) -> lir::Expression {
         use hir::Expression::*;
         match exp {
-            Immediate(operand::Immediate::Constant(integer)) => lir::Expression::Integer(*integer),
-            Immediate(operand::Immediate::Label(label)) => lir::Expression::Label(*label),
+            Immediate(immediate) => lir::Expression::Immediate(*immediate),
             Memory(memory) => lir::Expression::Memory(Box::new(self.canonize_expression(memory))),
             Temporary(temporary) => lir::Expression::Temporary(*temporary),
             Sequence(statements, expression) => {
@@ -93,7 +92,7 @@ impl Canonizer {
 
                 let arguments = self.canonize_expressions(arguments);
                 self.canonized.push(lir::Statement::Call(
-                    lir::Expression::Label(*name),
+                    lir::Expression::Immediate(operand::Immediate::Label(*name)),
                     arguments,
                     1,
                 ));
@@ -125,7 +124,7 @@ impl Canonizer {
 
                 let arguments = self.canonize_expressions(arguments);
                 self.canonized.push(lir::Statement::Call(
-                    lir::Expression::Label(*name),
+                    lir::Expression::Immediate(operand::Immediate::Label(*name)),
                     arguments,
                     0,
                 ));

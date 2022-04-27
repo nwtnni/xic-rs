@@ -53,35 +53,12 @@ impl Foldable for hir::Expression {
                 const ONE: hir::Expression =
                     hir::Expression::Immediate(operand::Immediate::Constant(1));
 
-                use operand::Immediate::Constant;
-                use operand::Immediate::Label;
-
                 match (binary, left.fold(), right.fold()) {
-                    (_, Immediate(Constant(left)), Immediate(Constant(right))) => {
-                        #[rustfmt::skip]
-                        let value = match binary {
-                            Add => left + right,
-                            Sub => left - right,
-                            Mul => left * right,
-                            Hul => ((left as i128 * right as i128) >> 64) as i64,
-                            Xor => left ^ right,
-                            Ls => left << right,
-                            Rs => (left as u64 >> right) as i64,
-                            ARs => left >> right,
-                            Lt => if left < right { 1 } else { 0 },
-                            Le => if left <= right { 1 } else { 0 },
-                            Ge => if left >= right { 1 } else { 0 },
-                            Gt => if left > right { 1 } else { 0 },
-                            Ne => if left != right { 1 } else { 0 },
-                            Eq => if left == right { 1 } else { 0 },
-                            And => if (left & right) & 1 > 0 { 1 } else { 0 },
-                            Or => if (left | right) & 1 > 0 { 1 } else { 0 },
-                            Div => left / right,
-                            Mod => left % right,
-                        };
-
-                        hir::Expression::from(value)
-                    }
+                    (
+                        _,
+                        Immediate(operand::Immediate::Constant(left)),
+                        Immediate(operand::Immediate::Constant(right)),
+                    ) => hir::Expression::from(fold_binary(binary, left, right)),
 
                     (Add, ZERO, Temporary(temporary))
                     | (Add, Temporary(temporary), ZERO)
@@ -93,9 +70,11 @@ impl Foldable for hir::Expression {
                     | (Rs, Temporary(temporary), ZERO)
                     | (ARs, Temporary(temporary), ZERO) => Temporary(temporary),
 
-                    (Add, ZERO, Immediate(Label(label)))
-                    | (Add, Immediate(Label(label)), ZERO)
-                    | (Sub, Immediate(Label(label)), ZERO) => Immediate(Label(label)),
+                    (Add, ZERO, Immediate(operand::Immediate::Label(label)))
+                    | (Add, Immediate(operand::Immediate::Label(label)), ZERO)
+                    | (Sub, Immediate(operand::Immediate::Label(label)), ZERO) => {
+                        Immediate(operand::Immediate::Label(label))
+                    }
 
                     (Mul, Temporary(_), ZERO)
                     | (Mul, ZERO, Temporary(_))
@@ -189,51 +168,62 @@ impl Foldable for lir::Expression {
         use ir::Binary::*;
         use lir::Expression::*;
         match self {
-            Integer(integer) => Integer(integer),
+            Immediate(immediate) => Immediate(immediate),
             Memory(memory) => Memory(Box::new(memory.fold())),
-            Label(label) => Label(label),
             Temporary(temporary) => Temporary(temporary),
-            Binary(binary, left, right) => match (binary, left.fold(), right.fold()) {
-                (Add, Integer(l), Integer(r)) => Integer(l + r),
-                (Sub, Integer(l), Integer(r)) => Integer(l - r),
-                (Mul, Integer(l), Integer(r)) => Integer((l as i128 * r as i128) as i64),
-                (Hul, Integer(l), Integer(r)) => Integer(((l as i128 * r as i128) >> 64) as i64),
-                (Xor, Integer(l), Integer(r)) => Integer(l ^ r),
-                (Ls, Integer(l), Integer(r)) => Integer(l << r),
-                (Rs, Integer(l), Integer(r)) => Integer((l as u64 >> r) as i64),
-                (ARs, Integer(l), Integer(r)) => Integer(l >> r),
-                (Lt, Integer(l), Integer(r)) => Integer(if l < r { 1 } else { 0 }),
-                (Le, Integer(l), Integer(r)) => Integer(if l <= r { 1 } else { 0 }),
-                (Ge, Integer(l), Integer(r)) => Integer(if l >= r { 1 } else { 0 }),
-                (Gt, Integer(l), Integer(r)) => Integer(if l > r { 1 } else { 0 }),
-                (Ne, Integer(l), Integer(r)) => Integer(if l != r { 1 } else { 0 }),
-                (Eq, Integer(l), Integer(r)) => Integer(if l == r { 1 } else { 0 }),
-                (And, Integer(l), Integer(r)) => Integer(if l & r == 1 { 1 } else { 0 }),
-                (Or, Integer(l), Integer(r)) => Integer(if l | r == 1 { 1 } else { 0 }),
-                (Div, Integer(l), Integer(r)) if r != 0 => Integer(l / r),
-                (Mod, Integer(l), Integer(r)) if r != 0 => Integer(l % r),
+            Binary(binary, left, right) => {
+                const ZERO: lir::Expression =
+                    lir::Expression::Immediate(operand::Immediate::Constant(0));
 
-                (Add, Integer(0), e)
-                | (Add, e, Integer(0))
-                | (Sub, e, Integer(0))
-                | (Mul, e, Integer(1))
-                | (Mul, Integer(1), e)
-                | (Div, e, Integer(1))
-                | (Ls, e, Integer(0))
-                | (Rs, e, Integer(0))
-                | (ARs, e, Integer(0)) => e,
+                const ONE: lir::Expression =
+                    lir::Expression::Immediate(operand::Immediate::Constant(1));
 
-                (Mul, _, Integer(0))
-                | (Mul, Integer(0), _)
-                | (Hul, _, Integer(0))
-                | (Hul, Integer(0), _)
-                | (Mod, _, Integer(1)) => Integer(0),
+                match (binary, left.fold(), right.fold()) {
+                    (
+                        _,
+                        Immediate(operand::Immediate::Constant(left)),
+                        Immediate(operand::Immediate::Constant(right)),
+                    ) => Immediate(operand::Immediate::Constant(fold_binary(
+                        binary, left, right,
+                    ))),
 
-                (Lt, t, u) | (Gt, t, u) | (Ne, t, u) | (Sub, t, u) if t == u => Integer(0),
-                (Le, t, u) | (Ge, t, u) | (Eq, t, u) | (Div, t, u) if t == u => Integer(1),
+                    (Add, ZERO, expression)
+                    | (Add, expression, ZERO)
+                    | (Sub, expression, ZERO)
+                    | (Mul, expression, ONE)
+                    | (Mul, ONE, expression)
+                    | (Div, expression, ONE)
+                    | (Ls, expression, ZERO)
+                    | (Rs, expression, ZERO)
+                    | (ARs, expression, ZERO) => expression,
 
-                (b, l, r) => Binary(b, Box::new(l), Box::new(r)),
-            },
+                    (Mul, _, ZERO)
+                    | (Mul, ZERO, _)
+                    | (Hul, _, ZERO)
+                    | (Hul, ZERO, _)
+                    | (Mod, _, ONE) => ZERO,
+
+                    (Lt, left, right)
+                    | (Gt, left, right)
+                    | (Ne, left, right)
+                    | (Sub, left, right)
+                        if left == right =>
+                    {
+                        ZERO
+                    }
+
+                    (Le, left, right)
+                    | (Ge, left, right)
+                    | (Eq, left, right)
+                    | (Div, left, right)
+                        if left == right =>
+                    {
+                        ONE
+                    }
+
+                    (binary, left, right) => Binary(binary, Box::new(left), Box::new(right)),
+                }
+            }
         }
     }
 }
@@ -262,8 +252,10 @@ impl<T: lir::Target> Foldable for lir::Statement<T> {
                 r#true,
                 r#false,
             } => match (condition.fold(), r#false.label()) {
-                (lir::Expression::Integer(1), _) => Jump(r#true),
-                (lir::Expression::Integer(0), Some(label)) => Jump(*label),
+                (lir::Expression::Immediate(operand::Immediate::Constant(1)), _) => Jump(r#true),
+                (lir::Expression::Immediate(operand::Immediate::Constant(0)), Some(label)) => {
+                    Jump(*label)
+                }
                 (condition, _) => CJump {
                     condition,
                     r#true,
@@ -271,5 +263,29 @@ impl<T: lir::Target> Foldable for lir::Statement<T> {
                 },
             },
         }
+    }
+}
+
+#[rustfmt::skip]
+fn fold_binary(binary: ir::Binary, left: i64, right: i64) -> i64 {
+    match binary {
+        ir::Binary::Add => left + right,
+        ir::Binary::Sub => left - right,
+        ir::Binary::Mul => left * right,
+        ir::Binary::Hul => ((left as i128 * right as i128) >> 64) as i64,
+        ir::Binary::Xor => left ^ right,
+        ir::Binary::Ls => left << right,
+        ir::Binary::Rs => (left as u64 >> right) as i64,
+        ir::Binary::ARs => left >> right,
+        ir::Binary::Lt => if left < right { 1 } else { 0 },
+        ir::Binary::Le => if left <= right { 1 } else { 0 },
+        ir::Binary::Ge => if left >= right { 1 } else { 0 },
+        ir::Binary::Gt => if left > right { 1 } else { 0 },
+        ir::Binary::Ne => if left != right { 1 } else { 0 },
+        ir::Binary::Eq => if left == right { 1 } else { 0 },
+        ir::Binary::And => if (left & right) & 1 > 0 { 1 } else { 0 },
+        ir::Binary::Or => if (left | right) & 1 > 0 { 1 } else { 0 },
+        ir::Binary::Div => left / right,
+        ir::Binary::Mod => left % right,
     }
 }

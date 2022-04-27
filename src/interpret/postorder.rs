@@ -85,8 +85,7 @@ impl<'a> Postorder<Hir<'a>> {
 
     fn traverse_hir_expression(&mut self, expression: &'a hir::Expression) {
         match expression {
-            hir::Expression::Immediate(_)
-            | hir::Expression::Temporary(_) => (),
+            hir::Expression::Immediate(_) | hir::Expression::Temporary(_) => (),
             hir::Expression::Memory(address) => {
                 self.traverse_hir_expression(address);
             }
@@ -170,9 +169,7 @@ impl<'a, T> Postorder<Lir<'a, T>> {
 
     fn traverse_lir_expression(&mut self, expression: &'a lir::Expression) {
         match expression {
-            lir::Expression::Integer(_)
-            | lir::Expression::Label(_)
-            | lir::Expression::Temporary(_) => (),
+            lir::Expression::Immediate(_) | lir::Expression::Temporary(_) => (),
             lir::Expression::Memory(address) => {
                 self.traverse_lir_expression(address);
             }

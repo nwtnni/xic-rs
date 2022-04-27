@@ -10,8 +10,7 @@ pub struct Function<T> {
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Expression {
-    Integer(i64),
-    Label(operand::Label),
+    Immediate(operand::Immediate),
     Temporary(operand::Temporary),
     Memory(Box<Expression>),
     Binary(ir::Binary, Box<Expression>, Box<Expression>),

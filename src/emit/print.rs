@@ -91,10 +91,9 @@ impl Serialize for lir::Expression {
     fn sexp(&self) -> Sexp {
         use lir::Expression::*;
         match self {
-            Integer(integer) => ["CONST".sexp(), integer.sexp()].sexp_move(),
+            Immediate(immediate) => immediate.sexp(),
             Memory(expression) => ["MEM".sexp(), expression.sexp()].sexp_move(),
             Binary(binary, left, right) => [binary.sexp(), left.sexp(), right.sexp()].sexp_move(),
-            Label(label) => ["NAME".sexp(), label.sexp()].sexp_move(),
             Temporary(temporary) => ["TEMP".sexp(), temporary.sexp()].sexp_move(),
         }
     }

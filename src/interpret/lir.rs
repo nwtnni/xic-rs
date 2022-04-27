@@ -73,8 +73,12 @@ impl<'a, T: lir::Target> Local<'a, postorder::Lir<'a, T>> {
     ) -> anyhow::Result<()> {
         log::trace!("E> {}", expression.sexp());
         match expression {
-            lir::Expression::Integer(integer) => self.push(Operand::Integer(*integer)),
-            lir::Expression::Label(label) => self.push(Operand::Label(*label, 8)),
+            lir::Expression::Immediate(operand::Immediate::Constant(integer)) => {
+                self.push(Operand::Integer(*integer))
+            }
+            lir::Expression::Immediate(operand::Immediate::Label(label)) => {
+                self.push(Operand::Label(*label, 8))
+            }
             lir::Expression::Temporary(temporary) => self.push(Operand::Temporary(*temporary)),
             lir::Expression::Memory(_) => {
                 let address = self.pop(global);
