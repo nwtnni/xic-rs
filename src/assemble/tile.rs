@@ -147,7 +147,55 @@ impl Tiler {
 
                 operand::One::R(fresh)
             }
-            _ => todo!(),
+            (
+                ir::Binary::Mul | ir::Binary::Hul | ir::Binary::Div | ir::Binary::Mod,
+                destination,
+                source,
+            ) => {
+                use asm::Division::Quotient;
+                use asm::Division::Remainder;
+
+                let (cqo, unary, register) = match binary {
+                    ir::Binary::Mul => (false, asm::Unary::Mul, operand::Register::Rax),
+                    ir::Binary::Hul => (false, asm::Unary::Mul, operand::Register::Rdx),
+                    ir::Binary::Div => (true, asm::Unary::Div(Quotient), operand::Register::Rax),
+                    ir::Binary::Mod => (true, asm::Unary::Div(Remainder), operand::Register::Rdx),
+                    _ => unreachable!(),
+                };
+
+                let rax = operand::Temporary::Register(operand::Register::Rax);
+                let fresh = operand::Temporary::fresh("tile");
+
+                let destination = asm::Assembly::Binary(
+                    asm::Binary::Mov,
+                    self.tile_binary(&lir::Expression::Temporary(rax), destination),
+                );
+
+                let source = asm::Assembly::Unary(
+                    unary,
+                    match self.tile_expression(source) {
+                        source @ (operand::One::R(_) | operand::One::M(_)) => source,
+                        source @ operand::One::I(_) => operand::One::R(self.shuttle(source)),
+                    },
+                );
+
+                self.push(destination);
+
+                if cqo {
+                    self.push(asm::Assembly::Nullary(asm::Nullary::Cqo));
+                }
+
+                self.push(source);
+                self.push(asm::Assembly::Binary(
+                    asm::Binary::Mov,
+                    operand::Two::RR {
+                        destination: fresh,
+                        source: operand::Temporary::Register(register),
+                    },
+                ));
+
+                operand::One::R(fresh)
+            }
         }
     }
 
