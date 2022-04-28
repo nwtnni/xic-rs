@@ -55,6 +55,15 @@ impl Tiler {
                         (asm::Binary::Sub, &**right)
                     }
 
+                    lir::Expression::Binary(ir::Binary::Sub, left, right)
+                        if **left == lir::Expression::Immediate(operand::Immediate::Integer(0))
+                            && &**right == destination =>
+                    {
+                        let operand = self.tile_expression(destination);
+                        self.push(asm::Assembly::Unary(asm::Unary::Neg, operand));
+                        return;
+                    }
+
                     _ => (asm::Binary::Mov, source),
                 };
 
