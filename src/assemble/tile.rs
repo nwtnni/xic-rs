@@ -46,10 +46,52 @@ impl Tiler {
                 use operand::Immediate::Integer;
 
                 match (binary, &**left, &**right) {
-                    // Ternary addressing modes
+                    // [base + ...]
                     (Add, Temporary(base), tree @ Binary(binary, left, right))
                     | (Add, tree @ Binary(binary, left, right), Temporary(base)) => {
                         match (binary, &**left, &**right) {
+                            // [base + ... + offset]
+                            (Add, Immediate(offset), tree @ Binary(binary, left, right))
+                            | (Add, tree @ Binary(binary, left, right), Immediate(offset)) => {
+                                match (binary, &**left, &**right) {
+                                    // [base + index * scale + offset]
+                                    (
+                                        Mul,
+                                        Temporary(index),
+                                        Immediate(operand::Immediate::Integer(8)),
+                                    )
+                                    | (
+                                        Mul,
+                                        Immediate(operand::Immediate::Integer(8)),
+                                        Temporary(index),
+                                    ) => operand::Memory::BISO {
+                                        base: *base,
+                                        index: *index,
+                                        scale: operand::Scale::_8,
+                                        offset: *offset,
+                                    },
+
+                                    // [base + _index_ * scale + offset]
+                                    (Mul, tree, Immediate(operand::Immediate::Integer(8)))
+                                    | (Mul, Immediate(operand::Immediate::Integer(8)), tree) => {
+                                        operand::Memory::BISO {
+                                            base: *base,
+                                            index: self.shuttle_expression(tree),
+                                            scale: operand::Scale::_8,
+                                            offset: *offset,
+                                        }
+                                    }
+
+                                    // [base + _index_ + offset]
+                                    _ => operand::Memory::BIO {
+                                        base: *base,
+                                        index: self.shuttle_expression(tree),
+                                        offset: *offset,
+                                    },
+                                }
+                            }
+
+                            // [base + index * scale]
                             (Mul, Temporary(index), Immediate(operand::Immediate::Integer(8)))
                             | (Mul, Immediate(operand::Immediate::Integer(8)), Temporary(index)) => {
                                 operand::Memory::BIS {
@@ -58,6 +100,16 @@ impl Tiler {
                                     scale: operand::Scale::_8,
                                 }
                             }
+
+                            // [base + index + offset]
+                            (Add, Temporary(index), Immediate(offset))
+                            | (Add, Immediate(offset), Temporary(index)) => operand::Memory::BIO {
+                                base: *base,
+                                index: *index,
+                                offset: *offset,
+                            },
+
+                            // [base + _index_ * scale]
                             (Mul, tree, Immediate(operand::Immediate::Integer(8)))
                             | (Mul, Immediate(operand::Immediate::Integer(8)), tree) => {
                                 operand::Memory::BIS {
@@ -67,12 +119,7 @@ impl Tiler {
                                 }
                             }
 
-                            (Add, Temporary(index), Immediate(offset))
-                            | (Add, Immediate(offset), Temporary(index)) => operand::Memory::BIO {
-                                base: *base,
-                                index: *index,
-                                offset: *offset,
-                            },
+                            // [base + _index_ + offset]
                             (Add, tree, Immediate(offset)) | (Add, Immediate(offset), tree) => {
                                 operand::Memory::BIO {
                                     base: *base,
@@ -81,6 +128,7 @@ impl Tiler {
                                 }
                             }
 
+                            // [base + _index_]
                             _ => operand::Memory::BI {
                                 base: *base,
                                 index: self.shuttle_expression(tree),
@@ -88,9 +136,52 @@ impl Tiler {
                         }
                     }
 
+                    // [... + offset]
                     (Add, Immediate(offset), tree @ Binary(binary, left, right))
                     | (Add, tree @ Binary(binary, left, right), Immediate(offset)) => {
                         match (binary, &**left, &**right) {
+                            // [base + ... + offset]
+                            (Add, Temporary(base), tree @ Binary(binary, left, right))
+                            | (Add, tree @ Binary(binary, left, right), Temporary(base)) => {
+                                match (binary, &**left, &**right) {
+                                    // [base + index * scale + offset]
+                                    (
+                                        Mul,
+                                        Temporary(index),
+                                        Immediate(operand::Immediate::Integer(8)),
+                                    )
+                                    | (
+                                        Mul,
+                                        Immediate(operand::Immediate::Integer(8)),
+                                        Temporary(index),
+                                    ) => operand::Memory::BISO {
+                                        base: *base,
+                                        index: *index,
+                                        scale: operand::Scale::_8,
+                                        offset: *offset,
+                                    },
+
+                                    // [base + _index_ * scale + offset]
+                                    (Mul, tree, Immediate(operand::Immediate::Integer(8)))
+                                    | (Mul, Immediate(operand::Immediate::Integer(8)), tree) => {
+                                        operand::Memory::BISO {
+                                            base: *base,
+                                            index: self.shuttle_expression(tree),
+                                            scale: operand::Scale::_8,
+                                            offset: *offset,
+                                        }
+                                    }
+
+                                    // [base + _index_ + offset
+                                    _ => operand::Memory::BIO {
+                                        base: *base,
+                                        index: self.shuttle_expression(tree),
+                                        offset: *offset,
+                                    },
+                                }
+                            }
+
+                            // [index * scale + offset]
                             (Mul, Temporary(index), Immediate(operand::Immediate::Integer(8)))
                             | (Mul, Immediate(operand::Immediate::Integer(8)), Temporary(index)) => {
                                 operand::Memory::ISO {
@@ -99,6 +190,8 @@ impl Tiler {
                                     offset: *offset,
                                 }
                             }
+
+                            // [_index_ * scale + offset]
                             (Mul, tree, Immediate(operand::Immediate::Integer(8)))
                             | (Mul, Immediate(operand::Immediate::Integer(8)), tree) => {
                                 operand::Memory::ISO {
@@ -108,6 +201,7 @@ impl Tiler {
                                 }
                             }
 
+                            // [_base_ + offset]
                             _ => operand::Memory::BO {
                                 base: self.shuttle_expression(tree),
                                 offset: *offset,
@@ -115,29 +209,26 @@ impl Tiler {
                         }
                     }
 
-                    // Binary addressing modes
+                    // [base + offset]
                     (Add, Temporary(base), Immediate(offset))
                     | (Add, Immediate(offset), Temporary(base)) => operand::Memory::BO {
                         base: *base,
                         offset: *offset,
                     },
+
+                    // [base + -offset]
                     (Sub, Temporary(base), Immediate(Integer(offset))) => operand::Memory::BO {
                         base: *base,
                         offset: Integer(-*offset),
                     },
 
+                    // [base + index]
                     (Add, Temporary(base), Temporary(index)) => operand::Memory::BI {
                         base: *base,
                         index: *index,
                     },
 
-                    // Default binary addressing modes
-                    (Add, Temporary(base), tree) | (Add, tree, Temporary(base)) => {
-                        operand::Memory::BI {
-                            base: *base,
-                            index: self.shuttle_expression(tree),
-                        }
-                    }
+                    // [_base_ + offset]
                     (Add, Immediate(offset), tree) | (Add, tree, Immediate(offset)) => {
                         operand::Memory::BO {
                             base: self.shuttle_expression(tree),
@@ -145,7 +236,15 @@ impl Tiler {
                         }
                     }
 
-                    // Default unary addressing mode
+                    // [base + _index_]
+                    (Add, Temporary(base), tree) | (Add, tree, Temporary(base)) => {
+                        operand::Memory::BI {
+                            base: *base,
+                            index: self.shuttle_expression(tree),
+                        }
+                    }
+
+                    // [_base_]
                     _ => operand::Memory::B {
                         base: self.shuttle_expression(address),
                     },
