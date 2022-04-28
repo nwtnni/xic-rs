@@ -29,7 +29,10 @@ impl Tiler {
             lir::Statement::Move {
                 destination,
                 source,
-            } => todo!(),
+            } => {
+                let binary = self.tile_binary(destination, source);
+                self.push(asm::Assembly::Binary(asm::Binary::Mov, binary));
+            }
             lir::Statement::Return => self.push(asm::Assembly::Nullary(asm::Nullary::Ret)),
         }
     }
