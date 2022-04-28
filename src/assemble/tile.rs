@@ -87,50 +87,46 @@ impl Tiler {
         &mut self,
         expression: &lir::Expression,
     ) -> operand::One<operand::Temporary> {
-        let (binary, left, right) = match expression {
+        let (binary, destination, source) = match expression {
             lir::Expression::Immediate(immediate) => return operand::One::I(*immediate),
             lir::Expression::Temporary(temporary) => return operand::One::R(*temporary),
             lir::Expression::Memory(address) => return self.tile_memory(address),
             lir::Expression::Binary(binary, left, right) => (binary, &**left, &**right),
         };
 
-        match (binary, left, right) {
-            (
-                ir::Binary::Sub,
-                lir::Expression::Immediate(operand::Immediate::Integer(0)),
-                operand,
-            ) => {
-                let operand = match self.tile_expression(operand) {
-                    operand::One::R(source) => {
-                        let destination = operand::Temporary::fresh("tile");
-                        self.push(asm::Assembly::Binary(
-                            asm::Binary::Mov,
-                            operand::Two::RR {
-                                destination,
-                                source,
-                            },
-                        ));
-                        destination
-                    }
-                    operand => self.shuttle(operand),
-                };
+        // Special-case unary operator
+        if let (ir::Binary::Sub, lir::Expression::Immediate(operand::Immediate::Integer(0))) =
+            (binary, destination)
+        {
+            let operand = match self.tile_expression(source) {
+                operand @ (operand::One::I(_) | operand::One::M(_)) => self.shuttle(operand),
+                operand::One::R(source) => {
+                    let destination = operand::Temporary::fresh("tile");
+                    self.push(asm::Assembly::Binary(
+                        asm::Binary::Mov,
+                        operand::Two::RR {
+                            destination,
+                            source,
+                        },
+                    ));
+                    destination
+                }
+            };
 
-                self.push(asm::Assembly::Unary(
-                    asm::Unary::Neg,
-                    operand::One::R(operand),
-                ));
-                operand::One::R(operand)
-            }
+            self.push(asm::Assembly::Unary(
+                asm::Unary::Neg,
+                operand::One::R(operand),
+            ));
 
-            (
-                ir::Binary::Add
-                | ir::Binary::Sub
-                | ir::Binary::And
-                | ir::Binary::Or
-                | ir::Binary::Xor,
-                destination,
-                source,
-            ) => {
+            return operand::One::R(operand);
+        }
+
+        match binary {
+            ir::Binary::Add
+            | ir::Binary::Sub
+            | ir::Binary::And
+            | ir::Binary::Or
+            | ir::Binary::Xor => {
                 let fresh = operand::Temporary::fresh("tile");
 
                 let r#move = asm::Assembly::Binary(
@@ -147,11 +143,7 @@ impl Tiler {
 
                 operand::One::R(fresh)
             }
-            (
-                ir::Binary::Mul | ir::Binary::Hul | ir::Binary::Div | ir::Binary::Mod,
-                destination,
-                source,
-            ) => {
+            ir::Binary::Mul | ir::Binary::Hul | ir::Binary::Div | ir::Binary::Mod => {
                 use asm::Division::Quotient;
                 use asm::Division::Remainder;
 
