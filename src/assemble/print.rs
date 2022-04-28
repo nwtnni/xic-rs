@@ -132,7 +132,6 @@ impl fmt::Display for asm::Binary {
             asm::Binary::Xor => "xor",
             asm::Binary::Cmp => "cmp",
             asm::Binary::Mov => "mov",
-            asm::Binary::Lea => "lea",
         };
 
         write!(fmt, "{}", binary)
@@ -142,9 +141,6 @@ impl fmt::Display for asm::Binary {
 impl fmt::Display for asm::Unary {
     fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
         let unary = match self {
-            asm::Unary::Inc => "inc",
-            asm::Unary::Dec => "dec",
-            asm::Unary::Not => "not",
             asm::Unary::Neg => "neg",
             asm::Unary::Push => "push",
             asm::Unary::Pop => "pop",

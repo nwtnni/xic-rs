@@ -27,14 +27,10 @@ pub enum Binary {
     Xor,
     Cmp,
     Mov,
-    Lea,
 }
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum Unary {
-    Inc,
-    Dec,
-    Not,
     Neg,
     Push,
     Pop,
