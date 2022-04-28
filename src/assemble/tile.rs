@@ -43,7 +43,8 @@ impl Tiler {
                 use lir::Expression::Immediate;
                 use lir::Expression::Temporary;
 
-                use operand::Immediate::Integer;
+                const EIGHT: &lir::Expression =
+                    &lir::Expression::Immediate(operand::Immediate::Integer(8));
 
                 match (binary, &**left, &**right) {
                     // [base + ...]
@@ -54,26 +55,17 @@ impl Tiler {
                             (Add, Immediate(offset), tree @ Binary(binary, left, right))
                             | (Add, tree @ Binary(binary, left, right), Immediate(offset)) => {
                                 match (binary, &**left, &**right) {
-                                    // [base + index * scale + offset]
-                                    (
-                                        Mul,
-                                        Temporary(index),
-                                        Immediate(operand::Immediate::Integer(8)),
-                                    )
-                                    | (
-                                        Mul,
-                                        Immediate(operand::Immediate::Integer(8)),
-                                        Temporary(index),
-                                    ) => operand::Memory::BISO {
+                                    // [base + index * 8 + offset]
+                                    (Mul, Temporary(index), EIGHT)
+                                    | (Mul, EIGHT, Temporary(index)) => operand::Memory::BISO {
                                         base: *base,
                                         index: *index,
                                         scale: operand::Scale::_8,
                                         offset: *offset,
                                     },
 
-                                    // [base + _index_ * scale + offset]
-                                    (Mul, tree, Immediate(operand::Immediate::Integer(8)))
-                                    | (Mul, Immediate(operand::Immediate::Integer(8)), tree) => {
+                                    // [base + _index_ * 8 + offset]
+                                    (Mul, tree, EIGHT) | (Mul, EIGHT, tree) => {
                                         operand::Memory::BISO {
                                             base: *base,
                                             index: self.shuttle_expression(tree),
@@ -91,9 +83,8 @@ impl Tiler {
                                 }
                             }
 
-                            // [base + index * scale]
-                            (Mul, Temporary(index), Immediate(operand::Immediate::Integer(8)))
-                            | (Mul, Immediate(operand::Immediate::Integer(8)), Temporary(index)) => {
+                            // [base + index * 8]
+                            (Mul, Temporary(index), EIGHT) | (Mul, EIGHT, Temporary(index)) => {
                                 operand::Memory::BIS {
                                     base: *base,
                                     index: *index,
@@ -109,15 +100,12 @@ impl Tiler {
                                 offset: *offset,
                             },
 
-                            // [base + _index_ * scale]
-                            (Mul, tree, Immediate(operand::Immediate::Integer(8)))
-                            | (Mul, Immediate(operand::Immediate::Integer(8)), tree) => {
-                                operand::Memory::BIS {
-                                    base: *base,
-                                    index: self.shuttle_expression(tree),
-                                    scale: operand::Scale::_8,
-                                }
-                            }
+                            // [base + _index_ * 8]
+                            (Mul, tree, EIGHT) | (Mul, EIGHT, tree) => operand::Memory::BIS {
+                                base: *base,
+                                index: self.shuttle_expression(tree),
+                                scale: operand::Scale::_8,
+                            },
 
                             // [base + _index_ + offset]
                             (Add, tree, Immediate(offset)) | (Add, Immediate(offset), tree) => {
@@ -144,26 +132,17 @@ impl Tiler {
                             (Add, Temporary(base), tree @ Binary(binary, left, right))
                             | (Add, tree @ Binary(binary, left, right), Temporary(base)) => {
                                 match (binary, &**left, &**right) {
-                                    // [base + index * scale + offset]
-                                    (
-                                        Mul,
-                                        Temporary(index),
-                                        Immediate(operand::Immediate::Integer(8)),
-                                    )
-                                    | (
-                                        Mul,
-                                        Immediate(operand::Immediate::Integer(8)),
-                                        Temporary(index),
-                                    ) => operand::Memory::BISO {
+                                    // [base + index * 8 + offset]
+                                    (Mul, Temporary(index), EIGHT)
+                                    | (Mul, EIGHT, Temporary(index)) => operand::Memory::BISO {
                                         base: *base,
                                         index: *index,
                                         scale: operand::Scale::_8,
                                         offset: *offset,
                                     },
 
-                                    // [base + _index_ * scale + offset]
-                                    (Mul, tree, Immediate(operand::Immediate::Integer(8)))
-                                    | (Mul, Immediate(operand::Immediate::Integer(8)), tree) => {
+                                    // [base + _index_ * 8 + offset]
+                                    (Mul, tree, EIGHT) | (Mul, EIGHT, tree) => {
                                         operand::Memory::BISO {
                                             base: *base,
                                             index: self.shuttle_expression(tree),
@@ -181,9 +160,8 @@ impl Tiler {
                                 }
                             }
 
-                            // [index * scale + offset]
-                            (Mul, Temporary(index), Immediate(operand::Immediate::Integer(8)))
-                            | (Mul, Immediate(operand::Immediate::Integer(8)), Temporary(index)) => {
+                            // [index * 8 + offset]
+                            (Mul, Temporary(index), EIGHT) | (Mul, EIGHT, Temporary(index)) => {
                                 operand::Memory::ISO {
                                     index: *index,
                                     scale: operand::Scale::_8,
@@ -191,15 +169,12 @@ impl Tiler {
                                 }
                             }
 
-                            // [_index_ * scale + offset]
-                            (Mul, tree, Immediate(operand::Immediate::Integer(8)))
-                            | (Mul, Immediate(operand::Immediate::Integer(8)), tree) => {
-                                operand::Memory::ISO {
-                                    index: self.shuttle_expression(tree),
-                                    scale: operand::Scale::_8,
-                                    offset: *offset,
-                                }
-                            }
+                            // [_index_ * 8 + offset]
+                            (Mul, tree, EIGHT) | (Mul, EIGHT, tree) => operand::Memory::ISO {
+                                index: self.shuttle_expression(tree),
+                                scale: operand::Scale::_8,
+                                offset: *offset,
+                            },
 
                             // [_base_ + offset]
                             _ => operand::Memory::BO {
@@ -217,10 +192,12 @@ impl Tiler {
                     },
 
                     // [base + -offset]
-                    (Sub, Temporary(base), Immediate(Integer(offset))) => operand::Memory::BO {
-                        base: *base,
-                        offset: Integer(-*offset),
-                    },
+                    (Sub, Temporary(base), Immediate(operand::Immediate::Integer(offset))) => {
+                        operand::Memory::BO {
+                            base: *base,
+                            offset: operand::Immediate::Integer(-*offset),
+                        }
+                    }
 
                     // [base + index]
                     (Add, Temporary(base), Temporary(index)) => operand::Memory::BI {
