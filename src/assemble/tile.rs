@@ -83,12 +83,25 @@ impl Tiler {
                 operand,
             ) => {
                 let operand = match self.tile_expression(operand) {
-                    immediate @ operand::One::I(_) => operand::One::R(self.shuttle(immediate)),
-                    operand => operand,
+                    operand::One::R(source) => {
+                        let destination = operand::Temporary::fresh("tile");
+                        self.push(asm::Assembly::Binary(
+                            asm::Binary::Mov,
+                            operand::Two::RR {
+                                destination,
+                                source,
+                            },
+                        ));
+                        destination
+                    }
+                    operand => self.shuttle(operand),
                 };
 
-                self.push(asm::Assembly::Unary(asm::Unary::Neg, operand));
-                operand
+                self.push(asm::Assembly::Unary(
+                    asm::Unary::Neg,
+                    operand::One::R(operand),
+                ));
+                operand::One::R(operand)
             }
 
             (
