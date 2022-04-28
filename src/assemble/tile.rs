@@ -30,8 +30,36 @@ impl Tiler {
                 destination,
                 source,
             } => {
-                let binary = self.tile_binary(destination, source);
-                self.push(asm::Assembly::Binary(asm::Binary::Mov, binary));
+                let (binary, source) = match source {
+                    lir::Expression::Binary(
+                        binary @ (ir::Binary::Add
+                        | ir::Binary::And
+                        | ir::Binary::Or
+                        | ir::Binary::Xor),
+                        left,
+                        right,
+                    ) if &**left == destination => (asm::Binary::from(*binary), &**right),
+
+                    lir::Expression::Binary(
+                        binary @ (ir::Binary::Add
+                        | ir::Binary::And
+                        | ir::Binary::Or
+                        | ir::Binary::Xor),
+                        left,
+                        right,
+                    ) if &**right == destination => (asm::Binary::from(*binary), &**left),
+
+                    lir::Expression::Binary(ir::Binary::Sub, left, right)
+                        if &**left == destination =>
+                    {
+                        (asm::Binary::Sub, &**right)
+                    }
+
+                    _ => (asm::Binary::Mov, source),
+                };
+
+                let operands = self.tile_binary(destination, source);
+                self.push(asm::Assembly::Binary(binary, operands));
             }
             lir::Statement::Return => self.push(asm::Assembly::Nullary(asm::Nullary::Ret)),
         }
