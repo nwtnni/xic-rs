@@ -9,10 +9,11 @@ impl<T: fmt::Display> fmt::Display for Intel<&asm::Assembly<T>> {
     fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
         match &self.0 {
             asm::Assembly::Binary(binary, operands) => {
-                write!(fmt, "{} {}", binary, Intel(operands))
+                write!(fmt, "    {} {}", binary, Intel(operands))
             }
-            asm::Assembly::Unary(unary, operand) => write!(fmt, "{} {}", unary, Intel(operand)),
-            asm::Assembly::Nullary(nullary) => write!(fmt, "{}", nullary),
+            asm::Assembly::Unary(unary, operand) => write!(fmt, "    {} {}", unary, Intel(operand)),
+            asm::Assembly::Nullary(nullary) => write!(fmt, "    {}", nullary),
+            asm::Assembly::Label(label) => write!(fmt, "{}:", label),
             asm::Assembly::Directive(directive) => write!(fmt, "{}", directive),
         }
     }
@@ -98,6 +99,7 @@ impl<T: fmt::Display> fmt::Display for Intel<&operand::Memory<T>> {
 impl fmt::Display for asm::Directive {
     fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
         match self {
+            asm::Directive::Intel => write!(fmt, ".intel_syntax noprefix"),
             asm::Directive::Align(alignment) => write!(fmt, ".align {}", alignment),
             asm::Directive::Local(label) => write!(fmt, ".local {}", label),
             asm::Directive::Global(label) => write!(fmt, ".global {}", label),

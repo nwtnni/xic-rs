@@ -12,7 +12,26 @@ struct Tiler {
 
 impl Tiler {
     fn tile_statement(&mut self, statement: &lir::Statement<lir::Fallthrough>) {
-        todo!()
+        match statement {
+            lir::Statement::Jump(label) => {
+                self.push(asm::Assembly::Unary(
+                    asm::Unary::Jmp,
+                    operand::One::I(operand::Immediate::Label(*label)),
+                ));
+            }
+            lir::Statement::CJump {
+                condition,
+                r#true,
+                r#false,
+            } => todo!(),
+            lir::Statement::Call(_, _, _) => todo!(),
+            lir::Statement::Label(label) => self.push(asm::Assembly::Label(*label)),
+            lir::Statement::Move {
+                destination,
+                source,
+            } => todo!(),
+            lir::Statement::Return => self.push(asm::Assembly::Nullary(asm::Nullary::Ret)),
+        }
     }
 
     fn tile_expression(
