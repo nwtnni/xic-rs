@@ -128,27 +128,27 @@ impl<'a, T: 'a> Local<'a, T> {
         };
 
         let value = match binary {
-            ir::Binary::Add => Operand::Integer(left.wrapping_add(right)),
-            ir::Binary::Sub => Operand::Integer(left.wrapping_sub(right)),
-            ir::Binary::Mul => Operand::Integer(left.wrapping_mul(right)),
-            ir::Binary::Hul => Operand::Integer((((left as i128) * (right as i128)) >> 64) as i64),
+            ir::Binary::Add => left.wrapping_add(right),
+            ir::Binary::Sub => left.wrapping_sub(right),
+            ir::Binary::Mul => left.wrapping_mul(right),
+            ir::Binary::Hul => (((left as i128) * (right as i128)) >> 64) as i64,
             // TODO: handle divide by 0
-            ir::Binary::Div => Operand::Integer(left / right),
-            ir::Binary::Mod => Operand::Integer(left % right),
-            ir::Binary::Xor => Operand::Integer(left ^ right),
+            ir::Binary::Div => left / right,
+            ir::Binary::Mod => left % right,
+            ir::Binary::Xor => left ^ right,
             ir::Binary::And => {
                 debug_assert!(left == 0 || left == 1);
                 debug_assert!(right == 0 || right == 1);
-                Operand::Integer(left & right)
+                left & right
             }
             ir::Binary::Or => {
                 debug_assert!(left == 0 || left == 1);
                 debug_assert!(right == 0 || right == 1);
-                Operand::Integer(left | right)
+                left | right
             }
         };
 
-        self.push(value);
+        self.push(Operand::Integer(value));
     }
 
     pub fn interpret_jump(&mut self, label: &operand::Label) {
