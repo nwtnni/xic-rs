@@ -65,12 +65,25 @@ pub enum Nullary {
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum Condition {
-    E,
-    Ne,
-    G,
-    Ge,
     L,
     Le,
+    Ge,
+    G,
+    Ne,
+    E,
+}
+
+impl From<ir::Condition> for Condition {
+    fn from(condition: ir::Condition) -> Self {
+        match condition {
+            ir::Condition::Lt => Condition::L,
+            ir::Condition::Le => Condition::Le,
+            ir::Condition::Ge => Condition::Ge,
+            ir::Condition::Gt => Condition::G,
+            ir::Condition::Ne => Condition::Ne,
+            ir::Condition::Eq => Condition::E,
+        }
+    }
 }
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]

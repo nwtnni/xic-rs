@@ -24,8 +24,15 @@ impl Tiler {
                 left,
                 right,
                 r#true,
-                r#false,
-            } => todo!(),
+                r#false: lir::Fallthrough,
+            } => {
+                let operands = self.tile_binary(left, right);
+                self.push(asm::Assembly::Binary(asm::Binary::Cmp, operands));
+                self.push(asm::Assembly::Unary(
+                    asm::Unary::Jcc(asm::Condition::from(*condition)),
+                    operand::One::I(operand::Immediate::Label(*r#true)),
+                ));
+            }
             lir::Statement::Call(_, _, _) => todo!(),
             lir::Statement::Label(label) => self.push(asm::Assembly::Label(*label)),
             lir::Statement::Move {
