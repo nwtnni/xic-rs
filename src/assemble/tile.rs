@@ -46,6 +46,66 @@ impl Tiler {
         }
     }
 
+    // ```text
+    //               source
+    //               I R M
+    //             I d d d
+    // destination R _ _ _
+    //             M _ _ s
+    //
+    // d: shuttle destination
+    // s: shuttle source
+    // _: no shuttle necessary
+    // ```
+    fn tile_binary(
+        &mut self,
+        destination: &lir::Expression,
+        source: &lir::Expression,
+    ) -> operand::Two<operand::Temporary> {
+        match (
+            self.tile_expression(destination),
+            self.tile_expression(source),
+        ) {
+            (destination @ operand::One::I(_), operand::One::I(source)) => {
+                let destination = self.shuttle(destination);
+                operand::Two::RI {
+                    destination,
+                    source,
+                }
+            }
+            (destination @ operand::One::I(_), operand::One::M(source)) => {
+                let destination = self.shuttle(destination);
+                operand::Two::RM {
+                    destination,
+                    source,
+                }
+            }
+
+            (operand::One::M(destination), operand::One::I(source)) => operand::Two::MI {
+                destination,
+                source,
+            },
+            (operand::One::M(destination), source @ operand::One::M(_)) => operand::Two::MR {
+                destination,
+                source: self.shuttle(source),
+            },
+
+            (operand::One::R(destination), operand::One::I(source)) => operand::Two::RI {
+                destination,
+                source,
+            },
+            (operand::One::R(destination), operand::One::M(source)) => operand::Two::RM {
+                destination,
+                source,
+            },
+
+            (destination, source) => operand::Two::RR {
+                destination: self.shuttle(destination),
+                source: self.shuttle(source),
+            },
+        }
+    }
+
     fn tile_memory(&mut self, address: &lir::Expression) -> operand::One<operand::Temporary> {
         let memory = match address {
             lir::Expression::Immediate(offset) => operand::Memory::O { offset: *offset },
