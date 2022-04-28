@@ -1,3 +1,4 @@
+use crate::data::ir;
 use crate::data::operand;
 
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -29,6 +30,19 @@ pub enum Binary {
     Xor,
     Cmp,
     Mov,
+}
+
+impl From<ir::Binary> for Binary {
+    fn from(binary: ir::Binary) -> Self {
+        match binary {
+            ir::Binary::Add => Binary::Add,
+            ir::Binary::Sub => Binary::Sub,
+            ir::Binary::Xor => Binary::Xor,
+            ir::Binary::And => Binary::And,
+            ir::Binary::Or => Binary::Or,
+            _ => panic!("[INTERNAL ERROR]: converting unsupported IR operator"),
+        }
+    }
 }
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]

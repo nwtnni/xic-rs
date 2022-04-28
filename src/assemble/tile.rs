@@ -41,11 +41,54 @@ impl Tiler {
         &mut self,
         expression: &lir::Expression,
     ) -> operand::One<operand::Temporary> {
-        match expression {
-            lir::Expression::Immediate(immediate) => operand::One::I(*immediate),
-            lir::Expression::Temporary(temporary) => operand::One::R(*temporary),
-            lir::Expression::Memory(address) => self.tile_memory(address),
-            lir::Expression::Binary(_, _, _) => todo!(),
+        let (binary, left, right) = match expression {
+            lir::Expression::Immediate(immediate) => return operand::One::I(*immediate),
+            lir::Expression::Temporary(temporary) => return operand::One::R(*temporary),
+            lir::Expression::Memory(address) => return self.tile_memory(address),
+            lir::Expression::Binary(binary, left, right) => (binary, &**left, &**right),
+        };
+
+        match (binary, left, right) {
+            (
+                ir::Binary::Sub,
+                lir::Expression::Immediate(operand::Immediate::Integer(0)),
+                operand,
+            ) => {
+                let operand = match self.tile_expression(operand) {
+                    immediate @ operand::One::I(_) => operand::One::R(self.shuttle(immediate)),
+                    operand => operand,
+                };
+
+                self.push(asm::Assembly::Unary(asm::Unary::Neg, operand));
+                operand
+            }
+
+            (
+                ir::Binary::Add
+                | ir::Binary::Sub
+                | ir::Binary::And
+                | ir::Binary::Or
+                | ir::Binary::Xor,
+                destination,
+                source,
+            ) => {
+                let fresh = operand::Temporary::fresh("tile");
+
+                let r#move = asm::Assembly::Binary(
+                    asm::Binary::Mov,
+                    self.tile_binary(&lir::Expression::Temporary(fresh), destination),
+                );
+                let binary = asm::Assembly::Binary(
+                    asm::Binary::from(*binary),
+                    self.tile_binary(&lir::Expression::Temporary(fresh), source),
+                );
+
+                self.push(r#move);
+                self.push(binary);
+
+                operand::One::R(fresh)
+            }
+            _ => todo!(),
         }
     }
 
