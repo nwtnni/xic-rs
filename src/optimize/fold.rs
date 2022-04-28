@@ -25,7 +25,7 @@ impl Foldable for hir::Function {
     fn fold(self) -> Self {
         hir::Function {
             name: self.name,
-            statements: self.statements,
+            statements: self.statements.fold(),
         }
     }
 }
