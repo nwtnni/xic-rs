@@ -21,6 +21,8 @@ impl Tiler {
             }
             lir::Statement::CJump {
                 condition,
+                left,
+                right,
                 r#true,
                 r#false,
             } => todo!(),

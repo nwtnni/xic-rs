@@ -128,11 +128,13 @@ impl<'a> Local<'a, postorder::Hir<'a>> {
                 return Ok(Step::Continue);
             }
             hir::Statement::CJump {
-                condition: _,
+                condition,
+                left: _,
+                right: _,
                 r#true,
                 r#false,
             } => {
-                if self.pop_boolean(global) {
+                if self.interpret_condition(global, condition) {
                     self.interpret_jump(r#true);
                 } else {
                     self.interpret_jump(r#false);

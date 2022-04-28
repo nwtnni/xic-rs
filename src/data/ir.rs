@@ -34,12 +34,6 @@ pub enum Binary {
     Div,
     Mod,
     Xor,
-    Lt,
-    Le,
-    Ge,
-    Gt,
-    Ne,
-    Eq,
     And,
     Or,
 }
@@ -52,16 +46,37 @@ impl From<ast::Binary> for Binary {
             ast::Binary::Div => Binary::Div,
             ast::Binary::Mod => Binary::Mod,
             ast::Binary::Add => Binary::Add,
-            ast::Binary::Cat => unreachable!(),
             ast::Binary::Sub => Binary::Sub,
-            ast::Binary::Lt => Binary::Lt,
-            ast::Binary::Le => Binary::Le,
-            ast::Binary::Ge => Binary::Ge,
-            ast::Binary::Gt => Binary::Gt,
-            ast::Binary::Eq => Binary::Eq,
-            ast::Binary::Ne => Binary::Ne,
             ast::Binary::And => Binary::And,
             ast::Binary::Or => Binary::Or,
+            binary => panic!(
+                "[INTERNAL ERROR]: converting {:?} to IR binary operator",
+                binary
+            ),
+        }
+    }
+}
+
+#[derive(Copy, Clone, Debug, PartialEq, Eq)]
+pub enum Condition {
+    Lt,
+    Le,
+    Ge,
+    Gt,
+    Ne,
+    Eq,
+}
+
+impl From<ast::Binary> for Condition {
+    fn from(binary: ast::Binary) -> Self {
+        match binary {
+            ast::Binary::Lt => Condition::Lt,
+            ast::Binary::Le => Condition::Le,
+            ast::Binary::Ge => Condition::Ge,
+            ast::Binary::Gt => Condition::Gt,
+            ast::Binary::Ne => Condition::Ne,
+            ast::Binary::Eq => Condition::Eq,
+            binary => panic!("[INTERNAL ERROR]: converting {:?} to IR condition", binary),
         }
     }
 }

@@ -20,7 +20,9 @@ pub enum Expression {
 pub enum Statement<T> {
     Jump(operand::Label),
     CJump {
-        condition: Expression,
+        condition: ir::Condition,
+        left: Expression,
+        right: Expression,
         r#true: operand::Label,
         r#false: T,
     },

@@ -104,11 +104,13 @@ impl<'a, T: lir::Target> Local<'a, postorder::Lir<'a, T>> {
                 return Ok(Step::Continue);
             }
             lir::Statement::CJump {
-                condition: _,
+                condition,
+                left: _,
+                right: _,
                 r#true,
                 r#false,
             } => {
-                if self.pop_boolean(global) {
+                if self.interpret_condition(global, condition) {
                     self.interpret_jump(r#true);
                 } else if let Some(label) = r#false.label() {
                     self.interpret_jump(label);

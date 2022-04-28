@@ -66,22 +66,9 @@ impl Canonizer {
                 self.canonize_statement(statements);
                 self.canonize_expression(expression)
             }
-            Binary(binary, left, right) if commute(left, right) => {
-                let left = self.canonize_expression(left);
-                let right = self.canonize_expression(right);
-                lir::Expression::Binary(*binary, Box::new(left), Box::new(right))
-            }
             Binary(binary, left, right) => {
-                let save = lir::Expression::Temporary(operand::Temporary::fresh("save"));
-                let left = self.canonize_expression(left);
-
-                self.canonized.push(lir::Statement::Move {
-                    destination: save.clone(),
-                    source: left,
-                });
-
-                let right = self.canonize_expression(right);
-                lir::Expression::Binary(*binary, Box::new(save), Box::new(right))
+                let (left, right) = self.canonize_pair(left, right);
+                lir::Expression::Binary(*binary, Box::new(left), Box::new(right))
             }
             Call(name, arguments, 1) => {
                 let save = lir::Expression::Temporary(operand::Temporary::fresh("save"));
@@ -90,7 +77,7 @@ impl Canonizer {
                     _ => unimplemented!("Calls to arbitrary expressions not yet implemented"),
                 };
 
-                let arguments = self.canonize_expressions(arguments);
+                let arguments = self.canonize_list(arguments);
                 self.canonized.push(lir::Statement::Call(
                     lir::Expression::Immediate(operand::Immediate::Label(*name)),
                     arguments,
@@ -122,7 +109,7 @@ impl Canonizer {
                     _ => unimplemented!("Calls to arbitrary expressions not yet implemented"),
                 };
 
-                let arguments = self.canonize_expressions(arguments);
+                let arguments = self.canonize_list(arguments);
                 self.canonized.push(lir::Statement::Call(
                     lir::Expression::Immediate(operand::Immediate::Label(*name)),
                     arguments,
@@ -141,11 +128,16 @@ impl Canonizer {
             Jump(label) => self.canonized.push(lir::Statement::Jump(*label)),
             CJump {
                 condition,
+                left,
+                right,
                 r#true,
                 r#false,
             } => {
+                let (left, right) = self.canonize_pair(left, right);
                 let cjump = lir::Statement::CJump {
-                    condition: self.canonize_expression(condition),
+                    condition: *condition,
+                    left,
+                    right,
                     r#true: *r#true,
                     r#false: lir::Label(*r#false),
                 };
@@ -189,7 +181,7 @@ impl Canonizer {
         }
     }
 
-    fn canonize_expressions(&mut self, expressions: &[hir::Expression]) -> Vec<lir::Expression> {
+    fn canonize_list(&mut self, expressions: &[hir::Expression]) -> Vec<lir::Expression> {
         if expressions.iter().all(pure_expression) {
             return expressions
                 .iter()
@@ -209,6 +201,30 @@ impl Canonizer {
                 save
             })
             .collect()
+    }
+
+    fn canonize_pair(
+        &mut self,
+        left: &hir::Expression,
+        right: &hir::Expression,
+    ) -> (lir::Expression, lir::Expression) {
+        if commute(left, right) {
+            return (
+                self.canonize_expression(left),
+                self.canonize_expression(right),
+            );
+        }
+
+        let save = lir::Expression::Temporary(operand::Temporary::fresh("save"));
+        let left = self.canonize_expression(left);
+
+        self.canonized.push(lir::Statement::Move {
+            destination: save.clone(),
+            source: left,
+        });
+
+        let right = self.canonize_expression(right);
+        (save, right)
     }
 }
 

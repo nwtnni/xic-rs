@@ -154,9 +154,10 @@ impl<'env> Emitter<'env> {
                 let index = operand::Temporary::fresh("index");
 
                 use ir::Binary::Add;
-                use ir::Binary::Lt;
                 use ir::Binary::Mul;
                 use ir::Binary::Sub;
+
+                use ir::Condition::Lt;
 
                 hir!(
                     (ESEQ
@@ -203,31 +204,36 @@ impl<'env> Emitter<'env> {
                 .into()
             }
             Binary(binary, left, right, _) => {
-                let binary = ir::Binary::from(binary.get());
                 let left = self.emit_expression(left, variables);
                 let right = self.emit_expression(right, variables);
 
-                match binary {
-                    #[rustfmt::skip]
-                    ir::Binary::Mul
-                    | ir::Binary::Hul
-                    | ir::Binary::Mod
-                    | ir::Binary::Div
-                    | ir::Binary::Add
-                    | ir::Binary::Sub => hir!((binary (left.into()) (right.into()))).into(),
+                match binary.get() {
+                    ast::Binary::Cat => unreachable!(),
+                    ast::Binary::Mul
+                    | ast::Binary::Hul
+                    | ast::Binary::Mod
+                    | ast::Binary::Div
+                    | ast::Binary::Add
+                    | ast::Binary::Sub => {
+                        let binary = ir::Binary::from(binary.get());
+                        hir!((binary (left.into()) (right.into()))).into()
+                    }
 
-                    ir::Binary::Lt
-                    | ir::Binary::Le
-                    | ir::Binary::Ge
-                    | ir::Binary::Gt
-                    | ir::Binary::Ne
-                    | ir::Binary::Eq => hir::Tree::Condition(Box::new(move |r#true, r#false| {
-                        hir!(
-                            (CJUMP (binary (left.into()) (right.into())) r#true r#false)
-                        )
-                    })),
+                    ast::Binary::Lt
+                    | ast::Binary::Le
+                    | ast::Binary::Ge
+                    | ast::Binary::Gt
+                    | ast::Binary::Ne
+                    | ast::Binary::Eq => {
+                        let condition = ir::Condition::from(binary.get());
+                        hir::Tree::Condition(Box::new(move |r#true, r#false| {
+                            hir!(
+                                (CJUMP (condition (left.into()) (right.into())) r#true r#false)
+                            )
+                        }))
+                    }
 
-                    ir::Binary::And => hir::Tree::Condition(Box::new(move |r#true, r#false| {
+                    ast::Binary::And => hir::Tree::Condition(Box::new(move |r#true, r#false| {
                         let and = operand::Label::fresh("and");
 
                         hir!((SEQ
@@ -236,7 +242,7 @@ impl<'env> Emitter<'env> {
                             (hir::Condition::from(right)(r#true, r#false))
                         ))
                     })),
-                    ir::Binary::Or => hir::Tree::Condition(Box::new(move |r#true, r#false| {
+                    ast::Binary::Or => hir::Tree::Condition(Box::new(move |r#true, r#false| {
                         let or = operand::Label::fresh("or");
 
                         hir!((SEQ
@@ -245,10 +251,6 @@ impl<'env> Emitter<'env> {
                             (hir::Condition::from(right)(r#true, r#false))
                         ))
                     })),
-
-                    ir::Binary::Xor => {
-                        unreachable!("[INTERNAL ERROR]: no XOR in AST")
-                    }
                 }
             }
 
@@ -265,10 +267,11 @@ impl<'env> Emitter<'env> {
 
             Index(array, array_index, _) => {
                 use ir::Binary::Add;
-                use ir::Binary::Ge;
-                use ir::Binary::Lt;
                 use ir::Binary::Mul;
                 use ir::Binary::Sub;
+
+                use ir::Condition::Ge;
+                use ir::Condition::Lt;
 
                 let base = operand::Temporary::fresh("base");
                 let index = operand::Temporary::fresh("index");
@@ -378,7 +381,7 @@ impl<'env> Emitter<'env> {
                 let r#false = operand::Label::fresh("false");
                 let index = operand::Temporary::fresh("index");
 
-                use ir::Binary::Lt;
+                use ir::Condition::Lt;
 
                 statements.extend([
                     hir!((MOVE (TEMP index) (CONST 0))),

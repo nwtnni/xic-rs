@@ -25,17 +25,12 @@ impl From<Tree> for Condition {
     fn from(tree: Tree) -> Self {
         match tree {
             Tree::Condition(condition) => condition,
-            Tree::Expression(expression) => Box::new(move |r#true, r#false| {
-                let condition = Expression::Binary(
-                    ir::Binary::Eq,
-                    Box::new(expression),
-                    Box::new(Expression::from(1)),
-                );
-                Statement::CJump {
-                    condition,
-                    r#true,
-                    r#false,
-                }
+            Tree::Expression(expression) => Box::new(move |r#true, r#false| Statement::CJump {
+                condition: ir::Condition::Eq,
+                left: expression,
+                right: Expression::from(1),
+                r#true,
+                r#false,
             }),
         }
     }
@@ -72,9 +67,11 @@ macro_rules! hir {
     ((JUMP $label:ident)) => {
         crate::data::hir::Statement::Jump($label)
     };
-    ((CJUMP $condition:tt $r#true:ident $r#false:ident)) => {
+    ((CJUMP ($condition:ident $left:tt $right:tt) $r#true:ident $r#false:ident)) => {
         crate::data::hir::Statement::CJump {
-            condition: hir!($condition),
+            condition: $condition,
+            left: hir!($left),
+            right: hir!($right),
             r#true: $r#true,
             r#false: $r#false,
         }
@@ -183,7 +180,9 @@ impl From<Tree> for Expression {
 pub enum Statement {
     Jump(operand::Label),
     CJump {
-        condition: Expression,
+        condition: ir::Condition,
+        left: Expression,
+        right: Expression,
         r#true: operand::Label,
         r#false: operand::Label,
     },

@@ -72,15 +72,6 @@ impl<'a, T: 'a> Local<'a, T> {
         }
     }
 
-    pub fn pop_boolean(&mut self, global: &Global) -> bool {
-        match self.pop(global) {
-            Value::Integer(0) => false,
-            Value::Integer(1) => true,
-            Value::Integer(integer) => panic!("invalid boolean: {}", integer),
-            Value::Label(label, offset) => panic!("invalid boolean: {:?} + {}", label, offset),
-        }
-    }
-
     pub fn pop_arguments(&mut self, global: &Global, len: usize) -> Vec<Value> {
         let mut arguments = (0..len).map(|_| self.pop(global)).collect::<Vec<_>>();
         arguments.reverse();
@@ -94,45 +85,67 @@ impl<'a, T: 'a> Local<'a, T> {
             .collect::<Vec<_>>()
     }
 
+    pub fn interpret_condition(&mut self, global: &Global, condition: &ir::Condition) -> bool {
+        let right = self.pop(global);
+        let left = self.pop(global);
+
+        let (left, right) = match (left, right) {
+            (Value::Integer(left), Value::Integer(right)) => (left, right),
+            (_, _) => unreachable!(),
+        };
+
+        match condition {
+            ir::Condition::Lt => left < right,
+            ir::Condition::Le => left <= right,
+            ir::Condition::Ge => left >= right,
+            ir::Condition::Gt => left > right,
+            ir::Condition::Ne => left != right,
+            ir::Condition::Eq => left == right,
+        }
+    }
+
     pub fn interpret_binary(&mut self, global: &Global, binary: &ir::Binary) {
         let right = self.pop(global);
         let left = self.pop(global);
 
-        use ir::Binary::*;
+        let (left, right) = match (left, right) {
+            (Value::Integer(left), Value::Integer(right)) => (left, right),
 
-        let value = match (binary, left, right) {
-            (Add, Value::Label(label, l), Value::Integer(r)) => Operand::Label(label, l + r),
-            (Add, Value::Integer(l), Value::Label(label, r)) => Operand::Label(label, l + r),
-            (Sub, Value::Label(label, l), Value::Integer(r)) => Operand::Label(label, l - r),
+            (Value::Label(label, left), Value::Integer(right))
+            | (Value::Integer(right), Value::Label(label, left))
+                if *binary == ir::Binary::Add =>
+            {
+                self.push(Operand::Label(label, left + right));
+                return;
+            }
 
-            (Add, Value::Integer(l), Value::Integer(r)) => Operand::Integer(l.wrapping_add(r)),
-            (Sub, Value::Integer(l), Value::Integer(r)) => Operand::Integer(l.wrapping_sub(r)),
-            (Mul, Value::Integer(l), Value::Integer(r)) => Operand::Integer(l.wrapping_mul(r)),
-            (Hul, Value::Integer(l), Value::Integer(r)) => {
-                Operand::Integer((((l as i128) * (r as i128)) >> 64) as i64)
-            }
-            // TODO: handle divide by 0
-            (Div, Value::Integer(l), Value::Integer(r)) => Operand::Integer(l / r),
-            (Mod, Value::Integer(l), Value::Integer(r)) => Operand::Integer(l % r),
-            (Xor, Value::Integer(l), Value::Integer(r)) => Operand::Integer(l ^ r),
-            (Lt, Value::Integer(l), Value::Integer(r)) => Operand::Integer((l < r) as bool as i64),
-            (Le, Value::Integer(l), Value::Integer(r)) => Operand::Integer((l <= r) as bool as i64),
-            (Ge, Value::Integer(l), Value::Integer(r)) => Operand::Integer((l >= r) as bool as i64),
-            (Gt, Value::Integer(l), Value::Integer(r)) => Operand::Integer((l > r) as bool as i64),
-            (Ne, Value::Integer(l), Value::Integer(r)) => Operand::Integer((l != r) as bool as i64),
-            (Eq, Value::Integer(l), Value::Integer(r)) => Operand::Integer((l == r) as bool as i64),
-            (And, Value::Integer(l), Value::Integer(r)) => {
-                debug_assert!(l == 0 || l == 1);
-                debug_assert!(r == 0 || r == 1);
-                Operand::Integer(l & r)
-            }
-            (Or, Value::Integer(l), Value::Integer(r)) => {
-                debug_assert!(l == 0 || l == 1);
-                debug_assert!(r == 0 || r == 1);
-                Operand::Integer(l | r)
+            (Value::Label(label, left), Value::Integer(right)) if *binary == ir::Binary::Sub => {
+                self.push(Operand::Label(label, left - right));
+                return;
             }
 
             _ => unreachable!(),
+        };
+
+        let value = match binary {
+            ir::Binary::Add => Operand::Integer(left.wrapping_add(right)),
+            ir::Binary::Sub => Operand::Integer(left.wrapping_sub(right)),
+            ir::Binary::Mul => Operand::Integer(left.wrapping_mul(right)),
+            ir::Binary::Hul => Operand::Integer((((left as i128) * (right as i128)) >> 64) as i64),
+            // TODO: handle divide by 0
+            ir::Binary::Div => Operand::Integer(left / right),
+            ir::Binary::Mod => Operand::Integer(left % right),
+            ir::Binary::Xor => Operand::Integer(left ^ right),
+            ir::Binary::And => {
+                debug_assert!(left == 0 || left == 1);
+                debug_assert!(right == 0 || right == 1);
+                Operand::Integer(left & right)
+            }
+            ir::Binary::Or => {
+                debug_assert!(left == 0 || left == 1);
+                debug_assert!(right == 0 || right == 1);
+                Operand::Integer(left | right)
+            }
         };
 
         self.push(value);

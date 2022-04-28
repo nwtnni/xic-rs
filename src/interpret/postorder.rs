@@ -113,10 +113,15 @@ impl<'a> Postorder<Hir<'a>> {
         match statement {
             hir::Statement::Jump(_) => (),
             hir::Statement::CJump {
-                condition,
+                condition: _,
+                left,
+                right,
                 r#true: _,
                 r#false: _,
-            } => self.traverse_hir_expression(condition),
+            } => {
+                self.traverse_hir_expression(left);
+                self.traverse_hir_expression(right);
+            }
             hir::Statement::Label(label) => {
                 self.labels.insert(*label, self.instructions.len());
                 return;
@@ -186,10 +191,15 @@ impl<'a, T> Postorder<Lir<'a, T>> {
         match statement {
             lir::Statement::Jump(_) => (),
             lir::Statement::CJump {
-                condition,
+                condition: _,
+                left,
+                right,
                 r#true: _,
                 r#false: _,
-            } => self.traverse_lir_expression(condition),
+            } => {
+                self.traverse_lir_expression(left);
+                self.traverse_lir_expression(right);
+            }
             lir::Statement::Label(label) => {
                 self.labels.insert(*label, self.instructions.len());
                 return;

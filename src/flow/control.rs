@@ -85,6 +85,8 @@ fn construct_function(function: &lir::Function<lir::Label>) -> Control {
             }
             cjump @ lir::Statement::CJump {
                 condition: _,
+                left: _,
+                right: _,
                 r#true,
                 r#false,
             } => {
@@ -167,10 +169,14 @@ fn fallthrough(statement: &lir::Statement<lir::Label>) -> lir::Statement<lir::Fa
         lir::Statement::Jump(label) => lir::Statement::Jump(*label),
         lir::Statement::CJump {
             condition,
+            left,
+            right,
             r#true,
             r#false: _,
         } => lir::Statement::CJump {
             condition: condition.clone(),
+            left: left.clone(),
+            right: right.clone(),
             r#true: *r#true,
             r#false: lir::Fallthrough,
         },

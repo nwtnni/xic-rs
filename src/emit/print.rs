@@ -49,11 +49,13 @@ impl Serialize for hir::Statement {
             Jump(label) => ["JUMP".sexp(), label.sexp()].sexp_move(),
             CJump {
                 condition,
+                left,
+                right,
                 r#true,
                 r#false,
             } => [
                 "CJUMP".sexp(),
-                condition.sexp(),
+                [condition.sexp(), left.sexp(), right.sexp()].sexp_move(),
                 r#true.sexp(),
                 r#false.sexp(),
             ]
@@ -115,12 +117,14 @@ impl<T: Serialize> Serialize for lir::Statement<T> {
             Jump(label) => ["JUMP".sexp(), label.sexp()].sexp_move(),
             CJump {
                 condition,
+                left,
+                right,
                 r#true,
                 r#false,
             } => {
                 let mut sexp = Vec::with_capacity(4);
                 sexp.push("CJUMP".sexp());
-                sexp.push(condition.sexp());
+                sexp.push([condition.sexp(), left.sexp(), right.sexp()].sexp_move());
                 sexp.push(r#true.sexp());
 
                 match r#false.sexp() {
@@ -166,6 +170,15 @@ impl Serialize for ir::Binary {
             Xor => "XOR",
             And => "AND",
             Or => "OR",
+        }
+        .sexp()
+    }
+}
+
+impl Serialize for ir::Condition {
+    fn sexp(&self) -> Sexp {
+        use ir::Condition::*;
+        match self {
             Lt => "LT",
             Le => "LEQ",
             Ge => "GEQ",

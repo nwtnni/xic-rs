@@ -79,23 +79,8 @@ impl Foldable for hir::Expression {
                     | (Hul, ZERO, Temporary(_))
                     | (Mod, Temporary(_), ONE) => ZERO,
 
-                    (Lt, Temporary(left), Temporary(right))
-                    | (Gt, Temporary(left), Temporary(right))
-                    | (Ne, Temporary(left), Temporary(right))
-                    | (Sub, Temporary(left), Temporary(right))
-                        if left == right =>
-                    {
-                        ZERO
-                    }
-
-                    (Le, Temporary(left), Temporary(right))
-                    | (Ge, Temporary(left), Temporary(right))
-                    | (Eq, Temporary(left), Temporary(right))
-                    | (Div, Temporary(left), Temporary(right))
-                        if left == right =>
-                    {
-                        ONE
-                    }
+                    (Sub, Temporary(left), Temporary(right)) if left == right => ZERO,
+                    (Div, Temporary(left), Temporary(right)) if left == right => ONE,
 
                     (binary, left, right) => Binary(binary, Box::new(left), Box::new(right)),
                 }
@@ -106,7 +91,12 @@ impl Foldable for hir::Expression {
 
 impl Foldable for hir::Statement {
     fn fold(self) -> Self {
+        use hir::Expression::Immediate;
+        use hir::Expression::Temporary;
         use hir::Statement::*;
+        use ir::Condition::*;
+        use operand::Immediate::Integer;
+
         match self {
             Expression(expression) => Expression(expression.fold()),
             Jump(label) => Jump(label),
@@ -122,13 +112,39 @@ impl Foldable for hir::Statement {
             Sequence(statements) => Sequence(statements.into_iter().map(Foldable::fold).collect()),
             CJump {
                 condition,
+                left,
+                right,
                 r#true,
                 r#false,
-            } => match condition.fold() {
-                hir::Expression::Immediate(operand::Immediate::Integer(1)) => Jump(r#true),
-                hir::Expression::Immediate(operand::Immediate::Integer(0)) => Jump(r#false),
-                condition => CJump {
+            } => match (condition, left.fold(), right.fold()) {
+                (_, Immediate(Integer(left)), Immediate(Integer(right))) => {
+                    if fold_condition(condition, left, right) {
+                        Jump(r#true)
+                    } else {
+                        Jump(r#false)
+                    }
+                }
+
+                (Lt, Temporary(left), Temporary(right))
+                | (Gt, Temporary(left), Temporary(right))
+                | (Ne, Temporary(left), Temporary(right))
+                    if left == right =>
+                {
+                    Jump(r#true)
+                }
+
+                (Le, Temporary(left), Temporary(right))
+                | (Ge, Temporary(left), Temporary(right))
+                | (Eq, Temporary(left), Temporary(right))
+                    if left == right =>
+                {
+                    Jump(r#false)
+                }
+
+                (condition, left, right) => CJump {
                     condition,
+                    left,
+                    right,
                     r#true,
                     r#false,
                 },
@@ -197,23 +213,8 @@ impl Foldable for lir::Expression {
                     | (Hul, ZERO, _)
                     | (Mod, _, ONE) => ZERO,
 
-                    (Lt, left, right)
-                    | (Gt, left, right)
-                    | (Ne, left, right)
-                    | (Sub, left, right)
-                        if left == right =>
-                    {
-                        ZERO
-                    }
-
-                    (Le, left, right)
-                    | (Ge, left, right)
-                    | (Eq, left, right)
-                    | (Div, left, right)
-                        if left == right =>
-                    {
-                        ONE
-                    }
+                    (Sub, left, right) if left == right => ZERO,
+                    (Div, left, right) if left == right => ONE,
 
                     (binary, left, right) => Binary(binary, Box::new(left), Box::new(right)),
                 }
@@ -224,7 +225,11 @@ impl Foldable for lir::Expression {
 
 impl<T: lir::Target> Foldable for lir::Statement<T> {
     fn fold(self) -> Self {
+        use ir::Condition::*;
+        use lir::Expression::Immediate;
         use lir::Statement::*;
+        use operand::Immediate::Integer;
+
         match self {
             Jump(label) => Jump(label),
             Call(function, expressions, returns) => Call(
@@ -243,15 +248,35 @@ impl<T: lir::Target> Foldable for lir::Statement<T> {
             Label(label) => Label(label),
             CJump {
                 condition,
+                left,
+                right,
                 r#true,
                 r#false,
-            } => match (condition.fold(), r#false.label()) {
-                (lir::Expression::Immediate(operand::Immediate::Integer(1)), _) => Jump(r#true),
-                (lir::Expression::Immediate(operand::Immediate::Integer(0)), Some(label)) => {
-                    Jump(*label)
+            } => match (condition, left.fold(), right.fold()) {
+                (condition, Immediate(Integer(left)), Immediate(Integer(right))) => {
+                    if fold_condition(condition, left, right) {
+                        Jump(r#true)
+                    } else if let Some(r#false) = r#false.label() {
+                        Jump(*r#false)
+                    } else {
+                        Label(operand::Label::fresh("nop"))
+                    }
                 }
-                (condition, _) => CJump {
+
+                (Le, left, right) | (Ge, left, right) | (Eq, left, right) if left == right => {
+                    Jump(r#true)
+                }
+                (Lt, left, right) | (Gt, left, right) | (Ne, left, right) if left == right => {
+                    match r#false.label() {
+                        Some(r#false) => Jump(*r#false),
+                        None => Label(operand::Label::fresh("nop")),
+                    }
+                }
+
+                (condition, left, right) => CJump {
                     condition,
+                    left,
+                    right,
                     r#true,
                     r#false,
                 },
@@ -260,7 +285,6 @@ impl<T: lir::Target> Foldable for lir::Statement<T> {
     }
 }
 
-#[rustfmt::skip]
 fn fold_binary(binary: ir::Binary, left: i64, right: i64) -> i64 {
     match binary {
         ir::Binary::Add => left + right,
@@ -268,15 +292,22 @@ fn fold_binary(binary: ir::Binary, left: i64, right: i64) -> i64 {
         ir::Binary::Mul => left * right,
         ir::Binary::Hul => ((left as i128 * right as i128) >> 64) as i64,
         ir::Binary::Xor => left ^ right,
-        ir::Binary::Lt => if left < right { 1 } else { 0 },
-        ir::Binary::Le => if left <= right { 1 } else { 0 },
-        ir::Binary::Ge => if left >= right { 1 } else { 0 },
-        ir::Binary::Gt => if left > right { 1 } else { 0 },
-        ir::Binary::Ne => if left != right { 1 } else { 0 },
-        ir::Binary::Eq => if left == right { 1 } else { 0 },
+        #[rustfmt::skip]
         ir::Binary::And => if (left & right) & 1 > 0 { 1 } else { 0 },
+        #[rustfmt::skip]
         ir::Binary::Or => if (left | right) & 1 > 0 { 1 } else { 0 },
         ir::Binary::Div => left / right,
         ir::Binary::Mod => left % right,
+    }
+}
+
+fn fold_condition(condition: ir::Condition, left: i64, right: i64) -> bool {
+    match condition {
+        ir::Condition::Lt => left < right,
+        ir::Condition::Le => left <= right,
+        ir::Condition::Ge => left >= right,
+        ir::Condition::Gt => left > right,
+        ir::Condition::Ne => left != right,
+        ir::Condition::Eq => left == right,
     }
 }
