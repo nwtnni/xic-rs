@@ -13,6 +13,8 @@ struct Tiler {
 impl Tiler {
     fn tile_statement(&mut self, statement: &lir::Statement<lir::Fallthrough>) {
         match statement {
+            lir::Statement::Label(label) => self.push(asm::Assembly::Label(*label)),
+            lir::Statement::Return => self.push(asm::Assembly::Nullary(asm::Nullary::Ret)),
             lir::Statement::Jump(label) => {
                 self.push(asm::Assembly::Unary(
                     asm::Unary::Jmp,
@@ -33,8 +35,6 @@ impl Tiler {
                     operand::One::I(operand::Immediate::Label(*r#true)),
                 ));
             }
-            lir::Statement::Call(_, _, _) => todo!(),
-            lir::Statement::Label(label) => self.push(asm::Assembly::Label(*label)),
             lir::Statement::Move {
                 destination,
                 source,
@@ -79,7 +79,7 @@ impl Tiler {
                 let operands = self.tile_binary(destination, source);
                 self.push(asm::Assembly::Binary(binary, operands));
             }
-            lir::Statement::Return => self.push(asm::Assembly::Nullary(asm::Nullary::Ret)),
+            lir::Statement::Call(_, _, _) => todo!(),
         }
     }
 
