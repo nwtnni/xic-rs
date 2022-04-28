@@ -246,8 +246,8 @@ impl<'env> Emitter<'env> {
                         ))
                     })),
 
-                    ir::Binary::Xor | ir::Binary::Ls | ir::Binary::Rs | ir::Binary::ARs => {
-                        unreachable!("[INTERNAL ERROR]: no XOR, LSHIFT, RSHIFT in AST")
+                    ir::Binary::Xor => {
+                        unreachable!("[INTERNAL ERROR]: no XOR in AST")
                     }
                 }
             }

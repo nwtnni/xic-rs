@@ -115,11 +115,6 @@ impl<'a, T: 'a> Local<'a, T> {
             (Div, Value::Integer(l), Value::Integer(r)) => Operand::Integer(l / r),
             (Mod, Value::Integer(l), Value::Integer(r)) => Operand::Integer(l % r),
             (Xor, Value::Integer(l), Value::Integer(r)) => Operand::Integer(l ^ r),
-            (Ls, Value::Integer(l), Value::Integer(r)) => Operand::Integer(l << r),
-            (Rs, Value::Integer(l), Value::Integer(r)) => {
-                Operand::Integer(((l as u64) >> r) as i64)
-            }
-            (ARs, Value::Integer(l), Value::Integer(r)) => Operand::Integer(l >> r),
             (Lt, Value::Integer(l), Value::Integer(r)) => Operand::Integer((l < r) as bool as i64),
             (Le, Value::Integer(l), Value::Integer(r)) => Operand::Integer((l <= r) as bool as i64),
             (Ge, Value::Integer(l), Value::Integer(r)) => Operand::Integer((l >= r) as bool as i64),

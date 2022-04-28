@@ -65,10 +65,7 @@ impl Foldable for hir::Expression {
                     | (Sub, Temporary(temporary), ZERO)
                     | (Mul, Temporary(temporary), ONE)
                     | (Mul, ONE, Temporary(temporary))
-                    | (Div, Temporary(temporary), ONE)
-                    | (Ls, Temporary(temporary), ZERO)
-                    | (Rs, Temporary(temporary), ZERO)
-                    | (ARs, Temporary(temporary), ZERO) => Temporary(temporary),
+                    | (Div, Temporary(temporary), ONE) => Temporary(temporary),
 
                     (Add, ZERO, Immediate(operand::Immediate::Label(label)))
                     | (Add, Immediate(operand::Immediate::Label(label)), ZERO)
@@ -192,10 +189,7 @@ impl Foldable for lir::Expression {
                     | (Sub, expression, ZERO)
                     | (Mul, expression, ONE)
                     | (Mul, ONE, expression)
-                    | (Div, expression, ONE)
-                    | (Ls, expression, ZERO)
-                    | (Rs, expression, ZERO)
-                    | (ARs, expression, ZERO) => expression,
+                    | (Div, expression, ONE) => expression,
 
                     (Mul, _, ZERO)
                     | (Mul, ZERO, _)
@@ -274,9 +268,6 @@ fn fold_binary(binary: ir::Binary, left: i64, right: i64) -> i64 {
         ir::Binary::Mul => left * right,
         ir::Binary::Hul => ((left as i128 * right as i128) >> 64) as i64,
         ir::Binary::Xor => left ^ right,
-        ir::Binary::Ls => left << right,
-        ir::Binary::Rs => (left as u64 >> right) as i64,
-        ir::Binary::ARs => left >> right,
         ir::Binary::Lt => if left < right { 1 } else { 0 },
         ir::Binary::Le => if left <= right { 1 } else { 0 },
         ir::Binary::Ge => if left >= right { 1 } else { 0 },
