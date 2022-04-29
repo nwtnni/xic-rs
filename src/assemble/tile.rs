@@ -1,6 +1,6 @@
 #![allow(dead_code, unused_variables)]
 
-use crate::assemble::abi;
+use crate::abi;
 use crate::data::asm;
 use crate::data::asm::Assembly;
 use crate::data::ir;

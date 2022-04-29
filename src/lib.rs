@@ -1,3 +1,4 @@
+mod abi;
 mod assemble;
 mod check;
 mod constants;
