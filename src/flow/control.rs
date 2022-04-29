@@ -5,10 +5,13 @@ use std::mem;
 
 use petgraph::graphmap::DiGraphMap;
 
+use crate::abi;
 use crate::data::ir;
 use crate::data::lir;
+use crate::data::operand::Immediate;
 use crate::data::operand::Label;
 use crate::data::sexp::Serialize;
+use crate::data::symbol;
 use crate::data::symbol::Symbol;
 
 pub struct Control {
@@ -117,6 +120,22 @@ fn construct_function(function: &ir::Function<Vec<lir::Statement<lir::Label>>>) 
                     blocks.insert(previous, statements);
                 }
             }
+            // Special-case ABI function that never returns
+            call @ lir::Statement::Call(function, _, _)
+                if *function
+                    == lir::Expression::Immediate(Immediate::Label(Label::Fixed(
+                        symbol::intern_static(abi::XI_OUT_OF_BOUNDS),
+                    ))) =>
+            {
+                block.push(call.clone());
+
+                // Insert edge to dummy exit node for dataflow analysis
+                if let Some((previous, statements)) = block.replace(State::Unreachable) {
+                    graph.add_edge(previous, exit, Edge::Unconditional);
+                    blocks.insert(previous, statements);
+                }
+            }
+
             call @ lir::Statement::Call(_, _, _) => block.push(call.clone()),
             r#move @ lir::Statement::Move { .. } => block.push(r#move.clone()),
         }
@@ -182,7 +201,7 @@ fn fallthrough(statement: &lir::Statement<lir::Label>) -> lir::Statement<lir::Fa
             r#true,
             r#false: _,
         } => lir::Statement::CJump {
-            condition: condition.clone(),
+            condition: *condition,
             left: left.clone(),
             right: right.clone(),
             r#true: *r#true,
