@@ -1,6 +1,6 @@
 use std::collections::BTreeMap;
 
-use crate::constants;
+use crate::abi;
 use crate::data::hir;
 use crate::data::ir;
 use crate::data::lir;
@@ -267,14 +267,14 @@ fn pure_expression(expression: &hir::Expression) -> bool {
             // Specialize standard library functions
             matches!(
                 name,
-                constants::XI_ALLOC
-                    | constants::XI_PRINT
-                    | constants::XI_PRINTLN
-                    | constants::XI_READLN
-                    | constants::XI_GETCHAR
-                    | constants::XI_EOF
-                    | constants::XI_UNPARSE_INT
-                    | constants::XI_PARSE_INT,
+                abi::XI_ALLOC
+                    | abi::XI_PRINT
+                    | abi::XI_PRINTLN
+                    | abi::XI_READLN
+                    | abi::XI_GETCHAR
+                    | abi::XI_EOF
+                    | abi::XI_UNPARSE_INT
+                    | abi::XI_PARSE_INT,
             )
         }
     }

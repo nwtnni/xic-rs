@@ -3,8 +3,8 @@
 use std::collections::BTreeMap;
 use std::collections::HashMap;
 
+use crate::abi;
 use crate::check;
-use crate::constants;
 use crate::data::ast;
 use crate::data::hir;
 use crate::data::ir;
@@ -105,9 +105,9 @@ impl<'env> Emitter<'env> {
                         (MOVE
                             (TEMP array.clone())
                             (CALL
-                                (NAME Label::Fixed(symbol::intern_static(constants::XI_ALLOC)))
+                                (NAME Label::Fixed(symbol::intern_static(abi::XI_ALLOC)))
                                 1
-                                (CONST (expressions.len() + 1) as i64 * constants::WORD_SIZE)))
+                                (CONST (expressions.len() + 1) as i64 * abi::WORD)))
                     ),
                     hir!((MOVE (MEM (array.clone())) (CONST expressions.len() as i64))),
                 ];
@@ -116,10 +116,9 @@ impl<'env> Emitter<'env> {
 
                 for (index, expression) in expressions.iter().enumerate() {
                     let expression = self.emit_expression(expression, variables).into();
-                    statements.push(
-                        hir!(
+                    statements.push(hir!(
                         (MOVE
-                            (MEM (Add (TEMP array.clone()) (CONST (index + 1) as i64 * constants::WORD_SIZE)))
+                            (MEM (Add (TEMP array.clone()) (CONST (index + 1) as i64 * abi::WORD)))
                             expression)
                     ));
                 }
@@ -127,7 +126,7 @@ impl<'env> Emitter<'env> {
                 hir!(
                     (ESEQ
                         (SEQ statements)
-                        (Add (TEMP array) (CONST constants::WORD_SIZE))))
+                        (Add (TEMP array) (CONST abi::WORD))))
                 .into()
             }
             Binary(binary, left, right, _) if binary.get() == ast::Binary::Cat => {
@@ -142,7 +141,7 @@ impl<'env> Emitter<'env> {
                 let length_right = Temporary::fresh("length");
                 let length = Temporary::fresh("length");
 
-                let alloc = Label::Fixed(symbol::intern_static(constants::XI_ALLOC));
+                let alloc = Label::Fixed(symbol::intern_static(abi::XI_ALLOC));
 
                 let while_left = Label::fresh("while");
                 let true_left = Label::fresh("true");
@@ -164,43 +163,43 @@ impl<'env> Emitter<'env> {
                     (ESEQ
                         (SEQ
                             (MOVE (TEMP address_left) (left.into()))
-                            (MOVE (TEMP length_left) (MEM (Sub (TEMP address_left) (CONST constants::WORD_SIZE))))
+                            (MOVE (TEMP length_left) (MEM (Sub (TEMP address_left) (CONST abi::WORD))))
 
                             (MOVE (TEMP address_right) (right.into()))
-                            (MOVE (TEMP length_right) (MEM (Sub (TEMP address_right) (CONST constants::WORD_SIZE))))
+                            (MOVE (TEMP length_right) (MEM (Sub (TEMP address_right) (CONST abi::WORD))))
 
                             // Allocate destination with correct length (+1 for length metadata)
                             (MOVE (TEMP length) (Add (TEMP length_left) (TEMP length_right)))
                             (MOVE
                                 (TEMP address)
-                                (CALL (NAME alloc) 1 (Mul (Add (TEMP length) (CONST 1)) (CONST constants::WORD_SIZE))))
+                                (CALL (NAME alloc) 1 (Mul (Add (TEMP length) (CONST 1)) (CONST abi::WORD))))
                             (MOVE (MEM (TEMP address)) (TEMP length))
                             (MOVE (TEMP index) (CONST 1))
 
                             // Copy left array into final destination, starting at
-                            // `address + WORD_SIZE`
+                            // `address + WORD`
                             (LABEL while_left)
                             (CJUMP (Lt (TEMP index) (Add (TEMP length_left) (CONST 1))) true_left false_left)
                             (LABEL true_left)
                             (MOVE
-                                (MEM (Add (TEMP address) (Mul (TEMP index) (CONST constants::WORD_SIZE))))
-                                (MEM (Add (TEMP address_left) (Mul (Sub (TEMP index) (CONST 1)) (CONST constants::WORD_SIZE)))))
+                                (MEM (Add (TEMP address) (Mul (TEMP index) (CONST abi::WORD))))
+                                (MEM (Add (TEMP address_left) (Mul (Sub (TEMP index) (CONST 1)) (CONST abi::WORD)))))
                             (MOVE (TEMP index) (Add (TEMP index) (CONST 1)))
                             (JUMP while_left)
                             (LABEL false_left)
 
                             // Copy right array into final destination, starting at
-                            // `address + WORD_SIZE + length_left * WORD_SIZE`
+                            // `address + WORD + length_left * WORD`
                             (LABEL while_right)
                             (CJUMP (Lt (TEMP index) (Add (TEMP length) (CONST 1))) true_right false_right)
                             (LABEL true_right)
                             (MOVE
-                                (MEM (Add (TEMP address) (Mul (TEMP index) (CONST constants::WORD_SIZE))))
-                                (MEM (Add (TEMP address_right) (Mul (Sub (Sub (TEMP index) (TEMP length_left)) (CONST 1)) (CONST constants::WORD_SIZE)))))
+                                (MEM (Add (TEMP address) (Mul (TEMP index) (CONST abi::WORD))))
+                                (MEM (Add (TEMP address_right) (Mul (Sub (Sub (TEMP index) (TEMP length_left)) (CONST 1)) (CONST abi::WORD)))))
                             (MOVE (TEMP index) (Add (TEMP index) (CONST 1)))
                             (JUMP while_right)
                             (LABEL false_right))
-                        (Add (TEMP address) (CONST constants::WORD_SIZE)))
+                        (Add (TEMP address) (CONST abi::WORD)))
                 )
                 .into()
             }
@@ -289,19 +288,19 @@ impl<'env> Emitter<'env> {
                             (MOVE (TEMP index) (self.emit_expression(&*array_index, variables).into()))
                             (CJUMP (Lt (TEMP index) (CONST 0)) out low)
                             (LABEL low)
-                            (CJUMP (Ge (TEMP index) (MEM (Sub (TEMP base) (CONST constants::WORD_SIZE)))) out high)
+                            (CJUMP (Ge (TEMP index) (MEM (Sub (TEMP base) (CONST abi::WORD)))) out high)
                             (LABEL high)
                             (JUMP r#in)
                             (LABEL out)
-                            (EXP (CALL (NAME (Label::Fixed(symbol::intern_static(constants::XI_OUT_OF_BOUNDS)))) 0))
+                            (EXP (CALL (NAME (Label::Fixed(symbol::intern_static(abi::XI_OUT_OF_BOUNDS)))) 0))
                             (LABEL r#in))
-                        (MEM (Add (TEMP base) (Mul (TEMP index) (CONST constants::WORD_SIZE)))))
+                        (MEM (Add (TEMP base) (Mul (TEMP index) (CONST abi::WORD)))))
                 ).into()
             }
             Call(call) if symbol::resolve(call.name) == "length" => {
                 use ir::Binary::Sub;
                 let address = self.emit_expression(&call.arguments[0], variables).into();
-                hir!((MEM (Sub address (CONST constants::WORD_SIZE)))).into()
+                hir!((MEM (Sub address (CONST abi::WORD)))).into()
             }
             Call(call) => self.emit_call(call, variables).into(),
         }
@@ -358,7 +357,7 @@ impl<'env> Emitter<'env> {
     ) -> hir::Expression {
         let length = Temporary::fresh("length");
         let array = Temporary::fresh("array");
-        let alloc = Label::Fixed(symbol::intern_static(constants::XI_ALLOC));
+        let alloc = Label::Fixed(symbol::intern_static(abi::XI_ALLOC));
 
         use ir::Binary::Add;
         use ir::Binary::Mul;
@@ -370,7 +369,7 @@ impl<'env> Emitter<'env> {
                 (CALL
                     (NAME alloc)
                     1
-                    (Mul (Add (TEMP length) (CONST 1)) (CONST constants::WORD_SIZE))))),
+                    (Mul (Add (TEMP length) (CONST 1)) (CONST abi::WORD))))),
             hir!((MOVE (MEM (TEMP array)) (TEMP length))),
         ];
 
@@ -391,7 +390,7 @@ impl<'env> Emitter<'env> {
                     hir!((LABEL r#true)),
                     hir!(
                         (MOVE
-                            (MEM (Add (TEMP array) (Mul (Add (TEMP index) (CONST 1)) (CONST constants::WORD_SIZE))))
+                            (MEM (Add (TEMP array) (Mul (Add (TEMP index) (CONST 1)) (CONST abi::WORD))))
                             (self.emit_array_declaration(r#type, len, variables, lengths)))),
                     hir!((MOVE (TEMP index) (Add (TEMP index) (CONST 1)))),
                     hir!((JUMP r#while)),
@@ -400,7 +399,7 @@ impl<'env> Emitter<'env> {
             }
         }
 
-        hir!((ESEQ (SEQ statements) (Add (TEMP array) (CONST constants::WORD_SIZE))))
+        hir!((ESEQ (SEQ statements) (Add (TEMP array) (CONST abi::WORD))))
     }
 
     fn emit_statement(

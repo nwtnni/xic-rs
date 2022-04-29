@@ -8,7 +8,7 @@ use anyhow::anyhow;
 use rand::rngs::ThreadRng;
 use rand::Rng as _;
 
-use crate::constants;
+use crate::abi;
 use crate::data::operand;
 use crate::data::symbol;
 use crate::data::symbol::Symbol;
@@ -56,7 +56,7 @@ impl<'io> Global<'io> {
         arguments: &[Value],
     ) -> Option<anyhow::Result<Vec<Value>>> {
         let r#returns = match symbol::resolve(name) {
-            constants::XI_PRINT => {
+            abi::XI_PRINT => {
                 debug_assert_eq!(arguments.len(), 1);
                 for byte in self.read_array(arguments[0]).to_vec() {
                     write!(
@@ -69,7 +69,7 @@ impl<'io> Global<'io> {
                 self.stdout.flush().unwrap();
                 Vec::new()
             }
-            constants::XI_PRINTLN => {
+            abi::XI_PRINTLN => {
                 debug_assert_eq!(arguments.len(), 1);
                 for byte in self.read_array(arguments[0]).to_vec() {
                     write!(
@@ -83,7 +83,7 @@ impl<'io> Global<'io> {
                 self.stdout.flush().unwrap();
                 Vec::new()
             }
-            constants::XI_READLN => {
+            abi::XI_READLN => {
                 debug_assert_eq!(arguments.len(), 0);
                 let mut buffer = String::new();
                 self.stdin.read_line(&mut buffer).unwrap();
@@ -96,14 +96,14 @@ impl<'io> Global<'io> {
                         .collect::<Vec<_>>(),
                 )]
             }
-            constants::XI_GETCHAR => {
+            abi::XI_GETCHAR => {
                 debug_assert_eq!(arguments.len(), 0);
                 let mut char = [0];
                 self.stdin.read_exact(&mut char).unwrap();
                 vec![Value::Integer(char[0] as i64)]
             }
-            constants::XI_EOF => unimplemented!(),
-            constants::XI_UNPARSE_INT => {
+            abi::XI_EOF => unimplemented!(),
+            abi::XI_UNPARSE_INT => {
                 debug_assert_eq!(arguments.len(), 1);
                 vec![self.write_array(
                     &arguments[0]
@@ -115,7 +115,7 @@ impl<'io> Global<'io> {
                         .collect::<Vec<_>>(),
                 )]
             }
-            constants::XI_PARSE_INT => {
+            abi::XI_PARSE_INT => {
                 debug_assert_eq!(arguments.len(), 1);
 
                 let integer = self
@@ -130,12 +130,12 @@ impl<'io> Global<'io> {
                     Err(_) => vec![Value::Integer(0), Value::Integer(0)],
                 }
             }
-            constants::XI_ALLOC => {
+            abi::XI_ALLOC => {
                 debug_assert_eq!(arguments.len(), 1);
                 vec![self.calloc(arguments[0])]
             }
-            constants::XI_OUT_OF_BOUNDS => panic!("out of bounds"),
-            constants::XI_ASSERT => {
+            abi::XI_OUT_OF_BOUNDS => panic!("out of bounds"),
+            abi::XI_ASSERT => {
                 debug_assert_eq!(arguments.len(), 1);
                 if arguments[0].into_integer() != 1 {
                     return Some(Err(anyhow!("Assertion error: {:?}", arguments[0])));
@@ -206,29 +206,29 @@ impl<'io> Global<'io> {
         log::debug!("Writing array {:?} to memory", array);
         let len = array.len() as i64;
         let address = self
-            .malloc(Value::Integer((len + 1) * constants::WORD_SIZE))
+            .malloc(Value::Integer((len + 1) * abi::WORD))
             .into_integer();
 
         self.write(Value::Integer(address), Value::Integer(len));
 
         for (index, value) in array.iter().copied().enumerate() {
             self.write(
-                Value::Integer(address + (index as i64 + 1) * constants::WORD_SIZE),
+                Value::Integer(address + (index as i64 + 1) * abi::WORD),
                 value,
             );
         }
 
-        Value::Integer(address + constants::WORD_SIZE)
+        Value::Integer(address + abi::WORD)
     }
 
     fn index(address: i64) -> usize {
         let address = usize::try_from(address).unwrap();
 
-        if address % constants::WORD_SIZE as usize > 0 {
+        if address % abi::WORD as usize > 0 {
             panic!("Unaligned memory access: {:x}", address);
         }
 
-        address / constants::WORD_SIZE as usize
+        address / abi::WORD as usize
     }
 
     fn malloc(&mut self, bytes: Value) -> Value {
@@ -239,27 +239,27 @@ impl<'io> Global<'io> {
             todo!()
         }
 
-        if bytes % constants::WORD_SIZE > 0 {
+        if bytes % abi::WORD > 0 {
             todo!()
         }
 
         let index = self.heap.len() as i64;
 
-        if index * constants::WORD_SIZE + bytes > HEAP_SIZE as i64 {
+        if index * abi::WORD + bytes > HEAP_SIZE as i64 {
             todo!()
         }
 
-        for _ in 0..bytes / constants::WORD_SIZE {
+        for _ in 0..bytes / abi::WORD {
             self.heap.push(Value::Integer(self.rng.gen()));
         }
 
-        Value::Integer(index * constants::WORD_SIZE)
+        Value::Integer(index * abi::WORD)
     }
 
     pub fn calloc(&mut self, bytes: Value) -> Value {
         let address = self.malloc(bytes).into_integer();
         let index = Self::index(address);
-        for offset in index..(bytes.into_integer() / constants::WORD_SIZE) as usize {
+        for offset in index..(bytes.into_integer() / abi::WORD) as usize {
             self.heap[index + offset] = Value::Integer(0);
         }
         Value::Integer(address)

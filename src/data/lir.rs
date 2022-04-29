@@ -1,12 +1,11 @@
-use crate::constants;
+use crate::abi;
 use crate::data::ir;
 use crate::data::operand;
 use crate::data::symbol;
 
 pub const ZERO: Expression = Expression::Immediate(operand::Immediate::Integer(0));
 pub const ONE: Expression = Expression::Immediate(operand::Immediate::Integer(1));
-pub const EIGHT: Expression =
-    Expression::Immediate(operand::Immediate::Integer(constants::WORD_SIZE));
+pub const EIGHT: Expression = Expression::Immediate(operand::Immediate::Integer(abi::WORD));
 
 #[derive(Clone, Debug)]
 pub struct Function<T> {

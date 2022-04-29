@@ -3,7 +3,7 @@ use std::io;
 use anyhow::anyhow;
 use anyhow::Context as _;
 
-use crate::constants;
+use crate::abi;
 use crate::data::ir;
 use crate::data::lir;
 use crate::data::operand;
@@ -31,7 +31,7 @@ where
     let mut global = Global::new(&unit.data, stdin, stdout);
     let mut local = Local::new(
         &unit,
-        &symbol::intern_static(constants::XI_MAIN),
+        &symbol::intern_static(abi::XI_MAIN),
         &[Value::Integer(0)],
     );
 

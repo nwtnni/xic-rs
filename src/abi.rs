@@ -30,12 +30,25 @@
 //!   TOP (lower memory address)
 //! ```
 
-use crate::constants;
 use crate::data::operand::Immediate;
 use crate::data::operand::Memory;
 use crate::data::operand::Register;
 use crate::data::operand::Temporary;
 use crate::data::operand::Unary;
+
+pub const WORD: i64 = 8;
+
+pub const XI_MAIN: &str = "_Imain_paai";
+pub const XI_ALLOC: &str = "_xi_alloc";
+pub const XI_OUT_OF_BOUNDS: &str = "_xi_out_of_bounds";
+pub const XI_PRINT: &str = "_Iprint_pai";
+pub const XI_PRINTLN: &str = "_Iprintln_pai";
+pub const XI_READLN: &str = "_Ireadln_ai";
+pub const XI_GETCHAR: &str = "_Igetchar_i";
+pub const XI_EOF: &str = "_Ieof_b";
+pub const XI_UNPARSE_INT: &str = "_IunparseInt_aii";
+pub const XI_PARSE_INT: &str = "_IparseInt_t2ibai";
+pub const XI_ASSERT: &str = "_Iassert_pb";
 
 /// Retrieve `argument` from calling function.
 ///
@@ -47,9 +60,7 @@ pub fn read_argument(index: usize) -> Unary<Temporary> {
 
     Unary::M(Memory::BO {
         base: Temporary::Register(Register::Rbp),
-        offset: Immediate::Integer(
-            (1 /* rbp */ + 1 /* rip */ + index as i64 - 6) * constants::WORD_SIZE,
-        ),
+        offset: Immediate::Integer((1 /* rbp */ + 1 /* rip */ + index as i64 - 6) * WORD),
     })
 }
 
@@ -61,7 +72,7 @@ pub fn write_argument(index: usize) -> Unary<Temporary> {
 
     Unary::M(Memory::BO {
         base: Temporary::Register(Register::Rsp),
-        offset: Immediate::Integer((index as i64 - 6) * constants::WORD_SIZE),
+        offset: Immediate::Integer((index as i64 - 6) * WORD),
     })
 }
 
@@ -75,9 +86,7 @@ pub fn read_return(arguments: usize, index: usize) -> Unary<Temporary> {
 
     Unary::M(Memory::BO {
         base: Temporary::Register(Register::Rsp),
-        offset: Immediate::Integer(
-            (arguments.saturating_sub(6) + index - 2) as i64 * constants::WORD_SIZE,
-        ),
+        offset: Immediate::Integer((arguments.saturating_sub(6) + index - 2) as i64 * WORD),
     })
 }
 
@@ -91,7 +100,7 @@ pub fn write_return(address: Temporary, index: usize) -> Unary<Temporary> {
 
     Unary::M(Memory::BO {
         base: address,
-        offset: Immediate::Integer((index as i64 - 2) * constants::WORD_SIZE),
+        offset: Immediate::Integer((index as i64 - 2) * WORD),
     })
 }
 

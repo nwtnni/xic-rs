@@ -1,6 +1,6 @@
+use crate::data::span;
 use crate::data::token;
 use crate::error;
-use crate::data::span;
 
 type ParseError = lalrpop_util::ParseError<span::Point, token::Token, error::Error>;
 
