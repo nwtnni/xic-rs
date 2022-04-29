@@ -134,6 +134,7 @@ impl fmt::Display for asm::Binary {
             asm::Binary::Xor => "xor",
             asm::Binary::Cmp => "cmp",
             asm::Binary::Mov => "mov",
+            asm::Binary::Lea => "lea",
         };
 
         write!(fmt, "{}", binary)
@@ -146,7 +147,10 @@ impl fmt::Display for asm::Unary {
             asm::Unary::Neg => "neg",
             asm::Unary::Push => "push",
             asm::Unary::Pop => "pop",
-            asm::Unary::Call => "call",
+            asm::Unary::Call {
+                arguments: _,
+                returns: _,
+            } => "call",
             asm::Unary::Mul => "imul",
             asm::Unary::Div(_) => "idiv",
             asm::Unary::Jmp => "jmp",

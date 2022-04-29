@@ -97,7 +97,35 @@ impl Tiler {
 
                 self.tile_binary(binary, destination, source);
             }
-            lir::Statement::Call(_, _, _) => todo!(),
+            lir::Statement::Call(function, arguments, returns) => {
+                let offset = if *returns > 2 {
+                    self.tile_binary(
+                        asm::Binary::Lea,
+                        abi::write_argument(0),
+                        abi::read_return(self.callee_arguments, 0),
+                    );
+                    1
+                } else {
+                    0
+                };
+
+                for (index, argument) in arguments.iter().enumerate() {
+                    self.tile_binary(
+                        asm::Binary::Mov,
+                        abi::write_argument(index + offset),
+                        argument,
+                    );
+                }
+
+                let function = self.tile_expression(function);
+                self.push(asm::Assembly::Unary(
+                    asm::Unary::Call {
+                        arguments: arguments.len(),
+                        returns: *returns,
+                    },
+                    function,
+                ));
+            }
         }
     }
 

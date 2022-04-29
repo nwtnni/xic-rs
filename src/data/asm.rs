@@ -30,6 +30,7 @@ pub enum Binary {
     Xor,
     Cmp,
     Mov,
+    Lea,
 }
 
 impl From<ir::Binary> for Binary {
@@ -50,7 +51,7 @@ pub enum Unary {
     Neg,
     Push,
     Pop,
-    Call,
+    Call { arguments: usize, returns: usize },
     Mul,
     Div(Division),
     Jmp,
