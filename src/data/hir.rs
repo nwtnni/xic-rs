@@ -9,6 +9,8 @@ pub const ONE: Expression = Expression::Immediate(operand::Immediate::Integer(1)
 pub struct Function {
     pub name: symbol::Symbol,
     pub statements: Statement,
+    pub arguments: usize,
+    pub returns: usize,
 }
 
 pub enum Tree {

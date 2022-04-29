@@ -71,6 +71,8 @@ impl<'env> Emitter<'env> {
         hir::Function {
             name,
             statements: hir!((SEQ statements)),
+            arguments: function.parameters.len(),
+            returns: function.returns.len(),
         }
     }
 

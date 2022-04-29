@@ -11,6 +11,8 @@ pub const EIGHT: Expression = Expression::Immediate(operand::Immediate::Integer(
 pub struct Function<T> {
     pub name: symbol::Symbol,
     pub statements: Vec<Statement<T>>,
+    pub arguments: usize,
+    pub returns: usize,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]

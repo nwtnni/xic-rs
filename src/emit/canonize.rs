@@ -54,6 +54,8 @@ impl Canonizer {
         lir::Function {
             name: function.name,
             statements: canonized,
+            arguments: function.arguments,
+            returns: function.returns,
         }
     }
 

@@ -26,6 +26,8 @@ impl Foldable for hir::Function {
         hir::Function {
             name: self.name,
             statements: self.statements.fold(),
+            arguments: self.arguments,
+            returns: self.returns,
         }
     }
 }
@@ -166,6 +168,8 @@ impl<T: lir::Target> Foldable for lir::Function<T> {
         lir::Function {
             name: self.name,
             statements: self.statements.into_iter().map(Foldable::fold).collect(),
+            arguments: self.arguments,
+            returns: self.returns,
         }
     }
 }

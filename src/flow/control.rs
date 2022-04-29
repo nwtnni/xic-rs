@@ -18,6 +18,8 @@ pub struct Control {
     exit: operand::Label,
     graph: DiGraphMap<operand::Label, Edge>,
     blocks: BTreeMap<operand::Label, Vec<lir::Statement<lir::Label>>>,
+    arguments: usize,
+    returns: usize,
 }
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -129,6 +131,8 @@ fn construct_function(function: &lir::Function<lir::Label>) -> Control {
         exit,
         graph,
         blocks,
+        arguments: function.arguments,
+        returns: function.returns,
     }
 }
 
@@ -162,6 +166,8 @@ fn destruct_function(function: &Control) -> lir::Function<lir::Fallthrough> {
     lir::Function {
         name: function.name,
         statements,
+        arguments: function.arguments,
+        returns: function.returns,
     }
 }
 
