@@ -35,6 +35,12 @@ impl From<operand::Label> for Expression {
     }
 }
 
+impl From<operand::Temporary> for Expression {
+    fn from(temporary: operand::Temporary) -> Self {
+        Expression::Temporary(temporary)
+    }
+}
+
 impl From<operand::Register> for Expression {
     fn from(register: operand::Register) -> Self {
         Expression::Temporary(operand::Temporary::Register(register))
