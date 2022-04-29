@@ -8,16 +8,18 @@ use crate::constants;
 use crate::data::ast;
 use crate::data::hir;
 use crate::data::ir;
-use crate::data::operand;
+use crate::data::operand::Label;
+use crate::data::operand::Temporary;
 use crate::data::r#type;
 use crate::data::symbol;
+use crate::data::symbol::Symbol;
 use crate::hir;
 
 #[derive(Debug)]
 pub struct Emitter<'env> {
     context: &'env check::Context,
-    data: BTreeMap<symbol::Symbol, operand::Label>,
-    functions: BTreeMap<symbol::Symbol, symbol::Symbol>,
+    data: BTreeMap<Symbol, Label>,
+    functions: BTreeMap<Symbol, Symbol>,
 }
 
 impl<'env> Emitter<'env> {
@@ -76,7 +78,7 @@ impl<'env> Emitter<'env> {
     fn emit_expression(
         &mut self,
         expression: &ast::Expression,
-        variables: &HashMap<symbol::Symbol, operand::Temporary>,
+        variables: &HashMap<Symbol, Temporary>,
     ) -> hir::Tree {
         use ast::Expression::*;
         match expression {
@@ -90,20 +92,20 @@ impl<'env> Emitter<'env> {
                 let label = *self
                     .data
                     .entry(symbol)
-                    .or_insert_with(|| operand::Label::fresh("string"));
+                    .or_insert_with(|| Label::fresh("string"));
 
                 hir!((NAME label)).into()
             }
             Variable(variable, _) => hir!((TEMP variables[variable])).into(),
             Array(expressions, _) => {
-                let array = hir!((TEMP operand::Temporary::fresh("array")));
+                let array = hir!((TEMP Temporary::fresh("array")));
 
                 let mut statements = vec![
                     hir!(
                         (MOVE
                             (TEMP array.clone())
                             (CALL
-                                (NAME operand::Label::Fixed(symbol::intern_static(constants::XI_ALLOC)))
+                                (NAME Label::Fixed(symbol::intern_static(constants::XI_ALLOC)))
                                 1
                                 (CONST (expressions.len() + 1) as i64 * constants::WORD_SIZE)))
                     ),
@@ -132,25 +134,25 @@ impl<'env> Emitter<'env> {
                 let left = self.emit_expression(left, variables);
                 let right = self.emit_expression(right, variables);
 
-                let address_left = operand::Temporary::fresh("array");
-                let address_right = operand::Temporary::fresh("array");
-                let address = operand::Temporary::fresh("array");
+                let address_left = Temporary::fresh("array");
+                let address_right = Temporary::fresh("array");
+                let address = Temporary::fresh("array");
 
-                let length_left = operand::Temporary::fresh("length");
-                let length_right = operand::Temporary::fresh("length");
-                let length = operand::Temporary::fresh("length");
+                let length_left = Temporary::fresh("length");
+                let length_right = Temporary::fresh("length");
+                let length = Temporary::fresh("length");
 
-                let alloc = operand::Label::Fixed(symbol::intern_static(constants::XI_ALLOC));
+                let alloc = Label::Fixed(symbol::intern_static(constants::XI_ALLOC));
 
-                let while_left = operand::Label::fresh("while");
-                let true_left = operand::Label::fresh("true");
-                let false_left = operand::Label::fresh("false");
+                let while_left = Label::fresh("while");
+                let true_left = Label::fresh("true");
+                let false_left = Label::fresh("false");
 
-                let while_right = operand::Label::fresh("while");
-                let true_right = operand::Label::fresh("true");
-                let false_right = operand::Label::fresh("false");
+                let while_right = Label::fresh("while");
+                let true_right = Label::fresh("true");
+                let false_right = Label::fresh("false");
 
-                let index = operand::Temporary::fresh("index");
+                let index = Temporary::fresh("index");
 
                 use ir::Binary::Add;
                 use ir::Binary::Mul;
@@ -233,7 +235,7 @@ impl<'env> Emitter<'env> {
                     }
 
                     ast::Binary::And => hir::Tree::Condition(Box::new(move |r#true, r#false| {
-                        let and = operand::Label::fresh("and");
+                        let and = Label::fresh("and");
 
                         hir!((SEQ
                             (hir::Condition::from(left)(and, r#false))
@@ -242,7 +244,7 @@ impl<'env> Emitter<'env> {
                         ))
                     })),
                     ast::Binary::Or => hir::Tree::Condition(Box::new(move |r#true, r#false| {
-                        let or = operand::Label::fresh("or");
+                        let or = Label::fresh("or");
 
                         hir!((SEQ
                             (hir::Condition::from(left)(r#true, or))
@@ -272,13 +274,13 @@ impl<'env> Emitter<'env> {
                 use ir::Condition::Ge;
                 use ir::Condition::Lt;
 
-                let base = operand::Temporary::fresh("base");
-                let index = operand::Temporary::fresh("index");
+                let base = Temporary::fresh("base");
+                let index = Temporary::fresh("index");
 
-                let low = operand::Label::fresh("low");
-                let high = operand::Label::fresh("high");
-                let out = operand::Label::fresh("out");
-                let r#in = operand::Label::fresh("in");
+                let low = Label::fresh("low");
+                let high = Label::fresh("high");
+                let out = Label::fresh("out");
+                let r#in = Label::fresh("in");
 
                 hir!(
                     (ESEQ
@@ -291,7 +293,7 @@ impl<'env> Emitter<'env> {
                             (LABEL high)
                             (JUMP r#in)
                             (LABEL out)
-                            (EXP (CALL (NAME (operand::Label::Fixed(symbol::intern_static(constants::XI_OUT_OF_BOUNDS)))) 0))
+                            (EXP (CALL (NAME (Label::Fixed(symbol::intern_static(constants::XI_OUT_OF_BOUNDS)))) 0))
                             (LABEL r#in))
                         (MEM (Add (TEMP base) (Mul (TEMP index) (CONST constants::WORD_SIZE)))))
                 ).into()
@@ -308,10 +310,10 @@ impl<'env> Emitter<'env> {
     fn emit_call(
         &mut self,
         call: &ast::Call,
-        variables: &HashMap<symbol::Symbol, operand::Temporary>,
+        variables: &HashMap<Symbol, Temporary>,
     ) -> hir::Expression {
         hir::Expression::Call(
-            Box::new(hir::Expression::from(operand::Label::Fixed(
+            Box::new(hir::Expression::from(Label::Fixed(
                 self.mangle_function(call.name),
             ))),
             call.arguments
@@ -325,9 +327,9 @@ impl<'env> Emitter<'env> {
     fn emit_declaration(
         &mut self,
         declaration: &ast::Declaration,
-        variables: &mut HashMap<symbol::Symbol, operand::Temporary>,
+        variables: &mut HashMap<Symbol, Temporary>,
     ) -> hir::Expression {
-        let fresh = operand::Temporary::fresh("t");
+        let fresh = Temporary::fresh("t");
         variables.insert(declaration.name, fresh);
         match &declaration.r#type {
             ast::Type::Bool(_) | ast::Type::Int(_) | ast::Type::Array(_, None, _) => {
@@ -351,12 +353,12 @@ impl<'env> Emitter<'env> {
         &mut self,
         r#type: &ast::Type,
         len: &ast::Expression,
-        variables: &mut HashMap<symbol::Symbol, operand::Temporary>,
+        variables: &mut HashMap<Symbol, Temporary>,
         lengths: &mut Vec<hir::Statement>,
     ) -> hir::Expression {
-        let length = operand::Temporary::fresh("length");
-        let array = operand::Temporary::fresh("array");
-        let alloc = operand::Label::Fixed(symbol::intern_static(constants::XI_ALLOC));
+        let length = Temporary::fresh("length");
+        let array = Temporary::fresh("array");
+        let alloc = Label::Fixed(symbol::intern_static(constants::XI_ALLOC));
 
         use ir::Binary::Add;
         use ir::Binary::Mul;
@@ -375,10 +377,10 @@ impl<'env> Emitter<'env> {
         match r#type {
             ast::Type::Bool(_) | ast::Type::Int(_) | ast::Type::Array(_, None, _) => (),
             ast::Type::Array(r#type, Some(len), _) => {
-                let r#while = operand::Label::fresh("while");
-                let r#true = operand::Label::fresh("true");
-                let r#false = operand::Label::fresh("false");
-                let index = operand::Temporary::fresh("index");
+                let r#while = Label::fresh("while");
+                let r#true = Label::fresh("true");
+                let r#false = Label::fresh("false");
+                let index = Temporary::fresh("index");
 
                 use ir::Condition::Lt;
 
@@ -404,7 +406,7 @@ impl<'env> Emitter<'env> {
     fn emit_statement(
         &mut self,
         statement: &ast::Statement,
-        variables: &mut HashMap<symbol::Symbol, operand::Temporary>,
+        variables: &mut HashMap<Symbol, Temporary>,
     ) -> hir::Statement {
         use ast::Statement::*;
         match statement {
@@ -463,8 +465,8 @@ impl<'env> Emitter<'env> {
                     .collect(),
             ),
             If(condition, r#if, None, _) => {
-                let r#true = operand::Label::fresh("true");
-                let r#false = operand::Label::fresh("false");
+                let r#true = Label::fresh("true");
+                let r#false = Label::fresh("false");
 
                 hir!(
                     (SEQ
@@ -475,9 +477,9 @@ impl<'env> Emitter<'env> {
                 )
             }
             If(condition, r#if, Some(r#else), _) => {
-                let r#true = operand::Label::fresh("true");
-                let r#false = operand::Label::fresh("false");
-                let endif = operand::Label::fresh("endif");
+                let r#true = Label::fresh("true");
+                let r#false = Label::fresh("false");
+                let endif = Label::fresh("endif");
 
                 hir!(
                     (SEQ
@@ -491,9 +493,9 @@ impl<'env> Emitter<'env> {
                 )
             }
             While(condition, statements, _) => {
-                let r#while = operand::Label::fresh("while");
-                let r#true = operand::Label::fresh("true");
-                let r#false = operand::Label::fresh("false");
+                let r#while = Label::fresh("while");
+                let r#true = Label::fresh("true");
+                let r#false = Label::fresh("false");
 
                 hir!(
                     (SEQ
@@ -508,7 +510,7 @@ impl<'env> Emitter<'env> {
         }
     }
 
-    fn get_returns(&self, name: symbol::Symbol) -> usize {
+    fn get_returns(&self, name: Symbol) -> usize {
         match self.context.get(name) {
             Some(check::Entry::Function(_, returns))
             | Some(check::Entry::Signature(_, returns)) => returns.len(),
@@ -516,7 +518,7 @@ impl<'env> Emitter<'env> {
         }
     }
 
-    fn mangle_function(&mut self, name: symbol::Symbol) -> symbol::Symbol {
+    fn mangle_function(&mut self, name: Symbol) -> Symbol {
         if let Some(mangled) = self.functions.get(&name) {
             return *mangled;
         }
