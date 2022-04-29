@@ -4,6 +4,7 @@ use crate::data::operand;
 use crate::data::operand::Immediate;
 use crate::data::operand::Register;
 use crate::data::operand::Temporary;
+use crate::data::symbol;
 
 pub const ZERO: Expression = Expression::Immediate(Immediate::Integer(0));
 pub const ONE: Expression = Expression::Immediate(Immediate::Integer(1));
@@ -20,6 +21,15 @@ pub enum Expression {
     Temporary(Temporary),
     Memory(Box<Expression>),
     Binary(ir::Binary, Box<Expression>, Box<Expression>),
+}
+
+impl Expression {
+    pub fn is_label(&self, label: &str) -> bool {
+        matches!(
+            self,
+            Expression::Immediate(Immediate::Label(operand::Label::Fixed(fixed))) if symbol::resolve(*fixed) == label
+        )
+    }
 }
 
 impl From<i64> for Expression {

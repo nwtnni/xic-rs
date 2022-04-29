@@ -8,10 +8,8 @@ use petgraph::graphmap::DiGraphMap;
 use crate::abi;
 use crate::data::ir;
 use crate::data::lir;
-use crate::data::operand::Immediate;
 use crate::data::operand::Label;
 use crate::data::sexp::Serialize;
-use crate::data::symbol;
 use crate::data::symbol::Symbol;
 
 pub struct Control {
@@ -122,10 +120,7 @@ fn construct_function(function: &ir::Function<Vec<lir::Statement<lir::Label>>>) 
             }
             // Special-case ABI function that never returns
             call @ lir::Statement::Call(function, _, _)
-                if *function
-                    == lir::Expression::Immediate(Immediate::Label(Label::Fixed(
-                        symbol::intern_static(abi::XI_OUT_OF_BOUNDS),
-                    ))) =>
+                if function.is_label(abi::XI_OUT_OF_BOUNDS) =>
             {
                 block.push(call.clone());
 
