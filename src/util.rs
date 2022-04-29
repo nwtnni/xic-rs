@@ -53,3 +53,9 @@ impl<T, I: Iterator<Item = T>, F: FnMut(&T) -> bool> Iterator for Until<I, F> {
         }
     }
 }
+
+#[derive(Copy, Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub enum Or<L, R> {
+    L(L),
+    R(R),
+}
