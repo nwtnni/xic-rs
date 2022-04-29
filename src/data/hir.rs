@@ -1,8 +1,10 @@
 use crate::data::ir;
-use crate::data::operand;
+use crate::data::operand::Immediate;
+use crate::data::operand::Label;
+use crate::data::operand::Temporary;
 
-pub const ZERO: Expression = Expression::Immediate(operand::Immediate::Integer(0));
-pub const ONE: Expression = Expression::Immediate(operand::Immediate::Integer(1));
+pub const ZERO: Expression = Expression::Immediate(Immediate::Integer(0));
+pub const ONE: Expression = Expression::Immediate(Immediate::Integer(1));
 
 pub type Unit = ir::Unit<Function>;
 pub type Function = ir::Function<Statement>;
@@ -12,7 +14,7 @@ pub enum Tree {
     Condition(Condition),
 }
 
-pub type Condition = Box<dyn FnOnce(operand::Label, operand::Label) -> Statement>;
+pub type Condition = Box<dyn FnOnce(Label, Label) -> Statement>;
 
 impl From<Condition> for Tree {
     fn from(condition: Condition) -> Self {
@@ -116,29 +118,29 @@ macro_rules! hir {
 pub enum Expression {
     Argument(usize),
     Return(usize),
-    Immediate(operand::Immediate),
-    Temporary(operand::Temporary),
+    Immediate(Immediate),
+    Temporary(Temporary),
     Memory(Box<Expression>),
     Binary(ir::Binary, Box<Expression>, Box<Expression>),
     Call(Box<Expression>, Vec<Expression>, usize),
     Sequence(Box<Statement>, Box<Expression>),
 }
 
-impl From<operand::Temporary> for Expression {
-    fn from(temporary: operand::Temporary) -> Self {
+impl From<Temporary> for Expression {
+    fn from(temporary: Temporary) -> Self {
         Self::Temporary(temporary)
     }
 }
 
-impl From<operand::Label> for Expression {
-    fn from(label: operand::Label) -> Self {
-        Self::Immediate(operand::Immediate::Label(label))
+impl From<Label> for Expression {
+    fn from(label: Label) -> Self {
+        Self::Immediate(Immediate::Label(label))
     }
 }
 
 impl From<i64> for Expression {
     fn from(integer: i64) -> Self {
-        Self::Immediate(operand::Immediate::Integer(integer))
+        Self::Immediate(Immediate::Integer(integer))
     }
 }
 
@@ -153,9 +155,9 @@ impl From<Tree> for Expression {
         match tree {
             Tree::Expression(expression) => expression,
             Tree::Condition(condition) => {
-                let r#true = operand::Label::fresh("true");
-                let r#false = operand::Label::fresh("false");
-                let value = Expression::Temporary(operand::Temporary::fresh("bool"));
+                let r#true = Label::fresh("true");
+                let r#false = Label::fresh("false");
+                let value = Expression::Temporary(Temporary::fresh("bool"));
 
                 let sequence = vec![
                     Statement::Move {
@@ -179,15 +181,15 @@ impl From<Tree> for Expression {
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Statement {
-    Jump(operand::Label),
+    Jump(Label),
     CJump {
         condition: ir::Condition,
         left: Expression,
         right: Expression,
-        r#true: operand::Label,
-        r#false: operand::Label,
+        r#true: Label,
+        r#false: Label,
     },
-    Label(operand::Label),
+    Label(Label),
     Expression(Expression),
     Move {
         destination: Expression,

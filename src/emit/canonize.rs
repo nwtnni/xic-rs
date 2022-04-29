@@ -4,7 +4,9 @@ use crate::abi;
 use crate::data::hir;
 use crate::data::ir;
 use crate::data::lir;
-use crate::data::operand;
+use crate::data::operand::Immediate;
+use crate::data::operand::Label;
+use crate::data::operand::Temporary;
 use crate::data::symbol;
 
 #[derive(Debug, Default)]
@@ -57,31 +59,32 @@ impl Canonizer {
     }
 
     fn canonize_expression(&mut self, exp: &hir::Expression) -> lir::Expression {
-        use hir::Expression::*;
         match exp {
-            Immediate(immediate) => lir::Expression::Immediate(*immediate),
-            Argument(index) => lir::Expression::Argument(*index),
-            Return(index) => lir::Expression::Return(*index),
-            Memory(memory) => lir::Expression::Memory(Box::new(self.canonize_expression(memory))),
-            Temporary(temporary) => lir::Expression::Temporary(*temporary),
-            Sequence(statements, expression) => {
+            hir::Expression::Immediate(immediate) => lir::Expression::Immediate(*immediate),
+            hir::Expression::Argument(index) => lir::Expression::Argument(*index),
+            hir::Expression::Return(index) => lir::Expression::Return(*index),
+            hir::Expression::Memory(memory) => {
+                lir::Expression::Memory(Box::new(self.canonize_expression(memory)))
+            }
+            hir::Expression::Temporary(temporary) => lir::Expression::Temporary(*temporary),
+            hir::Expression::Sequence(statements, expression) => {
                 self.canonize_statement(statements);
                 self.canonize_expression(expression)
             }
-            Binary(binary, left, right) => {
+            hir::Expression::Binary(binary, left, right) => {
                 let (left, right) = self.canonize_pair(left, right);
                 lir::Expression::Binary(*binary, Box::new(left), Box::new(right))
             }
-            Call(name, arguments, 1) => {
-                let save = lir::Expression::Temporary(operand::Temporary::fresh("save"));
+            hir::Expression::Call(name, arguments, 1) => {
+                let save = lir::Expression::Temporary(Temporary::fresh("save"));
                 let name = match &**name {
-                    hir::Expression::Immediate(operand::Immediate::Label(name)) => name,
+                    hir::Expression::Immediate(Immediate::Label(name)) => name,
                     _ => unimplemented!("Calls to arbitrary expressions not yet implemented"),
                 };
 
                 let arguments = self.canonize_list(arguments);
                 self.canonized.push(lir::Statement::Call(
-                    lir::Expression::Immediate(operand::Immediate::Label(*name)),
+                    lir::Expression::Immediate(Immediate::Label(*name)),
                     arguments,
                     1,
                 ));
@@ -94,41 +97,40 @@ impl Canonizer {
                 save
             }
             // 0- and multiple-return calls should be in (EXP (CALL ...)) statements.
-            Call(_, _, _) => unreachable!("[TYPE ERROR]"),
+            hir::Expression::Call(_, _, _) => unreachable!("[TYPE ERROR]"),
         }
     }
 
     fn canonize_statement(&mut self, statement: &hir::Statement) {
-        use hir::Statement::*;
         match statement {
             // Single-return calls should be in (MOVE (...) (CALL ...)) statements.
-            Expression(hir::Expression::Call(_, _, 1)) => {
+            hir::Statement::Expression(hir::Expression::Call(_, _, 1)) => {
                 unreachable!("[TYPE ERROR]")
             }
-            Expression(hir::Expression::Call(name, arguments, _)) => {
+            hir::Statement::Expression(hir::Expression::Call(name, arguments, _)) => {
                 let name = match &**name {
-                    hir::Expression::Immediate(operand::Immediate::Label(name)) => name,
+                    hir::Expression::Immediate(Immediate::Label(name)) => name,
                     _ => unimplemented!("Calls to arbitrary expressions not yet implemented"),
                 };
 
                 let arguments = self.canonize_list(arguments);
                 self.canonized.push(lir::Statement::Call(
-                    lir::Expression::Immediate(operand::Immediate::Label(*name)),
+                    lir::Expression::Immediate(Immediate::Label(*name)),
                     arguments,
                     0,
                 ));
             }
-            Expression(expression) => {
+            hir::Statement::Expression(expression) => {
                 self.canonize_expression(expression);
             }
-            Label(label) => self.canonized.push(lir::Statement::Label(*label)),
-            Sequence(statements) => {
+            hir::Statement::Label(label) => self.canonized.push(lir::Statement::Label(*label)),
+            hir::Statement::Sequence(statements) => {
                 for statement in statements {
                     self.canonize_statement(statement);
                 }
             }
-            Jump(label) => self.canonized.push(lir::Statement::Jump(*label)),
-            CJump {
+            hir::Statement::Jump(label) => self.canonized.push(lir::Statement::Jump(*label)),
+            hir::Statement::CJump {
                 condition,
                 left,
                 right,
@@ -145,7 +147,7 @@ impl Canonizer {
                 };
                 self.canonized.push(cjump);
             }
-            Move {
+            hir::Statement::Move {
                 destination,
                 source,
             } => match self.canonize_expression(destination) {
@@ -164,7 +166,7 @@ impl Canonizer {
                     });
                 }
                 lir::Expression::Memory(destination) => {
-                    let save = lir::Expression::Temporary(operand::Temporary::fresh("save"));
+                    let save = lir::Expression::Temporary(Temporary::fresh("save"));
 
                     self.canonized.push(lir::Statement::Move {
                         destination: save.clone(),
@@ -179,7 +181,7 @@ impl Canonizer {
                 }
                 _ => unimplemented!(),
             },
-            Return(returns) => {
+            hir::Statement::Return(returns) => {
                 let returns = self.canonize_list(returns);
                 self.canonized.push(lir::Statement::Return(returns));
             }
@@ -197,7 +199,7 @@ impl Canonizer {
         expressions
             .iter()
             .map(|expression| {
-                let save = lir::Expression::Temporary(operand::Temporary::fresh("save"));
+                let save = lir::Expression::Temporary(Temporary::fresh("save"));
                 let expression = self.canonize_expression(expression);
                 self.canonized.push(lir::Statement::Move {
                     destination: save.clone(),
@@ -220,7 +222,7 @@ impl Canonizer {
             );
         }
 
-        let save = lir::Expression::Temporary(operand::Temporary::fresh("save"));
+        let save = lir::Expression::Temporary(Temporary::fresh("save"));
         let left = self.canonize_expression(left);
 
         self.canonized.push(lir::Statement::Move {
@@ -234,30 +236,33 @@ impl Canonizer {
 }
 
 fn commute(before: &hir::Expression, after: &hir::Expression) -> bool {
-    use hir::Expression::*;
     match before {
-        Immediate(operand::Immediate::Integer(_)) | Argument(_) => true,
-        Binary(_, left, right) => commute(left, after) && commute(right, after),
-        Immediate(operand::Immediate::Label(_))
-        | Temporary(_)
-        | Return(_)
-        | Memory(_)
-        | Call(_, _, _)
-        | Sequence(_, _) => pure_expression(after),
+        hir::Expression::Immediate(Immediate::Integer(_)) | hir::Expression::Argument(_) => true,
+        hir::Expression::Binary(_, left, right) => commute(left, after) && commute(right, after),
+        hir::Expression::Immediate(Immediate::Label(_))
+        | hir::Expression::Temporary(_)
+        | hir::Expression::Return(_)
+        | hir::Expression::Memory(_)
+        | hir::Expression::Call(_, _, _)
+        | hir::Expression::Sequence(_, _) => pure_expression(after),
     }
 }
 
 fn pure_expression(expression: &hir::Expression) -> bool {
-    use hir::Expression::*;
     match expression {
-        Immediate(operand::Immediate::Integer(_)) | Temporary(_) | Argument(_) | Return(_) => true,
-        Immediate(operand::Immediate::Label(_)) => false,
-        Memory(expression) => pure_expression(expression),
-        Binary(_, left, right) => pure_expression(left) && pure_expression(right),
-        Sequence(statement, expression) => pure_statement(statement) && pure_expression(expression),
-        Call(name, _, _) => {
+        hir::Expression::Immediate(Immediate::Integer(_))
+        | hir::Expression::Temporary(_)
+        | hir::Expression::Argument(_)
+        | hir::Expression::Return(_) => true,
+        hir::Expression::Immediate(Immediate::Label(_)) => false,
+        hir::Expression::Memory(expression) => pure_expression(expression),
+        hir::Expression::Binary(_, left, right) => pure_expression(left) && pure_expression(right),
+        hir::Expression::Sequence(statement, expression) => {
+            pure_statement(statement) && pure_expression(expression)
+        }
+        hir::Expression::Call(name, _, _) => {
             let name = match &**name {
-                Immediate(operand::Immediate::Label(operand::Label::Fixed(name))) => {
+                hir::Expression::Immediate(Immediate::Label(Label::Fixed(name))) => {
                     symbol::resolve(*name)
                 }
                 _ => return false,

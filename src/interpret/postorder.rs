@@ -40,11 +40,11 @@ use std::collections::BTreeMap;
 use crate::data::hir;
 use crate::data::ir;
 use crate::data::lir;
-use crate::data::operand;
+use crate::data::operand::Label;
 
 pub struct Postorder<T> {
     instructions: Vec<T>,
-    labels: BTreeMap<operand::Label, usize>,
+    labels: BTreeMap<Label, usize>,
 }
 
 impl<T> Postorder<T> {
@@ -52,7 +52,7 @@ impl<T> Postorder<T> {
         self.instructions.get(index)
     }
 
-    pub fn get_label(&self, label: &operand::Label) -> Option<&usize> {
+    pub fn get_label(&self, label: &Label) -> Option<&usize> {
         self.labels.get(label)
     }
 }

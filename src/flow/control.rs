@@ -7,17 +7,17 @@ use petgraph::graphmap::DiGraphMap;
 
 use crate::data::ir;
 use crate::data::lir;
-use crate::data::operand;
+use crate::data::operand::Label;
 use crate::data::sexp::Serialize;
-use crate::data::symbol;
+use crate::data::symbol::Symbol;
 
 pub struct Control {
-    name: symbol::Symbol,
-    enter: operand::Label,
+    name: Symbol,
+    enter: Label,
     #[allow(dead_code)]
-    exit: operand::Label,
-    graph: DiGraphMap<operand::Label, Edge>,
-    blocks: BTreeMap<operand::Label, Vec<lir::Statement<lir::Label>>>,
+    exit: Label,
+    graph: DiGraphMap<Label, Edge>,
+    blocks: BTreeMap<Label, Vec<lir::Statement<lir::Label>>>,
     arguments: usize,
     returns: usize,
 }
@@ -42,11 +42,11 @@ pub fn destruct_unit(
 
 enum State {
     Unreachable,
-    Block(operand::Label, Vec<lir::Statement<lir::Label>>),
+    Block(Label, Vec<lir::Statement<lir::Label>>),
 }
 
 impl State {
-    fn block(label: operand::Label) -> Self {
+    fn block(label: Label) -> Self {
         State::Block(label, Vec::new())
     }
 
@@ -57,10 +57,7 @@ impl State {
         }
     }
 
-    fn replace(
-        &mut self,
-        state: State,
-    ) -> Option<(operand::Label, Vec<lir::Statement<lir::Label>>)> {
+    fn replace(&mut self, state: State) -> Option<(Label, Vec<lir::Statement<lir::Label>>)> {
         match mem::replace(self, state) {
             State::Unreachable => None,
             State::Block(label, statements) => Some((label, statements)),
@@ -72,8 +69,8 @@ fn construct_function(function: &ir::Function<Vec<lir::Statement<lir::Label>>>) 
     let mut graph = DiGraphMap::new();
     let mut blocks = BTreeMap::new();
 
-    let enter = operand::Label::fresh("enter");
-    let exit = operand::Label::fresh("exit");
+    let enter = Label::fresh("enter");
+    let exit = Label::fresh("exit");
 
     blocks.insert(exit, Vec::new());
 

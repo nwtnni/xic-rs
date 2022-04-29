@@ -4,8 +4,11 @@ use std::iter;
 use crate::data::hir;
 use crate::data::ir;
 use crate::data::lir;
-use crate::data::operand;
-use crate::data::sexp::{Serialize, Sexp};
+use crate::data::operand::Immediate;
+use crate::data::operand::Label;
+use crate::data::operand::Temporary;
+use crate::data::sexp::Serialize;
+use crate::data::sexp::Sexp;
 
 impl<T: Serialize> Serialize for ir::Unit<T> {
     fn sexp(&self) -> Sexp {
@@ -201,22 +204,22 @@ impl Serialize for ir::Condition {
     }
 }
 
-impl Serialize for operand::Immediate {
+impl Serialize for Immediate {
     fn sexp(&self) -> Sexp {
         match self {
-            operand::Immediate::Integer(integer) => ["CONST".sexp(), integer.sexp()].sexp_move(),
-            operand::Immediate::Label(label) => ["NAME".sexp(), label.sexp()].sexp_move(),
+            Immediate::Integer(integer) => ["CONST".sexp(), integer.sexp()].sexp_move(),
+            Immediate::Label(label) => ["NAME".sexp(), label.sexp()].sexp_move(),
         }
     }
 }
 
-impl Serialize for operand::Label {
+impl Serialize for Label {
     fn sexp(&self) -> Sexp {
         self.to_string().sexp_move()
     }
 }
 
-impl Serialize for operand::Temporary {
+impl Serialize for Temporary {
     fn sexp(&self) -> Sexp {
         self.to_string().sexp_move()
     }

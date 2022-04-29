@@ -1,19 +1,19 @@
 use std::collections::BTreeMap;
 
 use crate::data::ast;
-use crate::data::operand;
-use crate::data::symbol;
+use crate::data::operand::Label;
+use crate::data::symbol::Symbol;
 
 #[derive(Clone, Debug)]
 pub struct Unit<T> {
-    pub name: symbol::Symbol,
-    pub functions: BTreeMap<symbol::Symbol, T>,
-    pub data: BTreeMap<symbol::Symbol, operand::Label>,
+    pub name: Symbol,
+    pub functions: BTreeMap<Symbol, T>,
+    pub data: BTreeMap<Symbol, Label>,
 }
 
 #[derive(Clone, Debug)]
 pub struct Function<T> {
-    pub name: symbol::Symbol,
+    pub name: Symbol,
     pub statements: T,
     pub arguments: usize,
     pub returns: usize,

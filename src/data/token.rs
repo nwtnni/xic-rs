@@ -3,6 +3,7 @@ use std::vec;
 
 use crate::data::span;
 use crate::data::symbol;
+use crate::data::symbol::Symbol;
 
 pub type Spanned = Result<(span::Point, Token, span::Point), crate::Error>;
 
@@ -39,7 +40,7 @@ impl fmt::Display for Tokens {
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Token {
     /// Identifier
-    IDENT(symbol::Symbol),
+    IDENT(Symbol),
 
     /// Character literal
     CHARACTER(char),

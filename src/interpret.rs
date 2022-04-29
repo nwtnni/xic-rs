@@ -11,20 +11,21 @@ pub(crate) use global::Global;
 pub(crate) use local::Local;
 pub(crate) use postorder::Postorder;
 
-use crate::data::operand;
+use crate::data::operand::Label;
+use crate::data::operand::Temporary;
 
 #[derive(Copy, Clone, Debug)]
 pub enum Operand {
     Integer(i64),
-    Label(operand::Label, i64),
+    Label(Label, i64),
     Memory(Value),
-    Temporary(operand::Temporary),
+    Temporary(Temporary),
 }
 
 #[derive(Copy, Clone, Debug)]
 pub enum Value {
     Integer(i64),
-    Label(operand::Label, i64),
+    Label(Label, i64),
 }
 
 impl Value {

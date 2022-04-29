@@ -1,6 +1,7 @@
 use crate::data::r#type;
 use crate::data::span;
 use crate::data::symbol;
+use crate::data::symbol::Symbol;
 
 #[derive(Clone, Debug)]
 pub struct Error {
@@ -16,10 +17,10 @@ impl Error {
 
 #[derive(Clone, Debug)]
 pub enum ErrorKind {
-    UnboundVariable(symbol::Symbol),
-    UnboundFun(symbol::Symbol),
-    NotVariable(symbol::Symbol),
-    NotFun(symbol::Symbol),
+    UnboundVariable(Symbol),
+    UnboundFun(Symbol),
+    NotVariable(Symbol),
+    NotFun(Symbol),
     NotExp,
     NotProcedure,
     IndexEmpty,

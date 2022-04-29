@@ -6,6 +6,7 @@ use pretty::DocAllocator;
 use pretty::DocBuilder;
 
 use crate::data::symbol;
+use crate::data::symbol::Symbol;
 use crate::error;
 use crate::util::Tap;
 
@@ -76,7 +77,7 @@ impl Serialize for i64 {
     }
 }
 
-impl Serialize for symbol::Symbol {
+impl Serialize for Symbol {
     fn sexp(&self) -> Sexp {
         Sexp::Atom(Cow::from(symbol::resolve(*self)))
     }

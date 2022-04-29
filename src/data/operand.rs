@@ -3,6 +3,7 @@ use std::sync::atomic::AtomicUsize;
 use std::sync::atomic::Ordering;
 
 use crate::data::symbol;
+use crate::data::symbol::Symbol;
 
 static LABELS: AtomicUsize = AtomicUsize::new(0);
 static TEMPS: AtomicUsize = AtomicUsize::new(0);
@@ -36,8 +37,8 @@ impl From<Label> for Immediate {
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub enum Label {
-    Fixed(symbol::Symbol),
-    Fresh(symbol::Symbol, usize),
+    Fixed(Symbol),
+    Fresh(Symbol, usize),
 }
 
 impl Label {
@@ -62,7 +63,7 @@ impl fmt::Display for Label {
 #[derive(Copy, Clone, Debug, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub enum Temporary {
     Register(Register),
-    Fresh(symbol::Symbol, usize),
+    Fresh(Symbol, usize),
 }
 
 impl Temporary {

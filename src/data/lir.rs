@@ -1,10 +1,13 @@
 use crate::abi;
 use crate::data::ir;
 use crate::data::operand;
+use crate::data::operand::Immediate;
+use crate::data::operand::Register;
+use crate::data::operand::Temporary;
 
-pub const ZERO: Expression = Expression::Immediate(operand::Immediate::Integer(0));
-pub const ONE: Expression = Expression::Immediate(operand::Immediate::Integer(1));
-pub const EIGHT: Expression = Expression::Immediate(operand::Immediate::Integer(abi::WORD));
+pub const ZERO: Expression = Expression::Immediate(Immediate::Integer(0));
+pub const ONE: Expression = Expression::Immediate(Immediate::Integer(1));
+pub const EIGHT: Expression = Expression::Immediate(Immediate::Integer(abi::WORD));
 
 pub type Unit<T> = ir::Unit<Function<T>>;
 pub type Function<T> = ir::Function<Vec<Statement<T>>>;
@@ -13,33 +16,33 @@ pub type Function<T> = ir::Function<Vec<Statement<T>>>;
 pub enum Expression {
     Argument(usize),
     Return(usize),
-    Immediate(operand::Immediate),
-    Temporary(operand::Temporary),
+    Immediate(Immediate),
+    Temporary(Temporary),
     Memory(Box<Expression>),
     Binary(ir::Binary, Box<Expression>, Box<Expression>),
 }
 
 impl From<i64> for Expression {
     fn from(integer: i64) -> Self {
-        Expression::Immediate(operand::Immediate::Integer(integer))
+        Expression::Immediate(Immediate::Integer(integer))
     }
 }
 
 impl From<operand::Label> for Expression {
     fn from(label: operand::Label) -> Self {
-        Expression::Immediate(operand::Immediate::Label(label))
+        Expression::Immediate(Immediate::Label(label))
     }
 }
 
-impl From<operand::Temporary> for Expression {
-    fn from(temporary: operand::Temporary) -> Self {
+impl From<Temporary> for Expression {
+    fn from(temporary: Temporary) -> Self {
         Expression::Temporary(temporary)
     }
 }
 
-impl From<operand::Register> for Expression {
-    fn from(register: operand::Register) -> Self {
-        Expression::Temporary(operand::Temporary::Register(register))
+impl From<Register> for Expression {
+    fn from(register: Register) -> Self {
+        Expression::Temporary(Temporary::Register(register))
     }
 }
 

@@ -9,7 +9,7 @@ use rand::rngs::ThreadRng;
 use rand::Rng as _;
 
 use crate::abi;
-use crate::data::operand;
+use crate::data::operand::Label;
 use crate::data::symbol;
 use crate::data::symbol::Symbol;
 use crate::interpret::Value;
@@ -17,7 +17,7 @@ use crate::interpret::Value;
 const HEAP_SIZE: usize = 64 * 1024;
 
 pub struct Global<'io> {
-    data: BTreeMap<operand::Label, Vec<Value>>,
+    data: BTreeMap<Label, Vec<Value>>,
     heap: Vec<Value>,
     rng: ThreadRng,
     stdin: Box<dyn BufRead + 'io>,
@@ -26,7 +26,7 @@ pub struct Global<'io> {
 
 impl<'io> Global<'io> {
     pub fn new<R: BufRead + 'io, W: Write + 'io>(
-        data: &BTreeMap<Symbol, operand::Label>,
+        data: &BTreeMap<Symbol, Label>,
         stdin: R,
         stdout: W,
     ) -> Self {

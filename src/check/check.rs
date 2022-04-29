@@ -5,6 +5,7 @@ use crate::check::ErrorKind;
 use crate::data::ast;
 use crate::data::r#type;
 use crate::data::symbol;
+use crate::data::symbol::Symbol;
 use crate::error;
 use crate::lex;
 use crate::parse;
@@ -110,14 +111,7 @@ impl Checker {
     fn check_signature<C: ast::Callable>(
         &self,
         signature: &C,
-    ) -> Result<
-        (
-            symbol::Symbol,
-            Vec<r#type::Expression>,
-            Vec<r#type::Expression>,
-        ),
-        error::Error,
-    > {
+    ) -> Result<(Symbol, Vec<r#type::Expression>, Vec<r#type::Expression>), error::Error> {
         let parameters = signature
             .parameters()
             .iter()

@@ -1,7 +1,8 @@
 use std::collections::BTreeMap;
 
 use crate::data::ir;
-use crate::data::operand;
+use crate::data::operand::Label;
+use crate::data::operand::Temporary;
 use crate::data::symbol::Symbol;
 use crate::interpret::Global;
 use crate::interpret::Operand;
@@ -11,7 +12,7 @@ use crate::interpret::Value;
 pub struct Local<'a, T: 'a> {
     postorder: &'a Postorder<T>,
     index: usize,
-    temporaries: BTreeMap<operand::Temporary, Value>,
+    temporaries: BTreeMap<Temporary, Value>,
     arguments: Vec<Value>,
     returns: Vec<Value>,
     stack: Vec<Operand>,
@@ -35,7 +36,7 @@ impl<'a, T: 'a> Local<'a, T> {
         self.postorder.get_instruction(index)
     }
 
-    pub fn insert(&mut self, temporary: operand::Temporary, value: Value) {
+    pub fn insert(&mut self, temporary: Temporary, value: Value) {
         self.temporaries.insert(temporary, value);
     }
 
@@ -72,9 +73,9 @@ impl<'a, T: 'a> Local<'a, T> {
 
     pub fn pop_name(&mut self, global: &Global) -> Symbol {
         match self.pop(global) {
-            Value::Label(operand::Label::Fixed(name), 8) => name,
-            Value::Label(operand::Label::Fixed(_), _) => panic!("calling label offset"),
-            Value::Label(operand::Label::Fresh(_, _), _) => panic!("calling fresh function name"),
+            Value::Label(Label::Fixed(name), 8) => name,
+            Value::Label(Label::Fixed(_), _) => panic!("calling label offset"),
+            Value::Label(Label::Fresh(_, _), _) => panic!("calling fresh function name"),
             Value::Integer(_) => panic!("calling integer"),
         }
     }
@@ -151,7 +152,7 @@ impl<'a, T: 'a> Local<'a, T> {
         self.push(Operand::Integer(value));
     }
 
-    pub fn interpret_jump(&mut self, label: &operand::Label) {
+    pub fn interpret_jump(&mut self, label: &Label) {
         self.index = self.postorder.get_label(label).copied().unwrap();
     }
 

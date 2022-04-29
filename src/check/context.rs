@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
 use crate::data::r#type;
-use crate::data::symbol;
+use crate::data::symbol::Symbol;
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Entry {
@@ -12,7 +12,7 @@ pub enum Entry {
 
 #[derive(Clone, Debug)]
 pub struct Context {
-    stack: Vec<HashMap<symbol::Symbol, Entry>>,
+    stack: Vec<HashMap<Symbol, Entry>>,
     r#return: Option<Vec<r#type::Expression>>,
 }
 
@@ -30,7 +30,7 @@ impl Context {
         }
     }
 
-    pub fn get(&self, symbol: symbol::Symbol) -> Option<&Entry> {
+    pub fn get(&self, symbol: Symbol) -> Option<&Entry> {
         for map in self.stack.iter().rev() {
             if let Some(r#type) = map.get(&symbol) {
                 return Some(r#type);
@@ -39,14 +39,14 @@ impl Context {
         None
     }
 
-    pub fn insert(&mut self, symbol: symbol::Symbol, r#type: Entry) {
+    pub fn insert(&mut self, symbol: Symbol, r#type: Entry) {
         self.stack
             .last_mut()
             .expect("[INTERNAL ERROR]: missing top-level environment")
             .insert(symbol, r#type);
     }
 
-    pub fn remove(&mut self, name: symbol::Symbol) -> Option<Entry> {
+    pub fn remove(&mut self, name: Symbol) -> Option<Entry> {
         for map in self.stack.iter_mut().rev() {
             if let Some(r#type) = map.remove(&name) {
                 return Some(r#type);

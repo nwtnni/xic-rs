@@ -6,7 +6,7 @@ use anyhow::Context as _;
 use crate::abi;
 use crate::data::ir;
 use crate::data::lir;
-use crate::data::operand;
+use crate::data::operand::Immediate;
 use crate::data::sexp::Serialize as _;
 use crate::data::symbol;
 use crate::interpret::postorder;
@@ -68,10 +68,10 @@ impl<'a, T: lir::Target> Local<'a, postorder::Lir<'a, T>> {
     ) -> anyhow::Result<()> {
         log::trace!("E> {}", expression.sexp());
         match expression {
-            lir::Expression::Immediate(operand::Immediate::Integer(integer)) => {
+            lir::Expression::Immediate(Immediate::Integer(integer)) => {
                 self.push(Operand::Integer(*integer))
             }
-            lir::Expression::Immediate(operand::Immediate::Label(label)) => {
+            lir::Expression::Immediate(Immediate::Label(label)) => {
                 self.push(Operand::Label(*label, 8))
             }
             lir::Expression::Temporary(temporary) => self.push(Operand::Temporary(*temporary)),

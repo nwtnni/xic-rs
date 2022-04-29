@@ -1,5 +1,6 @@
 use crate::data::ir;
 use crate::data::operand;
+use crate::data::operand::Label;
 
 pub type Unit<T> = ir::Unit<Function<T>>;
 pub type Function<T> = ir::Function<Vec<Assembly<T>>>;
@@ -9,7 +10,7 @@ pub enum Assembly<T> {
     Binary(Binary, operand::Binary<T>),
     Unary(Unary, operand::Unary<T>),
     Nullary(Nullary),
-    Label(operand::Label),
+    Label(Label),
     Directive(Directive),
 }
 
@@ -17,8 +18,8 @@ pub enum Assembly<T> {
 pub enum Directive {
     Intel,
     Align(usize),
-    Local(operand::Label),
-    Global(operand::Label),
+    Local(Label),
+    Global(Label),
     Quad(Vec<i64>),
     Data,
     Text,
