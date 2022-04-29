@@ -24,5 +24,7 @@ xic
 *.dot
 *.png
 *.pdf
+*.out
+*.S
 
 test.xi
