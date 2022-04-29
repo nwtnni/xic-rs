@@ -38,8 +38,8 @@ use crate::data::operand::Temporary;
 use crate::data::operand::Unary;
 
 /// Pass `argument` to callee function.
-pub fn callee_argument(argument: usize) -> Unary<Temporary> {
-    let register = match argument {
+pub fn write_argument(index: usize) -> Unary<Temporary> {
+    let register = match index {
         0 => Register::Rdi,
         1 => Register::Rsi,
         2 => Register::Rdx,
@@ -49,7 +49,7 @@ pub fn callee_argument(argument: usize) -> Unary<Temporary> {
         _ => {
             return Unary::M(Memory::BO {
                 base: Temporary::Register(Register::Rsp),
-                offset: Immediate::Integer((argument as i64 - 6) * constants::WORD_SIZE),
+                offset: Immediate::Integer((index as i64 - 6) * constants::WORD_SIZE),
             });
         }
     };
@@ -57,16 +57,16 @@ pub fn callee_argument(argument: usize) -> Unary<Temporary> {
     Unary::from(register)
 }
 
-/// Retrieve `r#return` from callee function.
+/// Return `r#return` to calling function.
 ///
 /// The caller will pass `address`, pointing to a stack location to write to.
-pub fn callee_return(address: Temporary, r#return: usize) -> Unary<Temporary> {
-    match r#return {
+pub fn write_return(address: Temporary, index: usize) -> Unary<Temporary> {
+    match index {
         0 => Unary::from(Register::Rax),
         1 => Unary::from(Register::Rdx),
         _ => Unary::M(Memory::BO {
             base: address,
-            offset: Immediate::Integer((r#return as i64 - 2) * constants::WORD_SIZE),
+            offset: Immediate::Integer((index as i64 - 2) * constants::WORD_SIZE),
         }),
     }
 }
