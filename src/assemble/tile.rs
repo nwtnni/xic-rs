@@ -1,5 +1,6 @@
 #![allow(dead_code, unused_variables)]
 
+use crate::assemble::abi;
 use crate::data::asm;
 use crate::data::asm::Assembly;
 use crate::data::ir;
@@ -12,7 +13,8 @@ use crate::data::operand::Temporary;
 
 struct Tiler {
     instructions: Vec<Assembly<Temporary>>,
-    spilled: usize,
+    callee_arguments: usize,
+    callee_returns: usize,
 }
 
 impl Tiler {
@@ -87,8 +89,10 @@ impl Tiler {
 
     fn tile_expression(&mut self, expression: &lir::Expression) -> operand::Unary<Temporary> {
         let (binary, destination, source) = match expression {
-            lir::Expression::Argument(_) => todo!(),
-            lir::Expression::Return(_) => todo!(),
+            lir::Expression::Argument(index) => return abi::read_argument(*index),
+            lir::Expression::Return(index) => {
+                return abi::read_return(self.callee_arguments, *index)
+            }
             lir::Expression::Immediate(immediate) => return operand::Unary::I(*immediate),
             lir::Expression::Temporary(temporary) => return operand::Unary::R(*temporary),
             lir::Expression::Memory(address) => return self.tile_memory(address),
@@ -251,8 +255,12 @@ impl Tiler {
 
     fn tile_memory(&mut self, address: &lir::Expression) -> operand::Unary<Temporary> {
         let memory = match address {
-            lir::Expression::Argument(_) => todo!(),
-            lir::Expression::Return(_) => todo!(),
+            lir::Expression::Argument(index) => Memory::B {
+                base: self.shuttle(abi::read_argument(*index)),
+            },
+            lir::Expression::Return(index) => Memory::B {
+                base: self.shuttle(abi::read_return(self.callee_arguments, *index)),
+            },
             lir::Expression::Immediate(offset) => Memory::O { offset: *offset },
             lir::Expression::Temporary(temporary) => Memory::B { base: *temporary },
             lir::Expression::Memory(address) => Memory::B {
