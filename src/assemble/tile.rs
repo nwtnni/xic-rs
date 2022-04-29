@@ -1,5 +1,3 @@
-#![allow(dead_code, unused_variables)]
-
 use std::cmp;
 
 use crate::abi;
@@ -18,6 +16,7 @@ struct Tiler {
     instructions: Vec<Assembly<Temporary>>,
     caller_returns: Option<Temporary>,
     callee_arguments: usize,
+    #[allow(dead_code)]
     callee_returns: usize,
 }
 

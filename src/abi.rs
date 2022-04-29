@@ -1,5 +1,3 @@
-#![allow(dead_code, unused_variables)]
-
 //! # System V ABI
 //!
 //! The stack layout is as follows:
