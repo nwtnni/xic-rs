@@ -1,4 +1,4 @@
-#![allow(dead_code)]
+#![allow(dead_code, unused_variables)]
 
 //! # System V ABI
 //!
@@ -37,6 +37,13 @@ use crate::data::operand::Register;
 use crate::data::operand::Temporary;
 use crate::data::operand::Unary;
 
+/// Retrieve `argument` from calling function.
+///
+/// Extra arguments are stored in the caller's stack frame.
+pub fn read_argument(stack_size: usize, index: usize) -> Unary<Temporary> {
+    todo!("decide on rbp (easier) or rsp (harder, need fixed stack size) offset")
+}
+
 /// Pass `argument` to callee function.
 pub fn write_argument(index: usize) -> Unary<Temporary> {
     let register = match index {
@@ -55,6 +62,22 @@ pub fn write_argument(index: usize) -> Unary<Temporary> {
     };
 
     Unary::from(register)
+}
+
+/// Retrieve `r#return` from callee function.
+///
+/// Multiple returns are stored below multiple arguments (if any) in the stack.
+pub fn read_return(arguments: usize, index: usize) -> Unary<Temporary> {
+    match index {
+        0 => Unary::from(Register::Rax),
+        1 => Unary::from(Register::Rdx),
+        _ => Unary::M(Memory::BO {
+            base: Temporary::Register(Register::Rsp),
+            offset: Immediate::Integer(
+                (arguments.saturating_sub(6) + index - 2) as i64 * constants::WORD_SIZE,
+            ),
+        }),
+    }
 }
 
 /// Return `r#return` to calling function.
