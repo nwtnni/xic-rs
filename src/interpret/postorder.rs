@@ -73,7 +73,7 @@ pub enum Hir<'a> {
 }
 
 impl<'a> Postorder<Hir<'a>> {
-    pub fn traverse_hir_unit(unit: &'a ir::Unit<hir::Function>) -> ir::Unit<Postorder<Hir<'a>>> {
+    pub fn traverse_hir_unit(unit: &'a hir::Unit) -> ir::Unit<Postorder<Hir<'a>>> {
         unit.map(Self::traverse_hir_function)
     }
 
@@ -162,9 +162,7 @@ pub enum Lir<'a, T> {
 }
 
 impl<'a, T> Postorder<Lir<'a, T>> {
-    pub fn traverse_lir_unit(
-        unit: &'a ir::Unit<lir::Function<T>>,
-    ) -> ir::Unit<Postorder<Lir<'a, T>>> {
+    pub fn traverse_lir_unit(unit: &'a lir::Unit<T>) -> ir::Unit<Postorder<Lir<'a, T>>> {
         unit.map(Self::traverse_lir_function)
     }
 

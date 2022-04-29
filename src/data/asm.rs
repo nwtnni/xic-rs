@@ -1,6 +1,9 @@
 use crate::data::ir;
 use crate::data::operand;
 
+pub type Unit<T> = ir::Unit<Function<T>>;
+pub type Function<T> = ir::Function<Vec<Assembly<T>>>;
+
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum Assembly<T> {
     Binary(Binary, operand::Binary<T>),

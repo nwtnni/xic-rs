@@ -17,10 +17,7 @@ impl Canonizer {
         Canonizer::default()
     }
 
-    pub fn canonize_unit(
-        mut self,
-        unit: &ir::Unit<hir::Function>,
-    ) -> ir::Unit<lir::Function<lir::Label>> {
+    pub fn canonize_unit(mut self, unit: &hir::Unit) -> lir::Unit<lir::Label> {
         let mut functions = BTreeMap::default();
         for (name, function) in &unit.functions {
             functions.insert(*name, self.canonize_function(function));

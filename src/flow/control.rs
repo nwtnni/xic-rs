@@ -28,11 +28,15 @@ pub enum Edge {
     Conditional(bool),
 }
 
-pub fn construct_unit(unit: &ir::Unit<lir::Function<lir::Label>>) -> ir::Unit<Control> {
+pub fn construct_unit(
+    unit: &ir::Unit<ir::Function<Vec<lir::Statement<lir::Label>>>>,
+) -> ir::Unit<Control> {
     unit.map(construct_function)
 }
 
-pub fn destruct_unit(unit: &ir::Unit<Control>) -> ir::Unit<lir::Function<lir::Fallthrough>> {
+pub fn destruct_unit(
+    unit: &ir::Unit<Control>,
+) -> ir::Unit<ir::Function<Vec<lir::Statement<lir::Fallthrough>>>> {
     unit.map(destruct_function)
 }
 
@@ -64,7 +68,7 @@ impl State {
     }
 }
 
-fn construct_function(function: &lir::Function<lir::Label>) -> Control {
+fn construct_function(function: &ir::Function<Vec<lir::Statement<lir::Label>>>) -> Control {
     let mut graph = DiGraphMap::new();
     let mut blocks = BTreeMap::new();
 
@@ -163,7 +167,7 @@ fn destruct_function(function: &Control) -> lir::Function<lir::Fallthrough> {
         dfs.extend(IntoIterator::into_iter(conditional).flatten());
     }
 
-    lir::Function {
+    ir::Function {
         name: function.name,
         statements,
         arguments: function.arguments,

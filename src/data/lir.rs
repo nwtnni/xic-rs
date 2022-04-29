@@ -1,19 +1,13 @@
 use crate::abi;
 use crate::data::ir;
 use crate::data::operand;
-use crate::data::symbol;
 
 pub const ZERO: Expression = Expression::Immediate(operand::Immediate::Integer(0));
 pub const ONE: Expression = Expression::Immediate(operand::Immediate::Integer(1));
 pub const EIGHT: Expression = Expression::Immediate(operand::Immediate::Integer(abi::WORD));
 
-#[derive(Clone, Debug)]
-pub struct Function<T> {
-    pub name: symbol::Symbol,
-    pub statements: Vec<Statement<T>>,
-    pub arguments: usize,
-    pub returns: usize,
-}
+pub type Unit<T> = ir::Unit<Function<T>>;
+pub type Function<T> = ir::Function<Vec<Statement<T>>>;
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Expression {

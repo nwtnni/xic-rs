@@ -17,7 +17,7 @@ use crate::interpret::Postorder;
 use crate::interpret::Value;
 
 pub fn interpret_hir<'io, R: io::BufRead + 'io, W: io::Write + 'io>(
-    unit: &ir::Unit<hir::Function>,
+    unit: &hir::Unit,
     stdin: R,
     stdout: W,
 ) -> anyhow::Result<()> {

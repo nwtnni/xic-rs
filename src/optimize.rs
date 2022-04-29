@@ -1,14 +1,13 @@
 mod fold;
 
 use crate::data::hir;
-use crate::data::ir;
 use crate::data::lir;
 use fold::Foldable as _;
 
-pub fn fold_hir(hir: ir::Unit<hir::Function>) -> ir::Unit<hir::Function> {
+pub fn fold_hir(hir: hir::Unit) -> hir::Unit {
     hir.fold()
 }
 
-pub fn fold_lir<T: lir::Target>(lir: ir::Unit<lir::Function<T>>) -> ir::Unit<lir::Function<T>> {
+pub fn fold_lir<T: lir::Target>(lir: lir::Unit<T>) -> lir::Unit<T> {
     lir.fold()
 }

@@ -7,7 +7,7 @@ pub trait Foldable {
     fn fold(self) -> Self;
 }
 
-impl Foldable for ir::Unit<hir::Function> {
+impl<T: Foldable> Foldable for ir::Unit<T> {
     fn fold(self) -> Self {
         ir::Unit {
             name: self.name,
@@ -21,9 +21,9 @@ impl Foldable for ir::Unit<hir::Function> {
     }
 }
 
-impl Foldable for hir::Function {
+impl<T: Foldable> Foldable for ir::Function<T> {
     fn fold(self) -> Self {
-        hir::Function {
+        ir::Function {
             name: self.name,
             statements: self.statements.fold(),
             arguments: self.arguments,
@@ -45,11 +45,9 @@ impl Foldable for hir::Expression {
             Sequence(statements, expression) => {
                 Sequence(Box::new(statements.fold()), Box::new(expression.fold()))
             }
-            Call(name, arguments, returns) => Call(
-                Box::new(name.fold()),
-                arguments.into_iter().map(Foldable::fold).collect(),
-                returns,
-            ),
+            Call(name, arguments, returns) => {
+                Call(Box::new(name.fold()), arguments.fold(), returns)
+            }
             Binary(binary, left, right) => match (binary, left.fold(), right.fold()) {
                 (
                     _,
@@ -104,8 +102,8 @@ impl Foldable for hir::Statement {
                 destination: destination.fold(),
                 source: source.fold(),
             },
-            Return(returns) => Return(returns.into_iter().map(Foldable::fold).collect()),
-            Sequence(statements) => Sequence(statements.into_iter().map(Foldable::fold).collect()),
+            Return(returns) => Return(returns.fold()),
+            Sequence(statements) => Sequence(statements.fold()),
             CJump {
                 condition,
                 left,
@@ -145,31 +143,6 @@ impl Foldable for hir::Statement {
                     r#false,
                 },
             },
-        }
-    }
-}
-
-impl<T: lir::Target> Foldable for ir::Unit<lir::Function<T>> {
-    fn fold(self) -> Self {
-        ir::Unit {
-            name: self.name,
-            data: self.data,
-            functions: self
-                .functions
-                .into_iter()
-                .map(|(name, function)| (name, function.fold()))
-                .collect(),
-        }
-    }
-}
-
-impl<T: lir::Target> Foldable for lir::Function<T> {
-    fn fold(self) -> Self {
-        lir::Function {
-            name: self.name,
-            statements: self.statements.into_iter().map(Foldable::fold).collect(),
-            arguments: self.arguments,
-            returns: self.returns,
         }
     }
 }
@@ -224,11 +197,9 @@ impl<T: lir::Target> Foldable for lir::Statement<T> {
 
         match self {
             Jump(label) => Jump(label),
-            Call(function, expressions, returns) => Call(
-                function.fold(),
-                expressions.into_iter().map(Foldable::fold).collect(),
-                returns,
-            ),
+            Call(function, expressions, returns) => {
+                Call(function.fold(), expressions.fold(), returns)
+            }
             Move {
                 destination,
                 source,
@@ -236,7 +207,7 @@ impl<T: lir::Target> Foldable for lir::Statement<T> {
                 destination: destination.fold(),
                 source: source.fold(),
             },
-            Return(returns) => Return(returns.into_iter().map(Foldable::fold).collect()),
+            Return(returns) => Return(returns.fold()),
             Label(label) => Label(label),
             CJump {
                 condition,
@@ -274,6 +245,12 @@ impl<T: lir::Target> Foldable for lir::Statement<T> {
                 },
             },
         }
+    }
+}
+
+impl<T: Foldable> Foldable for Vec<T> {
+    fn fold(self) -> Self {
+        self.into_iter().map(Foldable::fold).collect()
     }
 }
 

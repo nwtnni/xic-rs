@@ -16,11 +16,7 @@ use crate::interpret::Local;
 use crate::interpret::Operand;
 use crate::interpret::Value;
 
-pub fn interpret_lir<'io, R, W, T>(
-    unit: &ir::Unit<lir::Function<T>>,
-    stdin: R,
-    stdout: W,
-) -> anyhow::Result<()>
+pub fn interpret_lir<'io, R, W, T>(unit: &lir::Unit<T>, stdin: R, stdout: W) -> anyhow::Result<()>
 where
     R: io::BufRead + 'io,
     W: io::Write + 'io,
