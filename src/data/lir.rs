@@ -1,6 +1,12 @@
+use crate::constants;
 use crate::data::ir;
 use crate::data::operand;
 use crate::data::symbol;
+
+pub const ZERO: Expression = Expression::Immediate(operand::Immediate::Integer(0));
+pub const ONE: Expression = Expression::Immediate(operand::Immediate::Integer(1));
+pub const EIGHT: Expression =
+    Expression::Immediate(operand::Immediate::Integer(constants::WORD_SIZE));
 
 #[derive(Clone, Debug)]
 pub struct Function<T> {
@@ -16,6 +22,24 @@ pub enum Expression {
     Temporary(operand::Temporary),
     Memory(Box<Expression>),
     Binary(ir::Binary, Box<Expression>, Box<Expression>),
+}
+
+impl From<i64> for Expression {
+    fn from(integer: i64) -> Self {
+        Expression::Immediate(operand::Immediate::Integer(integer))
+    }
+}
+
+impl From<operand::Label> for Expression {
+    fn from(label: operand::Label) -> Self {
+        Expression::Immediate(operand::Immediate::Label(label))
+    }
+}
+
+impl From<operand::Register> for Expression {
+    fn from(register: operand::Register) -> Self {
+        Expression::Temporary(operand::Temporary::Register(register))
+    }
 }
 
 #[derive(Clone, Debug)]

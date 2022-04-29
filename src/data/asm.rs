@@ -3,8 +3,8 @@ use crate::data::operand;
 
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum Assembly<T> {
-    Binary(Binary, operand::Two<T>),
-    Unary(Unary, operand::One<T>),
+    Binary(Binary, operand::Binary<T>),
+    Unary(Unary, operand::Unary<T>),
     Nullary(Nullary),
     Label(operand::Label),
     Directive(Directive),

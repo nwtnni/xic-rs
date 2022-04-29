@@ -19,26 +19,26 @@ impl<T: fmt::Display> fmt::Display for Intel<&asm::Assembly<T>> {
     }
 }
 
-impl<T: fmt::Display> fmt::Display for Intel<&operand::Two<T>> {
+impl<T: fmt::Display> fmt::Display for Intel<&operand::Binary<T>> {
     fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
         match &self.0 {
-            operand::Two::RI {
+            operand::Binary::RI {
                 destination,
                 source,
             } => write!(fmt, "{}, {}", destination, source),
-            operand::Two::MI {
+            operand::Binary::MI {
                 destination,
                 source,
             } => write!(fmt, "{}, {}", Intel(destination), source),
-            operand::Two::MR {
+            operand::Binary::MR {
                 destination,
                 source,
             } => write!(fmt, "{}, {}", Intel(destination), source),
-            operand::Two::RM {
+            operand::Binary::RM {
                 destination,
                 source,
             } => write!(fmt, "{}, {}", destination, Intel(source)),
-            operand::Two::RR {
+            operand::Binary::RR {
                 destination,
                 source,
             } => write!(fmt, "{}, {}", destination, source),
@@ -46,12 +46,12 @@ impl<T: fmt::Display> fmt::Display for Intel<&operand::Two<T>> {
     }
 }
 
-impl<T: fmt::Display> fmt::Display for Intel<&operand::One<T>> {
+impl<T: fmt::Display> fmt::Display for Intel<&operand::Unary<T>> {
     fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
         match &self.0 {
-            operand::One::I(immediate) => write!(fmt, "{}", immediate),
-            operand::One::R(register) => write!(fmt, "{}", register),
-            operand::One::M(memory) => write!(fmt, "{}", Intel(memory)),
+            operand::Unary::I(immediate) => write!(fmt, "{}", immediate),
+            operand::Unary::R(register) => write!(fmt, "{}", register),
+            operand::Unary::M(memory) => write!(fmt, "{}", Intel(memory)),
         }
     }
 }

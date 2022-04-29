@@ -22,6 +22,18 @@ impl fmt::Display for Immediate {
     }
 }
 
+impl From<i64> for Immediate {
+    fn from(integer: i64) -> Self {
+        Immediate::Integer(integer)
+    }
+}
+
+impl From<Label> for Immediate {
+    fn from(label: Label) -> Self {
+        Immediate::Label(label)
+    }
+}
+
 #[derive(Copy, Clone, Debug, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub enum Label {
     Fixed(symbol::Symbol),
@@ -67,6 +79,12 @@ impl fmt::Display for Temporary {
             Temporary::Register(register) => write!(fmt, "{}", register),
             Temporary::Fresh(temporary, index) => write!(fmt, "{}{}", temporary, index),
         }
+    }
+}
+
+impl From<Register> for Temporary {
+    fn from(register: Register) -> Self {
+        Temporary::Register(register)
     }
 }
 
@@ -180,7 +198,7 @@ impl fmt::Display for Scale {
 }
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq, Hash, PartialOrd, Ord)]
-pub enum Two<T> {
+pub enum Binary<T> {
     RI {
         destination: T,
         source: Immediate,
@@ -204,8 +222,32 @@ pub enum Two<T> {
 }
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq, Hash, PartialOrd, Ord)]
-pub enum One<T> {
+pub enum Unary<T> {
     I(Immediate),
     R(T),
     M(Memory<T>),
+}
+
+impl<T> From<i64> for Unary<T> {
+    fn from(integer: i64) -> Self {
+        Unary::I(Immediate::Integer(integer))
+    }
+}
+
+impl<T> From<Label> for Unary<T> {
+    fn from(label: Label) -> Self {
+        Unary::I(Immediate::Label(label))
+    }
+}
+
+impl<T: From<Register>> From<Register> for Unary<T> {
+    fn from(register: Register) -> Self {
+        Unary::R(T::from(register))
+    }
+}
+
+impl<T: From<Temporary>> From<Temporary> for Unary<T> {
+    fn from(temporary: Temporary) -> Self {
+        Unary::R(T::from(temporary))
+    }
 }

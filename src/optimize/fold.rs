@@ -48,45 +48,37 @@ impl Foldable for hir::Expression {
                 arguments.into_iter().map(Foldable::fold).collect(),
                 returns,
             ),
-            Binary(binary, left, right) => {
-                const ZERO: hir::Expression =
-                    hir::Expression::Immediate(operand::Immediate::Integer(0));
+            Binary(binary, left, right) => match (binary, left.fold(), right.fold()) {
+                (
+                    _,
+                    Immediate(operand::Immediate::Integer(left)),
+                    Immediate(operand::Immediate::Integer(right)),
+                ) => hir::Expression::from(fold_binary(binary, left, right)),
 
-                const ONE: hir::Expression =
-                    hir::Expression::Immediate(operand::Immediate::Integer(1));
+                (Add, hir::ZERO, Temporary(temporary))
+                | (Add, Temporary(temporary), hir::ZERO)
+                | (Sub, Temporary(temporary), hir::ZERO)
+                | (Mul, Temporary(temporary), hir::ONE)
+                | (Mul, hir::ONE, Temporary(temporary))
+                | (Div, Temporary(temporary), hir::ONE) => Temporary(temporary),
 
-                match (binary, left.fold(), right.fold()) {
-                    (
-                        _,
-                        Immediate(operand::Immediate::Integer(left)),
-                        Immediate(operand::Immediate::Integer(right)),
-                    ) => hir::Expression::from(fold_binary(binary, left, right)),
-
-                    (Add, ZERO, Temporary(temporary))
-                    | (Add, Temporary(temporary), ZERO)
-                    | (Sub, Temporary(temporary), ZERO)
-                    | (Mul, Temporary(temporary), ONE)
-                    | (Mul, ONE, Temporary(temporary))
-                    | (Div, Temporary(temporary), ONE) => Temporary(temporary),
-
-                    (Add, ZERO, Immediate(operand::Immediate::Label(label)))
-                    | (Add, Immediate(operand::Immediate::Label(label)), ZERO)
-                    | (Sub, Immediate(operand::Immediate::Label(label)), ZERO) => {
-                        Immediate(operand::Immediate::Label(label))
-                    }
-
-                    (Mul, Temporary(_), ZERO)
-                    | (Mul, ZERO, Temporary(_))
-                    | (Hul, Temporary(_), ZERO)
-                    | (Hul, ZERO, Temporary(_))
-                    | (Mod, Temporary(_), ONE) => ZERO,
-
-                    (Sub, Temporary(left), Temporary(right)) if left == right => ZERO,
-                    (Div, Temporary(left), Temporary(right)) if left == right => ONE,
-
-                    (binary, left, right) => Binary(binary, Box::new(left), Box::new(right)),
+                (Add, hir::ZERO, Immediate(operand::Immediate::Label(label)))
+                | (Add, Immediate(operand::Immediate::Label(label)), hir::ZERO)
+                | (Sub, Immediate(operand::Immediate::Label(label)), hir::ZERO) => {
+                    Immediate(operand::Immediate::Label(label))
                 }
-            }
+
+                (Mul, Temporary(_), hir::ZERO)
+                | (Mul, hir::ZERO, Temporary(_))
+                | (Hul, Temporary(_), hir::ZERO)
+                | (Hul, hir::ZERO, Temporary(_))
+                | (Mod, Temporary(_), hir::ONE) => hir::ZERO,
+
+                (Sub, Temporary(left), Temporary(right)) if left == right => hir::ZERO,
+                (Div, Temporary(left), Temporary(right)) if left == right => hir::ONE,
+
+                (binary, left, right) => Binary(binary, Box::new(left), Box::new(right)),
+            },
         }
     }
 }
@@ -188,41 +180,33 @@ impl Foldable for lir::Expression {
             Temporary(temporary) => Temporary(temporary),
             Argument(index) => Argument(index),
             Return(index) => Return(index),
-            Binary(binary, left, right) => {
-                const ZERO: lir::Expression =
-                    lir::Expression::Immediate(operand::Immediate::Integer(0));
+            Binary(binary, left, right) => match (binary, left.fold(), right.fold()) {
+                (
+                    _,
+                    Immediate(operand::Immediate::Integer(left)),
+                    Immediate(operand::Immediate::Integer(right)),
+                ) => Immediate(operand::Immediate::Integer(fold_binary(
+                    binary, left, right,
+                ))),
 
-                const ONE: lir::Expression =
-                    lir::Expression::Immediate(operand::Immediate::Integer(1));
+                (Add, lir::ZERO, expression)
+                | (Add, expression, lir::ZERO)
+                | (Sub, expression, lir::ZERO)
+                | (Mul, expression, lir::ONE)
+                | (Mul, lir::ONE, expression)
+                | (Div, expression, lir::ONE) => expression,
 
-                match (binary, left.fold(), right.fold()) {
-                    (
-                        _,
-                        Immediate(operand::Immediate::Integer(left)),
-                        Immediate(operand::Immediate::Integer(right)),
-                    ) => Immediate(operand::Immediate::Integer(fold_binary(
-                        binary, left, right,
-                    ))),
+                (Mul, _, lir::ZERO)
+                | (Mul, lir::ZERO, _)
+                | (Hul, _, lir::ZERO)
+                | (Hul, lir::ZERO, _)
+                | (Mod, _, lir::ONE) => lir::ZERO,
 
-                    (Add, ZERO, expression)
-                    | (Add, expression, ZERO)
-                    | (Sub, expression, ZERO)
-                    | (Mul, expression, ONE)
-                    | (Mul, ONE, expression)
-                    | (Div, expression, ONE) => expression,
+                (Sub, left, right) if left == right => lir::ZERO,
+                (Div, left, right) if left == right => lir::ONE,
 
-                    (Mul, _, ZERO)
-                    | (Mul, ZERO, _)
-                    | (Hul, _, ZERO)
-                    | (Hul, ZERO, _)
-                    | (Mod, _, ONE) => ZERO,
-
-                    (Sub, left, right) if left == right => ZERO,
-                    (Div, left, right) if left == right => ONE,
-
-                    (binary, left, right) => Binary(binary, Box::new(left), Box::new(right)),
-                }
-            }
+                (binary, left, right) => Binary(binary, Box::new(left), Box::new(right)),
+            },
         }
     }
 }

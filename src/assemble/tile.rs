@@ -1,24 +1,29 @@
 #![allow(dead_code, unused_variables)]
 
 use crate::data::asm;
+use crate::data::asm::Assembly;
 use crate::data::ir;
 use crate::data::lir;
 use crate::data::operand;
+use crate::data::operand::Immediate;
+use crate::data::operand::Memory;
+use crate::data::operand::Register;
+use crate::data::operand::Temporary;
 
 struct Tiler {
-    instructions: Vec<asm::Assembly<operand::Temporary>>,
+    instructions: Vec<Assembly<Temporary>>,
     spilled: usize,
 }
 
 impl Tiler {
     fn tile_statement(&mut self, statement: &lir::Statement<lir::Fallthrough>) {
         match statement {
-            lir::Statement::Label(label) => self.push(asm::Assembly::Label(*label)),
+            lir::Statement::Label(label) => self.push(Assembly::Label(*label)),
             lir::Statement::Return(_) => todo!(),
             lir::Statement::Jump(label) => {
-                self.push(asm::Assembly::Unary(
+                self.push(Assembly::Unary(
                     asm::Unary::Jmp,
-                    operand::One::I(operand::Immediate::Label(*label)),
+                    operand::Unary::from(*label),
                 ));
             }
             lir::Statement::CJump {
@@ -29,47 +34,44 @@ impl Tiler {
                 r#false: lir::Fallthrough,
             } => {
                 let operands = self.tile_binary(left, right);
-                self.push(asm::Assembly::Binary(asm::Binary::Cmp, operands));
-                self.push(asm::Assembly::Unary(
+                self.push(Assembly::Binary(asm::Binary::Cmp, operands));
+                self.push(Assembly::Unary(
                     asm::Unary::Jcc(asm::Condition::from(*condition)),
-                    operand::One::I(operand::Immediate::Label(*r#true)),
+                    operand::Unary::from(*r#true),
                 ));
             }
             lir::Statement::Move {
                 destination,
                 source,
             } => {
+                use ir::Binary::Add;
+                use ir::Binary::And;
+                use ir::Binary::Or;
+                use ir::Binary::Sub;
+                use ir::Binary::Xor;
+
                 let (binary, source) = match source {
-                    lir::Expression::Binary(
-                        binary @ (ir::Binary::Add
-                        | ir::Binary::And
-                        | ir::Binary::Or
-                        | ir::Binary::Xor),
-                        left,
-                        right,
-                    ) if &**left == destination => (asm::Binary::from(*binary), &**right),
-
-                    lir::Expression::Binary(
-                        binary @ (ir::Binary::Add
-                        | ir::Binary::And
-                        | ir::Binary::Or
-                        | ir::Binary::Xor),
-                        left,
-                        right,
-                    ) if &**right == destination => (asm::Binary::from(*binary), &**left),
-
-                    lir::Expression::Binary(ir::Binary::Sub, left, right)
+                    lir::Expression::Binary(binary @ (Add | And | Or | Xor), left, right)
                         if &**left == destination =>
                     {
+                        (asm::Binary::from(*binary), &**right)
+                    }
+
+                    lir::Expression::Binary(binary @ (Add | And | Or | Xor), left, right)
+                        if &**right == destination =>
+                    {
+                        (asm::Binary::from(*binary), &**left)
+                    }
+
+                    lir::Expression::Binary(Sub, left, right) if &**left == destination => {
                         (asm::Binary::Sub, &**right)
                     }
 
-                    lir::Expression::Binary(ir::Binary::Sub, left, right)
-                        if **left == lir::Expression::Immediate(operand::Immediate::Integer(0))
-                            && &**right == destination =>
+                    lir::Expression::Binary(Sub, left, right)
+                        if **left == lir::Expression::from(0) && &**right == destination =>
                     {
                         let operand = self.tile_expression(destination);
-                        self.push(asm::Assembly::Unary(asm::Unary::Neg, operand));
+                        self.push(Assembly::Unary(asm::Unary::Neg, operand));
                         return;
                     }
 
@@ -77,36 +79,33 @@ impl Tiler {
                 };
 
                 let operands = self.tile_binary(destination, source);
-                self.push(asm::Assembly::Binary(binary, operands));
+                self.push(Assembly::Binary(binary, operands));
             }
             lir::Statement::Call(_, _, _) => todo!(),
         }
     }
 
-    fn tile_expression(
-        &mut self,
-        expression: &lir::Expression,
-    ) -> operand::One<operand::Temporary> {
+    fn tile_expression(&mut self, expression: &lir::Expression) -> operand::Unary<Temporary> {
         let (binary, destination, source) = match expression {
             lir::Expression::Argument(_) => todo!(),
             lir::Expression::Return(_) => todo!(),
-            lir::Expression::Immediate(immediate) => return operand::One::I(*immediate),
-            lir::Expression::Temporary(temporary) => return operand::One::R(*temporary),
+            lir::Expression::Immediate(immediate) => return operand::Unary::I(*immediate),
+            lir::Expression::Temporary(temporary) => return operand::Unary::R(*temporary),
             lir::Expression::Memory(address) => return self.tile_memory(address),
             lir::Expression::Binary(binary, left, right) => (binary, &**left, &**right),
         };
 
         // Special-case unary operator
-        if let (ir::Binary::Sub, lir::Expression::Immediate(operand::Immediate::Integer(0))) =
+        if let (ir::Binary::Sub, lir::Expression::Immediate(Immediate::Integer(0))) =
             (binary, destination)
         {
             let operand = match self.tile_expression(source) {
-                operand @ (operand::One::I(_) | operand::One::M(_)) => self.shuttle(operand),
-                operand::One::R(source) => {
-                    let destination = operand::Temporary::fresh("tile");
-                    self.push(asm::Assembly::Binary(
+                operand @ (operand::Unary::I(_) | operand::Unary::M(_)) => self.shuttle(operand),
+                operand::Unary::R(source) => {
+                    let destination = Temporary::fresh("tile");
+                    self.push(Assembly::Binary(
                         asm::Binary::Mov,
-                        operand::Two::RR {
+                        operand::Binary::RR {
                             destination,
                             source,
                         },
@@ -115,12 +114,9 @@ impl Tiler {
                 }
             };
 
-            self.push(asm::Assembly::Unary(
-                asm::Unary::Neg,
-                operand::One::R(operand),
-            ));
+            self.push(Assembly::Unary(asm::Unary::Neg, operand::Unary::R(operand)));
 
-            return operand::One::R(operand);
+            return operand::Unary::R(operand);
         }
 
         match binary {
@@ -129,13 +125,13 @@ impl Tiler {
             | ir::Binary::And
             | ir::Binary::Or
             | ir::Binary::Xor => {
-                let fresh = operand::Temporary::fresh("tile");
+                let fresh = Temporary::fresh("tile");
 
-                let r#move = asm::Assembly::Binary(
+                let r#move = Assembly::Binary(
                     asm::Binary::Mov,
                     self.tile_binary(&lir::Expression::Temporary(fresh), destination),
                 );
-                let binary = asm::Assembly::Binary(
+                let binary = Assembly::Binary(
                     asm::Binary::from(*binary),
                     self.tile_binary(&lir::Expression::Temporary(fresh), source),
                 );
@@ -143,52 +139,49 @@ impl Tiler {
                 self.push(r#move);
                 self.push(binary);
 
-                operand::One::R(fresh)
+                operand::Unary::R(fresh)
             }
             ir::Binary::Mul | ir::Binary::Hul | ir::Binary::Div | ir::Binary::Mod => {
                 use asm::Division::Quotient;
                 use asm::Division::Remainder;
 
                 let (cqo, unary, register) = match binary {
-                    ir::Binary::Mul => (false, asm::Unary::Mul, operand::Register::Rax),
-                    ir::Binary::Hul => (false, asm::Unary::Mul, operand::Register::Rdx),
-                    ir::Binary::Div => (true, asm::Unary::Div(Quotient), operand::Register::Rax),
-                    ir::Binary::Mod => (true, asm::Unary::Div(Remainder), operand::Register::Rdx),
+                    ir::Binary::Mul => (false, asm::Unary::Mul, Register::Rax),
+                    ir::Binary::Hul => (false, asm::Unary::Mul, Register::Rdx),
+                    ir::Binary::Div => (true, asm::Unary::Div(Quotient), Register::Rax),
+                    ir::Binary::Mod => (true, asm::Unary::Div(Remainder), Register::Rdx),
                     _ => unreachable!(),
                 };
 
-                let rax = operand::Temporary::Register(operand::Register::Rax);
-                let fresh = operand::Temporary::fresh("tile");
-
-                let destination = asm::Assembly::Binary(
+                let destination = Assembly::Binary(
                     asm::Binary::Mov,
-                    self.tile_binary(&lir::Expression::Temporary(rax), destination),
+                    self.tile_binary(&lir::Expression::from(Register::Rax), destination),
                 );
 
-                let source = asm::Assembly::Unary(
+                let source = Assembly::Unary(
                     unary,
                     match self.tile_expression(source) {
-                        source @ (operand::One::R(_) | operand::One::M(_)) => source,
-                        source @ operand::One::I(_) => operand::One::R(self.shuttle(source)),
+                        source @ (operand::Unary::R(_) | operand::Unary::M(_)) => source,
+                        source @ operand::Unary::I(_) => operand::Unary::R(self.shuttle(source)),
                     },
                 );
 
+                let fresh = Temporary::fresh("tile");
+
                 self.push(destination);
-
                 if cqo {
-                    self.push(asm::Assembly::Nullary(asm::Nullary::Cqo));
+                    self.push(Assembly::Nullary(asm::Nullary::Cqo));
                 }
-
                 self.push(source);
-                self.push(asm::Assembly::Binary(
+                self.push(Assembly::Binary(
                     asm::Binary::Mov,
-                    operand::Two::RR {
+                    operand::Binary::RR {
                         destination: fresh,
-                        source: operand::Temporary::Register(register),
+                        source: Temporary::Register(register),
                     },
                 ));
 
-                operand::One::R(fresh)
+                operand::Unary::R(fresh)
             }
         }
     }
@@ -208,58 +201,61 @@ impl Tiler {
         &mut self,
         destination: &lir::Expression,
         source: &lir::Expression,
-    ) -> operand::Two<operand::Temporary> {
+    ) -> operand::Binary<Temporary> {
+        use operand::Binary;
+        use operand::Unary;
+
         match (
             self.tile_expression(destination),
             self.tile_expression(source),
         ) {
-            (destination @ operand::One::I(_), operand::One::I(source)) => {
+            (destination @ Unary::I(_), Unary::I(source)) => {
                 let destination = self.shuttle(destination);
-                operand::Two::RI {
+                Binary::RI {
                     destination,
                     source,
                 }
             }
-            (destination @ operand::One::I(_), operand::One::M(source)) => {
+            (destination @ Unary::I(_), Unary::M(source)) => {
                 let destination = self.shuttle(destination);
-                operand::Two::RM {
+                Binary::RM {
                     destination,
                     source,
                 }
             }
 
-            (operand::One::M(destination), operand::One::I(source)) => operand::Two::MI {
+            (Unary::M(destination), Unary::I(source)) => Binary::MI {
                 destination,
                 source,
             },
-            (operand::One::M(destination), source @ operand::One::M(_)) => operand::Two::MR {
+            (Unary::M(destination), source @ Unary::M(_)) => Binary::MR {
                 destination,
                 source: self.shuttle(source),
             },
 
-            (operand::One::R(destination), operand::One::I(source)) => operand::Two::RI {
+            (Unary::R(destination), Unary::I(source)) => Binary::RI {
                 destination,
                 source,
             },
-            (operand::One::R(destination), operand::One::M(source)) => operand::Two::RM {
+            (Unary::R(destination), Unary::M(source)) => Binary::RM {
                 destination,
                 source,
             },
 
-            (destination, source) => operand::Two::RR {
+            (destination, source) => Binary::RR {
                 destination: self.shuttle(destination),
                 source: self.shuttle(source),
             },
         }
     }
 
-    fn tile_memory(&mut self, address: &lir::Expression) -> operand::One<operand::Temporary> {
+    fn tile_memory(&mut self, address: &lir::Expression) -> operand::Unary<Temporary> {
         let memory = match address {
             lir::Expression::Argument(_) => todo!(),
             lir::Expression::Return(_) => todo!(),
-            lir::Expression::Immediate(offset) => operand::Memory::O { offset: *offset },
-            lir::Expression::Temporary(temporary) => operand::Memory::B { base: *temporary },
-            lir::Expression::Memory(address) => operand::Memory::B {
+            lir::Expression::Immediate(offset) => Memory::O { offset: *offset },
+            lir::Expression::Temporary(temporary) => Memory::B { base: *temporary },
+            lir::Expression::Memory(address) => Memory::B {
                 base: self.shuttle_memory(address),
             },
             lir::Expression::Binary(binary, left, right) => {
@@ -271,9 +267,6 @@ impl Tiler {
                 use lir::Expression::Immediate;
                 use lir::Expression::Temporary;
 
-                const EIGHT: &lir::Expression =
-                    &lir::Expression::Immediate(operand::Immediate::Integer(8));
-
                 match (binary, &**left, &**right) {
                     // [base + ...]
                     (Add, Temporary(base), tree @ Binary(binary, left, right))
@@ -284,8 +277,8 @@ impl Tiler {
                             | (Add, tree @ Binary(binary, left, right), Immediate(offset)) => {
                                 match (binary, &**left, &**right) {
                                     // [base + index * 8 + offset]
-                                    (Mul, Temporary(index), EIGHT)
-                                    | (Mul, EIGHT, Temporary(index)) => operand::Memory::BISO {
+                                    (Mul, Temporary(index), &lir::EIGHT)
+                                    | (Mul, &lir::EIGHT, Temporary(index)) => Memory::BISO {
                                         base: *base,
                                         index: *index,
                                         scale: operand::Scale::_8,
@@ -293,8 +286,8 @@ impl Tiler {
                                     },
 
                                     // [base + _index_ * 8 + offset]
-                                    (Mul, tree, EIGHT) | (Mul, EIGHT, tree) => {
-                                        operand::Memory::BISO {
+                                    (Mul, tree, &lir::EIGHT) | (Mul, &lir::EIGHT, tree) => {
+                                        Memory::BISO {
                                             base: *base,
                                             index: self.shuttle_expression(tree),
                                             scale: operand::Scale::_8,
@@ -303,7 +296,7 @@ impl Tiler {
                                     }
 
                                     // [base + _index_ + offset]
-                                    _ => operand::Memory::BIO {
+                                    _ => Memory::BIO {
                                         base: *base,
                                         index: self.shuttle_expression(tree),
                                         offset: *offset,
@@ -312,24 +305,23 @@ impl Tiler {
                             }
 
                             // [base + index * 8]
-                            (Mul, Temporary(index), EIGHT) | (Mul, EIGHT, Temporary(index)) => {
-                                operand::Memory::BIS {
-                                    base: *base,
-                                    index: *index,
-                                    scale: operand::Scale::_8,
-                                }
-                            }
+                            (Mul, Temporary(index), &lir::EIGHT)
+                            | (Mul, &lir::EIGHT, Temporary(index)) => Memory::BIS {
+                                base: *base,
+                                index: *index,
+                                scale: operand::Scale::_8,
+                            },
 
                             // [base + index + offset]
                             (Add, Temporary(index), Immediate(offset))
-                            | (Add, Immediate(offset), Temporary(index)) => operand::Memory::BIO {
+                            | (Add, Immediate(offset), Temporary(index)) => Memory::BIO {
                                 base: *base,
                                 index: *index,
                                 offset: *offset,
                             },
 
                             // [base + _index_ * 8]
-                            (Mul, tree, EIGHT) | (Mul, EIGHT, tree) => operand::Memory::BIS {
+                            (Mul, tree, &lir::EIGHT) | (Mul, &lir::EIGHT, tree) => Memory::BIS {
                                 base: *base,
                                 index: self.shuttle_expression(tree),
                                 scale: operand::Scale::_8,
@@ -337,7 +329,7 @@ impl Tiler {
 
                             // [base + _index_ + offset]
                             (Add, tree, Immediate(offset)) | (Add, Immediate(offset), tree) => {
-                                operand::Memory::BIO {
+                                Memory::BIO {
                                     base: *base,
                                     index: self.shuttle_expression(tree),
                                     offset: *offset,
@@ -345,7 +337,7 @@ impl Tiler {
                             }
 
                             // [base + _index_]
-                            _ => operand::Memory::BI {
+                            _ => Memory::BI {
                                 base: *base,
                                 index: self.shuttle_expression(tree),
                             },
@@ -361,8 +353,8 @@ impl Tiler {
                             | (Add, tree @ Binary(binary, left, right), Temporary(base)) => {
                                 match (binary, &**left, &**right) {
                                     // [base + index * 8 + offset]
-                                    (Mul, Temporary(index), EIGHT)
-                                    | (Mul, EIGHT, Temporary(index)) => operand::Memory::BISO {
+                                    (Mul, Temporary(index), &lir::EIGHT)
+                                    | (Mul, &lir::EIGHT, Temporary(index)) => Memory::BISO {
                                         base: *base,
                                         index: *index,
                                         scale: operand::Scale::_8,
@@ -370,8 +362,8 @@ impl Tiler {
                                     },
 
                                     // [base + _index_ * 8 + offset]
-                                    (Mul, tree, EIGHT) | (Mul, EIGHT, tree) => {
-                                        operand::Memory::BISO {
+                                    (Mul, tree, &lir::EIGHT) | (Mul, &lir::EIGHT, tree) => {
+                                        Memory::BISO {
                                             base: *base,
                                             index: self.shuttle_expression(tree),
                                             scale: operand::Scale::_8,
@@ -380,7 +372,7 @@ impl Tiler {
                                     }
 
                                     // [base + _index_ + offset
-                                    _ => operand::Memory::BIO {
+                                    _ => Memory::BIO {
                                         base: *base,
                                         index: self.shuttle_expression(tree),
                                         offset: *offset,
@@ -389,23 +381,22 @@ impl Tiler {
                             }
 
                             // [index * 8 + offset]
-                            (Mul, Temporary(index), EIGHT) | (Mul, EIGHT, Temporary(index)) => {
-                                operand::Memory::ISO {
-                                    index: *index,
-                                    scale: operand::Scale::_8,
-                                    offset: *offset,
-                                }
-                            }
+                            (Mul, Temporary(index), &lir::EIGHT)
+                            | (Mul, &lir::EIGHT, Temporary(index)) => Memory::ISO {
+                                index: *index,
+                                scale: operand::Scale::_8,
+                                offset: *offset,
+                            },
 
                             // [_index_ * 8 + offset]
-                            (Mul, tree, EIGHT) | (Mul, EIGHT, tree) => operand::Memory::ISO {
+                            (Mul, tree, &lir::EIGHT) | (Mul, &lir::EIGHT, tree) => Memory::ISO {
                                 index: self.shuttle_expression(tree),
                                 scale: operand::Scale::_8,
                                 offset: *offset,
                             },
 
                             // [_base_ + offset]
-                            _ => operand::Memory::BO {
+                            _ => Memory::BO {
                                 base: self.shuttle_expression(tree),
                                 offset: *offset,
                             },
@@ -414,81 +405,77 @@ impl Tiler {
 
                     // [base + offset]
                     (Add, Temporary(base), Immediate(offset))
-                    | (Add, Immediate(offset), Temporary(base)) => operand::Memory::BO {
+                    | (Add, Immediate(offset), Temporary(base)) => Memory::BO {
                         base: *base,
                         offset: *offset,
                     },
 
                     // [base + -offset]
                     (Sub, Temporary(base), Immediate(operand::Immediate::Integer(offset))) => {
-                        operand::Memory::BO {
+                        Memory::BO {
                             base: *base,
                             offset: operand::Immediate::Integer(-*offset),
                         }
                     }
 
                     // [base + index]
-                    (Add, Temporary(base), Temporary(index)) => operand::Memory::BI {
+                    (Add, Temporary(base), Temporary(index)) => Memory::BI {
                         base: *base,
                         index: *index,
                     },
 
                     // [_base_ + offset]
-                    (Add, Immediate(offset), tree) | (Add, tree, Immediate(offset)) => {
-                        operand::Memory::BO {
-                            base: self.shuttle_expression(tree),
-                            offset: *offset,
-                        }
-                    }
+                    (Add, Immediate(offset), tree) | (Add, tree, Immediate(offset)) => Memory::BO {
+                        base: self.shuttle_expression(tree),
+                        offset: *offset,
+                    },
 
                     // [base + _index_]
-                    (Add, Temporary(base), tree) | (Add, tree, Temporary(base)) => {
-                        operand::Memory::BI {
-                            base: *base,
-                            index: self.shuttle_expression(tree),
-                        }
-                    }
+                    (Add, Temporary(base), tree) | (Add, tree, Temporary(base)) => Memory::BI {
+                        base: *base,
+                        index: self.shuttle_expression(tree),
+                    },
 
                     // [_base_]
-                    _ => operand::Memory::B {
+                    _ => Memory::B {
                         base: self.shuttle_expression(address),
                     },
                 }
             }
         };
 
-        operand::One::M(memory)
+        operand::Unary::M(memory)
     }
 
-    fn shuttle_memory(&mut self, address: &lir::Expression) -> operand::Temporary {
+    fn shuttle_memory(&mut self, address: &lir::Expression) -> Temporary {
         let address = self.tile_memory(address);
         self.shuttle(address)
     }
 
-    fn shuttle_expression(&mut self, expression: &lir::Expression) -> operand::Temporary {
+    fn shuttle_expression(&mut self, expression: &lir::Expression) -> Temporary {
         let expression = self.tile_expression(expression);
         self.shuttle(expression)
     }
 
-    fn shuttle(&mut self, operand: operand::One<operand::Temporary>) -> operand::Temporary {
+    fn shuttle(&mut self, operand: operand::Unary<Temporary>) -> Temporary {
         match operand {
-            operand::One::R(temporary) => temporary,
-            operand::One::I(source) => {
-                let destination = operand::Temporary::fresh("shuttle");
-                self.push(asm::Assembly::Binary(
+            operand::Unary::R(temporary) => temporary,
+            operand::Unary::I(source) => {
+                let destination = Temporary::fresh("shuttle");
+                self.push(Assembly::Binary(
                     asm::Binary::Mov,
-                    operand::Two::RI {
+                    operand::Binary::RI {
                         destination,
                         source,
                     },
                 ));
                 destination
             }
-            operand::One::M(source) => {
-                let destination = operand::Temporary::fresh("shuttle");
-                self.push(asm::Assembly::Binary(
+            operand::Unary::M(source) => {
+                let destination = Temporary::fresh("shuttle");
+                self.push(Assembly::Binary(
                     asm::Binary::Mov,
-                    operand::Two::RM {
+                    operand::Binary::RM {
                         destination,
                         source,
                     },
@@ -498,7 +485,7 @@ impl Tiler {
         }
     }
 
-    fn push(&mut self, instruction: asm::Assembly<operand::Temporary>) {
+    fn push(&mut self, instruction: Assembly<Temporary>) {
         self.instructions.push(instruction);
     }
 }
