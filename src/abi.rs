@@ -96,13 +96,13 @@ pub fn read_return(arguments: usize, index: usize) -> Unary<Temporary> {
 /// Return `r#return` to calling function.
 ///
 /// The caller will pass `address`, pointing to a stack location to write to.
-pub fn write_return(address: Temporary, index: usize) -> Unary<Temporary> {
+pub fn write_return(address: Option<Temporary>, index: usize) -> Unary<Temporary> {
     if let Some(register) = return_register(index) {
         return register;
     }
 
     Unary::M(Memory::BO {
-        base: address,
+        base: address.expect("[INTERNAL ERROR]: missing return address"),
         offset: Immediate::Integer((index as i64 - 2) * WORD),
     })
 }

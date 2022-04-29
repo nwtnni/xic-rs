@@ -13,6 +13,7 @@ use crate::data::operand::Temporary;
 
 struct Tiler {
     instructions: Vec<Assembly<Temporary>>,
+    caller_returns: Option<Temporary>,
     callee_arguments: usize,
     callee_returns: usize,
 }
@@ -21,7 +22,15 @@ impl Tiler {
     fn tile_statement(&mut self, statement: &lir::Statement<lir::Fallthrough>) {
         match statement {
             lir::Statement::Label(label) => self.push(Assembly::Label(*label)),
-            lir::Statement::Return(_) => todo!(),
+            lir::Statement::Return(returns) => {
+                for (index, r#return) in returns.iter().enumerate() {
+                    let destination = abi::write_return(self.caller_returns, index);
+                    let source = self.tile_expression(r#return);
+                    let operands = self.shuttle_binary(destination, source);
+                    self.push(Assembly::Binary(asm::Binary::Mov, operands));
+                }
+                self.push(Assembly::Nullary(asm::Nullary::Ret));
+            }
             lir::Statement::Jump(label) => {
                 self.push(Assembly::Unary(
                     asm::Unary::Jmp,
@@ -89,7 +98,10 @@ impl Tiler {
 
     fn tile_expression(&mut self, expression: &lir::Expression) -> operand::Unary<Temporary> {
         let (binary, destination, source) = match expression {
-            lir::Expression::Argument(index) => return abi::read_argument(*index),
+            lir::Expression::Argument(index) => {
+                // Adjust for implicit 0th argument (multiple return temporary)
+                return abi::read_argument(*index + self.caller_returns.map(|_| 1).unwrap_or(0));
+            }
             lir::Expression::Return(index) => {
                 return abi::read_return(self.callee_arguments, *index)
             }
@@ -190,67 +202,14 @@ impl Tiler {
         }
     }
 
-    // ```text
-    //               source
-    //               I R M
-    //             I d d d
-    // destination R _ _ _
-    //             M _ _ s
-    //
-    // d: shuttle destination
-    // s: shuttle source
-    // _: no shuttle necessary
-    // ```
     fn tile_binary(
         &mut self,
         destination: &lir::Expression,
         source: &lir::Expression,
     ) -> operand::Binary<Temporary> {
-        use operand::Binary;
-        use operand::Unary;
-
-        match (
-            self.tile_expression(destination),
-            self.tile_expression(source),
-        ) {
-            (destination @ Unary::I(_), Unary::I(source)) => {
-                let destination = self.shuttle(destination);
-                Binary::RI {
-                    destination,
-                    source,
-                }
-            }
-            (destination @ Unary::I(_), Unary::M(source)) => {
-                let destination = self.shuttle(destination);
-                Binary::RM {
-                    destination,
-                    source,
-                }
-            }
-
-            (Unary::M(destination), Unary::I(source)) => Binary::MI {
-                destination,
-                source,
-            },
-            (Unary::M(destination), source @ Unary::M(_)) => Binary::MR {
-                destination,
-                source: self.shuttle(source),
-            },
-
-            (Unary::R(destination), Unary::I(source)) => Binary::RI {
-                destination,
-                source,
-            },
-            (Unary::R(destination), Unary::M(source)) => Binary::RM {
-                destination,
-                source,
-            },
-
-            (destination, source) => Binary::RR {
-                destination: self.shuttle(destination),
-                source: self.shuttle(source),
-            },
-        }
+        let destination = self.tile_expression(destination);
+        let source = self.tile_expression(source);
+        self.shuttle_binary(destination, source)
     }
 
     fn tile_memory(&mut self, address: &lir::Expression) -> operand::Unary<Temporary> {
@@ -463,6 +422,66 @@ impl Tiler {
     fn shuttle_expression(&mut self, expression: &lir::Expression) -> Temporary {
         let expression = self.tile_expression(expression);
         self.shuttle(expression)
+    }
+
+    // ```text
+    //               source
+    //               I R M
+    //             I d d d
+    // destination R _ _ _
+    //             M _ _ s
+    //
+    // d: shuttle destination
+    // s: shuttle source
+    // _: no shuttle necessary
+    // ```
+    fn shuttle_binary(
+        &mut self,
+        destination: operand::Unary<Temporary>,
+        source: operand::Unary<Temporary>,
+    ) -> operand::Binary<Temporary> {
+        use operand::Binary;
+        use operand::Unary;
+
+        match (destination, source) {
+            (destination @ Unary::I(_), Unary::I(source)) => {
+                let destination = self.shuttle(destination);
+                Binary::RI {
+                    destination,
+                    source,
+                }
+            }
+            (destination @ Unary::I(_), Unary::M(source)) => {
+                let destination = self.shuttle(destination);
+                Binary::RM {
+                    destination,
+                    source,
+                }
+            }
+
+            (Unary::M(destination), Unary::I(source)) => Binary::MI {
+                destination,
+                source,
+            },
+            (Unary::M(destination), source @ Unary::M(_)) => Binary::MR {
+                destination,
+                source: self.shuttle(source),
+            },
+
+            (Unary::R(destination), Unary::I(source)) => Binary::RI {
+                destination,
+                source,
+            },
+            (Unary::R(destination), Unary::M(source)) => Binary::RM {
+                destination,
+                source,
+            },
+
+            (destination, source) => Binary::RR {
+                destination: self.shuttle(destination),
+                source: self.shuttle(source),
+            },
+        }
     }
 
     fn shuttle(&mut self, operand: operand::Unary<Temporary>) -> Temporary {
