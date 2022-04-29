@@ -26,7 +26,11 @@ enum Mutate {
     No,
 }
 
-fn tile_function(function: &lir::Function<lir::Fallthrough>) -> Vec<Assembly<Temporary>> {
+pub fn tile_unit(unit: &lir::Unit<lir::Fallthrough>) -> asm::Unit<Temporary> {
+    unit.map(tile_function)
+}
+
+fn tile_function(function: &lir::Function<lir::Fallthrough>) -> asm::Function<Temporary> {
     let (instructions, caller_returns) = match function.returns {
         0 | 1 | 2 => (Vec::new(), None),
         _ => {
@@ -77,7 +81,12 @@ fn tile_function(function: &lir::Function<lir::Fallthrough>) -> Vec<Assembly<Tem
         .iter()
         .for_each(|statement| tiler.tile_statement(statement));
 
-    tiler.instructions
+    asm::Function {
+        name: function.name,
+        statements: tiler.instructions,
+        arguments: function.arguments,
+        returns: function.returns,
+    }
 }
 
 impl Tiler {

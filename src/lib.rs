@@ -14,6 +14,7 @@ mod util;
 pub use error::Error;
 
 pub mod api {
+    pub use crate::assemble::tile;
     pub use crate::check::check;
     pub use crate::emit::emit_hir;
     pub use crate::emit::emit_lir;
