@@ -1,8 +1,17 @@
+use std::fmt;
+
 use crate::data::ir;
 use crate::data::operand;
 use crate::data::operand::Label;
 
 pub type Unit<T> = ir::Unit<Function<T>>;
+
+impl<T: fmt::Display> Unit<T> {
+    pub fn intel(&self) -> impl fmt::Display + '_ {
+        crate::assemble::Intel(self)
+    }
+}
+
 pub type Function<T> = ir::Function<Vec<Assembly<T>>>;
 
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]

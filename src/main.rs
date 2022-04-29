@@ -31,6 +31,10 @@ struct Command {
     #[structopt(short = "c", long = "optcfg")]
     debug_cfg: bool,
 
+    /// Generate output from abstract assembly
+    #[structopt(short = "a", long = "abstract-assembly")]
+    debug_abstract_assembly: bool,
+
     /// Interpret emitted IR
     #[structopt(short = "r", long = "irrun")]
     interpret_ir: bool,
@@ -143,6 +147,16 @@ fn main() -> anyhow::Result<()> {
 
         if command.interpret_ir {
             xic::api::interpret_lir(&lir, io::BufReader::new(io::stdin()), io::stdout())?;
+        }
+
+        let abstract_assembly = xic::api::tile(&lir);
+
+        if command.debug_abstract_assembly {
+            write!(
+                debug(&command.directory_output, &path, "S")?,
+                "{}",
+                abstract_assembly.intel(),
+            )?;
         }
     }
 

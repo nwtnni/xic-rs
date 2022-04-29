@@ -6,7 +6,7 @@ use crate::data::operand;
 use crate::data::operand::Label;
 use crate::data::symbol;
 
-pub struct Intel<T>(T);
+pub struct Intel<T>(pub T);
 
 impl<T: fmt::Display> fmt::Display for Intel<&asm::Unit<T>> {
     fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {

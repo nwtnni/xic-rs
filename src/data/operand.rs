@@ -17,7 +17,7 @@ pub enum Immediate {
 impl fmt::Display for Immediate {
     fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
         match self {
-            Immediate::Integer(integer) => write!(fmt, "{:0x}", integer),
+            Immediate::Integer(integer) => write!(fmt, "{}", integer),
             Immediate::Label(label) => write!(fmt, "{}", label),
         }
     }
