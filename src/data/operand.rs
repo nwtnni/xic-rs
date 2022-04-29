@@ -50,8 +50,6 @@ impl fmt::Display for Label {
 #[derive(Copy, Clone, Debug, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub enum Temporary {
     Register(Register),
-    Argument(usize),
-    Return(usize),
     Fresh(symbol::Symbol, usize),
 }
 
@@ -67,8 +65,6 @@ impl fmt::Display for Temporary {
     fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
         match self {
             Temporary::Register(register) => write!(fmt, "{}", register),
-            Temporary::Argument(index) => write!(fmt, "_ARG{}", index),
-            Temporary::Return(index) => write!(fmt, "_RET{}", index),
             Temporary::Fresh(temporary, index) => write!(fmt, "{}{}", temporary, index),
         }
     }

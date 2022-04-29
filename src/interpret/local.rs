@@ -12,29 +12,19 @@ pub struct Local<'a, T: 'a> {
     postorder: &'a Postorder<T>,
     index: usize,
     temporaries: BTreeMap<operand::Temporary, Value>,
+    arguments: Vec<Value>,
+    returns: Vec<Value>,
     stack: Vec<Operand>,
-}
-
-#[derive(Copy, Clone, Debug, PartialEq, Eq)]
-pub enum Step {
-    Continue,
-    Return,
 }
 
 impl<'a, T: 'a> Local<'a, T> {
     pub fn new(unit: &'a ir::Unit<Postorder<T>>, name: &Symbol, arguments: &[Value]) -> Self {
-        let postorder = unit.functions.get(name).unwrap();
-
-        let mut temporaries = BTreeMap::new();
-
-        for (index, argument) in arguments.iter().copied().enumerate() {
-            temporaries.insert(operand::Temporary::Argument(index), argument);
-        }
-
         Local {
-            postorder,
+            postorder: unit.functions.get(name).unwrap(),
             index: 0,
-            temporaries,
+            temporaries: BTreeMap::new(),
+            arguments: arguments.to_vec(),
+            returns: Vec::new(),
             stack: Vec::new(),
         }
     }
@@ -49,6 +39,19 @@ impl<'a, T: 'a> Local<'a, T> {
         self.temporaries.insert(temporary, value);
     }
 
+    pub fn insert_returns(&mut self, returns: &[Value]) {
+        self.returns.clear();
+        self.returns.extend_from_slice(returns);
+    }
+
+    pub fn get_return(&self, r#return: usize) -> &Value {
+        self.returns.get(r#return).unwrap()
+    }
+
+    pub fn get_argument(&self, argument: usize) -> &Value {
+        self.arguments.get(argument).unwrap()
+    }
+
     pub fn push(&mut self, value: Operand) {
         self.stack.push(value);
     }
@@ -59,7 +62,11 @@ impl<'a, T: 'a> Local<'a, T> {
             Some(Operand::Integer(integer)) => Value::Integer(integer),
             Some(Operand::Memory(address)) => global.read(address),
             Some(Operand::Label(label, offset)) => Value::Label(label, offset),
-            Some(Operand::Temporary(temporary)) => self.temporaries[&temporary],
+            Some(Operand::Temporary(temporary)) => self
+                .temporaries
+                .get(&temporary)
+                .copied()
+                .unwrap_or_else(|| panic!("unbound temporary: {}", temporary)),
         }
     }
 
@@ -72,17 +79,10 @@ impl<'a, T: 'a> Local<'a, T> {
         }
     }
 
-    pub fn pop_arguments(&mut self, global: &Global, len: usize) -> Vec<Value> {
-        let mut arguments = (0..len).map(|_| self.pop(global)).collect::<Vec<_>>();
-        arguments.reverse();
-        arguments
-    }
-
-    pub fn pop_returns(&mut self, len: usize) -> Vec<Value> {
-        (0..len)
-            .map(operand::Temporary::Return)
-            .map(|temporary| self.temporaries[&temporary])
-            .collect::<Vec<_>>()
+    pub fn pop_list(&mut self, global: &Global, len: usize) -> Vec<Value> {
+        let mut list = (0..len).map(|_| self.pop(global)).collect::<Vec<_>>();
+        list.reverse();
+        list
     }
 
     pub fn interpret_condition(&mut self, global: &Global, condition: &ir::Condition) -> bool {

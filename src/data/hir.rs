@@ -88,8 +88,8 @@ macro_rules! hir {
             source: hir!($from),
         }
     };
-    ((RETURN)) => {
-        crate::data::hir::Statement::Return
+    ((RETURN $returns:expr)) => {
+        crate::data::hir::Statement::Return($returns)
     };
     ((SEQ $statement:tt $($statements:tt)+)) => {
         crate::data::hir::Statement::Sequence(vec![
@@ -115,6 +115,8 @@ macro_rules! hir {
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Expression {
+    Argument(usize),
+    Return(usize),
     Immediate(operand::Immediate),
     Temporary(operand::Temporary),
     Memory(Box<Expression>),
@@ -192,6 +194,6 @@ pub enum Statement {
         destination: Expression,
         source: Expression,
     },
-    Return,
+    Return(Vec<Expression>),
     Sequence(Vec<Statement>),
 }

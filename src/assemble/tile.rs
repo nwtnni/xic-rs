@@ -14,7 +14,7 @@ impl Tiler {
     fn tile_statement(&mut self, statement: &lir::Statement<lir::Fallthrough>) {
         match statement {
             lir::Statement::Label(label) => self.push(asm::Assembly::Label(*label)),
-            lir::Statement::Return => self.push(asm::Assembly::Nullary(asm::Nullary::Ret)),
+            lir::Statement::Return(_) => todo!(),
             lir::Statement::Jump(label) => {
                 self.push(asm::Assembly::Unary(
                     asm::Unary::Jmp,
@@ -88,6 +88,8 @@ impl Tiler {
         expression: &lir::Expression,
     ) -> operand::One<operand::Temporary> {
         let (binary, destination, source) = match expression {
+            lir::Expression::Argument(_) => todo!(),
+            lir::Expression::Return(_) => todo!(),
             lir::Expression::Immediate(immediate) => return operand::One::I(*immediate),
             lir::Expression::Temporary(temporary) => return operand::One::R(*temporary),
             lir::Expression::Memory(address) => return self.tile_memory(address),
@@ -253,6 +255,8 @@ impl Tiler {
 
     fn tile_memory(&mut self, address: &lir::Expression) -> operand::One<operand::Temporary> {
         let memory = match address {
+            lir::Expression::Argument(_) => todo!(),
+            lir::Expression::Return(_) => todo!(),
             lir::Expression::Immediate(offset) => operand::Memory::O { offset: *offset },
             lir::Expression::Temporary(temporary) => operand::Memory::B { base: *temporary },
             lir::Expression::Memory(address) => operand::Memory::B {

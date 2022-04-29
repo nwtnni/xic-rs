@@ -2,7 +2,6 @@
 
 use std::collections::BTreeMap;
 use std::collections::HashMap;
-use std::iter;
 
 use crate::check;
 use crate::constants;
@@ -13,7 +12,6 @@ use crate::data::operand;
 use crate::data::r#type;
 use crate::data::symbol;
 use crate::hir;
-use crate::util::Tap as _;
 
 #[derive(Debug)]
 pub struct Emitter<'env> {
@@ -56,10 +54,11 @@ impl<'env> Emitter<'env> {
         let mut statements = Vec::new();
 
         for (index, parameter) in function.parameters.iter().enumerate() {
+            #[rustfmt::skip]
             statements.push(hir!(
                 (MOVE
                     (self.emit_declaration(parameter, &mut variables))
-                    (TEMP operand::Temporary::Argument(index)))
+                    (hir::Expression::Argument(index)))
             ));
         }
 
@@ -433,10 +432,11 @@ impl<'env> Emitter<'env> {
 
                 for (index, declaration) in declarations.iter().enumerate() {
                     if let Some(declaration) = declaration {
+                        #[rustfmt::skip]
                         statements.push(hir!(
                             (MOVE
                                 (self.emit_declaration(declaration, variables))
-                                (TEMP operand::Temporary::Return(index)))
+                                (hir::Expression::Return(index)))
                         ));
                     }
                 }
@@ -450,16 +450,12 @@ impl<'env> Emitter<'env> {
             Declaration(declaration, _) => {
                 hir::Statement::Expression(self.emit_declaration(declaration, variables))
             }
-            Return(expressions, _) => {
+            Return(expressions, _) => hir::Statement::Return(
                 expressions
                     .iter()
                     .map(|expression| self.emit_expression(expression, variables).into())
-                    .enumerate()
-                    .map(|(index, expression)| hir!((MOVE (TEMP operand::Temporary::Return(index)) (expression))))
-                    .chain(iter::once(hir::Statement::Return))
-                    .collect::<Vec<_>>()
-                    .tap(hir::Statement::Sequence)
-            }
+                    .collect(),
+            ),
             Sequence(statements, _) => hir::Statement::Sequence(
                 statements
                     .iter()

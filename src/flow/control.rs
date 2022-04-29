@@ -69,7 +69,7 @@ fn construct_function(function: &lir::Function<lir::Label>) -> Control {
     let enter = operand::Label::fresh("enter");
     let exit = operand::Label::fresh("exit");
 
-    blocks.insert(exit, vec![lir::Statement::Return]);
+    blocks.insert(exit, Vec::new());
 
     let mut block = State::Block(enter, Vec::new());
 
@@ -105,9 +105,10 @@ fn construct_function(function: &lir::Function<lir::Label>) -> Control {
                     blocks.insert(previous, statements);
                 }
             }
-            lir::Statement::Return => {
-                block.push(lir::Statement::Jump(exit));
+            r#return @ lir::Statement::Return(_) => {
+                block.push(r#return.clone());
 
+                // Insert edge to dummy exit node for dataflow analysis
                 if let Some((previous, statements)) = block.replace(State::Unreachable) {
                     graph.add_edge(previous, exit, Edge::Unconditional);
                     blocks.insert(previous, statements);
@@ -191,7 +192,7 @@ fn fallthrough(statement: &lir::Statement<lir::Label>) -> lir::Statement<lir::Fa
             destination: destination.clone(),
             source: source.clone(),
         },
-        lir::Statement::Return => lir::Statement::Return,
+        lir::Statement::Return(returns) => lir::Statement::Return(returns.clone()),
     }
 }
 

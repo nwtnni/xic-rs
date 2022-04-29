@@ -10,6 +10,8 @@ pub struct Function<T> {
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Expression {
+    Argument(usize),
+    Return(usize),
     Immediate(operand::Immediate),
     Temporary(operand::Temporary),
     Memory(Box<Expression>),
@@ -32,7 +34,7 @@ pub enum Statement<T> {
         destination: Expression,
         source: Expression,
     },
-    Return,
+    Return(Vec<Expression>),
 }
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]

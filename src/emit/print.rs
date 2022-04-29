@@ -1,4 +1,5 @@
 use std::borrow;
+use std::iter;
 
 use crate::data::hir;
 use crate::data::ir;
@@ -8,8 +9,8 @@ use crate::data::sexp::{Serialize, Sexp};
 
 impl<T: Serialize> Serialize for ir::Unit<T> {
     fn sexp(&self) -> Sexp {
-        std::iter::once("COMPUNIT".sexp())
-            .chain(std::iter::once(self.name.sexp()))
+        iter::once("COMPUNIT".sexp())
+            .chain(iter::once(self.name.sexp()))
             .chain(self.functions.values().map(|function| function.sexp()))
             .collect::<Vec<_>>()
             .sexp_move()
@@ -27,10 +28,12 @@ impl Serialize for hir::Expression {
         use hir::Expression::*;
         match self {
             Immediate(immediate) => immediate.sexp(),
+            Argument(index) => ["TEMP".sexp(), format!("_ARG{}", index).sexp_move()].sexp_move(),
+            Return(index) => ["TEMP".sexp(), format!("_RET{}", index).sexp_move()].sexp_move(),
             Memory(expression) => ["MEM".sexp(), expression.sexp()].sexp_move(),
             Binary(binary, left, right) => [binary.sexp(), left.sexp(), right.sexp()].sexp_move(),
-            Call(name, arguments, _) => std::iter::once("CALL".sexp())
-                .chain(std::iter::once(name.sexp()))
+            Call(name, arguments, _) => iter::once("CALL".sexp())
+                .chain(iter::once(name.sexp()))
                 .chain(arguments.iter().map(|argument| argument.sexp()))
                 .collect::<Vec<_>>()
                 .sexp_move(),
@@ -66,8 +69,11 @@ impl Serialize for hir::Statement {
                 destination,
                 source,
             } => ["MOVE".sexp(), destination.sexp(), source.sexp()].sexp_move(),
-            Return => ["RETURN".sexp()].sexp_move(),
-            Sequence(statements) => std::iter::once("SEQ".sexp())
+            Return(returns) => iter::once("RETURN".sexp())
+                .chain(returns.iter().map(|r#return| r#return.sexp()))
+                .collect::<Vec<_>>()
+                .sexp_move(),
+            Sequence(statements) => iter::once("SEQ".sexp())
                 .chain(statements.iter().map(|statement| statement.sexp()))
                 .collect::<Vec<_>>()
                 .sexp_move(),
@@ -80,7 +86,7 @@ impl<T: Serialize> Serialize for lir::Function<T> {
         [
             "FUNC".sexp(),
             self.name.sexp(),
-            std::iter::once("SEQ".sexp())
+            iter::once("SEQ".sexp())
                 .chain(self.statements.iter().map(|statement| statement.sexp()))
                 .collect::<Vec<_>>()
                 .sexp_move(),
@@ -94,6 +100,8 @@ impl Serialize for lir::Expression {
         use lir::Expression::*;
         match self {
             Immediate(immediate) => immediate.sexp(),
+            Argument(index) => ["TEMP".sexp(), format!("_ARG{}", index).sexp_move()].sexp_move(),
+            Return(index) => ["TEMP".sexp(), format!("_RET{}", index).sexp_move()].sexp_move(),
             Memory(expression) => ["MEM".sexp(), expression.sexp()].sexp_move(),
             Binary(binary, left, right) => [binary.sexp(), left.sexp(), right.sexp()].sexp_move(),
             Temporary(temporary) => ["TEMP".sexp(), temporary.sexp()].sexp_move(),
@@ -106,8 +114,8 @@ impl<T: Serialize> Serialize for lir::Statement<T> {
         use lir::Statement::*;
         match self {
             Call(function, arguments, _) => {
-                let call = std::iter::once("CALL".sexp())
-                    .chain(std::iter::once(function.sexp()))
+                let call = iter::once("CALL".sexp())
+                    .chain(iter::once(function.sexp()))
                     .chain(arguments.iter().map(|argument| argument.sexp()))
                     .collect::<Vec<_>>()
                     .sexp_move();
@@ -140,7 +148,10 @@ impl<T: Serialize> Serialize for lir::Statement<T> {
                 destination,
                 source,
             } => ["MOVE".sexp(), destination.sexp(), source.sexp()].sexp_move(),
-            Return => ["RETURN".sexp()].sexp_move(),
+            Return(returns) => iter::once("RETURN".sexp())
+                .chain(returns.iter().map(|r#return| r#return.sexp()))
+                .collect::<Vec<_>>()
+                .sexp_move(),
         }
     }
 }

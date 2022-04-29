@@ -38,6 +38,8 @@ impl Foldable for hir::Expression {
             Immediate(immediate) => Immediate(immediate),
             Temporary(temporary) => Temporary(temporary),
             Memory(memory) => Memory(Box::new(memory.fold())),
+            Argument(index) => Argument(index),
+            Return(index) => Return(index),
             Sequence(statements, expression) => {
                 Sequence(Box::new(statements.fold()), Box::new(expression.fold()))
             }
@@ -108,7 +110,7 @@ impl Foldable for hir::Statement {
                 destination: destination.fold(),
                 source: source.fold(),
             },
-            Return => Return,
+            Return(returns) => Return(returns.into_iter().map(Foldable::fold).collect()),
             Sequence(statements) => Sequence(statements.into_iter().map(Foldable::fold).collect()),
             CJump {
                 condition,
@@ -184,6 +186,8 @@ impl Foldable for lir::Expression {
             Immediate(immediate) => Immediate(immediate),
             Memory(memory) => Memory(Box::new(memory.fold())),
             Temporary(temporary) => Temporary(temporary),
+            Argument(index) => Argument(index),
+            Return(index) => Return(index),
             Binary(binary, left, right) => {
                 const ZERO: lir::Expression =
                     lir::Expression::Immediate(operand::Immediate::Integer(0));
@@ -244,7 +248,7 @@ impl<T: lir::Target> Foldable for lir::Statement<T> {
                 destination: destination.fold(),
                 source: source.fold(),
             },
-            Return => Return,
+            Return(returns) => Return(returns.into_iter().map(Foldable::fold).collect()),
             Label(label) => Label(label),
             CJump {
                 condition,

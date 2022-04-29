@@ -85,7 +85,10 @@ impl<'a> Postorder<Hir<'a>> {
 
     fn traverse_hir_expression(&mut self, expression: &'a hir::Expression) {
         match expression {
-            hir::Expression::Immediate(_) | hir::Expression::Temporary(_) => (),
+            hir::Expression::Immediate(_)
+            | hir::Expression::Temporary(_)
+            | hir::Expression::Argument(_)
+            | hir::Expression::Return(_) => (),
             hir::Expression::Memory(address) => {
                 self.traverse_hir_expression(address);
             }
@@ -137,7 +140,9 @@ impl<'a> Postorder<Hir<'a>> {
                 self.traverse_hir_expression(destination);
                 self.traverse_hir_expression(source);
             }
-            hir::Statement::Return => (),
+            hir::Statement::Return(returns) => returns
+                .iter()
+                .for_each(|r#return| self.traverse_hir_expression(r#return)),
             hir::Statement::Sequence(statements) => {
                 statements
                     .iter()
@@ -174,7 +179,10 @@ impl<'a, T> Postorder<Lir<'a, T>> {
 
     fn traverse_lir_expression(&mut self, expression: &'a lir::Expression) {
         match expression {
-            lir::Expression::Immediate(_) | lir::Expression::Temporary(_) => (),
+            lir::Expression::Immediate(_)
+            | lir::Expression::Temporary(_)
+            | lir::Expression::Argument(_)
+            | lir::Expression::Return(_) => (),
             lir::Expression::Memory(address) => {
                 self.traverse_lir_expression(address);
             }
@@ -217,7 +225,9 @@ impl<'a, T> Postorder<Lir<'a, T>> {
                 self.traverse_lir_expression(destination);
                 self.traverse_lir_expression(source);
             }
-            lir::Statement::Return => (),
+            lir::Statement::Return(returns) => returns
+                .iter()
+                .for_each(|r#return| self.traverse_lir_expression(r#return)),
         }
 
         self.instructions.push(Lir::Statement(statement));

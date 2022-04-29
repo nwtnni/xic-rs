@@ -39,14 +39,15 @@ impl Canonizer {
         match canonized.last() {
             None => unreachable!(),
             Some(
-                lir::Statement::Return | lir::Statement::Jump(_) | lir::Statement::CJump { .. },
+                lir::Statement::Return(_) | lir::Statement::Jump(_) | lir::Statement::CJump { .. },
             ) => (),
             Some(
                 lir::Statement::Call(_, _, _)
                 | lir::Statement::Move { .. }
                 | lir::Statement::Label(_),
             ) => {
-                canonized.push(lir::Statement::Return);
+                // Guaranteed valid by type-checker
+                canonized.push(lir::Statement::Return(Vec::new()));
             }
         }
 
@@ -60,6 +61,8 @@ impl Canonizer {
         use hir::Expression::*;
         match exp {
             Immediate(immediate) => lir::Expression::Immediate(*immediate),
+            Argument(index) => lir::Expression::Argument(*index),
+            Return(index) => lir::Expression::Return(*index),
             Memory(memory) => lir::Expression::Memory(Box::new(self.canonize_expression(memory))),
             Temporary(temporary) => lir::Expression::Temporary(*temporary),
             Sequence(statements, expression) => {
@@ -86,7 +89,7 @@ impl Canonizer {
 
                 self.canonized.push(lir::Statement::Move {
                     destination: save.clone(),
-                    source: lir::Expression::Temporary(operand::Temporary::Return(0)),
+                    source: lir::Expression::Return(0),
                 });
 
                 save
@@ -177,7 +180,10 @@ impl Canonizer {
                 }
                 _ => unimplemented!(),
             },
-            Return => self.canonized.push(lir::Statement::Return),
+            Return(returns) => {
+                let returns = self.canonize_list(returns);
+                self.canonized.push(lir::Statement::Return(returns));
+            }
         }
     }
 
@@ -231,10 +237,11 @@ impl Canonizer {
 fn commute(before: &hir::Expression, after: &hir::Expression) -> bool {
     use hir::Expression::*;
     match before {
-        Immediate(operand::Immediate::Integer(_)) => true,
+        Immediate(operand::Immediate::Integer(_)) | Argument(_) => true,
         Binary(_, left, right) => commute(left, after) && commute(right, after),
         Immediate(operand::Immediate::Label(_))
         | Temporary(_)
+        | Return(_)
         | Memory(_)
         | Call(_, _, _)
         | Sequence(_, _) => pure_expression(after),
@@ -244,7 +251,7 @@ fn commute(before: &hir::Expression, after: &hir::Expression) -> bool {
 fn pure_expression(expression: &hir::Expression) -> bool {
     use hir::Expression::*;
     match expression {
-        Immediate(operand::Immediate::Integer(_)) | Temporary(_) => true,
+        Immediate(operand::Immediate::Integer(_)) | Temporary(_) | Argument(_) | Return(_) => true,
         Immediate(operand::Immediate::Label(_)) => false,
         Memory(expression) => pure_expression(expression),
         Binary(_, left, right) => pure_expression(left) && pure_expression(right),
@@ -278,7 +285,7 @@ fn pure_statement(statement: &hir::Statement) -> bool {
         hir::Statement::Jump(_)
         | hir::Statement::CJump { .. }
         | hir::Statement::Move { .. }
-        | hir::Statement::Return => false,
+        | hir::Statement::Return(_) => false,
         hir::Statement::Label(_) => true,
         hir::Statement::Expression(expression) => pure_expression(expression),
         hir::Statement::Sequence(statements) => statements.iter().all(pure_statement),
