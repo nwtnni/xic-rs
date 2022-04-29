@@ -11,7 +11,6 @@ pub enum Assembly<T> {
     Unary(Unary, operand::Unary<T>),
     Nullary(Nullary),
     Label(Label),
-    Directive(Directive),
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]

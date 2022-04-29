@@ -1,9 +1,52 @@
 use std::fmt;
 
+use crate::abi;
 use crate::data::asm;
 use crate::data::operand;
+use crate::data::operand::Label;
+use crate::data::symbol;
 
 pub struct Intel<T>(T);
+
+impl<T: fmt::Display> fmt::Display for Intel<&asm::Unit<T>> {
+    fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
+        writeln!(fmt, "{}\n", asm::Directive::Intel)?;
+        writeln!(fmt, "{}\n", asm::Directive::Data)?;
+
+        for (symbol, label) in &self.0.data {
+            let string = symbol::resolve(*symbol);
+
+            writeln!(fmt, "{}", asm::Directive::Local(*label))?;
+            writeln!(fmt, "{}", asm::Directive::Align(abi::WORD as usize))?;
+            writeln!(fmt, "{}", asm::Directive::Quad(vec![string.len() as i64]))?;
+            writeln!(fmt, "{}", Intel(&asm::Assembly::<T>::Label(*label)))?;
+            writeln!(
+                fmt,
+                "{}\n",
+                asm::Directive::Quad(string.bytes().map(|byte| byte as i64).collect())
+            )?;
+        }
+
+        writeln!(fmt, "{}\n", asm::Directive::Text)?;
+
+        for (name, function) in &self.0.functions {
+            writeln!(fmt, "{}", asm::Directive::Global(Label::Fixed(*name)))?;
+            writeln!(fmt, "{}", Intel(function))?;
+        }
+
+        Ok(())
+    }
+}
+
+impl<T: fmt::Display> fmt::Display for Intel<&asm::Function<T>> {
+    fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
+        writeln!(fmt, "{}:", self.0.name)?;
+        for statement in &self.0.statements {
+            writeln!(fmt, "{}", Intel(statement))?;
+        }
+        Ok(())
+    }
+}
 
 impl<T: fmt::Display> fmt::Display for Intel<&asm::Assembly<T>> {
     fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
@@ -14,7 +57,6 @@ impl<T: fmt::Display> fmt::Display for Intel<&asm::Assembly<T>> {
             asm::Assembly::Unary(unary, operand) => write!(fmt, "    {} {}", unary, Intel(operand)),
             asm::Assembly::Nullary(nullary) => write!(fmt, "    {}", nullary),
             asm::Assembly::Label(label) => write!(fmt, "{}:", label),
-            asm::Assembly::Directive(directive) => write!(fmt, "{}", directive),
         }
     }
 }
