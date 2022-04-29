@@ -40,12 +40,62 @@ use crate::data::operand::Unary;
 /// Retrieve `argument` from calling function.
 ///
 /// Extra arguments are stored in the caller's stack frame.
-pub fn read_argument(stack_size: usize, index: usize) -> Unary<Temporary> {
-    todo!("decide on rbp (easier) or rsp (harder, need fixed stack size) offset")
+pub fn read_argument(index: usize) -> Unary<Temporary> {
+    if let Some(register) = argument_register(index) {
+        return register;
+    }
+
+    Unary::M(Memory::BO {
+        base: Temporary::Register(Register::Rbp),
+        offset: Immediate::Integer(
+            (1 /* rbp */ + 1 /* rip */ + index as i64 - 6) * constants::WORD_SIZE,
+        ),
+    })
 }
 
 /// Pass `argument` to callee function.
 pub fn write_argument(index: usize) -> Unary<Temporary> {
+    if let Some(register) = argument_register(index) {
+        return register;
+    }
+
+    Unary::M(Memory::BO {
+        base: Temporary::Register(Register::Rsp),
+        offset: Immediate::Integer((index as i64 - 6) * constants::WORD_SIZE),
+    })
+}
+
+/// Retrieve `r#return` from callee function.
+///
+/// Multiple returns are stored below multiple arguments (if any) in the stack.
+pub fn read_return(arguments: usize, index: usize) -> Unary<Temporary> {
+    if let Some(register) = return_register(index) {
+        return register;
+    }
+
+    Unary::M(Memory::BO {
+        base: Temporary::Register(Register::Rsp),
+        offset: Immediate::Integer(
+            (arguments.saturating_sub(6) + index - 2) as i64 * constants::WORD_SIZE,
+        ),
+    })
+}
+
+/// Return `r#return` to calling function.
+///
+/// The caller will pass `address`, pointing to a stack location to write to.
+pub fn write_return(address: Temporary, index: usize) -> Unary<Temporary> {
+    if let Some(register) = return_register(index) {
+        return register;
+    }
+
+    Unary::M(Memory::BO {
+        base: address,
+        offset: Immediate::Integer((index as i64 - 2) * constants::WORD_SIZE),
+    })
+}
+
+fn argument_register(index: usize) -> Option<Unary<Temporary>> {
     let register = match index {
         0 => Register::Rdi,
         1 => Register::Rsi,
@@ -53,43 +103,18 @@ pub fn write_argument(index: usize) -> Unary<Temporary> {
         3 => Register::Rcx,
         4 => Register::R8,
         5 => Register::R9,
-        _ => {
-            return Unary::M(Memory::BO {
-                base: Temporary::Register(Register::Rsp),
-                offset: Immediate::Integer((index as i64 - 6) * constants::WORD_SIZE),
-            });
-        }
+        _ => return None,
     };
 
-    Unary::from(register)
+    Some(Unary::from(register))
 }
 
-/// Retrieve `r#return` from callee function.
-///
-/// Multiple returns are stored below multiple arguments (if any) in the stack.
-pub fn read_return(arguments: usize, index: usize) -> Unary<Temporary> {
-    match index {
-        0 => Unary::from(Register::Rax),
-        1 => Unary::from(Register::Rdx),
-        _ => Unary::M(Memory::BO {
-            base: Temporary::Register(Register::Rsp),
-            offset: Immediate::Integer(
-                (arguments.saturating_sub(6) + index - 2) as i64 * constants::WORD_SIZE,
-            ),
-        }),
-    }
-}
+fn return_register(index: usize) -> Option<Unary<Temporary>> {
+    let register = match index {
+        0 => Register::Rax,
+        1 => Register::Rdx,
+        _ => return None,
+    };
 
-/// Return `r#return` to calling function.
-///
-/// The caller will pass `address`, pointing to a stack location to write to.
-pub fn write_return(address: Temporary, index: usize) -> Unary<Temporary> {
-    match index {
-        0 => Unary::from(Register::Rax),
-        1 => Unary::from(Register::Rdx),
-        _ => Unary::M(Memory::BO {
-            base: address,
-            offset: Immediate::Integer((index as i64 - 2) * constants::WORD_SIZE),
-        }),
-    }
+    Some(Unary::from(register))
 }
