@@ -1,5 +1,7 @@
 #![allow(dead_code, unused_variables)]
 
+use std::cmp;
+
 use crate::abi;
 use crate::data::asm;
 use crate::data::asm::Assembly;
@@ -22,6 +24,60 @@ struct Tiler {
 enum Mutate {
     Yes,
     No,
+}
+
+fn tile_function(function: &lir::Function<lir::Fallthrough>) -> Vec<Assembly<Temporary>> {
+    let (instructions, caller_returns) = match function.returns {
+        0 | 1 | 2 => (Vec::new(), None),
+        _ => {
+            let address = Temporary::fresh("overflow");
+
+            (
+                vec![Assembly::Binary(
+                    asm::Binary::Mov,
+                    operand::Binary::RR {
+                        destination: address,
+                        source: match abi::write_argument(0) {
+                            operand::Unary::R(register) => register,
+                            operand::Unary::I(_) | operand::Unary::M(_) => unreachable!(),
+                        },
+                    },
+                )],
+                Some(address),
+            )
+        }
+    };
+
+    let (callee_arguments, callee_returns) = function
+        .statements
+        .iter()
+        .filter_map(|statement| match statement {
+            lir::Statement::Call(_, arguments, returns) => Some((arguments.len(), *returns)),
+            _ => None,
+        })
+        .fold(
+            (0, 0),
+            |(callee_arguments, callee_returns), (arguments, returns)| {
+                (
+                    cmp::max(callee_arguments, arguments),
+                    cmp::max(callee_returns, returns),
+                )
+            },
+        );
+
+    let mut tiler = Tiler {
+        instructions,
+        caller_returns,
+        callee_arguments,
+        callee_returns,
+    };
+
+    function
+        .statements
+        .iter()
+        .for_each(|statement| tiler.tile_statement(statement));
+
+    tiler.instructions
 }
 
 impl Tiler {
