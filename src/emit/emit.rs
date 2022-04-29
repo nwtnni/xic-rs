@@ -10,7 +10,6 @@ use crate::data::hir;
 use crate::data::ir;
 use crate::data::operand::Label;
 use crate::data::operand::Temporary;
-use crate::data::r#type;
 use crate::data::symbol;
 use crate::data::symbol::Symbol;
 use crate::hir;
@@ -19,7 +18,7 @@ use crate::hir;
 pub struct Emitter<'env> {
     context: &'env check::Context,
     data: BTreeMap<Symbol, Label>,
-    functions: BTreeMap<Symbol, Symbol>,
+    mangled: BTreeMap<Symbol, Symbol>,
 }
 
 impl<'env> Emitter<'env> {
@@ -27,7 +26,7 @@ impl<'env> Emitter<'env> {
         Emitter {
             context,
             data: BTreeMap::new(),
-            functions: BTreeMap::new(),
+            mangled: BTreeMap::new(),
         }
     }
 
@@ -518,7 +517,7 @@ impl<'env> Emitter<'env> {
     }
 
     fn mangle_function(&mut self, name: Symbol) -> Symbol {
-        if let Some(mangled) = self.functions.get(&name) {
+        if let Some(mangled) = self.mangled.get(&name) {
             return *mangled;
         }
 
@@ -528,40 +527,13 @@ impl<'env> Emitter<'env> {
             _ => panic!("[INTERNAL ERROR]: type checking failed"),
         };
 
-        let mut mangled = format!("_I{}_", symbol::resolve(name).replace('_', "__"),);
+        let mangled = symbol::intern(abi::mangle_function(
+            symbol::resolve(name),
+            parameters,
+            returns,
+        ));
 
-        match returns.as_slice() {
-            [] => mangled.push('p'),
-            [r#type] => {
-                Self::mangle_type(r#type, &mut mangled);
-            }
-            types => {
-                mangled.push('t');
-                mangled.push_str(&types.len().to_string());
-                for r#type in types {
-                    Self::mangle_type(r#type, &mut mangled);
-                }
-            }
-        }
-
-        for parameter in parameters {
-            Self::mangle_type(parameter, &mut mangled);
-        }
-
-        let mangled = symbol::intern(mangled);
-        self.functions.insert(name, mangled);
+        self.mangled.insert(name, mangled);
         mangled
-    }
-
-    fn mangle_type(r#type: &r#type::Expression, mangled: &mut String) {
-        match r#type {
-            r#type::Expression::Any => panic!("[INTERNAL ERROR]: any type in IR"),
-            r#type::Expression::Integer => mangled.push('i'),
-            r#type::Expression::Boolean => mangled.push('b'),
-            r#type::Expression::Array(r#type) => {
-                mangled.push('a');
-                Self::mangle_type(&*r#type, mangled);
-            }
-        }
     }
 }

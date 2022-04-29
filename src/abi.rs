@@ -30,11 +30,14 @@
 //!   TOP (lower memory address)
 //! ```
 
+use std::fmt::Write as _;
+
 use crate::data::operand::Immediate;
 use crate::data::operand::Memory;
 use crate::data::operand::Register;
 use crate::data::operand::Temporary;
 use crate::data::operand::Unary;
+use crate::data::r#type;
 
 pub const WORD: i64 = 8;
 
@@ -126,4 +129,44 @@ fn return_register(index: usize) -> Option<Unary<Temporary>> {
     };
 
     Some(Unary::from(register))
+}
+
+pub fn mangle_function(
+    name: &str,
+    parameters: &[r#type::Expression],
+    returns: &[r#type::Expression],
+) -> String {
+    let mut mangled = format!("_I{}_", name.replace('_', "__"));
+
+    match returns {
+        [] => mangled.push('p'),
+        [r#type] => {
+            mangle_type(r#type, &mut mangled);
+        }
+        types => {
+            mangled.push('t');
+            write!(&mut mangled, "{}", types.len()).unwrap();
+            for r#type in types {
+                mangle_type(r#type, &mut mangled);
+            }
+        }
+    }
+
+    for parameter in parameters {
+        mangle_type(parameter, &mut mangled);
+    }
+
+    mangled
+}
+
+fn mangle_type(r#type: &r#type::Expression, mangled: &mut String) {
+    match r#type {
+        r#type::Expression::Any => panic!("[INTERNAL ERROR]: any type in IR"),
+        r#type::Expression::Integer => mangled.push('i'),
+        r#type::Expression::Boolean => mangled.push('b'),
+        r#type::Expression::Array(r#type) => {
+            mangled.push('a');
+            mangle_type(&*r#type, mangled);
+        }
+    }
 }
