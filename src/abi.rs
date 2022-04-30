@@ -7,6 +7,8 @@
 //!
 //! |-----------------------------|
 //! | return address              |
+//! |-----------------------------| <- old rsp
+//! | optional 8-byte alignment   |
 //! |-----------------------------|
 //! | callee-saved registers      |
 //! | ...                         |
@@ -15,8 +17,6 @@
 //! | spilled locals              |
 //! | ...                         |
 //! | ...                         |
-//! |-----------------------------|
-//! | optional 8-byte alignment   |
 //! |-----------------------------|
 //! | multiple returns (3+)       |
 //! | ...                         |
@@ -75,6 +75,25 @@ pub const CALLER_SAVED: &[Register] = &[
     Register::R11,
 ];
 
+/// Total stack size. Guaranteed to align to 16 bytes.
+pub fn stack_size(callee_arguments: usize, callee_returns: usize, spilled: usize) -> usize {
+    #[rustfmt::skip]
+    let unaligned = WORD as usize
+        * (callee_arguments.saturating_sub(6) + callee_returns.saturating_sub(2) + spilled + 1 /* rip */);
+
+    // The stack must be aligned to 16 bytes before a `call`. After the previous
+    // aligned call, the instruction pointer is pushed onto the stack, so the
+    // callee's stack pointer starts off unaligned (hence the extra + 1 above).
+    //
+    // https://sites.google.com/site/theoryofoperatingsystems/labs/malloc/align8
+    (unaligned + 15) & !15
+}
+
+/// Offset of spilled temporary `index` from the stack pointer.
+pub fn stack_offset(callee_arguments: usize, callee_returns: usize, index: usize) -> usize {
+    WORD as usize * (callee_arguments.saturating_sub(6) + callee_returns.saturating_sub(2) + index)
+}
+
 /// Retrieve `argument` from calling function.
 ///
 /// Extra arguments are stored in the caller's stack frame.
@@ -85,7 +104,7 @@ pub fn read_argument(index: usize) -> Unary<Temporary> {
 
     Unary::M(Memory::BO {
         base: Temporary::Register(Register::Rbp),
-        offset: Immediate::Integer((1 /* rbp */ + 1 /* rip */ + index as i64 - 6) * WORD),
+        offset: Immediate::Integer((1 /* rip */ + index as i64 - 6) * WORD),
     })
 }
 

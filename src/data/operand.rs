@@ -177,6 +177,57 @@ pub enum Memory<T> {
     },
 }
 
+impl<T> Memory<T> {
+    pub fn map<F: FnMut(&T) -> U, U>(&self, mut apply: F) -> Memory<U> {
+        match self {
+            Memory::B { base } => Memory::B { base: apply(base) },
+            Memory::O { offset } => Memory::O { offset: *offset },
+            Memory::BI { base, index } => Memory::BI {
+                base: apply(base),
+                index: apply(index),
+            },
+            Memory::BO { base, offset } => Memory::BO {
+                base: apply(base),
+                offset: *offset,
+            },
+            Memory::BIO {
+                base,
+                index,
+                offset,
+            } => Memory::BIO {
+                base: apply(base),
+                index: apply(index),
+                offset: *offset,
+            },
+            Memory::BIS { base, index, scale } => Memory::BIS {
+                base: apply(base),
+                index: apply(index),
+                scale: *scale,
+            },
+            Memory::ISO {
+                index,
+                scale,
+                offset,
+            } => Memory::ISO {
+                index: apply(index),
+                scale: *scale,
+                offset: *offset,
+            },
+            Memory::BISO {
+                base,
+                index,
+                scale,
+                offset,
+            } => Memory::BISO {
+                base: apply(base),
+                index: apply(index),
+                scale: *scale,
+                offset: *offset,
+            },
+        }
+    }
+}
+
 #[derive(Copy, Clone, Debug, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub enum Scale {
     _1,
@@ -220,6 +271,58 @@ pub enum Binary<T> {
         destination: T,
         source: T,
     },
+}
+
+impl<T: Clone> Binary<T> {
+    pub fn destination(&self) -> Unary<T> {
+        match self {
+            Binary::RI {
+                destination,
+                source: _,
+            }
+            | Binary::RM {
+                destination,
+                source: _,
+            }
+            | Binary::RR {
+                destination,
+                source: _,
+            } => Unary::R(destination.clone()),
+            Binary::MI {
+                destination,
+                source: _,
+            }
+            | Binary::MR {
+                destination,
+                source: _,
+            } => Unary::M(destination.clone()),
+        }
+    }
+
+    pub fn source(&self) -> Unary<T> {
+        match self {
+            Binary::RI {
+                destination: _,
+                source,
+            }
+            | Binary::MI {
+                destination: _,
+                source,
+            } => Unary::I(*source),
+            Binary::MR {
+                destination: _,
+                source,
+            }
+            | Binary::RR {
+                destination: _,
+                source,
+            } => Unary::R(source.clone()),
+            Binary::RM {
+                destination: _,
+                source,
+            } => Unary::M(source.clone()),
+        }
+    }
 }
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq, Hash, PartialOrd, Ord)]

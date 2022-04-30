@@ -1,3 +1,4 @@
+mod allocate;
 mod print;
 mod tile;
 
