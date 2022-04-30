@@ -3,13 +3,15 @@
 //! The stack layout is as follows:
 //!
 //! ```text
-//!  BOTTOM (lower memory address)
+//! BOTTOM (higher memory address)
 //!
 //! |-----------------------------|
 //! | return address              |
 //! |-----------------------------|
-//! | saved rbp                   |
-//! |-----------------------------| <- rbp
+//! | callee-saved registers      |
+//! | ...                         |
+//! | ...                         |
+//! |-----------------------------|
 //! | spilled locals              |
 //! | ...                         |
 //! | ...                         |
