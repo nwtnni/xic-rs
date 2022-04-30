@@ -77,16 +77,13 @@ pub const CALLER_SAVED: &[Register] = &[
 
 /// Total stack size. Guaranteed to align to 16 bytes.
 pub fn stack_size(callee_arguments: usize, callee_returns: usize, spilled: usize) -> usize {
-    #[rustfmt::skip]
-    let unaligned = WORD as usize
-        * (callee_arguments.saturating_sub(6) + callee_returns.saturating_sub(2) + spilled + 1 /* rip */);
+    let unaligned = callee_arguments.saturating_sub(6) + callee_returns.saturating_sub(2) + spilled;
 
-    // The stack must be aligned to 16 bytes before a `call`. After the previous
-    // aligned call, the instruction pointer is pushed onto the stack, so the
-    // callee's stack pointer starts off unaligned (hence the extra + 1 above).
+    // The stack must be aligned to 16 bytes (for the `call` instruction), but it starts off
+    // unaligned because the caller's `call` instruction pushes `rip` onto the stack.
     //
-    // https://sites.google.com/site/theoryofoperatingsystems/labs/malloc/align8
-    (unaligned + 15) & !15
+    // So we need an extra word of padding here.
+    (unaligned | 1) * WORD as usize
 }
 
 /// Offset of spilled temporary `index` from the stack pointer.
