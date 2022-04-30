@@ -107,6 +107,7 @@ pub enum Register {
     R13,
     R14,
     R15,
+    RspPlaceholder,
 }
 
 impl fmt::Display for Register {
@@ -128,6 +129,7 @@ impl fmt::Display for Register {
             Register::R13 => "r13",
             Register::R14 => "r14",
             Register::R15 => "r15",
+            Register::RspPlaceholder => "rbp",
         };
 
         write!(fmt, "{}", register)

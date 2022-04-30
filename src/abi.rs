@@ -103,7 +103,7 @@ pub fn read_argument(index: usize) -> Unary<Temporary> {
     }
 
     Unary::M(Memory::BO {
-        base: Temporary::Register(Register::Rbp),
+        base: Temporary::Register(Register::RspPlaceholder),
         offset: Immediate::Integer((1 /* rip */ + index as i64 - 6) * WORD),
     })
 }

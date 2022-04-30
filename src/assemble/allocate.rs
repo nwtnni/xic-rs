@@ -41,6 +41,11 @@ fn allocate_function(function: &asm::Function<Temporary>) -> Vec<Assembly<Regist
         trivial.temporaries.len(),
     ) as i64;
 
+    trivial
+        .instructions
+        .iter_mut()
+        .for_each(|instruction| rewrite_rbp(stack_size, instruction));
+
     // Prologue
     trivial.instructions.insert(
         0,
@@ -66,6 +71,49 @@ fn allocate_function(function: &asm::Function<Temporary>) -> Vec<Assembly<Regist
     ]);
 
     trivial.instructions
+}
+
+// We should only tile `[rbp + offset]` when returning multiple arguments.
+//
+// This needs to be rewritten in terms of `rsp` after the stack size is
+// computed, since we don't keep around `rbp` within the function.
+fn rewrite_rbp(stack_size: i64, instruction: &mut Assembly<Register>) {
+    let memory = match instruction {
+        Assembly::Binary(_, operand::Binary::RI { .. })
+        | Assembly::Binary(_, operand::Binary::RR { .. })
+        | Assembly::Unary(_, operand::Unary::R(_))
+        | Assembly::Unary(_, operand::Unary::I(_))
+        | Assembly::Nullary(_)
+        | Assembly::Label(_) => return,
+        #[rustfmt::skip]
+        Assembly::Binary(_, operand::Binary::MI { destination: memory, .. })
+        | Assembly::Binary( _, operand::Binary::MR { destination: memory, .. })
+        | Assembly::Binary(_, operand::Binary::RM { source: memory, .. })
+        | Assembly::Unary(_, operand::Unary::M(memory)) => memory,
+    };
+
+    if let Memory::BO {
+        base: base @ Register::RspPlaceholder,
+        offset,
+    }
+    | Memory::BIO {
+        base: base @ Register::RspPlaceholder,
+        index: _,
+        offset,
+    }
+    | Memory::BISO {
+        base: base @ Register::RspPlaceholder,
+        index: _,
+        scale: _,
+        offset,
+    } = memory
+    {
+        *base = Register::Rsp;
+        match offset {
+            Immediate::Label(_) => unreachable!(),
+            Immediate::Integer(offset) => *offset += stack_size,
+        }
+    }
 }
 
 impl Trivial {
