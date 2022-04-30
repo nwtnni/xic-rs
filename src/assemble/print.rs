@@ -71,7 +71,7 @@ impl<T: fmt::Display> fmt::Display for Intel<&operand::Binary<T>> {
             operand::Binary::MI {
                 destination,
                 source,
-            } => write!(fmt, "{}, {}", Intel(destination), source),
+            } => write!(fmt, "qword ptr {}, {}", Intel(destination), source),
             operand::Binary::MR {
                 destination,
                 source,
