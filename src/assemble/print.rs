@@ -3,6 +3,7 @@ use std::fmt;
 use crate::abi;
 use crate::data::asm;
 use crate::data::operand;
+use crate::data::operand::Immediate;
 use crate::data::operand::Label;
 use crate::data::symbol;
 
@@ -66,12 +67,20 @@ impl<T: fmt::Display> fmt::Display for Intel<&operand::Binary<T>> {
         match &self.0 {
             operand::Binary::RI {
                 destination,
-                source,
+                source: source @ Immediate::Integer(_),
             } => write!(fmt, "{}, {}", destination, source),
+            operand::Binary::RI {
+                destination,
+                source: source @ Immediate::Label(_),
+            } => write!(fmt, "{}, offset {}", destination, source),
             operand::Binary::MI {
                 destination,
-                source,
+                source: source @ Immediate::Integer(_),
             } => write!(fmt, "qword ptr {}, {}", Intel(destination), source),
+            operand::Binary::MI {
+                destination,
+                source: source @ Immediate::Label(_),
+            } => write!(fmt, "qword ptr {}, offset {}", Intel(destination), source),
             operand::Binary::MR {
                 destination,
                 source,
@@ -93,7 +102,7 @@ impl<T: fmt::Display> fmt::Display for Intel<&operand::Unary<T>> {
         match &self.0 {
             operand::Unary::I(immediate) => write!(fmt, "{}", immediate),
             operand::Unary::R(register) => write!(fmt, "{}", register),
-            operand::Unary::M(memory) => write!(fmt, "{}", Intel(memory)),
+            operand::Unary::M(memory) => write!(fmt, "qword ptr {}", Intel(memory)),
         }
     }
 }
