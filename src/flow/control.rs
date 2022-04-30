@@ -111,6 +111,31 @@ fn construct_function(function: &ir::Function<Vec<lir::Statement<lir::Label>>>) 
             r#return @ lir::Statement::Return(_) => {
                 block.push(r#return.clone());
 
+                // IR return takes arguments, but assembly return does not. In order to
+                // simplify assembly tiling, we put this jump here and omit the actual `ret`
+                // instruction when tiling, so we can have a single `ret` in the epilogue:
+                //
+                // ```text
+                // (LABEL foo)
+                // (RETURN (CONST 1))
+                // (LABEL bar)
+                // (JUMP exit)
+                // (RETURN (CONST 2))
+                // (JUMP exit)
+                // (LABEL exit)
+                // ```
+                //
+                // ```
+                // foo:
+                //   mov rax, 1
+                //   jmp exit
+                // bar:
+                //   mov rax, 2
+                //   jmp exit
+                // exit:
+                //   ret
+                // ```
+                block.push(lir::Statement::Jump(exit));
 
                 // Insert edge to dummy exit node for dataflow analysis
                 if let Some((previous, statements)) = block.replace(State::Unreachable) {
@@ -118,7 +143,6 @@ fn construct_function(function: &ir::Function<Vec<lir::Statement<lir::Label>>>) 
                     blocks.insert(previous, statements);
                 }
             }
-
             call @ lir::Statement::Call(_, _, _) => block.push(call.clone()),
             r#move @ lir::Statement::Move { .. } => block.push(r#move.clone()),
         }
@@ -139,6 +163,9 @@ fn construct_function(function: &ir::Function<Vec<lir::Statement<lir::Label>>>) 
     }
 }
 
+/// After linearization, guarantees that `function.enter` is at the beginning of the
+/// list, and that `function.exit` is at the end. This property is useful for tiling
+/// assembly, so we can place the function prologue and epilogue accurately.
 fn destruct_function(function: &Control) -> lir::Function<lir::Fallthrough> {
     let mut dfs = vec![function.enter];
     let mut statements = Vec::new();
@@ -146,6 +173,10 @@ fn destruct_function(function: &Control) -> lir::Function<lir::Fallthrough> {
 
     while let Some(label) = dfs.pop() {
         if !visited.insert(label) {
+            continue;
+        }
+
+        if label == function.exit {
             continue;
         }
 
@@ -165,6 +196,9 @@ fn destruct_function(function: &Control) -> lir::Function<lir::Fallthrough> {
 
         dfs.extend(IntoIterator::into_iter(conditional).flatten());
     }
+
+    statements.push(lir::Statement::Label(function.exit));
+    statements.extend(function.blocks[&function.exit].iter().map(fallthrough));
 
     ir::Function {
         name: function.name,

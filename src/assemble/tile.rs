@@ -106,7 +106,15 @@ impl Tiler {
                         r#return,
                     );
                 }
-                self.push(Assembly::Nullary(asm::Nullary::Ret));
+
+                // CFG construction guarantees that (1) an IR return is immediately
+                // followed by a jump to the exit label, and (2) the exit block is
+                // at the end. Then we omit the `ret` instruction here, in favor of
+                // placing a single `ret` at the end of the function epilogue:
+                //
+                // ```
+                // self.push(Assembly::Nullary(asm::Nullary::Ret));
+                // ```
             }
             lir::Statement::Jump(label) => {
                 self.push(Assembly::Unary(

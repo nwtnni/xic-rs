@@ -15,41 +15,42 @@ use crate::data::symbol::Symbol;
 use crate::hir;
 
 #[derive(Debug)]
-pub struct Emitter<'env> {
+struct Emitter<'env> {
     context: &'env check::Context,
     data: BTreeMap<Symbol, Label>,
     mangled: BTreeMap<Symbol, Symbol>,
+    returns: usize,
+}
+
+pub fn emit_unit(
+    path: &std::path::Path,
+    context: &check::Context,
+    ast: &ast::Program,
+) -> ir::Unit<hir::Function> {
+    let mut emitter = Emitter {
+        context,
+        data: BTreeMap::new(),
+        mangled: BTreeMap::new(),
+        returns: 0,
+    };
+
+    let mut functions = BTreeMap::new();
+
+    for fun in &ast.functions {
+        emitter.returns = emitter.get_returns(fun.name);
+        let name = emitter.mangle_function(fun.name);
+        let hir = emitter.emit_function(fun);
+        functions.insert(name, hir);
+    }
+
+    ir::Unit {
+        name: symbol::intern(path.to_string_lossy().trim_start_matches("./")),
+        functions,
+        data: emitter.data,
+    }
 }
 
 impl<'env> Emitter<'env> {
-    pub fn new(context: &'env check::Context) -> Self {
-        Emitter {
-            context,
-            data: BTreeMap::new(),
-            mangled: BTreeMap::new(),
-        }
-    }
-
-    pub fn emit_unit(
-        mut self,
-        path: &std::path::Path,
-        ast: &ast::Program,
-    ) -> ir::Unit<hir::Function> {
-        let mut functions = BTreeMap::new();
-
-        for fun in &ast.functions {
-            let name = self.mangle_function(fun.name);
-            let hir = self.emit_function(fun);
-            functions.insert(name, hir);
-        }
-
-        ir::Unit {
-            name: symbol::intern(path.to_string_lossy().trim_start_matches("./")),
-            functions,
-            data: self.data,
-        }
-    }
-
     fn emit_function(&mut self, function: &ast::Function) -> hir::Function {
         let mut variables = HashMap::default();
         let mut statements = Vec::new();
@@ -294,6 +295,13 @@ impl<'env> Emitter<'env> {
                             (JUMP r#in)
                             (LABEL out)
                             (EXP (CALL (NAME (Label::Fixed(symbol::intern_static(abi::XI_OUT_OF_BOUNDS)))) 0))
+                            // In order to (1) minimize special logic for `XI_OUT_OF_BOUNDS` and (2) still
+                            // treat it correctly in dataflow analyses as an exit site, we put this dummy
+                            // return instruction here.
+                            //
+                            // The number of returns must match the rest of the function, so return values
+                            // are defined along all paths to the exit.
+                            (RETURN vec![hir!((CONST 0)); self.returns])
                             (LABEL r#in))
                         (MEM (Add (TEMP base) (Mul (TEMP index) (CONST abi::WORD)))))
                 ).into()

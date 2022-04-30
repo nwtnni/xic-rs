@@ -46,7 +46,7 @@ impl From<Register> for Expression {
     }
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Statement<T> {
     Jump(operand::Label),
     CJump {
