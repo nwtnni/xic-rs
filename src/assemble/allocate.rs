@@ -1,5 +1,3 @@
-#![allow(dead_code)]
-
 use std::collections::BTreeMap;
 use std::iter;
 use std::slice;
@@ -22,7 +20,11 @@ struct Trivial {
     unused: iter::Rev<slice::Iter<'static, Register>>,
 }
 
-fn allocate_function(function: &asm::Function<Temporary>) -> Vec<Assembly<Register>> {
+pub fn allocate_unit(unit: &asm::Unit<Temporary>) -> asm::Unit<Register> {
+    unit.map(allocate_function)
+}
+
+fn allocate_function(function: &asm::Function<Temporary>) -> asm::Function<Register> {
     let mut trivial = Trivial {
         callee_arguments: function.callee_arguments,
         callee_returns: function.callee_returns,
@@ -70,7 +72,14 @@ fn allocate_function(function: &asm::Function<Temporary>) -> Vec<Assembly<Regist
         Assembly::Nullary(asm::Nullary::Ret),
     ]);
 
-    trivial.instructions
+    asm::Function {
+        name: function.name,
+        arguments: function.arguments,
+        returns: function.returns,
+        callee_arguments: function.callee_arguments,
+        callee_returns: function.callee_returns,
+        instructions: trivial.instructions,
+    }
 }
 
 // We should only tile `[rbp + offset]` when returning multiple arguments.

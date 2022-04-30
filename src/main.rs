@@ -45,6 +45,10 @@ struct Command {
 
     /// Specify where to place generated diagnostic files
     #[structopt(short = "D", parse(from_os_str), default_value = ".")]
+    directory_debug: PathBuf,
+
+    /// Specify where to place generated assembly files
+    #[structopt(short = "d", parse(from_os_str), default_value = ".")]
     directory_output: PathBuf,
 
     /// Specify where to search for source files
@@ -72,7 +76,7 @@ fn main() -> anyhow::Result<()> {
 
         if command.debug_lex {
             write!(
-                debug(&command.directory_output, &path, "lexed")?,
+                debug(&command.directory_debug, &path, "lexed")?,
                 "{}",
                 tokens
             )?;
@@ -82,7 +86,7 @@ fn main() -> anyhow::Result<()> {
 
         if command.debug_parse {
             write!(
-                debug(&command.directory_output, &path, "parsed")?,
+                debug(&command.directory_debug, &path, "parsed")?,
                 "{}",
                 program.sexp(),
             )?;
@@ -98,7 +102,7 @@ fn main() -> anyhow::Result<()> {
         );
 
         if command.debug_check {
-            let mut file = debug(&command.directory_output, &path, "typed")?;
+            let mut file = debug(&command.directory_debug, &path, "typed")?;
             match &context {
                 Ok(_) => write!(file, "Valid Xi Program")?,
                 Err(error) => write!(file, "{}", error)?,
@@ -113,7 +117,7 @@ fn main() -> anyhow::Result<()> {
 
         if command.debug_ir {
             write!(
-                debug(&command.directory_output, &path, "hir")?,
+                debug(&command.directory_debug, &path, "hir")?,
                 "{}",
                 hir.sexp(),
             )?;
@@ -128,7 +132,7 @@ fn main() -> anyhow::Result<()> {
         let cfg = xic::api::construct_control_flow(&lir);
 
         if command.debug_cfg {
-            write!(debug(&command.directory_output, &path, "dot")?, "{}", cfg)?;
+            write!(debug(&command.directory_debug, &path, "dot")?, "{}", cfg)?;
         }
 
         let mut lir = xic::api::destruct_control_flow(&cfg);
@@ -139,7 +143,7 @@ fn main() -> anyhow::Result<()> {
 
         if command.debug_ir {
             write!(
-                debug(&command.directory_output, &path, "lir")?,
+                debug(&command.directory_debug, &path, "lir")?,
                 "{}",
                 lir.sexp(),
             )?;
@@ -153,11 +157,19 @@ fn main() -> anyhow::Result<()> {
 
         if command.debug_abstract_assembly {
             write!(
-                debug(&command.directory_output, &path, "S")?,
+                debug(&command.directory_debug, &path, "tiled")?,
                 "{}",
                 abstract_assembly.intel(),
             )?;
         }
+
+        let assembly = xic::api::allocate(&abstract_assembly);
+
+        write!(
+            debug(&command.directory_output, &path, "S")?,
+            "{}",
+            assembly.intel(),
+        )?;
     }
 
     Ok(())
