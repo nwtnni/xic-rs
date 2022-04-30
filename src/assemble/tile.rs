@@ -296,22 +296,24 @@ impl Tiler {
         use operand::Unary;
 
         let operands = match (destination, source) {
-            (destination @ Unary::I(_), Unary::I(source)) => {
-                let destination = self.shuttle(destination);
-                Binary::RI {
-                    destination,
-                    source,
-                }
-            }
-            (destination @ Unary::I(_), Unary::M(source)) => {
-                let destination = self.shuttle(destination);
-                Binary::RM {
-                    destination,
-                    source,
-                }
-            }
+            (destination @ Unary::I(_), Unary::I(source)) => Binary::RI {
+                destination: self.shuttle(destination),
+                source,
+            },
+            (destination @ Unary::I(_), Unary::R(source)) => Binary::RR {
+                destination: self.shuttle(destination),
+                source,
+            },
+            (destination @ Unary::I(_), Unary::M(source)) => Binary::RM {
+                destination: self.shuttle(destination),
+                source,
+            },
 
             (Unary::M(destination), Unary::I(source)) => Binary::MI {
+                destination,
+                source,
+            },
+            (Unary::M(destination), Unary::R(source)) => Binary::MR {
                 destination,
                 source,
             },
@@ -324,14 +326,13 @@ impl Tiler {
                 destination,
                 source,
             },
-            (Unary::R(destination), Unary::M(source)) => Binary::RM {
+            (Unary::R(destination), Unary::R(source)) => Binary::RR {
                 destination,
                 source,
             },
-
-            (destination, source) => Binary::RR {
-                destination: self.shuttle(destination),
-                source: self.shuttle(source),
+            (Unary::R(destination), Unary::M(source)) => Binary::RM {
+                destination,
+                source,
             },
         };
 
