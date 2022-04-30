@@ -1,18 +1,8 @@
-use std::fmt;
 use std::io;
 use std::path::Path;
 
 use xic::data::hir;
 use xic::data::ir;
-use xic::data::sexp::Serialize as _;
-
-struct Snapshot(ir::Unit<hir::Function>);
-
-impl fmt::Display for Snapshot {
-    fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
-        write!(fmt, "{}", self.0.sexp())
-    }
-}
 
 fn compile(path: &str) -> ir::Unit<hir::Function> {
     let tokens = xic::api::lex(Path::new(path)).unwrap();
@@ -21,7 +11,7 @@ fn compile(path: &str) -> ir::Unit<hir::Function> {
     xic::api::emit_hir(Path::new(path), &program, &context)
 }
 
-#[test_generator::test_resources("tests/interpret/*.xi")]
+#[test_generator::test_resources("tests/execute/*.xi")]
 pub fn fold_hir(path: &str) {
     let hir = compile(path);
 
@@ -41,7 +31,7 @@ pub fn fold_hir(path: &str) {
     pretty_assertions::assert_eq!(hir_stdout, hir_folded_stdout);
 }
 
-#[test_generator::test_resources("tests/interpret/*.xi")]
+#[test_generator::test_resources("tests/execute/*.xi")]
 pub fn fold_lir(path: &str) {
     let hir = compile(path);
     let lir = xic::api::emit_lir(&hir);
