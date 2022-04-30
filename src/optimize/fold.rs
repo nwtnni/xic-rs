@@ -256,9 +256,9 @@ impl<T: Foldable> Foldable for Vec<T> {
 
 fn fold_binary(binary: ir::Binary, left: i64, right: i64) -> i64 {
     match binary {
-        ir::Binary::Add => left + right,
-        ir::Binary::Sub => left - right,
-        ir::Binary::Mul => left * right,
+        ir::Binary::Add => left.wrapping_add(right),
+        ir::Binary::Sub => left.wrapping_sub(right),
+        ir::Binary::Mul => left.wrapping_mul(right),
         ir::Binary::Hul => ((left as i128 * right as i128) >> 64) as i64,
         ir::Binary::Xor => left ^ right,
         #[rustfmt::skip]
