@@ -179,7 +179,7 @@ impl Tiler {
                     self.tile_binary(
                         asm::Binary::Lea,
                         abi::write_argument(0),
-                        abi::read_return(self.callee_arguments, 0),
+                        abi::read_return(self.callee_arguments, 2),
                     );
                     1
                 } else {

@@ -107,7 +107,7 @@ impl Canonizer {
             hir::Statement::Expression(hir::Expression::Call(_, _, 1)) => {
                 unreachable!("[TYPE ERROR]")
             }
-            hir::Statement::Expression(hir::Expression::Call(name, arguments, _)) => {
+            hir::Statement::Expression(hir::Expression::Call(name, arguments, returns)) => {
                 let name = match &**name {
                     hir::Expression::Immediate(Immediate::Label(name)) => name,
                     _ => unimplemented!("Calls to arbitrary expressions not yet implemented"),
@@ -117,7 +117,7 @@ impl Canonizer {
                 self.canonized.push(lir::Statement::Call(
                     lir::Expression::Immediate(Immediate::Label(*name)),
                     arguments,
-                    0,
+                    *returns,
                 ));
             }
             hir::Statement::Expression(expression) => {
