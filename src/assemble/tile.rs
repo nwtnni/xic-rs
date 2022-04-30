@@ -16,8 +16,6 @@ struct Tiler {
     instructions: Vec<Assembly<Temporary>>,
     caller_returns: Option<Temporary>,
     callee_arguments: usize,
-    #[allow(dead_code)]
-    callee_returns: usize,
 }
 
 enum Mutate {
@@ -56,7 +54,6 @@ fn tile_function(function: &lir::Function<lir::Fallthrough>) -> asm::Function<Te
         instructions: Vec::new(),
         caller_returns,
         callee_arguments,
-        callee_returns,
     };
 
     let callee_saved = abi::CALLEE_SAVED
@@ -82,9 +79,11 @@ fn tile_function(function: &lir::Function<lir::Fallthrough>) -> asm::Function<Te
 
     asm::Function {
         name: function.name,
-        statements: tiler.instructions,
+        instructions: tiler.instructions,
         arguments: function.arguments,
         returns: function.returns,
+        callee_arguments,
+        callee_returns,
     }
 }
 

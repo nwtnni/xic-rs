@@ -3,6 +3,7 @@ use std::fmt;
 use crate::data::ir;
 use crate::data::operand;
 use crate::data::operand::Label;
+use crate::data::symbol::Symbol;
 
 pub type Unit<T> = ir::Unit<Function<T>>;
 
@@ -12,7 +13,15 @@ impl<T: fmt::Display> Unit<T> {
     }
 }
 
-pub type Function<T> = ir::Function<Vec<Assembly<T>>>;
+#[derive(Clone, Debug)]
+pub struct Function<T> {
+    pub name: Symbol,
+    pub instructions: Vec<Assembly<T>>,
+    pub arguments: usize,
+    pub returns: usize,
+    pub callee_arguments: usize,
+    pub callee_returns: usize,
+}
 
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum Assembly<T> {

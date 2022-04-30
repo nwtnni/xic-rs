@@ -41,7 +41,7 @@ impl<T: fmt::Display> fmt::Display for Intel<&asm::Unit<T>> {
 impl<T: fmt::Display> fmt::Display for Intel<&asm::Function<T>> {
     fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
         writeln!(fmt, "{}:", self.0.name)?;
-        for statement in &self.0.statements {
+        for statement in &self.0.instructions {
             writeln!(fmt, "{}", Intel(statement))?;
         }
         Ok(())
