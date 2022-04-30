@@ -30,25 +30,9 @@ pub fn tile_unit(unit: &lir::Unit<lir::Fallthrough>) -> asm::Unit<Temporary> {
 }
 
 fn tile_function(function: &lir::Function<lir::Fallthrough>) -> asm::Function<Temporary> {
-    let (instructions, caller_returns) = match function.returns {
-        0 | 1 | 2 => (Vec::new(), None),
-        _ => {
-            let address = Temporary::fresh("overflow");
-
-            (
-                vec![Assembly::Binary(
-                    asm::Binary::Mov,
-                    operand::Binary::RR {
-                        destination: address,
-                        source: match abi::write_argument(0) {
-                            operand::Unary::R(register) => register,
-                            operand::Unary::I(_) | operand::Unary::M(_) => unreachable!(),
-                        },
-                    },
-                )],
-                Some(address),
-            )
-        }
+    let caller_returns = match function.returns {
+        0 | 1 | 2 => None,
+        _ => Some(Temporary::fresh("overflow")),
     };
 
     let (callee_arguments, callee_returns) = function
@@ -69,16 +53,32 @@ fn tile_function(function: &lir::Function<lir::Fallthrough>) -> asm::Function<Te
         );
 
     let mut tiler = Tiler {
-        instructions,
+        instructions: Vec::new(),
         caller_returns,
         callee_arguments,
         callee_returns,
     };
 
+    let callee_saved = abi::CALLEE_SAVED
+        .iter()
+        .copied()
+        .map(|register| {
+            let temporary = Temporary::fresh("save");
+            tiler.tile_binary(asm::Binary::Mov, temporary, register);
+            (temporary, register)
+        })
+        .collect::<Vec<_>>();
+
+    tiler.inject_multiple_return_argument();
+
     function
         .statements
         .iter()
         .for_each(|statement| tiler.tile_statement(statement));
+
+    for (temporary, register) in callee_saved {
+        tiler.tile_binary(asm::Binary::Mov, register, temporary);
+    }
 
     asm::Function {
         name: function.name,
@@ -89,6 +89,12 @@ fn tile_function(function: &lir::Function<lir::Fallthrough>) -> asm::Function<Te
 }
 
 impl Tiler {
+    fn inject_multiple_return_argument(&mut self) {
+        if let Some(temporary) = self.caller_returns {
+            self.tile_binary(asm::Binary::Mov, temporary, abi::read_argument(0));
+        }
+    }
+
     fn tile_statement(&mut self, statement: &lir::Statement<lir::Fallthrough>) {
         match statement {
             lir::Statement::Label(label) => self.push(Assembly::Label(*label)),
@@ -162,6 +168,17 @@ impl Tiler {
                 self.tile_binary(binary, destination, source);
             }
             lir::Statement::Call(function, arguments, returns) => {
+                #[allow(clippy::needless_collect)]
+                let caller_saved = abi::CALLER_SAVED
+                    .iter()
+                    .copied()
+                    .map(|register| {
+                        let temporary = Temporary::fresh("save");
+                        self.tile_binary(asm::Binary::Mov, temporary, register);
+                        (temporary, register)
+                    })
+                    .collect::<Vec<_>>();
+
                 let offset = if *returns > 2 {
                     self.tile_binary(
                         asm::Binary::Lea,
@@ -189,6 +206,10 @@ impl Tiler {
                     },
                     function,
                 ));
+
+                for (temporary, register) in caller_saved {
+                    self.tile_binary(asm::Binary::Mov, register, temporary)
+                }
             }
         }
     }

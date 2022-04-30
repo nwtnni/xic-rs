@@ -51,6 +51,27 @@ pub const XI_UNPARSE_INT: &str = "_IunparseInt_aii";
 pub const XI_PARSE_INT: &str = "_IparseInt_t2ibai";
 pub const XI_ASSERT: &str = "_Iassert_pb";
 
+pub const CALLEE_SAVED: &[Register] = &[
+    Register::Rbx,
+    Register::Rbp,
+    Register::R12,
+    Register::R13,
+    Register::R14,
+    Register::R15,
+];
+
+pub const CALLER_SAVED: &[Register] = &[
+    Register::Rax,
+    Register::Rcx,
+    Register::Rdx,
+    Register::Rsi,
+    Register::Rdi,
+    Register::R8,
+    Register::R9,
+    Register::R10,
+    Register::R11,
+];
+
 /// Retrieve `argument` from calling function.
 ///
 /// Extra arguments are stored in the caller's stack frame.
