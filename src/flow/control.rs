@@ -5,7 +5,6 @@ use std::mem;
 
 use petgraph::graphmap::DiGraphMap;
 
-use crate::abi;
 use crate::data::ir;
 use crate::data::lir;
 use crate::data::operand::Label;
@@ -112,17 +111,6 @@ fn construct_function(function: &ir::Function<Vec<lir::Statement<lir::Label>>>) 
             r#return @ lir::Statement::Return(_) => {
                 block.push(r#return.clone());
 
-                // Insert edge to dummy exit node for dataflow analysis
-                if let Some((previous, statements)) = block.replace(State::Unreachable) {
-                    graph.add_edge(previous, exit, Edge::Unconditional);
-                    blocks.insert(previous, statements);
-                }
-            }
-            // Special-case ABI function that never returns
-            call @ lir::Statement::Call(function, _, _)
-                if function.is_label(abi::XI_OUT_OF_BOUNDS) =>
-            {
-                block.push(call.clone());
 
                 // Insert edge to dummy exit node for dataflow analysis
                 if let Some((previous, statements)) = block.replace(State::Unreachable) {

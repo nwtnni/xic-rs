@@ -40,8 +40,6 @@ impl Canonizer {
             Some(
                 lir::Statement::Return(_) | lir::Statement::Jump(_) | lir::Statement::CJump { .. },
             ) => (),
-            Some(lir::Statement::Call(function, _, _))
-                if function.is_label(abi::XI_OUT_OF_BOUNDS) => {}
             Some(
                 lir::Statement::Call(_, _, _)
                 | lir::Statement::Move { .. }

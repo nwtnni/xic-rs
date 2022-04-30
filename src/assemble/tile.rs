@@ -167,16 +167,6 @@ impl Tiler {
 
                 self.tile_binary(binary, destination, source);
             }
-            lir::Statement::Call(function, _, _) if function.is_label(abi::XI_OUT_OF_BOUNDS) => {
-                let function = self.tile_expression(function);
-                self.push(asm::Assembly::Unary(
-                    asm::Unary::Call {
-                        arguments: 0,
-                        returns: 0,
-                    },
-                    function,
-                ));
-            }
             lir::Statement::Call(function, arguments, returns) => {
                 #[allow(clippy::needless_collect)]
                 let caller_saved = abi::CALLER_SAVED
