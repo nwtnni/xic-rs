@@ -176,17 +176,6 @@ impl Tiler {
                 self.tile_binary(binary, destination, source);
             }
             lir::Statement::Call(function, arguments, returns) => {
-                #[allow(clippy::needless_collect)]
-                let caller_saved = abi::CALLER_SAVED
-                    .iter()
-                    .copied()
-                    .map(|register| {
-                        let temporary = Temporary::fresh("save");
-                        self.tile_binary(asm::Binary::Mov, temporary, register);
-                        (temporary, register)
-                    })
-                    .collect::<Vec<_>>();
-
                 let offset = if *returns > 2 {
                     self.tile_binary(
                         asm::Binary::Lea,
@@ -214,10 +203,6 @@ impl Tiler {
                     },
                     function,
                 ));
-
-                for (temporary, register) in caller_saved {
-                    self.tile_binary(asm::Binary::Mov, register, temporary)
-                }
             }
         }
     }
