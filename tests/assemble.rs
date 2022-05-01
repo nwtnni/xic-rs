@@ -3,7 +3,9 @@ use std::io::Write as _;
 use std::path::Path;
 use std::process;
 
+use xic::data::asm;
 use xic::data::lir;
+use xic::data::operand::Temporary;
 
 fn compile(path: &str) -> lir::Unit<lir::Fallthrough> {
     let tokens = xic::api::lex(Path::new(path)).unwrap();
@@ -15,9 +17,8 @@ fn compile(path: &str) -> lir::Unit<lir::Fallthrough> {
     xic::api::destruct_control_flow_lir(&cfg)
 }
 
-fn execute(lir: &lir::Unit<lir::Fallthrough>) -> String {
-    let abstract_assembly = xic::api::tile(lir);
-    let assembly = xic::api::allocate(&abstract_assembly);
+fn execute(abstract_assembly: &asm::Unit<Temporary>) -> String {
+    let assembly = xic::api::allocate(abstract_assembly);
 
     let path = tempfile::NamedTempFile::new().unwrap().into_temp_path();
 
@@ -59,9 +60,20 @@ pub fn tile(path: &str) {
     let mut lir_stdin = io::Cursor::new(Vec::new());
     let mut lir_stdout = io::Cursor::new(Vec::new());
     xic::api::interpret_lir(&lir, &mut lir_stdin, &mut lir_stdout).unwrap();
-
     let lir_stdout = String::from_utf8(lir_stdout.into_inner()).unwrap();
-    let assembly_stdout = execute(&lir);
 
+    let abstract_assembly = xic::api::tile(&lir);
+    let assembly_stdout = execute(&abstract_assembly);
     pretty_assertions::assert_eq!(lir_stdout, assembly_stdout);
+}
+
+#[test_generator::test_resources("tests/execute/*.xi")]
+pub fn reorder(path: &str) {
+    let lir = compile(path);
+
+    let before = xic::api::tile(&lir);
+    let cfg = xic::api::construct_control_flow_assembly(&before);
+    let after = xic::api::destruct_control_flow_assembly(&cfg);
+
+    pretty_assertions::assert_eq!(execute(&before), execute(&after));
 }
