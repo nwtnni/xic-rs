@@ -12,19 +12,14 @@ use crate::cfg::Function;
 use crate::data::operand::Label;
 
 pub trait Analysis<T: Function> {
-    type Data;
+    type Data: Clone;
     type Direction: Direction<T>;
 
     fn initialize(&mut self, _cfg: &Cfg<T>) {}
 
     fn default(&mut self, cfg: &Cfg<T>, label: &Label) -> Self::Data;
 
-    fn transfer(
-        &mut self,
-        statements: &[T::Statement],
-        input: &Self::Data,
-        output: &mut Self::Data,
-    ) -> bool;
+    fn transfer(&mut self, statements: &T::Statement, output: &mut Self::Data) -> bool;
 
     fn merge(&mut self, output: &Self::Data, input: &mut Self::Data);
 }
@@ -118,7 +113,14 @@ pub fn analyze<A: Analysis<T>, T: Function>(analysis: &mut A, cfg: &Cfg<T>) -> S
             .entry(label)
             .or_insert_with(|| analysis.default(cfg, &label));
 
-        if analysis.transfer(&cfg[&label], input, output) {
+        *output = input.clone();
+        let mut changed = false;
+
+        for statement in &cfg[&label] {
+            changed |= analysis.transfer(statement, output);
+        }
+
+        if changed {
             worklist.extend(A::Direction::successors(cfg, &label));
         }
     }

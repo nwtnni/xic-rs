@@ -31,19 +31,9 @@ impl<T: Function> Analysis<T> for LiveVariable<T> {
         input.extend(output);
     }
 
-    fn transfer(
-        &mut self,
-        statements: &[T::Statement],
-        input: &Self::Data,
-        output: &mut Self::Data,
-    ) -> bool {
-        output.extend(input);
+    fn transfer(&mut self, statement: &T::Statement, output: &mut Self::Data) -> bool {
         let before = output.len();
-
-        for statement in statements {
-            T::transfer(statement, output);
-        }
-
+        T::transfer(statement, output);
         let after = output.len();
         before != after
     }
