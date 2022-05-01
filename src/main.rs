@@ -129,13 +129,13 @@ fn main() -> anyhow::Result<()> {
             lir = xic::api::fold_lir(lir);
         }
 
-        let cfg = xic::api::construct_control_flow_lir(&lir);
+        let cfg = xic::api::construct_cfg(&lir);
 
         if command.debug_cfg {
             write!(debug(&command.directory_debug, &path, "dot")?, "{}", cfg)?;
         }
 
-        let mut lir = xic::api::destruct_control_flow_lir(&cfg);
+        let mut lir = xic::api::destruct_cfg(&cfg);
 
         if !command.optimize_disable {
             lir = xic::api::fold_lir(lir);

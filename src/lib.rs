@@ -16,10 +16,8 @@ pub use error::Error;
 pub mod api {
     pub use crate::assemble::allocate;
     pub use crate::assemble::tile;
-    pub use crate::cfg::construct_control_flow_assembly;
-    pub use crate::cfg::construct_control_flow_lir;
-    pub use crate::cfg::destruct_control_flow_assembly;
-    pub use crate::cfg::destruct_control_flow_lir;
+    pub use crate::cfg::construct_cfg;
+    pub use crate::cfg::destruct_cfg;
     pub use crate::check::check;
     pub use crate::emit::emit_hir;
     pub use crate::emit::emit_lir;

@@ -68,7 +68,7 @@ pub enum Statement<T> {
     Return(Vec<Expression>),
 }
 
-impl Statement<Label> {
+impl<T: Target> Statement<T> {
     pub(crate) fn lower(self) -> Statement<Fallthrough> {
         use Statement::*;
         match self {

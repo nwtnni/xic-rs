@@ -2,10 +2,8 @@ mod construct;
 mod destruct;
 mod dot;
 
-pub use construct::construct_assembly as construct_control_flow_assembly;
-pub use construct::construct_lir as construct_control_flow_lir;
-pub use destruct::destruct_assembly as destruct_control_flow_assembly;
-pub use destruct::destruct_lir as destruct_control_flow_lir;
+pub use construct::unit as construct_cfg;
+pub use destruct::unit as destruct_cfg;
 
 use std::collections::BTreeMap;
 
@@ -31,10 +29,17 @@ pub enum Edge {
     Conditional(bool),
 }
 
+/// Represents a type that can be converted to and from a control flow graph.
 pub trait Function {
     type Statement: Clone;
-    type Metadata;
+    type Metadata: Clone;
+    type Fallthrough;
 
+    fn new(
+        name: Symbol,
+        statements: Vec<Self::Statement>,
+        metadata: Self::Metadata,
+    ) -> Self::Fallthrough;
     fn name(&self) -> Symbol;
     fn metadata(&self) -> Self::Metadata;
     fn statements(&self) -> &[Self::Statement];
@@ -56,6 +61,20 @@ pub enum Terminator {
 impl<T: lir::Target + Clone> Function for lir::Function<T> {
     type Statement = lir::Statement<T>;
     type Metadata = (usize, usize);
+    type Fallthrough = lir::Function<lir::Fallthrough>;
+
+    fn new(
+        name: Symbol,
+        statements: Vec<Self::Statement>,
+        (arguments, returns): Self::Metadata,
+    ) -> Self::Fallthrough {
+        lir::Function {
+            name,
+            statements: statements.into_iter().map(lir::Statement::lower).collect(),
+            arguments,
+            returns,
+        }
+    }
 
     fn name(&self) -> Symbol {
         self.name
@@ -104,6 +123,22 @@ impl<T: lir::Target + Clone> Function for lir::Function<T> {
 impl<T: Clone> Function for asm::Function<T> {
     type Statement = asm::Assembly<T>;
     type Metadata = (usize, usize, usize, usize);
+    type Fallthrough = asm::Function<T>;
+
+    fn new(
+        name: Symbol,
+        instructions: Vec<Self::Statement>,
+        (arguments, returns, callee_arguments, callee_returns): Self::Metadata,
+    ) -> Self {
+        asm::Function {
+            name,
+            instructions,
+            arguments,
+            returns,
+            callee_arguments,
+            callee_returns,
+        }
+    }
 
     fn name(&self) -> Symbol {
         self.name

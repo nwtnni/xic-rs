@@ -13,8 +13,8 @@ fn compile(path: &str) -> lir::Unit<lir::Fallthrough> {
     let context = xic::api::check(Path::new(path).parent().unwrap(), &program).unwrap();
     let hir = xic::api::emit_hir(Path::new(path), &program, &context);
     let lir = xic::api::emit_lir(&hir);
-    let cfg = xic::api::construct_control_flow_lir(&lir);
-    xic::api::destruct_control_flow_lir(&cfg)
+    let cfg = xic::api::construct_cfg(&lir);
+    xic::api::destruct_cfg(&cfg)
 }
 
 fn execute(abstract_assembly: &asm::Unit<Temporary>) -> String {
@@ -72,8 +72,8 @@ pub fn reorder(path: &str) {
     let lir = compile(path);
 
     let before = xic::api::tile(&lir);
-    let cfg = xic::api::construct_control_flow_assembly(&before);
-    let after = xic::api::destruct_control_flow_assembly(&cfg);
+    let cfg = xic::api::construct_cfg(&before);
+    let after = xic::api::destruct_cfg(&cfg);
 
     pretty_assertions::assert_eq!(execute(&before), execute(&after));
 }

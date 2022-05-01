@@ -3,40 +3,15 @@ use std::collections::BTreeSet;
 use crate::cfg::Cfg;
 use crate::cfg::Edge;
 use crate::cfg::Function;
-use crate::data::asm;
 use crate::data::ir;
-use crate::data::lir;
 
-pub fn destruct_lir(
-    unit: &ir::Unit<Cfg<lir::Function<lir::Label>>>,
-) -> lir::Unit<lir::Fallthrough> {
+pub fn unit<T: Function>(unit: &ir::Unit<Cfg<T>>) -> ir::Unit<T::Fallthrough> {
     unit.map(|function| {
-        let statements = destruct_function(function)
-            .into_iter()
-            .map(lir::Statement::lower)
-            .collect();
-        let (arguments, returns) = function.metadata;
-        lir::Function {
-            name: function.name,
-            statements,
-            arguments,
-            returns,
-        }
-    })
-}
-
-pub fn destruct_assembly<T: Clone>(unit: &ir::Unit<Cfg<asm::Function<T>>>) -> asm::Unit<T> {
-    unit.map(|function| {
-        let instructions = destruct_function(function);
-        let (arguments, returns, callee_arguments, callee_returns) = function.metadata;
-        asm::Function {
-            name: function.name,
-            instructions,
-            arguments,
-            returns,
-            callee_arguments,
-            callee_returns,
-        }
+        T::new(
+            function.name,
+            destruct_function(function),
+            function.metadata.clone(),
+        )
     })
 }
 

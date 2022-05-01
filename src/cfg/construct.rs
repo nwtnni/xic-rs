@@ -7,16 +7,10 @@ use crate::cfg::Cfg;
 use crate::cfg::Edge;
 use crate::cfg::Function;
 use crate::cfg::Terminator;
-use crate::data::asm;
 use crate::data::ir;
-use crate::data::lir;
 use crate::data::operand::Label;
 
-pub fn construct_lir(unit: &lir::Unit<lir::Label>) -> ir::Unit<Cfg<lir::Function<lir::Label>>> {
-    unit.map(|function| Walker::new().walk(function))
-}
-
-pub fn construct_assembly<T: Clone>(unit: &asm::Unit<T>) -> ir::Unit<Cfg<asm::Function<T>>> {
+pub fn unit<T: Function>(unit: &ir::Unit<T>) -> ir::Unit<Cfg<T>> {
     unit.map(|function| Walker::new().walk(function))
 }
 
