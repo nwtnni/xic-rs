@@ -82,7 +82,9 @@ pub enum Unary {
     Neg,
     Call { arguments: usize, returns: usize },
     Mul,
-    Div(Division),
+    Hul,
+    Div,
+    Mod,
 }
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -112,10 +114,4 @@ impl From<ir::Condition> for Condition {
             ir::Condition::Eq => Condition::E,
         }
     }
-}
-
-#[derive(Copy, Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub enum Division {
-    Quotient,
-    Remainder,
 }

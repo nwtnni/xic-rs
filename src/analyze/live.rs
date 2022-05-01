@@ -146,12 +146,19 @@ impl Function for asm::Function<Temporary> {
                     memory.map(|temporary| output.insert(*temporary));
                 }
             },
-            Assembly::Unary(asm::Unary::Mul | asm::Unary::Div(_), operand) => {
+            Assembly::Unary(
+                unary @ (asm::Unary::Mul | asm::Unary::Hul | asm::Unary::Div | asm::Unary::Mod),
+                operand,
+            ) => {
                 output.remove(&Temporary::Register(Register::Rdx));
 
                 // Both uses and defines `rax`:
                 // output.remove(&Temporary::Register(Register::Rax));
                 // output.insert(Temporary::Register(Register::Rax));
+
+                if let asm::Unary::Div | asm::Unary::Mod = unary {
+                    output.insert(Temporary::Register(Register::Rdx));
+                }
 
                 match operand {
                     operand::Unary::I(_) => (),

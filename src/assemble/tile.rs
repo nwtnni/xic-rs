@@ -260,14 +260,11 @@ impl Tiler {
                 operand::Unary::R(fresh)
             }
             ir::Binary::Mul | ir::Binary::Hul | ir::Binary::Div | ir::Binary::Mod => {
-                use asm::Division::Quotient;
-                use asm::Division::Remainder;
-
                 let (cqo, unary, register) = match binary {
                     ir::Binary::Mul => (false, asm::Unary::Mul, Register::Rax),
-                    ir::Binary::Hul => (false, asm::Unary::Mul, Register::Rdx),
-                    ir::Binary::Div => (true, asm::Unary::Div(Quotient), Register::Rax),
-                    ir::Binary::Mod => (true, asm::Unary::Div(Remainder), Register::Rdx),
+                    ir::Binary::Hul => (false, asm::Unary::Hul, Register::Rdx),
+                    ir::Binary::Div => (true, asm::Unary::Div, Register::Rax),
+                    ir::Binary::Mod => (true, asm::Unary::Mod, Register::Rdx),
                     _ => unreachable!(),
                 };
 
