@@ -1,4 +1,5 @@
 use std::collections::BTreeMap;
+use std::convert::TryFrom as _;
 use std::iter;
 use std::slice;
 
@@ -130,6 +131,33 @@ impl Trivial {
         self.unused = abi::CALLER_SAVED.iter().rev();
 
         let instruction = match instruction {
+            // This is the only instruction that can't take a memory destination, so
+            // we can't write directly to a stack position.
+            Assembly::Binary(
+                asm::Binary::Mov,
+                operand::Binary::RI {
+                    destination,
+                    source: Immediate::Integer(integer),
+                },
+            ) if i32::try_from(*integer).is_err() => {
+                let register = self.unused.next().copied().unwrap();
+
+                self.instructions.push(Assembly::Binary(
+                    asm::Binary::Mov,
+                    operand::Binary::RI {
+                        destination: register,
+                        source: Immediate::Integer(*integer),
+                    },
+                ));
+
+                Assembly::Binary(
+                    asm::Binary::Mov,
+                    self.allocate_binary(&operand::Binary::RR {
+                        destination: *destination,
+                        source: Temporary::Register(register),
+                    }),
+                )
+            }
             Assembly::Binary(binary, operands) => {
                 Assembly::Binary(*binary, self.allocate_binary(operands))
             }

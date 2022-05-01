@@ -1,4 +1,5 @@
 use std::cmp;
+use std::convert::TryFrom as _;
 
 use crate::abi;
 use crate::data::asm;
@@ -134,6 +135,19 @@ impl Tiler {
                     operand::Unary::from(*r#true),
                 ));
             }
+            // Special case: 64-bit immediate can only be passed to `mov r64, i64`.
+            lir::Statement::Move {
+                destination: lir::Expression::Temporary(temporary),
+                source: lir::Expression::Immediate(Immediate::Integer(integer)),
+            } => {
+                self.push(Assembly::Binary(
+                    asm::Binary::Mov,
+                    operand::Binary::RI {
+                        destination: *temporary,
+                        source: Immediate::Integer(*integer),
+                    },
+                ));
+            }
             lir::Statement::Move {
                 destination,
                 source,
@@ -215,7 +229,18 @@ impl Tiler {
             lir::Expression::Return(index) => {
                 return abi::read_return(self.callee_arguments, *index)
             }
-            lir::Expression::Immediate(immediate) => return operand::Unary::I(*immediate),
+            // Only `mov r64, i64` instructions can use 64-bit immediates (handled above).
+            lir::Expression::Immediate(Immediate::Integer(integer)) => {
+                return match i32::try_from(*integer) {
+                    Ok(integer) => operand::Unary::I(Immediate::Integer(integer as i64)),
+                    Err(_) => operand::Unary::R(
+                        self.shuttle(operand::Unary::I(Immediate::Integer(*integer))),
+                    ),
+                }
+            }
+            lir::Expression::Immediate(label @ Immediate::Label(_)) => {
+                return operand::Unary::I(*label)
+            }
             lir::Expression::Temporary(temporary) => return operand::Unary::R(*temporary),
             lir::Expression::Memory(address) => return self.tile_memory(address),
             lir::Expression::Binary(binary, left, right) => (binary, &**left, &**right),
