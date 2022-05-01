@@ -1,9 +1,10 @@
+pub mod data;
+
 mod abi;
-mod assemble;
 mod analyze;
+mod assemble;
 mod cfg;
 mod check;
-pub mod data;
 mod emit;
 mod error;
 mod interpret;

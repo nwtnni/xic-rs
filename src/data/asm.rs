@@ -130,7 +130,7 @@ macro_rules! asm {
     ((cqo)) => {
         $crate::data::asm::Assembly::Nullary($crate::data::asm::Nullary::Cqo)
     };
-    ((ret $returns:expr, $caller_returns:expr)) => {
+    ((ret<$returns:tt, $caller_returns:tt>)) => {
         $crate::data::asm::Assembly::Nullary($crate::data::asm::Nullary::Ret(
             $returns,
             $caller_returns,

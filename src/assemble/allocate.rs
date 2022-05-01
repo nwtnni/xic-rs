@@ -4,6 +4,7 @@ use std::iter;
 use std::slice;
 
 use crate::abi;
+use crate::asm;
 use crate::data::asm;
 use crate::data::asm::Assembly;
 use crate::data::operand;
@@ -49,28 +50,18 @@ fn allocate_function(function: &asm::Function<Temporary>) -> asm::Function<Regis
         .iter_mut()
         .for_each(|instruction| rewrite_rbp(stack_size, instruction));
 
+    let rsp = Register::Rsp;
+    let returns = function.returns;
+    let caller_returns = function.caller_returns;
+
     // Prologue
-    trivial.instructions.insert(
-        0,
-        Assembly::Binary(
-            asm::Binary::Sub,
-            operand::Binary::RI {
-                destination: Register::Rsp,
-                source: Immediate::Integer(stack_size),
-            },
-        ),
-    );
+    trivial.instructions.insert(0, asm!((sub rsp, stack_size)));
 
     // Epilogue
+    #[rustfmt::skip]
     trivial.instructions.extend([
-        Assembly::Binary(
-            asm::Binary::Add,
-            operand::Binary::RI {
-                destination: Register::Rsp,
-                source: Immediate::Integer(stack_size),
-            },
-        ),
-        Assembly::Nullary(asm::Nullary::Ret(function.returns, function.caller_returns)),
+        asm!((add rsp, stack_size)),
+        asm!((ret<returns, caller_returns>)),
     ]);
 
     asm::Function {
@@ -144,14 +135,9 @@ impl Trivial {
                 },
             ) if i32::try_from(*integer).is_err() => {
                 let register = self.unused.next().copied().unwrap();
+                let integer = *integer;
 
-                self.instructions.push(Assembly::Binary(
-                    asm::Binary::Mov,
-                    operand::Binary::RI {
-                        destination: register,
-                        source: Immediate::Integer(*integer),
-                    },
-                ));
+                self.instructions.push(asm!((mov register, integer)));
 
                 Assembly::Binary(
                     asm::Binary::Mov,
@@ -240,15 +226,7 @@ impl Trivial {
             },
             (Or::R(destination), Or::R(source)) => {
                 let register = self.unused.next().copied().unwrap();
-
-                self.instructions.push(Assembly::Binary(
-                    asm::Binary::Mov,
-                    operand::Binary::RM {
-                        destination: register,
-                        source,
-                    },
-                ));
-
+                self.instructions.push(asm!((mov register, source)));
                 operand::Binary::MR {
                     destination,
                     source: register,
@@ -279,15 +257,7 @@ impl Trivial {
             };
 
             let register = self.unused.next().copied().unwrap();
-
-            self.instructions.push(Assembly::Binary(
-                asm::Binary::Mov,
-                operand::Binary::RM {
-                    destination: register,
-                    source: memory,
-                },
-            ));
-
+            self.instructions.push(asm!((mov register, memory)));
             register
         })
     }

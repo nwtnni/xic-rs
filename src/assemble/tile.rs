@@ -2,6 +2,7 @@ use std::cmp;
 use std::convert::TryFrom as _;
 
 use crate::abi;
+use crate::asm;
 use crate::data::asm;
 use crate::data::asm::Assembly;
 use crate::data::ir;
@@ -62,7 +63,8 @@ fn tile_function(function: &lir::Function<lir::Fallthrough>) -> asm::Function<Te
         .copied()
         .map(|register| {
             let temporary = Temporary::fresh("save");
-            tiler.tile_binary(asm::Binary::Mov, temporary, register);
+            let register = Temporary::Register(register);
+            tiler.push(asm!((mov temporary, register)));
             (temporary, register)
         })
         .collect::<Vec<_>>();
@@ -75,7 +77,7 @@ fn tile_function(function: &lir::Function<lir::Fallthrough>) -> asm::Function<Te
         .for_each(|statement| tiler.tile_statement(statement));
 
     for (temporary, register) in callee_saved {
-        tiler.tile_binary(asm::Binary::Mov, register, temporary);
+        tiler.push(asm!((mov register, temporary)));
     }
 
     asm::Function {
@@ -117,31 +119,25 @@ impl Tiler {
                 // self.push(Assembly::Nullary(asm::Nullary::Ret));
                 // ```
             }
-            lir::Statement::Jump(label) => {
-                self.push(Assembly::Jmp(*label));
+            &lir::Statement::Jump(label) => {
+                self.push(asm!((jmp label)));
             }
-            lir::Statement::CJump {
+            &lir::Statement::CJump {
                 condition,
-                left,
-                right,
+                ref left,
+                ref right,
                 r#true,
                 r#false: lir::Fallthrough,
             } => {
                 self.tile_binary(asm::Binary::Cmp, left, right);
-                self.push(Assembly::Jcc(asm::Condition::from(*condition), *r#true));
+                self.push(asm!((jcc asm::Condition::from(condition), r#true)));
             }
             // Special case: 64-bit immediate can only be passed to `mov r64, i64`.
-            lir::Statement::Move {
+            &lir::Statement::Move {
                 destination: lir::Expression::Temporary(temporary),
                 source: lir::Expression::Immediate(Immediate::Integer(integer)),
             } => {
-                self.push(Assembly::Binary(
-                    asm::Binary::Mov,
-                    operand::Binary::RI {
-                        destination: *temporary,
-                        source: Immediate::Integer(*integer),
-                    },
-                ));
+                self.push(asm!((mov temporary, integer)));
             }
             lir::Statement::Move {
                 destination,
@@ -174,7 +170,7 @@ impl Tiler {
                         if **left == lir::Expression::from(0) && &**right == destination =>
                     {
                         let operand = self.tile_expression(destination);
-                        self.push(Assembly::Unary(asm::Unary::Neg, operand));
+                        self.push(asm!((neg operand)));
                         return;
                     }
 
@@ -204,13 +200,10 @@ impl Tiler {
                 }
 
                 let function = self.tile_expression(function);
-                self.push(asm::Assembly::Unary(
-                    asm::Unary::Call {
-                        arguments: arguments.len(),
-                        returns: *returns,
-                    },
-                    function,
-                ));
+                let arguments = arguments.len();
+                let returns = *returns;
+                #[rustfmt::skip]
+                self.push(asm!((call<arguments, returns> function)));
             }
         }
     }
@@ -227,10 +220,8 @@ impl Tiler {
             // Only `mov r64, i64` instructions can use 64-bit immediates (handled above).
             lir::Expression::Immediate(Immediate::Integer(integer)) => {
                 return match i32::try_from(*integer) {
-                    Ok(integer) => operand::Unary::I(Immediate::Integer(integer as i64)),
-                    Err(_) => operand::Unary::R(
-                        self.shuttle(operand::Unary::I(Immediate::Integer(*integer))),
-                    ),
+                    Ok(integer) => operand::Unary::from(integer as i64),
+                    Err(_) => operand::Unary::R(self.shuttle(operand::Unary::from(*integer))),
                 }
             }
             lir::Expression::Immediate(label @ Immediate::Label(_)) => {
@@ -272,7 +263,7 @@ impl Tiler {
 
                 self.tile_binary(asm::Binary::Mov, Register::Rax, destination);
                 if cqo {
-                    self.push(Assembly::Nullary(asm::Nullary::Cqo));
+                    self.push(asm!((cqo)));
                 }
                 self.tile_unary(unary, source, Mutate::Yes);
                 self.tile_binary(asm::Binary::Mov, fresh, register);
@@ -370,9 +361,9 @@ impl Tiler {
             (destination @ operand::Unary::M(_), Mutate::No) => {
                 operand::Unary::R(self.shuttle(destination))
             }
-            (destination @ operand::Unary::R(_), Mutate::No) => {
+            (operand::Unary::R(destination), Mutate::No) => {
                 let fresh = Temporary::fresh("tile");
-                self.tile_binary(asm::Binary::Mov, fresh, destination);
+                self.push(asm!((mov fresh, destination)));
                 operand::Unary::R(fresh)
             }
         };
@@ -598,24 +589,12 @@ impl Tiler {
             operand::Unary::R(temporary) => temporary,
             operand::Unary::I(source) => {
                 let destination = Temporary::fresh("shuttle");
-                self.push(Assembly::Binary(
-                    asm::Binary::Mov,
-                    operand::Binary::RI {
-                        destination,
-                        source,
-                    },
-                ));
+                self.push(asm!((mov destination, source)));
                 destination
             }
             operand::Unary::M(source) => {
                 let destination = Temporary::fresh("shuttle");
-                self.push(Assembly::Binary(
-                    asm::Binary::Mov,
-                    operand::Binary::RM {
-                        destination,
-                        source,
-                    },
-                ));
+                self.push(asm!((mov destination, source)));
                 destination
             }
         }
