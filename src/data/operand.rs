@@ -230,6 +230,72 @@ impl<T> Memory<T> {
     }
 }
 
+impl<T, I: Into<Immediate>> From<I> for Memory<T> {
+    fn from(offset: I) -> Self {
+        Self::O {
+            offset: offset.into(),
+        }
+    }
+}
+
+impl From<Temporary> for Memory<Temporary> {
+    fn from(base: Temporary) -> Self {
+        Self::B { base }
+    }
+}
+
+impl From<(Temporary, Temporary)> for Memory<Temporary> {
+    fn from((base, index): (Temporary, Temporary)) -> Self {
+        Self::BI { base, index }
+    }
+}
+
+impl<I: Into<Immediate>> From<(Temporary, I)> for Memory<Temporary> {
+    fn from((base, offset): (Temporary, I)) -> Self {
+        Self::BO {
+            base,
+            offset: offset.into(),
+        }
+    }
+}
+
+impl From<(Temporary, Temporary, Scale)> for Memory<Temporary> {
+    fn from((base, index, scale): (Temporary, Temporary, Scale)) -> Self {
+        Self::BIS { base, index, scale }
+    }
+}
+
+impl<I: Into<Immediate>> From<(Temporary, Temporary, I)> for Memory<Temporary> {
+    fn from((base, index, offset): (Temporary, Temporary, I)) -> Self {
+        Self::BIO {
+            base,
+            index,
+            offset: offset.into(),
+        }
+    }
+}
+
+impl<I: Into<Immediate>> From<(Temporary, Scale, I)> for Memory<Temporary> {
+    fn from((index, scale, offset): (Temporary, Scale, I)) -> Self {
+        Self::ISO {
+            index,
+            scale,
+            offset: offset.into(),
+        }
+    }
+}
+
+impl<I: Into<Immediate>> From<(Temporary, Temporary, Scale, I)> for Memory<Temporary> {
+    fn from((base, index, scale, offset): (Temporary, Temporary, Scale, I)) -> Self {
+        Self::BISO {
+            base,
+            index,
+            scale,
+            offset: offset.into(),
+        }
+    }
+}
+
 #[derive(Copy, Clone, Debug, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub enum Scale {
     _1,
@@ -327,6 +393,51 @@ impl<T: Clone> Binary<T> {
     }
 }
 
+impl<I: Into<Immediate>> From<(Memory<Temporary>, I)> for Binary<Temporary> {
+    fn from((destination, source): (Memory<Temporary>, I)) -> Self {
+        Binary::MI {
+            destination,
+            source: source.into(),
+        }
+    }
+}
+
+impl<I: Into<Immediate>> From<(Temporary, I)> for Binary<Temporary> {
+    fn from((destination, source): (Temporary, I)) -> Self {
+        Binary::RI {
+            destination,
+            source: source.into(),
+        }
+    }
+}
+
+impl From<(Temporary, Memory<Temporary>)> for Binary<Temporary> {
+    fn from((destination, source): (Temporary, Memory<Temporary>)) -> Self {
+        Binary::RM {
+            destination,
+            source,
+        }
+    }
+}
+
+impl From<(Memory<Temporary>, Temporary)> for Binary<Temporary> {
+    fn from((destination, source): (Memory<Temporary>, Temporary)) -> Self {
+        Binary::MR {
+            destination,
+            source,
+        }
+    }
+}
+
+impl From<(Temporary, Temporary)> for Binary<Temporary> {
+    fn from((destination, source): (Temporary, Temporary)) -> Self {
+        Binary::RR {
+            destination,
+            source,
+        }
+    }
+}
+
 #[derive(Copy, Clone, Debug, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub enum Unary<T> {
     I(Immediate),
@@ -355,5 +466,11 @@ impl<T: From<Register>> From<Register> for Unary<T> {
 impl<T: From<Temporary>> From<Temporary> for Unary<T> {
     fn from(temporary: Temporary) -> Self {
         Unary::R(T::from(temporary))
+    }
+}
+
+impl<T> From<Memory<T>> for Unary<T> {
+    fn from(memory: Memory<T>) -> Self {
+        Unary::M(memory)
     }
 }

@@ -115,3 +115,85 @@ impl From<ir::Condition> for Condition {
         }
     }
 }
+
+#[macro_export]
+macro_rules! asm {
+    (($label:ident:)) => {
+        $crate::data::asm::Assembly::Label($label)
+    };
+    ((jmp $label:expr)) => {
+        $crate::data::asm::Assembly::Jmp($label)
+    };
+    ((jcc $condition:expr, $label:expr)) => {
+        $crate::data::asm::Assembly::Jcc($condition, $label)
+    };
+    ((cqo)) => {
+        $crate::data::asm::Assembly::Nullary($crate::data::asm::Nullary::Cqo)
+    };
+    ((ret $returns:expr, $caller_returns:expr)) => {
+        $crate::data::asm::Assembly::Nullary($crate::data::asm::Nullary::Ret(
+            $returns,
+            $caller_returns,
+        ))
+    };
+
+    ((call<$arguments:tt, $returns:tt> $operand:tt)) => {
+        $crate::data::asm::Assembly::Unary(
+            $crate::data::asm::Unary::Call {
+                arguments: $arguments,
+                returns: $returns,
+            },
+            $crate::data::operand::Unary::from(asm!($operand))
+        )
+    };
+    (($unary:tt $operand:tt)) => {
+        $crate::data::asm::Assembly::Unary(
+            asm!(@unary $unary),
+            $crate::data::operand::Unary::from(asm!($operand))
+        )
+    };
+    (($binary:tt $destination:tt, $source:tt)) => {
+        $crate::data::asm::Assembly::Binary(
+            asm!(@binary $binary),
+            $crate::data::operand::Binary::from((asm!($destination), asm!($source)))
+        )
+    };
+
+    (@unary neg) => { $crate::data::asm::Unary::Neg };
+    (@unary imul) => { $crate::data::asm::Unary::Mul };
+    (@unary ihul) => { $crate::data::asm::Unary::Hul };
+    (@unary idiv) => { $crate::data::asm::Unary::Div };
+    (@unary imod) => { $crate::data::asm::Unary::Mod };
+
+    (@binary add) => { $crate::data::asm::Binary::Add };
+    (@binary sub) => { $crate::data::asm::Binary::Sub };
+    (@binary and) => { $crate::data::asm::Binary::And };
+    (@binary or) => { $crate::data::asm::Binary::Or };
+    (@binary xor) => { $crate::data::asm::Binary::Xor };
+    (@binary cmp) => { $crate::data::asm::Binary::Cmp };
+    (@binary mov) => { $crate::data::asm::Binary::Mov };
+    (@binary lea) => { $crate::data::asm::Binary::Lea };
+
+    ([$base:tt]) => {
+        $crate::data::operand::Memory::from($base)
+    };
+    ([$base:tt + $offset:tt]) => {
+        $crate::data::operand::Memory::from(($base, $offset))
+    };
+    ([$base:tt + $index:tt + $offset:tt]) => {
+        $crate::data::operand::Memory::from(($base, $index, $offset))
+    };
+    ([$base:tt + $index:tt * $scale:tt]) => {
+        $crate::data::operand::Memory::from(($base, $index, $scale))
+    };
+    ([$index:tt * $scale:tt + $offset:tt]) => {
+        $crate::data::operand::Memory::from(($index, $scale, $offset))
+    };
+    ([$base:tt + $index:tt * $scale:tt + $offset:tt]) => {
+        $crate::data::operand::Memory::from(($base, $index, $scale, $offset))
+    };
+
+    ($tt:tt) => {
+        $tt
+    };
+}

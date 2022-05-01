@@ -128,14 +128,14 @@ impl<T: fmt::Display> fmt::Display for Intel<&operand::Memory<T>> {
                 write!(fmt, "[{} + {} + {}]", base, index, offset)
             }
             operand::Memory::BIS { base, index, scale } => {
-                write!(fmt, "[{} + {}*{}]", base, scale, index)
+                write!(fmt, "[{} + {} * {}]", base, index, scale)
             }
             operand::Memory::ISO {
                 index,
                 scale,
                 offset,
             } => {
-                write!(fmt, "[{}*{} + {}]", index, scale, offset)
+                write!(fmt, "[{} * {} + {}]", index, scale, offset)
             }
             operand::Memory::BISO {
                 base,
@@ -143,7 +143,7 @@ impl<T: fmt::Display> fmt::Display for Intel<&operand::Memory<T>> {
                 scale,
                 offset,
             } => {
-                write!(fmt, "[{} + {}*{} + {}]", base, index, scale, offset)
+                write!(fmt, "[{} + {} * {} + {}]", base, index, scale, offset)
             }
         }
     }
