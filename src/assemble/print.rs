@@ -198,8 +198,6 @@ impl fmt::Display for asm::Unary {
     fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
         let unary = match self {
             asm::Unary::Neg => "neg",
-            asm::Unary::Push => "push",
-            asm::Unary::Pop => "pop",
             asm::Unary::Call {
                 arguments: _,
                 returns: _,

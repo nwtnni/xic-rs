@@ -78,8 +78,6 @@ impl From<ir::Binary> for Binary {
 #[derive(Copy, Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum Unary {
     Neg,
-    Push,
-    Pop,
     Call { arguments: usize, returns: usize },
     Mul,
     Div(Division),
