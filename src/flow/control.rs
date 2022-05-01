@@ -8,7 +8,6 @@ use petgraph::graphmap::DiGraphMap;
 use crate::data::asm;
 use crate::data::ir;
 use crate::data::lir;
-use crate::data::operand;
 use crate::data::operand::Label;
 use crate::data::symbol::Symbol;
 
@@ -444,10 +443,7 @@ impl<T: Clone> Function for asm::Function<T> {
     }
 
     fn jump(label: Label) -> Self::Statement {
-        asm::Assembly::Unary(
-            asm::Unary::Jmp,
-            operand::Unary::I(operand::Immediate::Label(label)),
-        )
+        asm::Assembly::Jmp(label)
     }
 
     fn label(label: Label) -> Self::Statement {
@@ -461,21 +457,13 @@ impl<T: Clone> Function for asm::Function<T> {
                 unreachable!("no ret instruction until register allocation")
             }
             asm::Assembly::Binary(_, _) => None,
+            asm::Assembly::Unary(_, _) => None,
             asm::Assembly::Label(label) => Some(Terminator::Label(*label)),
-            asm::Assembly::Unary(
-                asm::Unary::Jmp,
-                operand::Unary::I(operand::Immediate::Label(label)),
-            ) => Some(Terminator::Jump(*label)),
-            asm::Assembly::Unary(asm::Unary::Jmp, _) => unreachable!(),
-            asm::Assembly::Unary(
-                asm::Unary::Jcc(_),
-                operand::Unary::I(operand::Immediate::Label(label)),
-            ) => Some(Terminator::CJump {
+            asm::Assembly::Jmp(label) => Some(Terminator::Jump(*label)),
+            asm::Assembly::Jcc(_, label) => Some(Terminator::CJump {
                 r#true: *label,
                 r#false: None,
             }),
-            asm::Assembly::Unary(asm::Unary::Jcc(_), _) => unreachable!(),
-            asm::Assembly::Unary(_, _) => None,
         }
     }
 }

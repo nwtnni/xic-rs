@@ -29,6 +29,14 @@ pub enum Assembly<T> {
     Unary(Unary, operand::Unary<T>),
     Nullary(Nullary),
     Label(Label),
+    Jmp(Label),
+    Jcc(Condition, Label),
+}
+
+impl<T: fmt::Display> fmt::Display for Assembly<T> {
+    fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
+        write!(fmt, "{}", crate::assemble::Intel(self))
+    }
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -75,8 +83,6 @@ pub enum Unary {
     Call { arguments: usize, returns: usize },
     Mul,
     Div(Division),
-    Jmp,
-    Jcc(Condition),
 }
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]

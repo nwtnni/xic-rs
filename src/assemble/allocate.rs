@@ -94,7 +94,9 @@ fn rewrite_rbp(stack_size: i64, instruction: &mut Assembly<Register>) {
         | Assembly::Unary(_, operand::Unary::R(_))
         | Assembly::Unary(_, operand::Unary::I(_))
         | Assembly::Nullary(_)
-        | Assembly::Label(_) => return,
+        | Assembly::Label(_)
+        | Assembly::Jmp(_)
+        | Assembly::Jcc(_, _) => return,
         #[rustfmt::skip]
         Assembly::Binary(_, operand::Binary::MI { destination: memory, .. })
         | Assembly::Binary( _, operand::Binary::MR { destination: memory, .. })
@@ -166,6 +168,8 @@ impl Trivial {
             }
             Assembly::Nullary(nullary) => Assembly::Nullary(*nullary),
             Assembly::Label(label) => Assembly::Label(*label),
+            Assembly::Jmp(label) => Assembly::Jmp(*label),
+            Assembly::Jcc(condition, label) => Assembly::Jcc(*condition, *label),
         };
 
         self.instructions.push(instruction);

@@ -117,10 +117,7 @@ impl Tiler {
                 // ```
             }
             lir::Statement::Jump(label) => {
-                self.push(Assembly::Unary(
-                    asm::Unary::Jmp,
-                    operand::Unary::from(*label),
-                ));
+                self.push(Assembly::Jmp(*label));
             }
             lir::Statement::CJump {
                 condition,
@@ -130,10 +127,7 @@ impl Tiler {
                 r#false: lir::Fallthrough,
             } => {
                 self.tile_binary(asm::Binary::Cmp, left, right);
-                self.push(Assembly::Unary(
-                    asm::Unary::Jcc(asm::Condition::from(*condition)),
-                    operand::Unary::from(*r#true),
-                ));
+                self.push(Assembly::Jcc(asm::Condition::from(*condition), *r#true));
             }
             // Special case: 64-bit immediate can only be passed to `mov r64, i64`.
             lir::Statement::Move {

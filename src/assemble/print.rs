@@ -58,6 +58,8 @@ impl<T: fmt::Display> fmt::Display for Intel<&asm::Assembly<T>> {
             asm::Assembly::Unary(unary, operand) => write!(fmt, "    {} {}", unary, Intel(operand)),
             asm::Assembly::Nullary(nullary) => write!(fmt, "    {}", nullary),
             asm::Assembly::Label(label) => write!(fmt, "{}:", label),
+            asm::Assembly::Jmp(label) => write!(fmt, "    jmp {}", label),
+            asm::Assembly::Jcc(condition, label) => write!(fmt, "j{} {}", condition, label),
         }
     }
 }
@@ -204,10 +206,6 @@ impl fmt::Display for asm::Unary {
             } => "call",
             asm::Unary::Mul => "imul",
             asm::Unary::Div(_) => "idiv",
-            asm::Unary::Jmp => "jmp",
-            asm::Unary::Jcc(condition) => {
-                return write!(fmt, "j{}", condition);
-            }
         };
 
         write!(fmt, "{}", unary)
