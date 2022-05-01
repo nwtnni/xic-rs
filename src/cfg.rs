@@ -6,8 +6,10 @@ pub use construct::unit as construct_cfg;
 pub use destruct::unit as destruct_cfg;
 
 use std::collections::BTreeMap;
+use std::ops;
 
 use petgraph::graphmap::DiGraphMap;
+use petgraph::graphmap::NeighborsDirected;
 
 use crate::data::asm;
 use crate::data::lir;
@@ -21,6 +23,37 @@ pub struct Cfg<T: Function> {
     exit: Label,
     graph: DiGraphMap<Label, Edge>,
     blocks: BTreeMap<Label, Vec<T::Statement>>,
+}
+
+impl<T: Function> Cfg<T> {
+    pub fn enter(&self) -> &Label {
+        &self.enter
+    }
+
+    pub fn exit(&self) -> &Label {
+        &self.exit
+    }
+
+    pub fn incoming(&self, label: &Label) -> NeighborsDirected<Label, petgraph::Directed> {
+        self.graph
+            .neighbors_directed(*label, petgraph::Direction::Incoming)
+    }
+
+    pub fn outgoing(&self, label: &Label) -> NeighborsDirected<Label, petgraph::Directed> {
+        self.graph
+            .neighbors_directed(*label, petgraph::Direction::Outgoing)
+    }
+
+    pub fn get(&self, label: &Label) -> Option<&[T::Statement]> {
+        self.blocks.get(label).map(|block| block.as_slice())
+    }
+}
+
+impl<T: Function> ops::Index<&Label> for Cfg<T> {
+    type Output = [T::Statement];
+    fn index(&self, index: &Label) -> &Self::Output {
+        &self.blocks[index]
+    }
 }
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]

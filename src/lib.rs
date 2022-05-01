@@ -1,5 +1,6 @@
 mod abi;
 mod assemble;
+mod analyze;
 mod cfg;
 mod check;
 pub mod data;
