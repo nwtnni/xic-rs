@@ -11,7 +11,7 @@ use crate::data::ir;
 use crate::data::operand::Label;
 
 pub fn unit<T: Function>(unit: &ir::Unit<T>) -> ir::Unit<Cfg<T>> {
-    unit.map(|function| Walker::new().walk(function))
+    unit.map(|function| Walker::new(function).walk(function))
 }
 
 struct Walker<T: Function> {
@@ -23,12 +23,12 @@ struct Walker<T: Function> {
 }
 
 impl<T: Function> Walker<T> {
-    fn new() -> Self {
+    fn new(function: &T) -> Self {
         let enter = Label::fresh("enter");
         let exit = Label::fresh("exit");
 
         let mut blocks = BTreeMap::new();
-        blocks.insert(exit, Vec::new());
+        blocks.insert(exit, function.exit());
 
         Walker {
             enter,

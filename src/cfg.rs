@@ -74,9 +74,12 @@ pub trait Function {
         statements: Vec<Self::Statement>,
         metadata: Self::Metadata,
     ) -> Self::Fallthrough;
+
     fn name(&self) -> Symbol;
     fn metadata(&self) -> Self::Metadata;
     fn statements(&self) -> &[Self::Statement];
+    fn exit(&self) -> Vec<Self::Statement>;
+
     fn jump(label: Label) -> Self::Statement;
     fn label(label: Label) -> Self::Statement;
     fn to_terminator(instruction: &Self::Statement) -> Option<Terminator>;
@@ -122,6 +125,10 @@ impl<T: lir::Target + Clone> Function for lir::Function<T> {
         &self.statements
     }
 
+    fn exit(&self) -> Vec<Self::Statement> {
+        Vec::new()
+    }
+
     fn jump(label: Label) -> Self::Statement {
         lir::Statement::Jump(label)
     }
@@ -161,9 +168,24 @@ impl Function for asm::Function<Temporary> {
 
     fn new(
         name: Symbol,
-        instructions: Vec<Self::Statement>,
+        mut instructions: Vec<Self::Statement>,
         (arguments, returns, callee_arguments, callee_returns, caller_returns): Self::Metadata,
     ) -> Self {
+        // Note: we want to maintain some invariants:
+        //
+        // (1) `asm::Function<Temporary>` never contains a `ret` instruction
+        // (2) `cfg::Cfg<asm::Function<Temporary>>` contains a single `ret` instruction in its exit block
+        //
+        // Because `destruct_cfg` guarantees that the exit block will be at the end,
+        // we can preserve these two invariants across CFG round-trips by popping here.
+        assert_eq!(
+            instructions.pop(),
+            Some(asm::Assembly::Nullary(asm::Nullary::Ret(
+                returns,
+                caller_returns
+            )))
+        );
+
         asm::Function {
             name,
             instructions,
@@ -191,6 +213,13 @@ impl Function for asm::Function<Temporary> {
 
     fn statements(&self) -> &[Self::Statement] {
         &self.instructions
+    }
+
+    fn exit(&self) -> Vec<Self::Statement> {
+        vec![asm::Assembly::Nullary(asm::Nullary::Ret(
+            self.returns,
+            self.caller_returns,
+        ))]
     }
 
     fn jump(label: Label) -> Self::Statement {
