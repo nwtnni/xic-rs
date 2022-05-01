@@ -70,7 +70,7 @@ fn allocate_function(function: &asm::Function<Temporary>) -> asm::Function<Regis
                 source: Immediate::Integer(stack_size),
             },
         ),
-        Assembly::Nullary(asm::Nullary::Ret),
+        Assembly::Nullary(asm::Nullary::Ret(function.returns, function.caller_returns)),
     ]);
 
     asm::Function {
@@ -79,6 +79,7 @@ fn allocate_function(function: &asm::Function<Temporary>) -> asm::Function<Regis
         returns: function.returns,
         callee_arguments: function.callee_arguments,
         callee_returns: function.callee_returns,
+        caller_returns: None,
         instructions: trivial.instructions,
     }
 }

@@ -3,6 +3,7 @@ use std::fmt;
 use crate::data::ir;
 use crate::data::operand;
 use crate::data::operand::Label;
+use crate::data::operand::Temporary;
 use crate::data::symbol::Symbol;
 
 pub type Unit<T> = ir::Unit<Function<T>>;
@@ -21,6 +22,7 @@ pub struct Function<T> {
     pub returns: usize,
     pub callee_arguments: usize,
     pub callee_returns: usize,
+    pub caller_returns: Option<Temporary>,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -86,7 +88,7 @@ pub enum Unary {
 #[derive(Copy, Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum Nullary {
     Cqo,
-    Ret,
+    Ret(usize, Option<Temporary>),
 }
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]

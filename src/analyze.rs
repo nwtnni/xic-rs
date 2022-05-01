@@ -1,5 +1,7 @@
 #![allow(dead_code)]
 
+mod live;
+
 use std::collections::BTreeMap;
 use std::collections::VecDeque;
 
@@ -17,25 +19,12 @@ pub trait Analysis<T: Function> {
 
     fn default(&mut self, cfg: &Cfg<T>, label: &Label) -> Self::Data;
 
-    fn transfer_statement(
-        &mut self,
-        statement: &T::Statement,
-        input: &Self::Data,
-        output: &mut Self::Data,
-    ) -> bool;
-
-    fn transfer_statements(
+    fn transfer(
         &mut self,
         statements: &[T::Statement],
         input: &Self::Data,
         output: &mut Self::Data,
-    ) -> bool {
-        let mut changed = false;
-        for statement in statements {
-            changed |= self.transfer_statement(statement, input, output);
-        }
-        changed
-    }
+    ) -> bool;
 
     fn merge(&mut self, output: &Self::Data, input: &mut Self::Data);
 }
@@ -129,7 +118,7 @@ pub fn analyze<A: Analysis<T>, T: Function>(analysis: &mut A, cfg: &Cfg<T>) -> S
             .entry(label)
             .or_insert_with(|| analysis.default(cfg, &label));
 
-        if analysis.transfer_statements(&cfg[&label], input, output) {
+        if analysis.transfer(&cfg[&label], input, output) {
             worklist.extend(A::Direction::successors(cfg, &label));
         }
     }

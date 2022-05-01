@@ -14,6 +14,7 @@ use petgraph::graphmap::NeighborsDirected;
 use crate::data::asm;
 use crate::data::lir;
 use crate::data::operand::Label;
+use crate::data::operand::Temporary;
 use crate::data::symbol::Symbol;
 
 pub struct Cfg<T: Function> {
@@ -153,15 +154,15 @@ impl<T: lir::Target + Clone> Function for lir::Function<T> {
     }
 }
 
-impl<T: Clone> Function for asm::Function<T> {
-    type Statement = asm::Assembly<T>;
-    type Metadata = (usize, usize, usize, usize);
-    type Fallthrough = asm::Function<T>;
+impl Function for asm::Function<Temporary> {
+    type Statement = asm::Assembly<Temporary>;
+    type Metadata = (usize, usize, usize, usize, Option<Temporary>);
+    type Fallthrough = asm::Function<Temporary>;
 
     fn new(
         name: Symbol,
         instructions: Vec<Self::Statement>,
-        (arguments, returns, callee_arguments, callee_returns): Self::Metadata,
+        (arguments, returns, callee_arguments, callee_returns, caller_returns): Self::Metadata,
     ) -> Self {
         asm::Function {
             name,
@@ -170,6 +171,7 @@ impl<T: Clone> Function for asm::Function<T> {
             returns,
             callee_arguments,
             callee_returns,
+            caller_returns,
         }
     }
 
@@ -183,6 +185,7 @@ impl<T: Clone> Function for asm::Function<T> {
             self.returns,
             self.callee_arguments,
             self.callee_returns,
+            self.caller_returns,
         )
     }
 
@@ -201,7 +204,7 @@ impl<T: Clone> Function for asm::Function<T> {
     fn to_terminator(instruction: &Self::Statement) -> Option<Terminator> {
         match instruction {
             asm::Assembly::Nullary(asm::Nullary::Cqo) => None,
-            asm::Assembly::Nullary(asm::Nullary::Ret) => {
+            asm::Assembly::Nullary(asm::Nullary::Ret(_, _)) => {
                 unreachable!("no ret instruction until register allocation")
             }
             asm::Assembly::Binary(_, _) => None,

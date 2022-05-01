@@ -62,7 +62,6 @@ pub const CALLEE_SAVED: &[Register] = &[
     Register::R15,
 ];
 
-#[allow(dead_code)]
 pub const CALLER_SAVED: &[Register] = &[
     Register::Rax,
     Register::Rcx,

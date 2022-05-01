@@ -85,6 +85,7 @@ fn tile_function(function: &lir::Function<lir::Fallthrough>) -> asm::Function<Te
         returns: function.returns,
         callee_arguments,
         callee_returns,
+        caller_returns,
     }
 }
 
