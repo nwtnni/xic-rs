@@ -40,8 +40,8 @@ pub fn reorder(path: &str) {
     let mut lir_stdout = io::Cursor::new(Vec::new());
     xic::api::interpret_lir(&lir, &mut lir_stdin, &mut lir_stdout).unwrap();
 
-    let cfg = xic::api::construct_control_flow(&lir);
-    let cfg = xic::api::destruct_control_flow(&cfg);
+    let cfg = xic::api::construct_control_flow_lir(&lir);
+    let cfg = xic::api::destruct_control_flow_lir(&cfg);
 
     let mut cfg_stdin = io::Cursor::new(Vec::new());
     let mut cfg_stdout = io::Cursor::new(Vec::new());

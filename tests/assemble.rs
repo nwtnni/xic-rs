@@ -11,8 +11,8 @@ fn compile(path: &str) -> lir::Unit<lir::Fallthrough> {
     let context = xic::api::check(Path::new(path).parent().unwrap(), &program).unwrap();
     let hir = xic::api::emit_hir(Path::new(path), &program, &context);
     let lir = xic::api::emit_lir(&hir);
-    let cfg = xic::api::construct_control_flow(&lir);
-    xic::api::destruct_control_flow(&cfg)
+    let cfg = xic::api::construct_control_flow_lir(&lir);
+    xic::api::destruct_control_flow_lir(&cfg)
 }
 
 fn execute(lir: &lir::Unit<lir::Fallthrough>) -> String {

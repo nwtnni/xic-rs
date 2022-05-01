@@ -5,21 +5,21 @@ use std::mem;
 
 use petgraph::graphmap::DiGraphMap;
 
+use crate::data::asm;
 use crate::data::ir;
 use crate::data::lir;
+use crate::data::operand;
 use crate::data::operand::Label;
-use crate::data::sexp::Serialize;
 use crate::data::symbol::Symbol;
 
-pub struct Control {
+pub struct Control<T: Function> {
     name: Symbol,
+    metadata: T::Metadata,
     enter: Label,
     #[allow(dead_code)]
     exit: Label,
     graph: DiGraphMap<Label, Edge>,
-    blocks: BTreeMap<Label, Vec<lir::Statement<lir::Label>>>,
-    arguments: usize,
-    returns: usize,
+    blocks: BTreeMap<Label, Vec<T::Statement>>,
 }
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -28,145 +28,212 @@ pub enum Edge {
     Conditional(bool),
 }
 
-pub fn construct_unit(
-    unit: &ir::Unit<ir::Function<Vec<lir::Statement<lir::Label>>>>,
-) -> ir::Unit<Control> {
-    unit.map(construct_function)
+pub fn construct_lir(unit: &lir::Unit<lir::Label>) -> ir::Unit<Control<lir::Function<lir::Label>>> {
+    unit.map(|function| Walker::new().walk(function))
 }
 
-pub fn destruct_unit(
-    unit: &ir::Unit<Control>,
-) -> ir::Unit<ir::Function<Vec<lir::Statement<lir::Fallthrough>>>> {
-    unit.map(destruct_function)
+pub fn construct_assembly<T: Clone>(unit: &asm::Unit<T>) -> ir::Unit<Control<asm::Function<T>>> {
+    unit.map(|function| Walker::new().walk(function))
 }
 
-enum State {
+pub fn destruct_lir(
+    unit: &ir::Unit<Control<lir::Function<lir::Label>>>,
+) -> lir::Unit<lir::Fallthrough> {
+    unit.map(|function| {
+        let statements = destruct_function(function)
+            .into_iter()
+            .map(fallthrough)
+            .collect();
+        let (arguments, returns) = function.metadata;
+        lir::Function {
+            name: function.name,
+            statements,
+            arguments,
+            returns,
+        }
+    })
+}
+
+pub fn destruct_assembly<T: Clone>(unit: &ir::Unit<Control<asm::Function<T>>>) -> asm::Unit<T> {
+    unit.map(|function| {
+        let instructions = destruct_function(function);
+        let (arguments, returns, callee_arguments, callee_returns) = function.metadata;
+        asm::Function {
+            name: function.name,
+            instructions,
+            arguments,
+            returns,
+            callee_arguments,
+            callee_returns,
+        }
+    })
+}
+
+enum Block<T> {
     Unreachable,
-    Block(Label, Vec<lir::Statement<lir::Label>>),
+    Reachable(Label, Vec<T>),
 }
 
-impl State {
-    fn block(label: Label) -> Self {
-        State::Block(label, Vec::new())
+impl<T> Block<T> {
+    fn reachable(label: Label) -> Self {
+        Block::Reachable(label, Vec::new())
     }
 
-    fn push(&mut self, statement: lir::Statement<lir::Label>) {
+    fn push(&mut self, statement: T) {
         match self {
-            State::Unreachable => (),
-            State::Block(_, statements) => statements.push(statement),
+            Block::Unreachable => (),
+            Block::Reachable(_, statements) => statements.push(statement),
         }
     }
 
-    fn replace(&mut self, state: State) -> Option<(Label, Vec<lir::Statement<lir::Label>>)> {
-        match mem::replace(self, state) {
-            State::Unreachable => None,
-            State::Block(label, statements) => Some((label, statements)),
+    fn pop(&mut self) {
+        match self {
+            Block::Unreachable => (),
+            Block::Reachable(_, statements) => {
+                statements.pop();
+            }
+        }
+    }
+
+    fn swap(&mut self, replacement: Block<T>) -> Option<(Label, Vec<T>)> {
+        match mem::replace(self, replacement) {
+            Block::Unreachable => None,
+            Block::Reachable(label, statements) => Some((label, statements)),
         }
     }
 }
 
-fn construct_function(function: &ir::Function<Vec<lir::Statement<lir::Label>>>) -> Control {
-    let mut graph = DiGraphMap::new();
-    let mut blocks = BTreeMap::new();
+struct Walker<T: Function> {
+    enter: Label,
+    exit: Label,
+    graph: DiGraphMap<Label, Edge>,
+    blocks: BTreeMap<Label, Vec<T::Statement>>,
+    block: Block<T::Statement>,
+}
 
-    let enter = Label::fresh("enter");
-    let exit = Label::fresh("exit");
+impl<T: Function> Walker<T> {
+    fn new() -> Self {
+        let enter = Label::fresh("enter");
+        let exit = Label::fresh("exit");
 
-    blocks.insert(exit, Vec::new());
+        let mut blocks = BTreeMap::new();
+        blocks.insert(exit, Vec::new());
 
-    let mut block = State::Block(enter, Vec::new());
-
-    for statement in &function.statements {
-        match statement {
-            jump @ lir::Statement::Jump(target) => {
-                block.push(jump.clone());
-
-                if let Some((label, statements)) = block.replace(State::Unreachable) {
-                    graph.add_edge(label, *target, Edge::Unconditional);
-                    blocks.insert(label, statements);
-                }
-            }
-            cjump @ lir::Statement::CJump {
-                condition: _,
-                left: _,
-                right: _,
-                r#true,
-                r#false,
-            } => {
-                block.push(cjump.clone());
-
-                if let Some((label, statements)) = block.replace(State::Unreachable) {
-                    graph.add_edge(label, *r#true, Edge::Conditional(true));
-                    graph.add_edge(label, r#false.0, Edge::Conditional(false));
-                    blocks.insert(label, statements);
-                }
-            }
-            lir::Statement::Label(next) => {
-                if let Some((previous, mut statements)) = block.replace(State::block(*next)) {
-                    statements.push(lir::Statement::Jump(*next));
-                    graph.add_edge(previous, *next, Edge::Unconditional);
-                    blocks.insert(previous, statements);
-                }
-            }
-            r#return @ lir::Statement::Return(_) => {
-                block.push(r#return.clone());
-
-                // IR return takes arguments, but assembly return does not. In order to
-                // simplify assembly tiling, we put this jump here and omit the actual `ret`
-                // instruction when tiling, so we can have a single `ret` in the epilogue:
-                //
-                // ```text
-                // (LABEL foo)
-                // (RETURN (CONST 1))
-                // (LABEL bar)
-                // (JUMP exit)
-                // (RETURN (CONST 2))
-                // (JUMP exit)
-                // (LABEL exit)
-                // ```
-                //
-                // ```
-                // foo:
-                //   mov rax, 1
-                //   jmp exit
-                // bar:
-                //   mov rax, 2
-                //   jmp exit
-                // exit:
-                //   ret
-                // ```
-                block.push(lir::Statement::Jump(exit));
-
-                // Insert edge to dummy exit node for dataflow analysis
-                if let Some((previous, statements)) = block.replace(State::Unreachable) {
-                    graph.add_edge(previous, exit, Edge::Unconditional);
-                    blocks.insert(previous, statements);
-                }
-            }
-            call @ lir::Statement::Call(_, _, _) => block.push(call.clone()),
-            r#move @ lir::Statement::Move { .. } => block.push(r#move.clone()),
+        Walker {
+            enter,
+            exit,
+            graph: DiGraphMap::new(),
+            blocks,
+            block: Block::Reachable(enter, Vec::new()),
         }
     }
 
-    if let Some((label, statements)) = block.replace(State::Unreachable) {
-        blocks.insert(label, statements);
+    fn walk(mut self, function: &T) -> Control<T> {
+        let statements = function.statements();
+
+        for (index, statement) in statements.iter().enumerate() {
+            self.block.push(statement.clone());
+
+            let terminator = match T::to_terminator(statement) {
+                Some(terminator) => terminator,
+                None => continue,
+            };
+
+            match terminator {
+                Terminator::Label(label) => {
+                    self.block.pop();
+                    self.block.push(T::jump(label));
+                    self.pop_unconditional(Block::reachable(label), label);
+                }
+                Terminator::Jump(label) => {
+                    self.pop_unconditional(Block::Unreachable, label);
+                }
+                Terminator::CJump {
+                    r#true,
+                    r#false: Some(r#false),
+                } => {
+                    self.pop_conditional(Block::Unreachable, r#true, r#false);
+                }
+                Terminator::CJump {
+                    r#true,
+                    r#false: None,
+                } => match statements.get(index + 1).map(T::to_terminator) {
+                    None => self.pop_conditional(Block::Unreachable, r#true, self.exit),
+                    Some(Some(Terminator::Label(label))) => {
+                        self.pop_conditional(Block::Unreachable, r#true, label);
+                    }
+                    Some(_) => {
+                        let fallthrough = Label::fresh("fallthrough");
+                        self.pop_conditional(Block::reachable(fallthrough), r#true, fallthrough);
+                    }
+                },
+                Terminator::Return => {
+                    // IR return takes arguments, but assembly return does not. In order to
+                    // simplify assembly tiling, we put this jump here and omit the actual `ret`
+                    // instruction when tiling, so we can have a single `ret` in the epilogue:
+                    //
+                    // ```text
+                    // (LABEL foo)
+                    // (RETURN (CONST 1))
+                    // (LABEL bar)
+                    // (JUMP exit)
+                    // (RETURN (CONST 2))
+                    // (JUMP exit)
+                    // (LABEL exit)
+                    // ```
+                    //
+                    // ```
+                    // foo:
+                    //   mov rax, 1
+                    //   jmp exit
+                    // bar:
+                    //   mov rax, 2
+                    //   jmp exit
+                    // exit:
+                    //   ret
+                    // ```
+                    self.block.push(T::jump(self.exit));
+                    self.pop_unconditional(Block::Unreachable, self.exit);
+                }
+            }
+        }
+
+        self.block.push(T::jump(self.exit));
+        self.pop_unconditional(Block::Unreachable, self.exit);
+
+        Control {
+            name: function.name(),
+            metadata: function.metadata(),
+            enter: self.enter,
+            exit: self.exit,
+            graph: self.graph,
+            blocks: self.blocks,
+        }
     }
 
-    Control {
-        name: function.name,
-        enter,
-        exit,
-        graph,
-        blocks,
-        arguments: function.arguments,
-        returns: function.returns,
+    fn pop_conditional(&mut self, replacement: Block<T::Statement>, r#true: Label, r#false: Label) {
+        if let Some((label, statements)) = self.block.swap(replacement) {
+            self.graph.add_edge(label, r#true, Edge::Conditional(true));
+            self.graph
+                .add_edge(label, r#false, Edge::Conditional(false));
+            self.blocks.insert(label, statements);
+        }
+    }
+
+    fn pop_unconditional(&mut self, replacement: Block<T::Statement>, target: Label) {
+        if let Some((label, statements)) = self.block.swap(replacement) {
+            self.graph.add_edge(label, target, Edge::Unconditional);
+            self.blocks.insert(label, statements);
+        }
     }
 }
 
 /// After linearization, guarantees that `function.enter` is at the beginning of the
 /// list, and that `function.exit` is at the end. This property is useful for tiling
 /// assembly, so we can place the function prologue and epilogue accurately.
-fn destruct_function(function: &Control) -> lir::Function<lir::Fallthrough> {
+///
+/// Also guarantees that conditional jumps are immediately followed by their false branch.
+fn destruct_function<T: Function>(function: &Control<T>) -> Vec<T::Statement> {
     let mut dfs = vec![function.enter];
     let mut statements = Vec::new();
     let mut visited = BTreeSet::new();
@@ -180,8 +247,8 @@ fn destruct_function(function: &Control) -> lir::Function<lir::Fallthrough> {
             continue;
         }
 
-        statements.push(lir::Statement::Label(label));
-        statements.extend(function.blocks[&label].iter().map(fallthrough));
+        statements.push(T::label(label));
+        statements.extend_from_slice(&function.blocks[&label]);
 
         let mut conditional = [None; 2];
 
@@ -190,56 +257,23 @@ fn destruct_function(function: &Control) -> lir::Function<lir::Fallthrough> {
                 Edge::Unconditional => dfs.push(next),
                 Edge::Conditional(true) => conditional[0] = Some(next),
                 Edge::Conditional(false) if !visited.contains(&next) => conditional[1] = Some(next),
-                Edge::Conditional(false) => statements.push(lir::Statement::Jump(next)),
+                Edge::Conditional(false) => statements.push(T::jump(next)),
             }
         }
 
         dfs.extend(IntoIterator::into_iter(conditional).flatten());
     }
 
-    statements.push(lir::Statement::Label(function.exit));
-    statements.extend(function.blocks[&function.exit].iter().map(fallthrough));
-
-    ir::Function {
-        name: function.name,
-        statements,
-        arguments: function.arguments,
-        returns: function.returns,
-    }
+    statements.push(T::label(function.exit));
+    statements.extend_from_slice(&*function.blocks[&function.exit]);
+    statements
 }
 
-fn fallthrough(statement: &lir::Statement<lir::Label>) -> lir::Statement<lir::Fallthrough> {
-    match statement {
-        lir::Statement::Jump(label) => lir::Statement::Jump(*label),
-        lir::Statement::CJump {
-            condition,
-            left,
-            right,
-            r#true,
-            r#false: _,
-        } => lir::Statement::CJump {
-            condition: *condition,
-            left: left.clone(),
-            right: right.clone(),
-            r#true: *r#true,
-            r#false: lir::Fallthrough,
-        },
-        lir::Statement::Call(function, arguments, returns) => {
-            lir::Statement::Call(function.clone(), arguments.clone(), *returns)
-        }
-        lir::Statement::Label(label) => lir::Statement::Label(*label),
-        lir::Statement::Move {
-            destination,
-            source,
-        } => lir::Statement::Move {
-            destination: destination.clone(),
-            source: source.clone(),
-        },
-        lir::Statement::Return(returns) => lir::Statement::Return(returns.clone()),
-    }
-}
-
-impl fmt::Display for ir::Unit<Control> {
+impl<T> fmt::Display for ir::Unit<Control<T>>
+where
+    T: Function,
+    T::Statement: fmt::Display,
+{
     fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
         writeln!(fmt, "digraph {{")?;
         writeln!(fmt, "  label=\"{}\"", self.name)?;
@@ -253,7 +287,11 @@ impl fmt::Display for ir::Unit<Control> {
     }
 }
 
-impl fmt::Display for Control {
+impl<T> fmt::Display for Control<T>
+where
+    T: Function,
+    T::Statement: fmt::Display,
+{
     fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
         writeln!(fmt, "  subgraph cluster_{} {{", self.name)?;
         writeln!(fmt, "    label=\"{}\"", self.name)?;
@@ -265,7 +303,7 @@ impl fmt::Display for Control {
                 write!(
                     fmt,
                     "\\\n    {};\\l",
-                    statement.sexp().to_string().replace('\n', "\\l\\\n    ")
+                    statement.to_string().replace('\n', "\\l\\\n    ")
                 )?;
             }
 
@@ -281,5 +319,163 @@ impl fmt::Display for Control {
         }
 
         writeln!(fmt, "  }}")
+    }
+}
+
+pub trait Function {
+    type Statement: Clone;
+    type Metadata;
+
+    fn name(&self) -> Symbol;
+    fn metadata(&self) -> Self::Metadata;
+    fn statements(&self) -> &[Self::Statement];
+    fn jump(label: Label) -> Self::Statement;
+    fn label(label: Label) -> Self::Statement;
+    fn to_terminator(instruction: &Self::Statement) -> Option<Terminator>;
+}
+
+pub enum Terminator {
+    Label(Label),
+    Jump(Label),
+    CJump {
+        r#true: Label,
+        r#false: Option<Label>,
+    },
+    Return,
+}
+
+impl<T: lir::Target + Clone> Function for lir::Function<T> {
+    type Statement = lir::Statement<T>;
+    type Metadata = (usize, usize);
+
+    fn name(&self) -> Symbol {
+        self.name
+    }
+
+    fn metadata(&self) -> Self::Metadata {
+        (self.arguments, self.returns)
+    }
+
+    fn statements(&self) -> &[Self::Statement] {
+        &self.statements
+    }
+
+    fn jump(label: Label) -> Self::Statement {
+        lir::Statement::Jump(label)
+    }
+
+    fn label(label: Label) -> Self::Statement {
+        lir::Statement::Label(label)
+    }
+
+    fn to_terminator(instruction: &Self::Statement) -> Option<Terminator> {
+        match instruction {
+            lir::Statement::Jump(label) => Some(Terminator::Jump(*label)),
+            lir::Statement::CJump {
+                condition: _,
+                left: _,
+                right: _,
+                r#true,
+                r#false,
+            } => Some(Terminator::CJump {
+                r#true: *r#true,
+                r#false: r#false.label().copied(),
+            }),
+            lir::Statement::Call(_, _, _) => None,
+            lir::Statement::Label(label) => Some(Terminator::Label(*label)),
+            lir::Statement::Move {
+                destination: _,
+                source: _,
+            } => None,
+            lir::Statement::Return(_) => Some(Terminator::Return),
+        }
+    }
+}
+
+fn fallthrough(statement: lir::Statement<lir::Label>) -> lir::Statement<lir::Fallthrough> {
+    use lir::Statement::*;
+    match statement {
+        Jump(label) => Jump(label),
+        CJump {
+            condition,
+            left,
+            right,
+            r#true,
+            r#false: _,
+        } => CJump {
+            condition,
+            left,
+            right,
+            r#true,
+            r#false: lir::Fallthrough,
+        },
+        Call(function, arguments, returns) => Call(function, arguments, returns),
+        Label(label) => Label(label),
+        Move {
+            destination,
+            source,
+        } => Move {
+            destination,
+            source,
+        },
+        Return(returns) => Return(returns),
+    }
+}
+
+impl<T: Clone> Function for asm::Function<T> {
+    type Statement = asm::Assembly<T>;
+    type Metadata = (usize, usize, usize, usize);
+
+    fn name(&self) -> Symbol {
+        self.name
+    }
+
+    fn metadata(&self) -> Self::Metadata {
+        (
+            self.arguments,
+            self.returns,
+            self.callee_arguments,
+            self.callee_returns,
+        )
+    }
+
+    fn statements(&self) -> &[Self::Statement] {
+        &self.instructions
+    }
+
+    fn jump(label: Label) -> Self::Statement {
+        asm::Assembly::Unary(
+            asm::Unary::Jmp,
+            operand::Unary::I(operand::Immediate::Label(label)),
+        )
+    }
+
+    fn label(label: Label) -> Self::Statement {
+        asm::Assembly::Label(label)
+    }
+
+    fn to_terminator(instruction: &Self::Statement) -> Option<Terminator> {
+        match instruction {
+            asm::Assembly::Nullary(asm::Nullary::Cqo) => None,
+            asm::Assembly::Nullary(asm::Nullary::Ret) => {
+                unreachable!("no ret instruction until register allocation")
+            }
+            asm::Assembly::Binary(_, _) => None,
+            asm::Assembly::Label(label) => Some(Terminator::Label(*label)),
+            asm::Assembly::Unary(
+                asm::Unary::Jmp,
+                operand::Unary::I(operand::Immediate::Label(label)),
+            ) => Some(Terminator::Jump(*label)),
+            asm::Assembly::Unary(asm::Unary::Jmp, _) => unreachable!(),
+            asm::Assembly::Unary(
+                asm::Unary::Jcc(_),
+                operand::Unary::I(operand::Immediate::Label(label)),
+            ) => Some(Terminator::CJump {
+                r#true: *label,
+                r#false: None,
+            }),
+            asm::Assembly::Unary(asm::Unary::Jcc(_), _) => unreachable!(),
+            asm::Assembly::Unary(_, _) => None,
+        }
     }
 }

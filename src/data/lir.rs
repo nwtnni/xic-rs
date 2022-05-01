@@ -1,9 +1,12 @@
+use std::fmt;
+
 use crate::abi;
 use crate::data::ir;
 use crate::data::operand;
 use crate::data::operand::Immediate;
 use crate::data::operand::Register;
 use crate::data::operand::Temporary;
+use crate::data::sexp::Serialize;
 
 pub const ZERO: Expression = Expression::Immediate(Immediate::Integer(0));
 pub const ONE: Expression = Expression::Immediate(Immediate::Integer(1));
@@ -63,6 +66,12 @@ pub enum Statement<T> {
         source: Expression,
     },
     Return(Vec<Expression>),
+}
+
+impl<T: Serialize> fmt::Display for Statement<T> {
+    fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
+        write!(fmt, "{}", self.sexp())
+    }
 }
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
