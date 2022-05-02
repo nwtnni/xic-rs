@@ -5,33 +5,33 @@ use crate::abi;
 use crate::analyze::Analysis;
 use crate::analyze::Backward;
 use crate::cfg;
+use crate::cfg::Cfg;
 use crate::data::asm;
 use crate::data::asm::Assembly;
 use crate::data::operand;
+use crate::data::operand::Label;
 use crate::data::operand::Register;
 use crate::data::operand::Temporary;
 
 pub struct LiveVariable<T>(PhantomData<T>);
 
-impl<T> Default for LiveVariable<T> {
-    fn default() -> Self {
-        LiveVariable(PhantomData)
-    }
-}
-
 impl<T: Function> Analysis<T> for LiveVariable<T> {
     type Data = BTreeSet<Temporary>;
     type Direction = Backward;
 
-    fn default(&mut self, _: &crate::cfg::Cfg<T>, _: &crate::data::operand::Label) -> Self::Data {
+    fn new(_: &Cfg<T>) -> Self {
+        LiveVariable(PhantomData)
+    }
+
+    fn default(&self, _: &Cfg<T>, _: &Label) -> Self::Data {
         BTreeSet::new()
     }
 
-    fn merge(&mut self, output: &Self::Data, input: &mut Self::Data) {
+    fn merge(&self, output: &Self::Data, input: &mut Self::Data) {
         input.extend(output);
     }
 
-    fn transfer(&mut self, statement: &T::Statement, output: &mut Self::Data) -> bool {
+    fn transfer(&self, statement: &T::Statement, output: &mut Self::Data) -> bool {
         let before = output.len();
         T::transfer(statement, output);
         let after = output.len();

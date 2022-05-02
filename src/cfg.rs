@@ -27,12 +27,26 @@ pub struct Cfg<T: Function> {
 }
 
 impl<T: Function> Cfg<T> {
+    pub fn name(&self) -> &Symbol {
+        &self.name
+    }
+
     pub fn enter(&self) -> &Label {
         &self.enter
     }
 
     pub fn exit(&self) -> &Label {
         &self.exit
+    }
+
+    pub fn blocks(&self) -> impl Iterator<Item = (&Label, &[T::Statement])> {
+        self.blocks
+            .iter()
+            .map(|(label, statement)| (label, statement.as_slice()))
+    }
+
+    pub fn edges(&self) -> impl Iterator<Item = (Label, Label, &Edge)> {
+        self.graph.all_edges()
     }
 
     pub fn incoming(&self, label: &Label) -> NeighborsDirected<Label, petgraph::Directed> {

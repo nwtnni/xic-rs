@@ -1,6 +1,10 @@
 #![allow(dead_code)]
 
+mod dot;
 mod live;
+
+pub use dot::display;
+pub use live::LiveVariable;
 
 use std::collections::BTreeMap;
 use std::collections::VecDeque;
@@ -11,17 +15,17 @@ use crate::cfg::Cfg;
 use crate::cfg::Function;
 use crate::data::operand::Label;
 
-pub trait Analysis<T: Function> {
+pub trait Analysis<T: Function>: Sized {
     type Data: Clone;
     type Direction: Direction<T>;
 
-    fn initialize(&mut self, _cfg: &Cfg<T>) {}
+    fn new(cfg: &Cfg<T>) -> Self;
 
-    fn default(&mut self, cfg: &Cfg<T>, label: &Label) -> Self::Data;
+    fn default(&self, cfg: &Cfg<T>, label: &Label) -> Self::Data;
 
-    fn transfer(&mut self, statements: &T::Statement, output: &mut Self::Data) -> bool;
+    fn transfer(&self, statements: &T::Statement, output: &mut Self::Data) -> bool;
 
-    fn merge(&mut self, output: &Self::Data, input: &mut Self::Data);
+    fn merge(&self, output: &Self::Data, input: &mut Self::Data);
 }
 
 pub trait Direction<T: Function> {
@@ -89,8 +93,8 @@ pub struct Solution<A: Analysis<T>, T: Function> {
     pub outputs: BTreeMap<Label, A::Data>,
 }
 
-pub fn analyze<A: Analysis<T>, T: Function>(analysis: &mut A, cfg: &Cfg<T>) -> Solution<A, T> {
-    analysis.initialize(cfg);
+pub fn analyze<A: Analysis<T>, T: Function>(cfg: &Cfg<T>) -> (A, Solution<A, T>) {
+    let analysis = A::new(cfg);
 
     let mut worklist = A::Direction::worklist(cfg);
     let mut inputs = BTreeMap::<Label, A::Data>::new();
@@ -125,5 +129,5 @@ pub fn analyze<A: Analysis<T>, T: Function>(analysis: &mut A, cfg: &Cfg<T>) -> S
         }
     }
 
-    Solution { inputs, outputs }
+    (analysis, Solution { inputs, outputs })
 }
