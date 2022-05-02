@@ -5,6 +5,7 @@ pub use dot::display;
 pub use live::LiveVariable;
 
 use std::collections::BTreeMap;
+use std::collections::BTreeSet;
 use std::collections::VecDeque;
 
 use petgraph::graphmap::NeighborsDirected;
@@ -27,7 +28,7 @@ pub trait Analysis<T: Function>: Sized {
 }
 
 pub trait Direction<T: Function> {
-    fn worklist(cfg: &Cfg<T>) -> VecDeque<Label>;
+    const REVERSE: bool;
     fn successors<'cfg>(
         cfg: &'cfg Cfg<T>,
         label: &Label,
@@ -41,11 +42,7 @@ pub trait Direction<T: Function> {
 pub struct Backward;
 
 impl<T: Function> Direction<T> for Backward {
-    fn worklist(cfg: &Cfg<T>) -> VecDeque<Label> {
-        let mut worklist = VecDeque::new();
-        worklist.push_back(*cfg.exit());
-        worklist
-    }
+    const REVERSE: bool = true;
 
     fn successors<'cfg>(
         cfg: &'cfg Cfg<T>,
@@ -65,11 +62,7 @@ impl<T: Function> Direction<T> for Backward {
 pub struct Forward;
 
 impl<T: Function> Direction<T> for Forward {
-    fn worklist(cfg: &Cfg<T>) -> VecDeque<Label> {
-        let mut worklist = VecDeque::new();
-        worklist.push_back(*cfg.enter());
-        worklist
-    }
+    const REVERSE: bool = false;
 
     fn successors<'cfg>(
         cfg: &'cfg Cfg<T>,
@@ -94,36 +87,61 @@ pub struct Solution<A: Analysis<T>, T: Function> {
 pub fn analyze<A: Analysis<T>, T: Function>(cfg: &Cfg<T>) -> (A, Solution<A, T>) {
     let analysis = A::new(cfg);
 
-    let mut worklist = A::Direction::worklist(cfg);
+    let strongly_connected_components = cfg.strongly_connected_components(A::Direction::REVERSE);
+
     let mut inputs = BTreeMap::<Label, A::Data>::new();
     let mut outputs = BTreeMap::<Label, A::Data>::new();
+    let mut worklist = VecDeque::new();
+    let mut workset = BTreeSet::new();
 
-    while let Some(label) = worklist.pop_front() {
-        let input = inputs
-            .entry(label)
-            .or_insert_with(|| analysis.default(cfg, &label));
+    // Topological order
+    for component in strongly_connected_components.into_iter().rev() {
+        // Reverse postorder
+        worklist.extend(component.iter().copied().rev());
+        workset.extend(component.iter().copied().rev());
 
-        for predecessor in A::Direction::predecessors(cfg, &label) {
-            let output = outputs
-                .entry(predecessor)
+        let component = component.into_iter().collect::<BTreeSet<_>>();
+
+        while let Some(label) = worklist.pop_front() {
+            workset.remove(&label);
+
+            let input = inputs
+                .entry(label)
                 .or_insert_with(|| analysis.default(cfg, &label));
 
-            analysis.merge(output, input);
-        }
+            for predecessor in A::Direction::predecessors(cfg, &label) {
+                let output = outputs
+                    .entry(predecessor)
+                    .or_insert_with(|| analysis.default(cfg, &label));
 
-        let output = outputs
-            .entry(label)
-            .or_insert_with(|| analysis.default(cfg, &label));
+                analysis.merge(output, input);
+            }
 
-        *output = input.clone();
-        let mut changed = false;
+            let output = outputs
+                .entry(label)
+                .or_insert_with(|| analysis.default(cfg, &label));
 
-        for statement in &cfg[&label] {
-            changed |= analysis.transfer(statement, output);
-        }
+            *output = input.clone();
+            let mut changed = false;
 
-        if changed {
-            worklist.extend(A::Direction::successors(cfg, &label));
+            if A::Direction::REVERSE {
+                for statement in cfg[&label].iter().rev() {
+                    changed |= analysis.transfer(statement, output);
+                }
+            } else {
+                for statement in &cfg[&label] {
+                    changed |= analysis.transfer(statement, output);
+                }
+            }
+
+            if !changed {
+                continue;
+            }
+
+            A::Direction::successors(cfg, &label)
+                .filter(|successor| component.contains(successor))
+                .filter(|successor| workset.insert(*successor))
+                .for_each(|successor| worklist.push_back(successor));
         }
     }
 
