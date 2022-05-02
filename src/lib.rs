@@ -29,4 +29,12 @@ pub mod api {
     pub use crate::optimize::fold_hir;
     pub use crate::optimize::fold_lir;
     pub use crate::parse::parse;
+
+    pub mod analyze {
+        pub use crate::analyze::analyze;
+        pub use crate::analyze::display;
+        pub use crate::analyze::Analysis;
+        pub use crate::analyze::LiveVariable;
+        pub use crate::analyze::Solution;
+    }
 }
