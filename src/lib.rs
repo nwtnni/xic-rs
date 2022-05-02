@@ -20,6 +20,7 @@ pub mod api {
     pub use crate::assemble::tile;
     pub use crate::cfg::construct_cfg;
     pub use crate::cfg::destruct_cfg;
+    pub use crate::cfg::display_cfg;
     pub use crate::check::check;
     pub use crate::emit::emit_hir;
     pub use crate::emit::emit_lir;

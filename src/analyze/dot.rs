@@ -1,10 +1,12 @@
 use std::collections::BTreeSet;
 use std::fmt;
+use std::fmt::Write as _;
 
 use crate::analyze::analyze;
 use crate::analyze::Analysis;
-use crate::analyze::Solution;
+use crate::analyze::Direction as _;
 use crate::cfg::Cfg;
+use crate::cfg::Dot;
 use crate::cfg::Function;
 use crate::data::ir;
 
@@ -17,109 +19,33 @@ where
 {
     unit.map(|cfg| {
         let (analysis, solution) = analyze::<A, T>(cfg);
-        Dot {
-            analysis,
-            cfg,
-            solution,
-        }
-    })
-}
+        Dot::new(cfg, move |label, statements| {
+            let mut output = solution.inputs[label].clone();
+            let mut outputs = vec![(&output as &dyn Display).to_string()];
 
-struct Dot<'cfg, A: Analysis<T>, T: Function> {
-    analysis: A,
-    cfg: &'cfg Cfg<T>,
-    solution: Solution<A, T>,
-}
-
-impl<'cfg, A, T> fmt::Display for ir::Unit<Dot<'cfg, A, T>>
-where
-    A: Analysis<T>,
-    A::Data: Display,
-    T: Function,
-    T::Statement: fmt::Display,
-{
-    fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
-        writeln!(fmt, "digraph {{")?;
-        writeln!(fmt, "  label=\"{}\"", self.name)?;
-        writeln!(fmt, "  node [shape=box nojustify=true]")?;
-
-        for function in self.functions.values() {
-            write!(fmt, "{}", function)?;
-        }
-
-        writeln!(fmt, "}}")
-    }
-}
-
-impl<'cfg, A, T> fmt::Display for Dot<'cfg, A, T>
-where
-    A: Analysis<T>,
-    A::Data: Display,
-    T: Function,
-    T::Statement: fmt::Display,
-{
-    fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
-        writeln!(fmt, "  subgraph cluster_{} {{", self.cfg.name())?;
-        writeln!(fmt, "    label=\"{}\"", self.cfg.name())?;
-
-        for (label, statements) in self.cfg.blocks() {
-            write!(fmt, "    \"{0}\" [label=\"\\\n{0}:\\l", label)?;
-
-            let mut output = self
-                .solution
-                .inputs
-                .get(label)
-                .cloned()
-                .unwrap_or_else(|| self.analysis.default(self.cfg, label))
-                .clone();
-
-            let mut data = if std::any::type_name::<A::Direction>().contains("Forward") {
-                let mut data = vec![(&output as &dyn Display).to_string()];
+            if A::Direction::REVERSE {
                 for statement in statements.iter().rev() {
-                    self.analysis.transfer(statement, &mut output);
-                    data.push((&output as &dyn Display).to_string());
+                    analysis.transfer(statement, &mut output);
+                    outputs.push((&output as &dyn Display).to_string());
                 }
-                data.into_iter()
-            } else if std::any::type_name::<A::Direction>().contains("Backward") {
-                let mut data = vec![(&output as &dyn Display).to_string()];
-                for statement in statements.iter().rev() {
-                    self.analysis.transfer(statement, &mut output);
-                    data.push((&output as &dyn Display).to_string());
-                }
-                data.reverse();
-                data.into_iter()
+                outputs.reverse();
             } else {
-                unreachable!()
-            };
-
-            write!(
-                fmt,
-                "\\\n        {}\\l",
-                data.next().unwrap().replace('\n', "\\l\\\n    ")
-            )?;
-
-            for statement in statements {
-                write!(
-                    fmt,
-                    "\\\n    {}\\l\\\n        {}\\l",
-                    statement.to_string().replace('\n', "\\l\\\n    "),
-                    data.next().unwrap().replace('\n', "\\l\\\n    ")
-                )?;
+                for statement in statements {
+                    analysis.transfer(statement, &mut output);
+                    outputs.push((&output as &dyn Display).to_string());
+                }
             }
 
-            writeln!(fmt, "  \"];")?;
-        }
+            let mut outputs = outputs.into_iter();
+            let mut string = outputs.next().unwrap();
 
-        let mut edges = self.cfg.edges().collect::<Vec<_>>();
+            for statement in statements {
+                write!(&mut string, "\n{}\n{}", statement, outputs.next().unwrap())?;
+            }
 
-        edges.sort();
-
-        for (from, to, _) in edges {
-            writeln!(fmt, r#"    "{}" -> "{}";"#, from, to)?;
-        }
-
-        writeln!(fmt, "  }}")
-    }
+            Ok(string)
+        })
+    })
 }
 
 pub trait Display {

@@ -132,7 +132,11 @@ fn main() -> anyhow::Result<()> {
         let cfg = xic::api::construct_cfg(&lir);
 
         if command.debug_cfg {
-            write!(debug(&command.directory_debug, &path, "dot")?, "{}", cfg)?;
+            write!(
+                debug(&command.directory_debug, &path, "dot")?,
+                "{}",
+                xic::api::display_cfg(&cfg)
+            )?;
         }
 
         let mut lir = xic::api::destruct_cfg(&cfg);

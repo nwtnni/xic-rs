@@ -4,8 +4,11 @@ mod dot;
 
 pub use construct::unit as construct_cfg;
 pub use destruct::unit as destruct_cfg;
+pub(crate) use dot::Dot;
 
 use std::collections::BTreeMap;
+use std::fmt;
+use std::fmt::Write as _;
 use std::ops;
 
 use petgraph::algo;
@@ -14,6 +17,7 @@ use petgraph::graphmap::NeighborsDirected;
 use petgraph::visit;
 
 use crate::data::asm;
+use crate::data::ir;
 use crate::data::lir;
 use crate::data::operand::Label;
 use crate::data::operand::Temporary;
@@ -94,6 +98,22 @@ impl<T: Function> ops::Index<&Label> for Cfg<T> {
     fn index(&self, index: &Label) -> &Self::Output {
         &self.blocks[index]
     }
+}
+
+pub fn display_cfg<T>(unit: &ir::Unit<Cfg<T>>) -> impl fmt::Display + '_
+where
+    T: Function,
+    T::Statement: fmt::Display,
+{
+    unit.map(|cfg| {
+        dot::Dot::new(cfg, |_, statements| {
+            let mut string = String::new();
+            for statement in statements {
+                writeln!(&mut string, "{}", statement)?;
+            }
+            Ok(string)
+        })
+    })
 }
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]

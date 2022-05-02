@@ -3,11 +3,29 @@ use std::fmt;
 use crate::cfg::Cfg;
 use crate::cfg::Function;
 use crate::data::ir;
+use crate::data::operand::Label;
 
-impl<T> fmt::Display for ir::Unit<Cfg<T>>
+pub struct Dot<'cfg, T: Function> {
+    cfg: &'cfg Cfg<T>,
+    #[allow(clippy::type_complexity)]
+    format: Box<dyn Fn(&'cfg Label, &'cfg [T::Statement]) -> Result<String, fmt::Error> + 'cfg>,
+}
+
+impl<'cfg, T: Function> Dot<'cfg, T> {
+    pub fn new<F>(cfg: &'cfg Cfg<T>, format: F) -> Self
+    where
+        F: Fn(&'cfg Label, &'cfg [T::Statement]) -> Result<String, fmt::Error> + 'cfg,
+    {
+        Dot {
+            cfg,
+            format: Box::new(format),
+        }
+    }
+}
+
+impl<'cfg, T> fmt::Display for ir::Unit<Dot<'cfg, T>>
 where
     T: Function,
-    T::Statement: fmt::Display,
 {
     fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
         writeln!(fmt, "digraph {{")?;
@@ -22,30 +40,29 @@ where
     }
 }
 
-impl<T> fmt::Display for Cfg<T>
+impl<'cfg, T> fmt::Display for Dot<'cfg, T>
 where
     T: Function,
-    T::Statement: fmt::Display,
 {
     fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
-        writeln!(fmt, "  subgraph cluster_{} {{", self.name)?;
-        writeln!(fmt, "    label=\"{}\"", self.name)?;
+        writeln!(fmt, "  subgraph cluster_{} {{", self.cfg.name)?;
+        writeln!(fmt, "    label=\"{}\"", self.cfg.name)?;
 
-        for (label, statements) in &self.blocks {
+        for (label, statements) in &self.cfg.blocks {
             write!(fmt, "    \"{0}\" [label=\"\\\n{0}:\\l", label)?;
 
-            for statement in statements {
-                write!(
-                    fmt,
-                    "\\\n    {};\\l",
-                    statement.to_string().replace('\n', "\\l\\\n    ")
-                )?;
+            let statements = (self.format)(label, statements)?
+                .replace('\n', "\\l\\\n    ")
+                .replace('"', "\\\"");
+
+            if !statements.is_empty() {
+                write!(fmt, "\\\n    {}\\l", statements)?;
             }
 
             writeln!(fmt, "  \"];")?;
         }
 
-        let mut edges = self.graph.all_edges().collect::<Vec<_>>();
+        let mut edges = self.cfg.graph.all_edges().collect::<Vec<_>>();
 
         edges.sort();
 
