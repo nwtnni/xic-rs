@@ -91,22 +91,27 @@ impl Function for asm::Function<Temporary> {
                     }
                 }
             }
-            Assembly::Unary(
-                asm::Unary::Call {
-                    arguments,
-                    returns: _,
-                },
-                operand,
-            ) => {
-                // Return registers `rax` and `rdx` are also caller saved and therefore defined.
+            Assembly::Unary(asm::Unary::Call { arguments, returns }, operand) => {
+                for r#return in 0..*returns {
+                    match abi::read_return(*arguments, r#return) {
+                        operand::Unary::I(_) => (),
+                        operand::Unary::M(_) => (),
+                        operand::Unary::R(temporary) => {
+                            // Note: subset of caller saved, will be inserted below
+                            output.remove(&temporary);
+                        }
+                    }
+                }
+
                 for register in abi::CALLER_SAVED {
-                    output.remove(&Temporary::Register(*register));
+                    output.insert(Temporary::Register(*register));
                 }
 
                 for argument in 0..*arguments {
                     match abi::write_argument(argument) {
                         operand::Unary::I(_) => (),
                         operand::Unary::R(temporary) => {
+                            // Note: also subset of caller saved, inserted above
                             output.insert(temporary);
                         }
                         operand::Unary::M(memory) => {
