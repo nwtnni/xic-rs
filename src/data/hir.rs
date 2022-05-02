@@ -40,36 +40,36 @@ impl From<Tree> for Condition {
 #[macro_export]
 macro_rules! hir {
     ((CONST $($integer:tt)+)) => {
-        crate::data::hir::Expression::from(hir!($($integer)+))
+        $crate::data::hir::Expression::from(hir!($($integer)+))
     };
     ((NAME $($label:tt)+)) => {
-        crate::data::hir::Expression::from(hir!($($label)+))
+        $crate::data::hir::Expression::from(hir!($($label)+))
     };
     ((TEMP $($temporary:tt)+)) => {
-        crate::data::hir::Expression::from(hir!($($temporary)+))
+        $crate::data::hir::Expression::from(hir!($($temporary)+))
     };
     ((MEM $expression:tt)) => {
-        crate::data::hir::Expression::Memory(Box::new(hir!($expression)))
+        $crate::data::hir::Expression::Memory(Box::new(hir!($expression)))
     };
     ((CALL $function:tt $returns:tt $($argument:tt)*)) => {
-        crate::data::hir::Expression::Call(
+        $crate::data::hir::Expression::Call(
             Box::new(hir!($function)),
             vec![$(hir!($argument),)*],
             $returns,
         )
     };
     ((ESEQ $statement:tt $expression:tt)) => {
-        crate::data::hir::Expression::Sequence(
+        $crate::data::hir::Expression::Sequence(
             Box::new(hir!($statement)),
             Box::new(hir!($expression)),
         )
     };
 
     ((JUMP $label:ident)) => {
-        crate::data::hir::Statement::Jump($label)
+        $crate::data::hir::Statement::Jump($label)
     };
     ((CJUMP ($condition:ident $left:tt $right:tt) $r#true:ident $r#false:ident)) => {
-        crate::data::hir::Statement::CJump {
+        $crate::data::hir::Statement::CJump {
             condition: $condition,
             left: hir!($left),
             right: hir!($right),
@@ -78,32 +78,32 @@ macro_rules! hir {
         }
     };
     ((LABEL $label:tt)) => {
-        crate::data::hir::Statement::Label($label)
+        $crate::data::hir::Statement::Label($label)
     };
     ((EXP $expression:tt)) => {
-        crate::data::hir::Statement::Expression(hir!($expression))
+        $crate::data::hir::Statement::Expression(hir!($expression))
     };
     ((MOVE $into:tt $from:tt)) => {
-        crate::data::hir::Statement::Move {
+        $crate::data::hir::Statement::Move {
             destination: hir!($into),
             source: hir!($from),
         }
     };
     ((RETURN $returns:expr)) => {
-        crate::data::hir::Statement::Return($returns)
+        $crate::data::hir::Statement::Return($returns)
     };
     ((SEQ $statement:tt $($statements:tt)+)) => {
-        crate::data::hir::Statement::Sequence(vec![
+        $crate::data::hir::Statement::Sequence(vec![
             hir!($statement),
             $(hir!($statements),)*
         ])
     };
     ((SEQ $statements:expr)) => {
-        crate::data::hir::Statement::Sequence($statements)
+        $crate::data::hir::Statement::Sequence($statements)
     };
 
     (($binary:ident $left:tt $right:tt)) => {
-        crate::data::hir::Expression::Binary(
+        $crate::data::hir::Expression::Binary(
             $binary,
             Box::new(hir!($left)),
             Box::new(hir!($right)),
