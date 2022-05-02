@@ -2,6 +2,7 @@ pub mod data;
 
 mod abi;
 mod analyze;
+mod allocate;
 mod assemble;
 mod cfg;
 mod check;
@@ -16,7 +17,7 @@ mod util;
 pub use error::Error;
 
 pub mod api {
-    pub use crate::assemble::allocate;
+    pub use crate::allocate::allocate_trivial;
     pub use crate::assemble::tile;
     pub use crate::cfg::construct_cfg;
     pub use crate::cfg::destruct_cfg;

@@ -18,7 +18,7 @@ fn compile(path: &str) -> lir::Unit<lir::Fallthrough> {
 }
 
 fn execute(abstract_assembly: &asm::Unit<Temporary>) -> String {
-    let assembly = xic::api::allocate(abstract_assembly);
+    let assembly = xic::api::allocate_trivial(abstract_assembly);
 
     let path = tempfile::NamedTempFile::new().unwrap().into_temp_path();
 

@@ -167,7 +167,7 @@ fn main() -> anyhow::Result<()> {
             )?;
         }
 
-        let assembly = xic::api::allocate(&abstract_assembly);
+        let assembly = xic::api::allocate_trivial(&abstract_assembly);
 
         write!(
             debug(&command.directory_output, &path, "S")?,
