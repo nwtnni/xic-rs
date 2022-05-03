@@ -1,8 +1,8 @@
 pub mod data;
 
 mod abi;
-mod analyze;
 mod allocate;
+mod analyze;
 mod assemble;
 mod cfg;
 mod check;
@@ -36,7 +36,8 @@ pub mod api {
         pub use crate::analyze::analyze;
         pub use crate::analyze::display;
         pub use crate::analyze::Analysis;
-        pub use crate::analyze::LiveVariable;
+        pub use crate::analyze::LiveRanges;
+        pub use crate::analyze::LiveVariables;
         pub use crate::analyze::Solution;
     }
 }

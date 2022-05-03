@@ -1,3 +1,4 @@
+use core::fmt;
 use std::collections::BTreeSet;
 use std::marker::PhantomData;
 
@@ -13,14 +14,17 @@ use crate::data::operand::Label;
 use crate::data::operand::Register;
 use crate::data::operand::Temporary;
 
-pub struct LiveVariable<T>(PhantomData<T>);
+pub struct LiveVariables<T>(PhantomData<T>);
 
-impl<T: Function> Analysis<T> for LiveVariable<T> {
+impl<T: Function> Analysis<T> for LiveVariables<T>
+where
+    T::Statement: fmt::Display,
+{
     type Data = BTreeSet<Temporary>;
     type Direction = Backward;
 
     fn new(_: &Cfg<T>) -> Self {
-        LiveVariable(PhantomData)
+        LiveVariables(PhantomData)
     }
 
     fn default(&self, _: &Cfg<T>, _: &Label) -> Self::Data {
@@ -52,7 +56,7 @@ impl Function for asm::Function<Temporary> {
 
                 // Both uses and defines `rax`:
                 // output.remove(&Temporary::Register(Register::Rax));
-                // output.insert(Temporary::Register(Register::Rax));
+                output.insert(Temporary::Register(Register::Rax));
             }
             Assembly::Nullary(asm::Nullary::Ret(returns, caller_returns)) => {
                 for r#return in 0..*returns {
@@ -66,15 +70,20 @@ impl Function for asm::Function<Temporary> {
                         }
                     }
                 }
+                output.insert(Temporary::Register(Register::Rsp));
             }
             Assembly::Binary(binary, operands) => {
                 use asm::Binary::*;
 
                 match (binary, operands.destination()) {
                     (_, operand::Unary::I(_)) => (),
-                    (Cmp, operand::Unary::R(_)) => (),
-                    (Add | Sub | And | Or | Xor | Mov | Lea, operand::Unary::R(temporary)) => {
+                    (Mov | Lea, operand::Unary::R(temporary)) => {
                         output.remove(&temporary);
+                    }
+                    (Cmp | Add | Sub | And | Or | Xor, operand::Unary::R(temporary)) => {
+                        // Both uses and defines `temporary`
+                        // output.remove(&temporary);
+                        output.insert(temporary);
                     }
                     (_, operand::Unary::M(memory)) => {
                         memory.map(|temporary| output.insert(*temporary));
@@ -97,21 +106,17 @@ impl Function for asm::Function<Temporary> {
                         operand::Unary::I(_) => (),
                         operand::Unary::M(_) => (),
                         operand::Unary::R(temporary) => {
-                            // Note: subset of caller saved, will be inserted below
                             output.remove(&temporary);
                         }
                     }
                 }
 
-                for register in abi::CALLER_SAVED {
-                    output.insert(Temporary::Register(*register));
-                }
+                output.insert(Temporary::Register(Register::Rsp));
 
                 for argument in 0..*arguments {
                     match abi::write_argument(argument) {
                         operand::Unary::I(_) => (),
                         operand::Unary::R(temporary) => {
-                            // Note: also subset of caller saved, inserted above
                             output.insert(temporary);
                         }
                         operand::Unary::M(memory) => {
@@ -132,10 +137,10 @@ impl Function for asm::Function<Temporary> {
             }
             Assembly::Unary(asm::Unary::Neg, operand) => match operand {
                 operand::Unary::I(_) => (),
-                operand::Unary::R(_) => {
+                operand::Unary::R(temporary) => {
                     // Both uses and defines the temporary:
                     // output.remove(&temporary);
-                    // output.insert(temporary);
+                    output.insert(*temporary);
                 }
                 operand::Unary::M(memory) => {
                     memory.map(|temporary| output.insert(*temporary));
@@ -149,7 +154,7 @@ impl Function for asm::Function<Temporary> {
 
                 // Both uses and defines `rax`:
                 // output.remove(&Temporary::Register(Register::Rax));
-                // output.insert(Temporary::Register(Register::Rax));
+                output.insert(Temporary::Register(Register::Rax));
 
                 if let asm::Unary::Div | asm::Unary::Mod = unary {
                     output.insert(Temporary::Register(Register::Rdx));

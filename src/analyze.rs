@@ -1,8 +1,11 @@
 mod dot;
-mod live;
+mod live_ranges;
+mod live_variables;
 
 pub use dot::display;
-pub use live::LiveVariable;
+pub use live_ranges::LiveRanges;
+pub use live_ranges::Range;
+pub use live_variables::LiveVariables;
 
 use std::collections::BTreeMap;
 use std::collections::BTreeSet;

@@ -6,13 +6,7 @@ use crate::cfg::Function;
 use crate::data::ir;
 
 pub fn unit<T: Function>(unit: &ir::Unit<Cfg<T>>) -> ir::Unit<T::Fallthrough> {
-    unit.map(|function| {
-        T::new(
-            function.name,
-            destruct_function(function),
-            function.metadata.clone(),
-        )
-    })
+    unit.map(destruct_function)
 }
 
 /// After linearization, guarantees that `function.enter` is at the beginning of the
@@ -20,7 +14,7 @@ pub fn unit<T: Function>(unit: &ir::Unit<Cfg<T>>) -> ir::Unit<T::Fallthrough> {
 /// assembly, so we can place the function prologue and epilogue accurately.
 ///
 /// Also guarantees that conditional jumps are immediately followed by their false branch.
-fn destruct_function<T: Function>(function: &Cfg<T>) -> Vec<T::Statement> {
+pub fn destruct_function<T: Function>(function: &Cfg<T>) -> T::Fallthrough {
     let mut dfs = vec![function.enter];
     let mut statements = Vec::new();
     let mut visited = BTreeSet::new();
@@ -53,5 +47,6 @@ fn destruct_function<T: Function>(function: &Cfg<T>) -> Vec<T::Statement> {
 
     statements.push(T::label(function.exit));
     statements.extend_from_slice(&*function.blocks[&function.exit]);
-    statements
+
+    T::new(function.name, statements, function.metadata.clone())
 }

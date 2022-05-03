@@ -3,6 +3,7 @@ mod destruct;
 mod dot;
 
 pub use construct::unit as construct_cfg;
+pub use destruct::destruct_function as destruct_cfg_function;
 pub use destruct::unit as destruct_cfg;
 pub(crate) use dot::Dot;
 

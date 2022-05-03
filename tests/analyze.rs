@@ -3,7 +3,7 @@ use std::io::Write as _;
 use std::process;
 
 use xic::api::analyze::display;
-use xic::api::analyze::LiveVariable;
+use xic::api::analyze::LiveVariables;
 use xic::asm;
 use xic::data::asm::Function;
 use xic::data::asm::Unit;
@@ -63,7 +63,7 @@ fn basic() {
     write!(
         &mut graph.stdin.as_mut().unwrap(),
         "{}",
-        display::<LiveVariable<Function<Temporary>>, _>(&cfg)
+        display::<LiveVariables<Function<Temporary>>, _>(&cfg)
     )
     .unwrap();
 
