@@ -29,11 +29,11 @@ where
 {
     fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
         writeln!(fmt, "digraph {{")?;
-        writeln!(fmt, "  label=\"{}\"", self.name)?;
-        writeln!(fmt, "  node [shape=box nojustify=true]")?;
+        writeln!(fmt, "    label=\"{}\"", self.name)?;
+        writeln!(fmt, "    node [shape=box nojustify=true]")?;
 
         for function in self.functions.values() {
-            write!(fmt, "{}", function)?;
+            writeln!(fmt, "{:#}", function)?;
         }
 
         writeln!(fmt, "}}")
@@ -45,21 +45,32 @@ where
     T: Function,
 {
     fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
-        writeln!(fmt, "  subgraph cluster_{} {{", self.cfg.name)?;
-        writeln!(fmt, "    label=\"{}\"", self.cfg.name)?;
+        let mut indent = String::from("");
+        let mut escape = String::from("\\l\\\n");
+
+        if fmt.alternate() {
+            indent.push_str("    ");
+            escape.push_str("    ");
+            writeln!(fmt, "    subgraph cluster_{} {{", self.cfg.name)?;
+        } else {
+            writeln!(fmt, "digraph {} {{", self.cfg.name)?;
+        };
+
+        writeln!(fmt, "{}    label=\"{}\"", indent, self.cfg.name)?;
 
         for (label, statements) in &self.cfg.blocks {
-            write!(fmt, "    \"{0}\" [label=\"\\\n{0}:\\l", label)?;
+            write!(fmt, "{0}    \"{1}\" [label=\"", indent, label)?;
 
             let statements = (self.format)(label, statements)?
-                .replace('\n', "\\l\\\n    ")
+                .trim()
+                .replace('\n', &escape)
                 .replace('"', "\\\"");
 
-            if !statements.is_empty() {
-                write!(fmt, "\\\n    {}\\l", statements)?;
+            if statements.is_empty() {
+                writeln!(fmt, "{}:\"];", label)?;
+            } else {
+                writeln!(fmt, "\\\n{}:{}{}\"];", label, escape, statements)?;
             }
-
-            writeln!(fmt, "  \"];")?;
         }
 
         let mut edges = self.cfg.graph.all_edges().collect::<Vec<_>>();
@@ -67,9 +78,9 @@ where
         edges.sort();
 
         for (from, to, _) in edges {
-            writeln!(fmt, r#"    "{}" -> "{}";"#, from, to)?;
+            writeln!(fmt, r#"{}    "{}" -> "{}";"#, indent, from, to)?;
         }
 
-        writeln!(fmt, "  }}")
+        writeln!(fmt, "{}}}", indent)
     }
 }
