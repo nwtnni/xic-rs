@@ -42,8 +42,12 @@ impl<T: fmt::Display> fmt::Display for Intel<&asm::Unit<T>> {
 impl<T: fmt::Display> fmt::Display for Intel<&asm::Function<T>> {
     fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
         writeln!(fmt, "{}:", self.0.name)?;
-        for statement in &self.0.instructions {
-            writeln!(fmt, "{}", Intel(statement))?;
+        for instruction in &self.0.instructions {
+            if !matches!(instruction, asm::Assembly::Label(_)) {
+                write!(fmt, "  ")?;
+            }
+
+            writeln!(fmt, "{}", Intel(instruction))?;
         }
         Ok(())
     }
@@ -53,12 +57,12 @@ impl<T: fmt::Display> fmt::Display for Intel<&asm::Assembly<T>> {
     fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
         match &self.0 {
             asm::Assembly::Binary(binary, operands) => {
-                write!(fmt, "    {} {}", binary, Intel(operands))
+                write!(fmt, "{} {}", binary, Intel(operands))
             }
-            asm::Assembly::Unary(unary, operand) => write!(fmt, "    {} {}", unary, Intel(operand)),
-            asm::Assembly::Nullary(nullary) => write!(fmt, "    {}", nullary),
+            asm::Assembly::Unary(unary, operand) => write!(fmt, "{} {}", unary, Intel(operand)),
+            asm::Assembly::Nullary(nullary) => write!(fmt, "{}", nullary),
             asm::Assembly::Label(label) => write!(fmt, "{}:", label),
-            asm::Assembly::Jmp(label) => write!(fmt, "    jmp {}", label),
+            asm::Assembly::Jmp(label) => write!(fmt, "jmp {}", label),
             asm::Assembly::Jcc(condition, label) => write!(fmt, "j{} {}", condition, label),
         }
     }
