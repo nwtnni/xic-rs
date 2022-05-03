@@ -54,6 +54,7 @@ pub const XI_PARSE_INT: &str = "_IparseInt_t2ibai";
 pub const XI_ASSERT: &str = "_Iassert_pb";
 
 pub const CALLEE_SAVED: &[Register] = &[
+    Register::rsp(),
     Register::Rbx,
     Register::Rbp,
     Register::R12,

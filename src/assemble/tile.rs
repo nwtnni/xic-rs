@@ -61,6 +61,7 @@ fn tile_function(function: &lir::Function<lir::Fallthrough>) -> asm::Function<Te
     let callee_saved = abi::CALLEE_SAVED
         .iter()
         .copied()
+        .filter(|register| *register != Register::rsp())
         .map(|register| {
             let temporary = Temporary::fresh("save");
             let register = Temporary::Register(register);

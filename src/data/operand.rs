@@ -125,11 +125,11 @@ pub enum Register {
 }
 
 impl Register {
-    pub fn rsp() -> Self {
+    pub const fn rsp() -> Self {
         Register::Rsp(true)
     }
 
-    pub fn rsp_placeholder() -> Self {
+    pub const fn rsp_placeholder() -> Self {
         Register::Rsp(false)
     }
 
@@ -159,7 +159,7 @@ impl Register {
     }
 
     pub fn is_callee_saved(&self) -> bool {
-        abi::CALLEE_SAVED.contains(self) || matches!(self, Register::Rsp(_))
+        abi::CALLEE_SAVED.contains(self)
     }
 }
 
