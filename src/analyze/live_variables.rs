@@ -60,15 +60,8 @@ impl Function for asm::Function<Temporary> {
             }
             Assembly::Nullary(asm::Nullary::Ret(returns, caller_returns)) => {
                 for r#return in 0..*returns {
-                    match abi::write_return(*caller_returns, r#return) {
-                        operand::Unary::I(_) => (),
-                        operand::Unary::R(temporary) => {
-                            output.insert(temporary);
-                        }
-                        operand::Unary::M(memory) => {
-                            memory.map(|temporary| output.insert(*temporary));
-                        }
-                    }
+                    abi::write_return(*caller_returns, r#return)
+                        .map(|temporary| output.insert(*temporary));
                 }
                 output.insert(Temporary::Register(Register::rsp()));
             }
@@ -90,15 +83,7 @@ impl Function for asm::Function<Temporary> {
                     }
                 }
 
-                match operands.source() {
-                    operand::Unary::I(_) => (),
-                    operand::Unary::R(temporary) => {
-                        output.insert(temporary);
-                    }
-                    operand::Unary::M(memory) => {
-                        memory.map(|temporary| output.insert(*temporary));
-                    }
-                }
+                operands.source().map(|temporary| output.insert(*temporary));
             }
             Assembly::Unary(asm::Unary::Call { arguments, returns }, operand) => {
                 for r#return in 0..*returns {
@@ -114,38 +99,14 @@ impl Function for asm::Function<Temporary> {
                 output.insert(Temporary::Register(Register::rsp()));
 
                 for argument in 0..*arguments {
-                    match abi::write_argument(argument) {
-                        operand::Unary::I(_) => (),
-                        operand::Unary::R(temporary) => {
-                            output.insert(temporary);
-                        }
-                        operand::Unary::M(memory) => {
-                            memory.map(|temporary| output.insert(*temporary));
-                        }
-                    }
+                    abi::write_argument(argument).map(|temporary| output.insert(*temporary));
                 }
 
-                match operand {
-                    operand::Unary::I(_) => (),
-                    operand::Unary::R(temporary) => {
-                        output.insert(*temporary);
-                    }
-                    operand::Unary::M(memory) => {
-                        memory.map(|temporary| output.insert(*temporary));
-                    }
-                }
+                operand.map(|temporary| output.insert(*temporary));
             }
-            Assembly::Unary(asm::Unary::Neg, operand) => match operand {
-                operand::Unary::I(_) => (),
-                operand::Unary::R(temporary) => {
-                    // Both uses and defines the temporary:
-                    // output.remove(&temporary);
-                    output.insert(*temporary);
-                }
-                operand::Unary::M(memory) => {
-                    memory.map(|temporary| output.insert(*temporary));
-                }
-            },
+            Assembly::Unary(asm::Unary::Neg, operand) => {
+                operand.map(|temporary| output.insert(*temporary));
+            }
             Assembly::Unary(
                 unary @ (asm::Unary::Mul | asm::Unary::Hul | asm::Unary::Div | asm::Unary::Mod),
                 operand,
@@ -160,15 +121,7 @@ impl Function for asm::Function<Temporary> {
                     output.insert(Temporary::Register(Register::Rdx));
                 }
 
-                match operand {
-                    operand::Unary::I(_) => (),
-                    operand::Unary::R(temporary) => {
-                        output.insert(*temporary);
-                    }
-                    operand::Unary::M(memory) => {
-                        memory.map(|temporary| output.insert(*temporary));
-                    }
-                }
+                operand.map(|temporary| output.insert(*temporary));
             }
         }
     }

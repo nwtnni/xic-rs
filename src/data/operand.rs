@@ -539,6 +539,16 @@ pub enum Unary<T> {
     M(Memory<T>),
 }
 
+impl<T> Unary<T> {
+    pub fn map<F: FnMut(&T) -> U, U>(&self, mut apply: F) -> Unary<U> {
+        match self {
+            Unary::I(immediate) => Unary::I(*immediate),
+            Unary::R(register) => Unary::R(apply(register)),
+            Unary::M(memory) => Unary::M(memory.map(apply)),
+        }
+    }
+}
+
 impl<T> From<i64> for Unary<T> {
     fn from(integer: i64) -> Self {
         Unary::I(Immediate::Integer(integer))
