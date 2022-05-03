@@ -1,7 +1,10 @@
+use std::cmp;
 use std::fmt;
+use std::hash::Hash;
 use std::sync::atomic::AtomicUsize;
 use std::sync::atomic::Ordering;
 
+use crate::abi;
 use crate::data::symbol;
 use crate::data::symbol::Symbol;
 
@@ -92,14 +95,23 @@ impl From<Register> for Temporary {
     }
 }
 
-#[derive(Copy, Clone, Debug, PartialEq, Eq, Hash, PartialOrd, Ord)]
+#[derive(Copy, Clone, Debug, Eq)]
 pub enum Register {
     Rax,
     Rbx,
     Rcx,
     Rdx,
     Rbp,
-    Rsp,
+    // Note: during code generation, we sometimes need a placeholder
+    // for `rsp` until we know the stack size. It must be distinguishable
+    // from `rbp`, since we use `rbp` as a general-purpose register.
+    //
+    // In all other cases except for rewriting `Register::Rsp(false)` as an
+    // offset from the stack pointer instead of the base pointer, e.g. dataflow
+    // analyses, we require `Register::Rsp(true)` and `Register::Rsp(false)`
+    // to be indistinguishable. Hence the custom `PartialOrd`, `Ord`, `PartialEq`,
+    // and `Hash` implementations.
+    Rsp(bool),
     Rsi,
     Rdi,
     R8,
@@ -110,7 +122,72 @@ pub enum Register {
     R13,
     R14,
     R15,
-    RspPlaceholder,
+}
+
+impl Register {
+    pub fn rsp() -> Self {
+        Register::Rsp(true)
+    }
+
+    pub fn rsp_placeholder() -> Self {
+        Register::Rsp(false)
+    }
+
+    fn as_usize(&self) -> usize {
+        match self {
+            Register::Rax => 0,
+            Register::Rbx => 1,
+            Register::Rcx => 2,
+            Register::Rdx => 3,
+            Register::Rbp => 4,
+            Register::Rsp(_) => 5,
+            Register::Rsi => 6,
+            Register::Rdi => 7,
+            Register::R8 => 8,
+            Register::R9 => 9,
+            Register::R10 => 10,
+            Register::R11 => 11,
+            Register::R12 => 12,
+            Register::R13 => 13,
+            Register::R14 => 14,
+            Register::R15 => 15,
+        }
+    }
+
+    pub fn is_caller_saved(&self) -> bool {
+        abi::CALLER_SAVED.contains(self)
+    }
+
+    pub fn is_callee_saved(&self) -> bool {
+        abi::CALLEE_SAVED.contains(self) || matches!(self, Register::Rsp(_))
+    }
+}
+
+impl PartialEq for Register {
+    fn eq(&self, other: &Self) -> bool {
+        self.as_usize() == other.as_usize()
+    }
+}
+
+impl PartialOrd for Register {
+    fn partial_cmp(&self, other: &Self) -> Option<cmp::Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+impl Ord for Register {
+    fn cmp(&self, other: &Self) -> cmp::Ordering {
+        self.as_usize().cmp(&other.as_usize())
+    }
+}
+
+impl Hash for Register {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        match self {
+            Self::Rsp(_) => 0xdeadbeefu32.hash(state),
+            _ => core::mem::discriminant(self).hash(state),
+        }
+    }
 }
 
 impl fmt::Display for Register {
@@ -121,7 +198,8 @@ impl fmt::Display for Register {
             Register::Rcx => "rcx",
             Register::Rdx => "rdx",
             Register::Rbp => "rbp",
-            Register::Rsp => "rsp",
+            Register::Rsp(true) => "rsp",
+            Register::Rsp(false) => "rbp",
             Register::Rsi => "rsi",
             Register::Rdi => "rdi",
             Register::R8 => "r8",
@@ -132,14 +210,13 @@ impl fmt::Display for Register {
             Register::R13 => "r13",
             Register::R14 => "r14",
             Register::R15 => "r15",
-            Register::RspPlaceholder => "rbp",
         };
 
         write!(fmt, "{}", register)
     }
 }
 
-pub trait Operand: Copy + Eq + std::hash::Hash + std::fmt::Debug + PartialOrd + Ord {}
+pub trait Operand: Copy + Eq + Hash + std::fmt::Debug + PartialOrd + Ord {}
 impl Operand for Temporary {}
 impl Operand for Register {}
 

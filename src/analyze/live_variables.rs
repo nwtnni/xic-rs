@@ -70,7 +70,7 @@ impl Function for asm::Function<Temporary> {
                         }
                     }
                 }
-                output.insert(Temporary::Register(Register::Rsp));
+                output.insert(Temporary::Register(Register::rsp()));
             }
             Assembly::Binary(binary, operands) => {
                 use asm::Binary::*;
@@ -111,7 +111,7 @@ impl Function for asm::Function<Temporary> {
                     }
                 }
 
-                output.insert(Temporary::Register(Register::Rsp));
+                output.insert(Temporary::Register(Register::rsp()));
 
                 for argument in 0..*arguments {
                     match abi::write_argument(argument) {

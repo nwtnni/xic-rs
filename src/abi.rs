@@ -99,7 +99,7 @@ pub fn read_argument(index: usize) -> Unary<Temporary> {
     }
 
     Unary::M(Memory::BO {
-        base: Temporary::Register(Register::RspPlaceholder),
+        base: Temporary::Register(Register::rsp_placeholder()),
         offset: Immediate::Integer((1 /* rip */ + index as i64 - 6) * WORD),
     })
 }
@@ -111,7 +111,7 @@ pub fn write_argument(index: usize) -> Unary<Temporary> {
     }
 
     Unary::M(Memory::BO {
-        base: Temporary::Register(Register::Rsp),
+        base: Temporary::Register(Register::rsp()),
         offset: Immediate::Integer((index as i64 - 6) * WORD),
     })
 }
@@ -125,7 +125,7 @@ pub fn read_return(arguments: usize, index: usize) -> Unary<Temporary> {
     }
 
     Unary::M(Memory::BO {
-        base: Temporary::Register(Register::Rsp),
+        base: Temporary::Register(Register::rsp()),
         offset: Immediate::Integer((arguments.saturating_sub(6) + index - 2) as i64 * WORD),
     })
 }

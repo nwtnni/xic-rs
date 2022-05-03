@@ -50,7 +50,7 @@ fn allocate_function(function: &asm::Function<Temporary>) -> asm::Function<Regis
         .iter_mut()
         .for_each(|instruction| rewrite_rbp(stack_size, instruction));
 
-    let rsp = Register::Rsp;
+    let rsp = Register::rsp();
     let returns = function.returns;
     let caller_returns = function.caller_returns;
 
@@ -97,22 +97,22 @@ fn rewrite_rbp(stack_size: i64, instruction: &mut Assembly<Register>) {
     };
 
     if let Memory::BO {
-        base: base @ Register::RspPlaceholder,
+        base: base @ Register::Rsp(false),
         offset,
     }
     | Memory::BIO {
-        base: base @ Register::RspPlaceholder,
+        base: base @ Register::Rsp(false),
         index: _,
         offset,
     }
     | Memory::BISO {
-        base: base @ Register::RspPlaceholder,
+        base: base @ Register::Rsp(false),
         index: _,
         scale: _,
         offset,
     } = memory
     {
-        *base = Register::Rsp;
+        *base = Register::Rsp(true);
         match offset {
             Immediate::Label(_) => unreachable!(),
             Immediate::Integer(offset) => *offset += stack_size,
@@ -271,7 +271,7 @@ impl Trivial {
         let index = self.temporaries.entry(*temporary).or_insert(len);
 
         Or::R(Memory::BO {
-            base: Register::Rsp,
+            base: Register::Rsp(true),
             offset: Immediate::Integer(abi::stack_offset(
                 self.callee_arguments,
                 self.callee_returns,
