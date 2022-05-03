@@ -167,7 +167,37 @@ impl<T: lir::Target + Clone> Function for lir::Function<T> {
     ) -> Self::Fallthrough {
         lir::Function {
             name,
-            statements: statements.into_iter().map(lir::Statement::lower).collect(),
+            statements: statements
+                .into_iter()
+                .map(|statement| match statement {
+                    lir::Statement::Jump(label) => lir::Statement::Jump(label),
+                    lir::Statement::Return(returns) => lir::Statement::Return(returns),
+                    lir::Statement::Label(label) => lir::Statement::Label(label),
+                    lir::Statement::Call(function, arguments, returns) => {
+                        lir::Statement::Call(function, arguments, returns)
+                    }
+                    lir::Statement::Move {
+                        destination,
+                        source,
+                    } => lir::Statement::Move {
+                        destination,
+                        source,
+                    },
+                    lir::Statement::CJump {
+                        condition,
+                        left,
+                        right,
+                        r#true,
+                        r#false: _,
+                    } => lir::Statement::CJump {
+                        condition,
+                        left,
+                        right,
+                        r#true,
+                        r#false: lir::Fallthrough,
+                    },
+                })
+                .collect(),
             arguments,
             returns,
         }

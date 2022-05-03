@@ -68,38 +68,6 @@ pub enum Statement<T> {
     Return(Vec<Expression>),
 }
 
-impl<T: Target> Statement<T> {
-    pub(crate) fn lower(self) -> Statement<Fallthrough> {
-        use Statement::*;
-        match self {
-            Jump(label) => Jump(label),
-            CJump {
-                condition,
-                left,
-                right,
-                r#true,
-                r#false: _,
-            } => CJump {
-                condition,
-                left,
-                right,
-                r#true,
-                r#false: Fallthrough,
-            },
-            Call(function, arguments, returns) => Call(function, arguments, returns),
-            Label(label) => Label(label),
-            Move {
-                destination,
-                source,
-            } => Move {
-                destination,
-                source,
-            },
-            Return(returns) => Return(returns),
-        }
-    }
-}
-
 impl<T: Serialize> fmt::Display for Statement<T> {
     fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
         write!(fmt, "{}", self.sexp())
