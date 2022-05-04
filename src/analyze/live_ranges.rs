@@ -14,6 +14,7 @@ use crate::data::asm::Assembly;
 use crate::data::operand;
 use crate::data::operand::Immediate;
 use crate::data::operand::Label;
+use crate::data::operand::Register;
 use crate::data::operand::Temporary;
 use crate::data::symbol;
 
@@ -26,10 +27,42 @@ pub struct LiveRanges {
 pub struct Range {
     pub start: usize,
     pub end: usize,
+    pub clobbered: Clobbered,
+}
 
-    /// Track whether this range crosses a function call, and therefore
-    /// whether or not it can use caller-saved registers.
-    pub clobbered: bool,
+#[derive(Copy, Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub enum Clobbered {
+    Caller,
+    RaxRdx,
+    Rax,
+    Rdx,
+    None,
+}
+
+impl Clobbered {
+    fn or(&self, other: &Self) -> Self {
+        use Clobbered::*;
+        match (self, other) {
+            (None, None) => None,
+            (None, Rax) | (Rax, None) => Rax,
+            (None, Rdx) | (Rdx, None) => Rdx,
+            (Rax, Rax) => Rax,
+            (Rdx, Rdx) => Rdx,
+            (Rax, Rdx) | (Rdx, Rax) => RaxRdx,
+            (Caller, _) | (_, Caller) => Caller,
+            (RaxRdx, _) | (_, RaxRdx) => RaxRdx,
+        }
+    }
+
+    pub fn as_slice(&self) -> &[Register] {
+        match self {
+            Clobbered::Caller => abi::CALLER_SAVED,
+            Clobbered::RaxRdx => &[Register::Rax, Register::Rdx],
+            Clobbered::Rax => &[Register::Rax],
+            Clobbered::Rdx => &[Register::Rdx],
+            Clobbered::None => &[],
+        }
+    }
 }
 
 impl Range {
@@ -37,7 +70,7 @@ impl Range {
         Range {
             start: index,
             end: index,
-            clobbered: false,
+            clobbered: Clobbered::None,
         }
     }
 }
@@ -93,16 +126,19 @@ impl LiveRanges {
                     Assembly::Unary(
                         asm::Unary::Call { .. },
                         operand::Unary::I(Immediate::Label(Label::Fixed(label))),
-                    ) => symbol::resolve(*label) != abi::XI_OUT_OF_BOUNDS,
-                    Assembly::Unary(asm::Unary::Call { .. }, _) => true,
-                    _ => false,
+                    ) if symbol::resolve(*label) == abi::XI_OUT_OF_BOUNDS => Clobbered::None,
+                    Assembly::Unary(asm::Unary::Call { .. }, _) => Clobbered::Caller,
+                    Assembly::Unary(asm::Unary::Mul | asm::Unary::Div, _) => Clobbered::Rdx,
+                    Assembly::Unary(asm::Unary::Hul | asm::Unary::Mod, _) => Clobbered::Rax,
+                    Assembly::Nullary(asm::Nullary::Cqo) => Clobbered::Rdx,
+                    _ => Clobbered::None,
                 };
 
                 for temporary in &output {
                     ranges
                         .entry(*temporary)
                         .and_modify(|range| {
-                            range.clobbered |= clobbered;
+                            range.clobbered = range.clobbered.or(&clobbered);
                             range.start = index;
                         })
                         .or_insert_with(|| Range::new(index));
@@ -225,21 +261,24 @@ impl fmt::Display for LiveRanges {
                         write!(&mut buffer, "{}", temporary)?;
                         write!(fmt, "{:1$}", buffer, max_temporary_width)?
                     }
-                    Some((_, range)) if range.end == index => write!(
-                        fmt,
-                        "{:1$}",
-                        if range.clobbered { '◌' } else { '●' },
-                        max_temporary_width
-                    )?,
+                    Some((_, range)) if range.end == index => {
+                        let clobbered = match range.clobbered {
+                            Clobbered::Caller => 'C',
+                            Clobbered::RaxRdx => 'R',
+                            Clobbered::Rdx => 'D',
+                            Clobbered::Rax => 'A',
+                            Clobbered::None => '●',
+                        };
+                        write!(fmt, "{:1$}", clobbered, max_temporary_width)?;
+                    }
                     Some((_, range)) => {
                         assert!(range.end >= index);
                         assert!(range.start < index);
-                        write!(
-                            fmt,
-                            "{:1$}",
-                            if range.clobbered { '┊' } else { '|' },
-                            max_temporary_width,
-                        )?;
+                        let clobbered = match range.clobbered {
+                            Clobbered::None => '|',
+                            _ => '┊',
+                        };
+                        write!(fmt, "{:1$}", clobbered, max_temporary_width)?;
                     }
                 }
             }

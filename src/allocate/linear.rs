@@ -51,6 +51,8 @@ pub fn allocate(
 /// a live range crosses a function call. Any temporary whose
 /// live range crosses the call cannot use a caller-saved register.
 ///
+/// Handling clobbering from `imul` and co. uses the same workaround.
+///
 /// - Maintaining valid addressing modes when spilling
 ///   temporaries to the stack
 ///
@@ -110,10 +112,12 @@ impl Linear {
             return;
         }
 
-        let register = match range.clobbered {
-            true => self.callee_saved.pop(),
-            false => self.caller_saved.pop().or_else(|| self.callee_saved.pop()),
-        };
+        let register = self
+            .caller_saved
+            .iter()
+            .rposition(|register| !range.clobbered.as_slice().contains(register))
+            .map(|index| self.caller_saved.remove(index))
+            .or_else(|| self.callee_saved.pop());
 
         if let Some(register) = register {
             self.allocated.insert(temporary, register);
@@ -122,12 +126,18 @@ impl Linear {
             return;
         }
 
-        // Find latest ending temporary, skipping over fixed registers
+        // Find latest ending temporary, skipping over fixed and clobbered registers
         match self
             .active
             .iter()
             .copied()
             .enumerate()
+            .filter(|(_, cmp::Reverse((_, temporary)))| {
+                !range
+                    .clobbered
+                    .as_slice()
+                    .contains(&self.allocated[temporary])
+            })
             .find(|(_, cmp::Reverse((_, temporary)))| !matches!(temporary, Temporary::Register(_)))
         {
             Some((index, cmp::Reverse((end, existing)))) if end > range.end => {
