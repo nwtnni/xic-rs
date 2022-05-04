@@ -578,3 +578,9 @@ impl<T> From<Memory<T>> for Unary<T> {
         Unary::M(memory)
     }
 }
+
+impl<T> From<Immediate> for Unary<T> {
+    fn from(immediate: Immediate) -> Self {
+        Unary::I(immediate)
+    }
+}
