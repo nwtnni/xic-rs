@@ -9,7 +9,7 @@ use crate::data::symbol;
 pub fn canonize_function(function: &hir::Function) -> lir::Function<lir::Label> {
     let mut canonizer = Canonizer::default();
 
-    canonizer.canonize_statement(&function.statements);
+    canonizer.canonize_statement(&function.statement);
     let mut canonized = std::mem::take(&mut canonizer.canonized);
 
     match canonized.last() {
@@ -30,6 +30,8 @@ pub fn canonize_function(function: &hir::Function) -> lir::Function<lir::Label> 
         statements: canonized,
         arguments: function.arguments,
         returns: function.returns,
+        enter: (),
+        exit: (),
     }
 }
 

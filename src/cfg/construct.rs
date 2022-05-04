@@ -23,18 +23,39 @@ struct Walker<T: Function> {
 
 impl<T: Function> Walker<T> {
     fn new(function: &T) -> Self {
-        let enter = Label::fresh("enter");
-        let exit = Label::fresh("exit");
+        let (enter, block) = match function.enter() {
+            Some(enter) => {
+                assert!(matches!(
+                    function
+                        .statements()
+                        .first()
+                        .and_then(T::to_terminator),
+                    Some(Terminator::Label(label)) if *enter == label
+                ));
+                (*enter, Block::Unreachable)
+            }
+            None => {
+                let enter = Label::fresh("enter");
+                (enter, Block::reachable(enter))
+            }
+        };
 
-        let mut blocks = BTreeMap::new();
-        blocks.insert(exit, function.exit());
+        let (exit, blocks) = match function.exit() {
+            Some(exit) => (*exit, BTreeMap::new()),
+            None => {
+                let exit = Label::fresh("exit");
+                let mut blocks = BTreeMap::new();
+                blocks.insert(exit, Vec::new());
+                (exit, blocks)
+            }
+        };
 
         Walker {
             enter,
             exit,
             graph: DiGraphMap::new(),
             blocks,
-            block: Block::Reachable(enter, Vec::new()),
+            block,
         }
     }
 
@@ -108,8 +129,19 @@ impl<T: Function> Walker<T> {
             }
         }
 
-        self.block.push(T::jump(self.exit));
-        self.pop_unconditional(Block::Unreachable, self.exit);
+        // Handle exit block if it exists, or jump to the generated one.
+        if let Some((label, mut statements)) = self.block.swap(Block::Unreachable) {
+            if label != self.exit {
+                statements.push(T::jump(self.exit));
+                self.graph.add_edge(label, self.exit, Edge::Unconditional);
+            }
+
+            self.blocks.insert(label, statements);
+        }
+
+        if let Some(r#return) = function.r#return() {
+            self.blocks.get_mut(&self.exit).unwrap().push(r#return);
+        }
 
         Cfg {
             name: function.name(),

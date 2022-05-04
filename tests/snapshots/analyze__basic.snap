@@ -1,13 +1,13 @@
 ---
 source: tests/analyze.rs
-assertion_line: 66
+assertion_line: 73
 expression: "String::from_utf8(output.stdout).unwrap()"
 ---
 
 test_mov_function
 
 +---------------+
-|    enter0:    |
+|    enter:     |
 | {rsp}         |
 | mov _x, 1     |
 | {rsp, _x}     |
@@ -23,14 +23,14 @@ test_mov_function
 | {rsp, _x}     |
 | call _x       |
 | {rsp}         |
-| jmp exit1     |
+| jmp exit      |
 | {rsp}         |
 +---------------+
   |
   |
   v
 +---------------+
-|    exit1:     |
+|     exit:     |
 | {rsp}         |
 | ret           |
 | {}            |

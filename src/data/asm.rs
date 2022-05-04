@@ -21,6 +21,8 @@ pub struct Function<T> {
     pub returns: usize,
     pub callee_arguments: usize,
     pub callee_returns: usize,
+    pub enter: Label,
+    pub exit: Label,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]

@@ -54,6 +54,14 @@ pub fn tile(function: &lir::Function<lir::Fallthrough>) -> asm::Function<Tempora
         callee_arguments,
     };
 
+    assert!(matches!(
+        function.statements.first(),
+        Some(lir::Statement::Label(label)) if *label == function.enter,
+    ));
+
+    // Preserve invariant that `enter` label is the first instruction
+    tiler.tile_statement(function.statements.first().unwrap());
+
     let callee_saved = abi::CALLEE_SAVED
         .iter()
         .copied()
@@ -71,6 +79,7 @@ pub fn tile(function: &lir::Function<lir::Fallthrough>) -> asm::Function<Tempora
     function
         .statements
         .iter()
+        .skip(1)
         .for_each(|statement| tiler.tile_statement(statement));
 
     for (temporary, register) in callee_saved {
@@ -84,6 +93,8 @@ pub fn tile(function: &lir::Function<lir::Fallthrough>) -> asm::Function<Tempora
         returns: function.returns,
         callee_arguments,
         callee_returns,
+        enter: function.enter,
+        exit: function.exit,
     }
 }
 

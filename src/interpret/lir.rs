@@ -114,7 +114,7 @@ impl<'a, T: lir::Target> Local<'a, postorder::Lir<'a, T>> {
             } => {
                 if self.interpret_condition(global, condition) {
                     self.interpret_jump(r#true);
-                } else if let Some(label) = r#false.label() {
+                } else if let Some(label) = r#false.target() {
                     self.interpret_jump(label);
                 }
             }

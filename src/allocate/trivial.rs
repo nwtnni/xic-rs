@@ -49,8 +49,13 @@ pub fn allocate(function: &asm::Function<Temporary>) -> asm::Function<Register> 
     let rsp = Register::rsp();
     let returns = function.returns;
 
+    assert!(matches!(
+        trivial.instructions.first(),
+        Some(Assembly::Label(label)) if *label == function.enter,
+    ));
+
     // Prologue
-    trivial.instructions.insert(0, asm!((sub rsp, stack_size)));
+    trivial.instructions.insert(1, asm!((sub rsp, stack_size)));
 
     // Epilogue
     #[rustfmt::skip]
@@ -66,6 +71,8 @@ pub fn allocate(function: &asm::Function<Temporary>) -> asm::Function<Register> 
         callee_arguments: function.callee_arguments,
         callee_returns: function.callee_returns,
         instructions: trivial.instructions,
+        enter: function.enter,
+        exit: function.exit,
     }
 }
 

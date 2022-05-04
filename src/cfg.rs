@@ -149,12 +149,16 @@ pub trait Function {
         name: Symbol,
         statements: Vec<Self::Statement>,
         metadata: Self::Metadata,
+        enter: Label,
+        exit: Label,
     ) -> Self::Fallthrough;
 
     fn name(&self) -> Symbol;
     fn metadata(&self) -> Self::Metadata;
     fn statements(&self) -> &[Self::Statement];
-    fn exit(&self) -> Vec<Self::Statement>;
+    fn r#return(&self) -> Option<Self::Statement>;
+    fn enter(&self) -> Option<&Label>;
+    fn exit(&self) -> Option<&Label>;
 
     fn jump(label: Label) -> Self::Statement;
     fn label(label: Label) -> Self::Statement;
@@ -171,7 +175,7 @@ pub enum Terminator {
     Return,
 }
 
-impl<T: lir::Target + Clone> Function for lir::Function<T> {
+impl<T: lir::Target> Function for lir::Function<T> {
     type Statement = lir::Statement<T>;
     type Metadata = (usize, usize);
     type Fallthrough = lir::Function<lir::Fallthrough>;
@@ -180,6 +184,8 @@ impl<T: lir::Target + Clone> Function for lir::Function<T> {
         name: Symbol,
         statements: Vec<Self::Statement>,
         (arguments, returns): Self::Metadata,
+        enter: Label,
+        exit: Label,
     ) -> Self::Fallthrough {
         lir::Function {
             name,
@@ -216,6 +222,8 @@ impl<T: lir::Target + Clone> Function for lir::Function<T> {
                 .collect(),
             arguments,
             returns,
+            enter,
+            exit,
         }
     }
 
@@ -231,8 +239,16 @@ impl<T: lir::Target + Clone> Function for lir::Function<T> {
         &self.statements
     }
 
-    fn exit(&self) -> Vec<Self::Statement> {
-        Vec::new()
+    fn r#return(&self) -> Option<Self::Statement> {
+        None
+    }
+
+    fn enter(&self) -> Option<&Label> {
+        T::access(&self.enter)
+    }
+
+    fn exit(&self) -> Option<&Label> {
+        T::access(&self.exit)
     }
 
     fn jump(label: Label) -> Self::Statement {
@@ -254,7 +270,7 @@ impl<T: lir::Target + Clone> Function for lir::Function<T> {
                 r#false,
             } => Some(Terminator::CJump {
                 r#true: *r#true,
-                r#false: r#false.label().copied(),
+                r#false: r#false.target().copied(),
             }),
             lir::Statement::Call(_, _, _) => None,
             lir::Statement::Label(label) => Some(Terminator::Label(*label)),
@@ -276,6 +292,8 @@ impl Function for asm::Function<Temporary> {
         name: Symbol,
         mut instructions: Vec<Self::Statement>,
         (arguments, returns, callee_arguments, callee_returns): Self::Metadata,
+        enter: Label,
+        exit: Label,
     ) -> Self {
         // Note: we want to maintain some invariants:
         //
@@ -296,6 +314,8 @@ impl Function for asm::Function<Temporary> {
             returns,
             callee_arguments,
             callee_returns,
+            enter,
+            exit,
         }
     }
 
@@ -316,8 +336,16 @@ impl Function for asm::Function<Temporary> {
         &self.instructions
     }
 
-    fn exit(&self) -> Vec<Self::Statement> {
-        vec![asm::Assembly::Nullary(asm::Nullary::Ret(self.returns))]
+    fn r#return(&self) -> Option<Self::Statement> {
+        Some(asm::Assembly::Nullary(asm::Nullary::Ret(self.returns)))
+    }
+
+    fn enter(&self) -> Option<&Label> {
+        Some(&self.enter)
+    }
+
+    fn exit(&self) -> Option<&Label> {
+        Some(&self.exit)
     }
 
     fn jump(label: Label) -> Self::Statement {

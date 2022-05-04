@@ -43,5 +43,11 @@ pub fn destruct_cfg<T: Function>(function: &Cfg<T>) -> T::Fallthrough {
     statements.push(T::label(function.exit));
     statements.extend_from_slice(&*function.blocks[&function.exit]);
 
-    T::new(function.name, statements, function.metadata.clone())
+    T::new(
+        function.name,
+        statements,
+        function.metadata.clone(),
+        function.enter,
+        function.exit,
+    )
 }

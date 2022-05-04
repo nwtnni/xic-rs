@@ -22,7 +22,7 @@ impl<T: Serialize> Serialize for ir::Unit<T> {
 
 impl Serialize for hir::Function {
     fn sexp(&self) -> Sexp {
-        ["FUNC".sexp(), self.name.sexp(), self.statements.sexp()].sexp_move()
+        ["FUNC".sexp(), self.name.sexp(), self.statement.sexp()].sexp_move()
     }
 }
 
@@ -84,7 +84,7 @@ impl Serialize for hir::Statement {
     }
 }
 
-impl<T: Serialize> Serialize for lir::Function<T> {
+impl<T: Serialize + lir::Target> Serialize for lir::Function<T> {
     fn sexp(&self) -> Sexp {
         [
             "FUNC".sexp(),

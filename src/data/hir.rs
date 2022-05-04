@@ -2,12 +2,20 @@ use crate::data::ir;
 use crate::data::operand::Immediate;
 use crate::data::operand::Label;
 use crate::data::operand::Temporary;
+use crate::data::symbol::Symbol;
 
 pub const ZERO: Expression = Expression::Immediate(Immediate::Integer(0));
 pub const ONE: Expression = Expression::Immediate(Immediate::Integer(1));
 
 pub type Unit = ir::Unit<Function>;
-pub type Function = ir::Function<Statement>;
+
+#[derive(Clone, Debug)]
+pub struct Function {
+    pub name: Symbol,
+    pub statement: Statement,
+    pub arguments: usize,
+    pub returns: usize,
+}
 
 pub enum Tree {
     Expression(Expression),

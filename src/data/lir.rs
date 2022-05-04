@@ -6,14 +6,24 @@ use crate::data::operand;
 use crate::data::operand::Immediate;
 use crate::data::operand::Register;
 use crate::data::operand::Temporary;
+use crate::data::sexp;
 use crate::data::sexp::Serialize;
+use crate::data::symbol::Symbol;
 
 pub const ZERO: Expression = Expression::Immediate(Immediate::Integer(0));
 pub const ONE: Expression = Expression::Immediate(Immediate::Integer(1));
 pub const EIGHT: Expression = Expression::Immediate(Immediate::Integer(abi::WORD));
 
 pub type Unit<T> = ir::Unit<Function<T>>;
-pub type Function<T> = ir::Function<Vec<Statement<T>>>;
+
+pub struct Function<T: Target> {
+    pub name: Symbol,
+    pub statements: Vec<Statement<T>>,
+    pub arguments: usize,
+    pub returns: usize,
+    pub enter: T::Access,
+    pub exit: T::Access,
+}
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Expression {
@@ -80,18 +90,32 @@ pub struct Fallthrough;
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
 pub struct Label(pub(crate) operand::Label);
 
-pub trait Target: crate::data::sexp::Serialize {
-    fn label(&self) -> Option<&operand::Label>;
+pub trait Target: sexp::Serialize + Copy + Clone + Eq + fmt::Debug {
+    type Access;
+    fn target(&self) -> Option<&operand::Label>;
+    fn access(access: &Self::Access) -> Option<&operand::Label>;
 }
 
 impl Target for Fallthrough {
-    fn label(&self) -> Option<&operand::Label> {
+    type Access = operand::Label;
+
+    fn target(&self) -> Option<&operand::Label> {
         None
+    }
+
+    fn access(access: &Self::Access) -> Option<&operand::Label> {
+        Some(access)
     }
 }
 
 impl Target for Label {
-    fn label(&self) -> Option<&operand::Label> {
+    type Access = ();
+
+    fn target(&self) -> Option<&operand::Label> {
         Some(&self.0)
+    }
+
+    fn access((): &Self::Access) -> Option<&operand::Label> {
+        None
     }
 }

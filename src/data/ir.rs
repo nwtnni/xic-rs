@@ -11,14 +11,6 @@ pub struct Unit<T> {
     pub data: BTreeMap<Symbol, Label>,
 }
 
-#[derive(Clone, Debug)]
-pub struct Function<T> {
-    pub name: Symbol,
-    pub statements: T,
-    pub arguments: usize,
-    pub returns: usize,
-}
-
 impl<T> Unit<T> {
     pub fn map<'a, F: FnMut(&'a T) -> U, U>(&'a self, mut apply: F) -> Unit<U> {
         Unit {

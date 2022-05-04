@@ -21,13 +21,26 @@ impl<T: Foldable> Foldable for ir::Unit<T> {
     }
 }
 
-impl<T: Foldable> Foldable for ir::Function<T> {
+impl Foldable for hir::Function {
     fn fold(self) -> Self {
-        ir::Function {
+        hir::Function {
+            name: self.name,
+            statement: self.statement.fold(),
+            arguments: self.arguments,
+            returns: self.returns,
+        }
+    }
+}
+
+impl<T: lir::Target> Foldable for lir::Function<T> {
+    fn fold(self) -> Self {
+        lir::Function {
             name: self.name,
             statements: self.statements.fold(),
             arguments: self.arguments,
             returns: self.returns,
+            enter: self.enter,
+            exit: self.exit,
         }
     }
 }
@@ -219,7 +232,7 @@ impl<T: lir::Target> Foldable for lir::Statement<T> {
                 (condition, Immediate(Integer(left)), Immediate(Integer(right))) => {
                     if fold_condition(condition, left, right) {
                         Jump(r#true)
-                    } else if let Some(r#false) = r#false.label() {
+                    } else if let Some(r#false) = r#false.target() {
                         Jump(*r#false)
                     } else {
                         Label(operand::Label::fresh("nop"))
@@ -230,7 +243,7 @@ impl<T: lir::Target> Foldable for lir::Statement<T> {
                     Jump(r#true)
                 }
                 (Lt, left, right) | (Gt, left, right) | (Ne, left, right) if left == right => {
-                    match r#false.label() {
+                    match r#false.target() {
                         Some(r#false) => Jump(*r#false),
                         None => Label(operand::Label::fresh("nop")),
                     }

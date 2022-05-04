@@ -74,7 +74,7 @@ pub enum Hir<'a> {
 impl<'a> Postorder<Hir<'a>> {
     pub fn traverse_hir(function: &'a hir::Function) -> Postorder<Hir<'a>> {
         let mut flat = Postorder::default();
-        flat.traverse_hir_statement(&function.statements);
+        flat.traverse_hir_statement(&function.statement);
         flat
     }
 
@@ -156,7 +156,7 @@ pub enum Lir<'a, T> {
     Statement(&'a lir::Statement<T>),
 }
 
-impl<'a, T> Postorder<Lir<'a, T>> {
+impl<'a, T: lir::Target> Postorder<Lir<'a, T>> {
     pub fn traverse_lir(function: &'a lir::Function<T>) -> Postorder<Lir<'a, T>> {
         let mut flat = Postorder::default();
         function
