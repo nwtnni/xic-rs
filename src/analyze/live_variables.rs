@@ -1,4 +1,5 @@
 use core::fmt;
+use std::cmp;
 use std::collections::BTreeSet;
 use std::marker::PhantomData;
 
@@ -58,10 +59,16 @@ impl Function for asm::Function<Temporary> {
                 // output.remove(&Temporary::Register(Register::Rax));
                 output.insert(Temporary::Register(Register::Rax));
             }
-            Assembly::Nullary(asm::Nullary::Ret(returns, caller_returns)) => {
-                for r#return in 0..*returns {
-                    abi::write_return(*caller_returns, r#return)
-                        .map(|temporary| output.insert(*temporary));
+            Assembly::Nullary(asm::Nullary::Ret(returns)) => {
+                // ABI-specific value (2)
+                for r#return in 0..cmp::min(2, *returns) {
+                    match abi::write_return(None, r#return) {
+                        operand::Unary::I(_) => (),
+                        operand::Unary::M(_) => unreachable!(),
+                        operand::Unary::R(temporary) => {
+                            output.insert(temporary);
+                        }
+                    }
                 }
                 output.insert(Temporary::Register(Register::rsp()));
             }

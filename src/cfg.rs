@@ -253,13 +253,13 @@ impl<T: lir::Target + Clone> Function for lir::Function<T> {
 
 impl Function for asm::Function<Temporary> {
     type Statement = asm::Assembly<Temporary>;
-    type Metadata = (usize, usize, usize, usize, Option<Temporary>);
+    type Metadata = (usize, usize, usize, usize);
     type Fallthrough = asm::Function<Temporary>;
 
     fn new(
         name: Symbol,
         mut instructions: Vec<Self::Statement>,
-        (arguments, returns, callee_arguments, callee_returns, caller_returns): Self::Metadata,
+        (arguments, returns, callee_arguments, callee_returns): Self::Metadata,
     ) -> Self {
         // Note: we want to maintain some invariants:
         //
@@ -270,10 +270,7 @@ impl Function for asm::Function<Temporary> {
         // we can preserve these two invariants across CFG round-trips by popping here.
         assert_eq!(
             instructions.pop(),
-            Some(asm::Assembly::Nullary(asm::Nullary::Ret(
-                returns,
-                caller_returns
-            )))
+            Some(asm::Assembly::Nullary(asm::Nullary::Ret(returns,)))
         );
 
         asm::Function {
@@ -283,7 +280,6 @@ impl Function for asm::Function<Temporary> {
             returns,
             callee_arguments,
             callee_returns,
-            caller_returns,
         }
     }
 
@@ -297,7 +293,6 @@ impl Function for asm::Function<Temporary> {
             self.returns,
             self.callee_arguments,
             self.callee_returns,
-            self.caller_returns,
         )
     }
 
@@ -306,10 +301,7 @@ impl Function for asm::Function<Temporary> {
     }
 
     fn exit(&self) -> Vec<Self::Statement> {
-        vec![asm::Assembly::Nullary(asm::Nullary::Ret(
-            self.returns,
-            self.caller_returns,
-        ))]
+        vec![asm::Assembly::Nullary(asm::Nullary::Ret(self.returns))]
     }
 
     fn jump(label: Label) -> Self::Statement {
@@ -323,7 +315,7 @@ impl Function for asm::Function<Temporary> {
     fn to_terminator(instruction: &Self::Statement) -> Option<Terminator> {
         match instruction {
             asm::Assembly::Nullary(asm::Nullary::Cqo) => None,
-            asm::Assembly::Nullary(asm::Nullary::Ret(_, _)) => {
+            asm::Assembly::Nullary(asm::Nullary::Ret(_)) => {
                 unreachable!("no ret instruction until register allocation")
             }
             asm::Assembly::Binary(_, _) => None,

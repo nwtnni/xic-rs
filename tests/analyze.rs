@@ -39,7 +39,6 @@ fn basic() {
         returns: 0,
         callee_arguments: 0,
         callee_returns: 0,
-        caller_returns: None,
     };
 
     let mut functions = BTreeMap::new();

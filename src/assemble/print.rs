@@ -233,7 +233,7 @@ impl fmt::Display for asm::Nullary {
     fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
         let nullary = match self {
             asm::Nullary::Cqo => "cqo",
-            asm::Nullary::Ret(_, _) => "ret",
+            asm::Nullary::Ret(_) => "ret",
         };
 
         write!(fmt, "{}", nullary)

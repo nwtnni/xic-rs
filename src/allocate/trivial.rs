@@ -52,7 +52,6 @@ fn allocate_function(function: &asm::Function<Temporary>) -> asm::Function<Regis
 
     let rsp = Register::rsp();
     let returns = function.returns;
-    let caller_returns = function.caller_returns;
 
     // Prologue
     trivial.instructions.insert(0, asm!((sub rsp, stack_size)));
@@ -61,7 +60,7 @@ fn allocate_function(function: &asm::Function<Temporary>) -> asm::Function<Regis
     #[rustfmt::skip]
     trivial.instructions.extend([
         asm!((add rsp, stack_size)),
-        asm!((ret<returns, caller_returns>)),
+        asm!((ret<returns>)),
     ]);
 
     asm::Function {
@@ -70,7 +69,6 @@ fn allocate_function(function: &asm::Function<Temporary>) -> asm::Function<Regis
         returns: function.returns,
         callee_arguments: function.callee_arguments,
         callee_returns: function.callee_returns,
-        caller_returns: None,
         instructions: trivial.instructions,
     }
 }

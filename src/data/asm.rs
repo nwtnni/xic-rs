@@ -3,7 +3,6 @@ use std::fmt;
 use crate::data::ir;
 use crate::data::operand;
 use crate::data::operand::Label;
-use crate::data::operand::Temporary;
 use crate::data::symbol::Symbol;
 
 pub type Unit<T> = ir::Unit<Function<T>>;
@@ -22,7 +21,6 @@ pub struct Function<T> {
     pub returns: usize,
     pub callee_arguments: usize,
     pub callee_returns: usize,
-    pub caller_returns: Option<Temporary>,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -90,7 +88,7 @@ pub enum Unary {
 #[derive(Copy, Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum Nullary {
     Cqo,
-    Ret(usize, Option<Temporary>),
+    Ret(usize),
 }
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -130,10 +128,9 @@ macro_rules! asm {
     ((cqo)) => {
         $crate::data::asm::Assembly::Nullary($crate::data::asm::Nullary::Cqo)
     };
-    ((ret<$returns:tt, $caller_returns:tt>)) => {
+    ((ret<$returns:tt>)) => {
         $crate::data::asm::Assembly::Nullary($crate::data::asm::Nullary::Ret(
             $returns,
-            $caller_returns,
         ))
     };
 
