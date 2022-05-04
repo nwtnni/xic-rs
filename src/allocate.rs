@@ -1,5 +1,5 @@
+mod linear;
 mod trivial;
-
 
 use std::array;
 use std::collections::BTreeMap;
@@ -21,6 +21,11 @@ pub fn allocate_trivial(function: &asm::Function<Temporary>) -> asm::Function<Re
     let allocated = BTreeMap::new();
     let spilled = trivial::allocate(function);
     allocate(function, allocated, spilled)
+}
+
+pub fn allocate_linear(function: &asm::Function<Temporary>) -> asm::Function<Register> {
+    let (function, allocated, spilled) = linear::allocate(function);
+    allocate(&function, allocated, spilled)
 }
 
 struct Allocator {

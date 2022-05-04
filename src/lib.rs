@@ -17,6 +17,7 @@ mod util;
 pub use error::Error;
 
 pub mod api {
+    pub use crate::allocate::allocate_linear;
     pub use crate::allocate::allocate_trivial;
     pub use crate::assemble::tile;
     pub use crate::cfg::construct_cfg;
