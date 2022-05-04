@@ -5,7 +5,7 @@ use std::process;
 
 use xic::data::asm;
 use xic::data::lir;
-use xic::data::operand::Temporary;
+use xic::data::operand::Register;
 
 fn compile(path: &str) -> lir::Unit<lir::Fallthrough> {
     let tokens = xic::api::lex(Path::new(path)).unwrap();
@@ -17,9 +17,7 @@ fn compile(path: &str) -> lir::Unit<lir::Fallthrough> {
     cfg.map(xic::api::destruct_cfg)
 }
 
-fn execute(abstract_assembly: &asm::Unit<Temporary>) -> String {
-    let assembly = abstract_assembly.map(xic::api::allocate_trivial);
-
+fn execute(assembly: &asm::Unit<Register>) -> String {
     let path = tempfile::NamedTempFile::new().unwrap().into_temp_path();
 
     let mut cc = process::Command::new("cc")
@@ -62,8 +60,8 @@ pub fn tile(path: &str) {
     xic::api::interpret_lir(&lir, &mut lir_stdin, &mut lir_stdout).unwrap();
     let lir_stdout = String::from_utf8(lir_stdout.into_inner()).unwrap();
 
-    let abstract_assembly = lir.map(xic::api::tile);
-    let assembly_stdout = execute(&abstract_assembly);
+    let assembly = lir.map(xic::api::tile).map(xic::api::allocate_trivial);
+    let assembly_stdout = execute(&assembly);
     pretty_assertions::assert_eq!(lir_stdout, assembly_stdout);
 }
 
@@ -73,7 +71,20 @@ pub fn reorder(path: &str) {
 
     let before = lir.map(xic::api::tile);
     let cfg = before.map(xic::api::construct_cfg);
-    let after = cfg.map(xic::api::destruct_cfg);
+    let after = cfg
+        .map(xic::api::destruct_cfg)
+        .map(xic::api::allocate_trivial);
+    let before = before.map(xic::api::allocate_trivial);
 
     pretty_assertions::assert_eq!(execute(&before), execute(&after));
+}
+
+#[test_generator::test_resources("tests/execute/*.xi")]
+pub fn allocate(path: &str) {
+    let lir = compile(path).map(xic::api::tile);
+
+    let trivial = lir.map(xic::api::allocate_trivial);
+    let linear = lir.map(xic::api::allocate_linear);
+
+    pretty_assertions::assert_eq!(execute(&trivial), execute(&linear));
 }
