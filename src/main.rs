@@ -3,7 +3,9 @@ use std::io;
 use std::io::Write as _;
 use std::path::Path;
 use std::path::PathBuf;
+use std::str;
 
+use anyhow::anyhow;
 use structopt::StructOpt;
 
 use xic::data::sexp::Serialize as _;
@@ -39,9 +41,9 @@ struct Command {
     #[structopt(short = "r", long = "irrun")]
     interpret_ir: bool,
 
-    /// Disable optimizations
+    /// Enable optimizations
     #[structopt(short = "O")]
-    optimize_disable: bool,
+    optimize: Option<Vec<Optimization>>,
 
     /// Specify where to place generated diagnostic files
     #[structopt(short = "D", parse(from_os_str), default_value = ".")]
@@ -62,6 +64,26 @@ struct Command {
     /// Source files to compile, relative to `source_dir`
     #[structopt(parse(from_os_str))]
     input: Vec<PathBuf>,
+}
+
+#[derive(Copy, Clone, Debug, PartialEq, Eq)]
+enum Optimization {
+    ConstantFold,
+    RegisterAllocation,
+}
+
+impl str::FromStr for Optimization {
+    type Err = anyhow::Error;
+    fn from_str(string: &str) -> Result<Self, Self::Err> {
+        match string {
+            "cf" => Ok(Optimization::ConstantFold),
+            "reg" => Ok(Optimization::RegisterAllocation),
+            _ => Err(anyhow!(
+                "Unknown optimization {}, expected one of [cf, reg]",
+                string
+            )),
+        }
+    }
 }
 
 fn main() -> anyhow::Result<()> {
@@ -111,7 +133,9 @@ fn main() -> anyhow::Result<()> {
 
         let mut hir = xic::api::emit_hir(&path, &program, &context?);
 
-        if !command.optimize_disable {
+        if command.optimize.as_ref().map_or(true, |optimizations| {
+            optimizations.contains(&Optimization::ConstantFold)
+        }) {
             hir = xic::api::fold_hir(hir);
         }
 
@@ -125,7 +149,9 @@ fn main() -> anyhow::Result<()> {
 
         let mut lir = hir.map(xic::api::emit_lir);
 
-        if !command.optimize_disable {
+        if command.optimize.as_ref().map_or(true, |optimizations| {
+            optimizations.contains(&Optimization::ConstantFold)
+        }) {
             lir = xic::api::fold_lir(lir);
         }
 
@@ -137,7 +163,9 @@ fn main() -> anyhow::Result<()> {
 
         let mut lir = cfg.map(xic::api::destruct_cfg);
 
-        if !command.optimize_disable {
+        if command.optimize.as_ref().map_or(true, |optimizations| {
+            optimizations.contains(&Optimization::ConstantFold)
+        }) {
             lir = xic::api::fold_lir(lir);
         }
 
@@ -163,7 +191,13 @@ fn main() -> anyhow::Result<()> {
             )?;
         }
 
-        let assembly = abstract_assembly.map(xic::api::allocate_trivial);
+        let assembly = if command.optimize.as_ref().map_or(true, |optimizations| {
+            optimizations.contains(&Optimization::RegisterAllocation)
+        }) {
+            abstract_assembly.map(xic::api::allocate_linear)
+        } else {
+            abstract_assembly.map(xic::api::allocate_trivial)
+        };
 
         write!(
             debug(&command.directory_output, &path, "S")?,
