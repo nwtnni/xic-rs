@@ -127,6 +127,21 @@ impl Allocator {
         self.shuttle = IntoIterator::into_iter(SHUTTLE);
 
         let instruction = match instruction {
+            // Since the linear scan allocator is based on live variable analysis,
+            // it doesn't allocate registers for dead variables. This is only allowed
+            // for `mov` and `lea` instructions, since they don't read their destinations.
+            Assembly::Binary(
+                asm::Binary::Mov | asm::Binary::Lea,
+                operand::Binary::RI { destination, .. }
+                | operand::Binary::RM { destination, .. }
+                | operand::Binary::RR { destination, .. },
+            ) if !matches!(destination, Temporary::Register(_))
+                && !self.allocated.contains_key(destination)
+                && !self.spilled.contains_key(destination) =>
+            {
+                return;
+            }
+
             // This is the only instruction that can take a 64-bit immediate operand.
             // Tiling guarantees that all other uses will be shuttled into a move like this one.
             &Assembly::Binary(
