@@ -62,6 +62,7 @@ pub enum Binary {
     Cmp,
     Mov,
     Lea,
+    Shl,
 }
 
 impl From<ir::Binary> for Binary {
@@ -167,6 +168,7 @@ macro_rules! asm {
     (@binary add) => { $crate::data::asm::Binary::Add };
     (@binary sub) => { $crate::data::asm::Binary::Sub };
     (@binary and) => { $crate::data::asm::Binary::And };
+    (@binary shl) => { $crate::data::asm::Binary::Shl };
     (@binary or) => { $crate::data::asm::Binary::Or };
     (@binary xor) => { $crate::data::asm::Binary::Xor };
     (@binary cmp) => { $crate::data::asm::Binary::Cmp };

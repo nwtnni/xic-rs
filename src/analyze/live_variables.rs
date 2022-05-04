@@ -79,7 +79,7 @@ impl Function for asm::Function<Temporary> {
                     (Mov | Lea, operand::Unary::R(temporary)) => {
                         output.remove(&temporary);
                     }
-                    (Cmp | Add | Sub | And | Or | Xor, operand::Unary::R(temporary)) => {
+                    (Cmp | Add | Sub | Shl | And | Or | Xor, operand::Unary::R(temporary)) => {
                         // Both uses and defines `temporary`
                         // output.remove(&temporary);
                         output.insert(temporary);

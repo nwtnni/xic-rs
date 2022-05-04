@@ -187,6 +187,7 @@ impl fmt::Display for asm::Binary {
             asm::Binary::Add => "add",
             asm::Binary::Sub => "sub",
             asm::Binary::And => "and",
+            asm::Binary::Shl => "shl",
             asm::Binary::Or => "or",
             asm::Binary::Xor => "xor",
             asm::Binary::Cmp => "cmp",
