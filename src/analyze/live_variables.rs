@@ -11,9 +11,11 @@ use crate::cfg::Cfg;
 use crate::data::asm;
 use crate::data::asm::Assembly;
 use crate::data::operand;
+use crate::data::operand::Immediate;
 use crate::data::operand::Label;
 use crate::data::operand::Register;
 use crate::data::operand::Temporary;
+use crate::data::symbol;
 
 pub struct LiveVariables<T>(PhantomData<T>);
 
@@ -91,6 +93,13 @@ impl Function for asm::Function<Temporary> {
                 }
 
                 operands.source().map(|temporary| output.insert(*temporary));
+            }
+            // Special case: `_xi_out_of_bounds` diverges, so nothing after is reachable.
+            Assembly::Unary(
+                asm::Unary::Call { .. },
+                operand::Unary::I(Immediate::Label(Label::Fixed(label))),
+            ) if symbol::resolve(*label) == abi::XI_OUT_OF_BOUNDS => {
+                output.clear();
             }
             Assembly::Unary(asm::Unary::Call { arguments, returns }, operand) => {
                 for r#return in 0..*returns {

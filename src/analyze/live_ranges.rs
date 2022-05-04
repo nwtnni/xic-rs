@@ -3,6 +3,7 @@ use std::collections::BTreeMap;
 use std::fmt;
 use std::fmt::Write as _;
 
+use crate::abi;
 use crate::analyze::analyze;
 use crate::analyze::Analysis as _;
 use crate::analyze::LiveVariables;
@@ -10,7 +11,11 @@ use crate::cfg;
 use crate::cfg::Cfg;
 use crate::data::asm;
 use crate::data::asm::Assembly;
+use crate::data::operand;
+use crate::data::operand::Immediate;
+use crate::data::operand::Label;
 use crate::data::operand::Temporary;
+use crate::data::symbol;
 
 pub struct LiveRanges {
     pub ranges: BTreeMap<Temporary, Range>,
@@ -82,7 +87,16 @@ impl LiveRanges {
 
                 analysis.transfer(instruction, &mut output);
 
-                let clobbered = matches!(instruction, Assembly::Unary(asm::Unary::Call { .. }, _));
+                let clobbered = match instruction {
+                    // Allow caller-saved registers to be used across _xi_out_of_bounds
+                    // calls, because it diverges anyway.
+                    Assembly::Unary(
+                        asm::Unary::Call { .. },
+                        operand::Unary::I(Immediate::Label(Label::Fixed(label))),
+                    ) => symbol::resolve(*label) != abi::XI_OUT_OF_BOUNDS,
+                    Assembly::Unary(asm::Unary::Call { .. }, _) => true,
+                    _ => false,
+                };
 
                 for temporary in &output {
                     ranges
