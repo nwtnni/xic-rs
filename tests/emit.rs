@@ -14,7 +14,7 @@ fn compile(path: &str) -> ir::Unit<hir::Function> {
 #[test_generator::test_resources("tests/execute/*.xi")]
 pub fn interpret(path: &str) {
     let hir = compile(path);
-    let lir = xic::api::emit_lir(&hir);
+    let lir = hir.map(xic::api::emit_lir);
 
     let mut hir_stdin = io::Cursor::new(Vec::new());
     let mut hir_stdout = io::Cursor::new(Vec::new());
@@ -34,14 +34,14 @@ pub fn interpret(path: &str) {
 #[test_generator::test_resources("tests/execute/*.xi")]
 pub fn reorder(path: &str) {
     let hir = compile(path);
-    let lir = xic::api::emit_lir(&hir);
+    let lir = hir.map(xic::api::emit_lir);
 
     let mut lir_stdin = io::Cursor::new(Vec::new());
     let mut lir_stdout = io::Cursor::new(Vec::new());
     xic::api::interpret_lir(&lir, &mut lir_stdin, &mut lir_stdout).unwrap();
 
-    let cfg = xic::api::construct_cfg(&lir);
-    let cfg = xic::api::destruct_cfg(&cfg);
+    let cfg = lir.map(xic::api::construct_cfg);
+    let cfg = cfg.map(xic::api::destruct_cfg);
 
     let mut cfg_stdin = io::Cursor::new(Vec::new());
     let mut cfg_stdout = io::Cursor::new(Vec::new());

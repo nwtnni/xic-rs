@@ -123,23 +123,19 @@ fn main() -> anyhow::Result<()> {
             )?;
         }
 
-        let mut lir = xic::api::emit_lir(&hir);
+        let mut lir = hir.map(xic::api::emit_lir);
 
         if !command.optimize_disable {
             lir = xic::api::fold_lir(lir);
         }
 
-        let cfg = xic::api::construct_cfg(&lir);
+        let cfg = lir.map(xic::api::construct_cfg);
 
         if command.debug_cfg {
-            write!(
-                debug(&command.directory_debug, &path, "dot")?,
-                "{}",
-                xic::api::display_cfg(&cfg)
-            )?;
+            write!(debug(&command.directory_debug, &path, "dot")?, "{}", cfg)?;
         }
 
-        let mut lir = xic::api::destruct_cfg(&cfg);
+        let mut lir = cfg.map(xic::api::destruct_cfg);
 
         if !command.optimize_disable {
             lir = xic::api::fold_lir(lir);
@@ -157,7 +153,7 @@ fn main() -> anyhow::Result<()> {
             xic::api::interpret_lir(&lir, io::BufReader::new(io::stdin()), io::stdout())?;
         }
 
-        let abstract_assembly = xic::api::tile(&lir);
+        let abstract_assembly = lir.map(xic::api::tile);
 
         if command.debug_abstract_assembly {
             write!(
@@ -167,7 +163,7 @@ fn main() -> anyhow::Result<()> {
             )?;
         }
 
-        let assembly = xic::api::allocate_trivial(&abstract_assembly);
+        let assembly = abstract_assembly.map(xic::api::allocate_trivial);
 
         write!(
             debug(&command.directory_output, &path, "S")?,

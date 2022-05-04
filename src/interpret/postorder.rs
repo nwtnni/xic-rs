@@ -38,7 +38,6 @@
 use std::collections::BTreeMap;
 
 use crate::data::hir;
-use crate::data::ir;
 use crate::data::lir;
 use crate::data::operand::Label;
 
@@ -73,11 +72,7 @@ pub enum Hir<'a> {
 }
 
 impl<'a> Postorder<Hir<'a>> {
-    pub fn traverse_hir_unit(unit: &'a hir::Unit) -> ir::Unit<Postorder<Hir<'a>>> {
-        unit.map(Self::traverse_hir_function)
-    }
-
-    fn traverse_hir_function(function: &'a hir::Function) -> Postorder<Hir<'a>> {
+    pub fn traverse_hir(function: &'a hir::Function) -> Postorder<Hir<'a>> {
         let mut flat = Postorder::default();
         flat.traverse_hir_statement(&function.statements);
         flat
@@ -162,11 +157,7 @@ pub enum Lir<'a, T> {
 }
 
 impl<'a, T> Postorder<Lir<'a, T>> {
-    pub fn traverse_lir_unit(unit: &'a lir::Unit<T>) -> ir::Unit<Postorder<Lir<'a, T>>> {
-        unit.map(Self::traverse_lir_function)
-    }
-
-    fn traverse_lir_function(function: &'a lir::Function<T>) -> Postorder<Lir<'a, T>> {
+    pub fn traverse_lir(function: &'a lir::Function<T>) -> Postorder<Lir<'a, T>> {
         let mut flat = Postorder::default();
         function
             .statements

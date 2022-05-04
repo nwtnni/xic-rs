@@ -1,4 +1,3 @@
-use std::collections::BTreeMap;
 use std::io::Write as _;
 use std::process;
 
@@ -6,7 +5,6 @@ use xic::api::analyze::display;
 use xic::api::analyze::LiveVariables;
 use xic::asm;
 use xic::data::asm::Function;
-use xic::data::asm::Unit;
 use xic::data::operand::Temporary;
 use xic::data::symbol;
 
@@ -41,16 +39,7 @@ fn basic() {
         callee_returns: 0,
     };
 
-    let mut functions = BTreeMap::new();
-    functions.insert(function.name, function);
-
-    let unit = Unit {
-        name: symbol::intern_static("test_mov_unit"),
-        functions,
-        data: BTreeMap::default(),
-    };
-
-    let cfg = xic::api::construct_cfg(&unit);
+    let cfg = xic::api::construct_cfg(&function);
 
     let mut graph = process::Command::new("graph-easy")
         .stdin(process::Stdio::piped())

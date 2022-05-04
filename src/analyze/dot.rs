@@ -8,43 +8,41 @@ use crate::analyze::Direction as _;
 use crate::cfg::Cfg;
 use crate::cfg::Dot;
 use crate::cfg::Function;
-use crate::data::ir;
 
-pub fn display<'cfg, A, T>(unit: &'cfg ir::Unit<Cfg<T>>) -> impl fmt::Display + 'cfg
+pub fn display<'cfg, A, T>(cfg: &'cfg Cfg<T>) -> Dot<'cfg, T>
 where
     A: Analysis<T> + 'cfg,
     A::Data: Display,
     T: Function + 'cfg,
     T::Statement: fmt::Display,
 {
-    unit.map(|cfg| {
-        let (analysis, solution) = analyze::<A, T>(cfg);
-        Dot::new(cfg, move |label, statements| {
-            let mut output = solution.inputs[label].clone();
-            let mut outputs = vec![(&output as &dyn Display).to_string()];
+    let (analysis, solution) = analyze::<A, T>(cfg);
 
-            if A::Direction::REVERSE {
-                for statement in statements.iter().rev() {
-                    analysis.transfer(statement, &mut output);
-                    outputs.push((&output as &dyn Display).to_string());
-                }
-                outputs.reverse();
-            } else {
-                for statement in statements {
-                    analysis.transfer(statement, &mut output);
-                    outputs.push((&output as &dyn Display).to_string());
-                }
+    Dot::new(cfg, move |label, statements| {
+        let mut output = solution.inputs[label].clone();
+        let mut outputs = vec![(&output as &dyn Display).to_string()];
+
+        if A::Direction::REVERSE {
+            for statement in statements.iter().rev() {
+                analysis.transfer(statement, &mut output);
+                outputs.push((&output as &dyn Display).to_string());
             }
-
-            let mut outputs = outputs.into_iter();
-            let mut string = outputs.next().unwrap();
-
+            outputs.reverse();
+        } else {
             for statement in statements {
-                write!(&mut string, "\n{}\n{}", statement, outputs.next().unwrap())?;
+                analysis.transfer(statement, &mut output);
+                outputs.push((&output as &dyn Display).to_string());
             }
+        }
 
-            Ok(string)
-        })
+        let mut outputs = outputs.into_iter();
+        let mut string = outputs.next().unwrap();
+
+        for statement in statements {
+            write!(&mut string, "\n{}\n{}", statement, outputs.next().unwrap())?;
+        }
+
+        Ok(string)
     })
 }
 

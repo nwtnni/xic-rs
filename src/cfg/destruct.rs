@@ -3,18 +3,13 @@ use std::collections::BTreeSet;
 use crate::cfg::Cfg;
 use crate::cfg::Edge;
 use crate::cfg::Function;
-use crate::data::ir;
-
-pub fn unit<T: Function>(unit: &ir::Unit<Cfg<T>>) -> ir::Unit<T::Fallthrough> {
-    unit.map(destruct_function)
-}
 
 /// After linearization, guarantees that `function.enter` is at the beginning of the
 /// list, and that `function.exit` is at the end. This property is useful for tiling
 /// assembly, so we can place the function prologue and epilogue accurately.
 ///
 /// Also guarantees that conditional jumps are immediately followed by their false branch.
-pub fn destruct_function<T: Function>(function: &Cfg<T>) -> T::Fallthrough {
+pub fn destruct_cfg<T: Function>(function: &Cfg<T>) -> T::Fallthrough {
     let mut dfs = vec![function.enter];
     let mut statements = Vec::new();
     let mut visited = BTreeSet::new();

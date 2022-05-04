@@ -3,8 +3,6 @@ mod canonize;
 mod emit;
 mod print;
 
-pub(crate) use canonize::Canonizer;
-
 use std::path::Path;
 
 use crate::check;
@@ -16,6 +14,6 @@ pub fn emit_hir(path: &Path, program: &ast::Program, context: &check::Context) -
     emit::emit_unit(path, context, program)
 }
 
-pub fn emit_lir(hir: &hir::Unit) -> lir::Unit<lir::Label> {
-    Canonizer::new().canonize_unit(hir)
+pub fn emit_lir(hir: &hir::Function) -> lir::Function<lir::Label> {
+    canonize::canonize_function(hir)
 }

@@ -34,7 +34,7 @@ pub fn fold_hir(path: &str) {
 #[test_generator::test_resources("tests/execute/*.xi")]
 pub fn fold_lir(path: &str) {
     let hir = compile(path);
-    let lir = xic::api::emit_lir(&hir);
+    let lir = hir.map(xic::api::emit_lir);
 
     let mut lir_stdin = io::Cursor::new(Vec::new());
     let mut lir_stdout = io::Cursor::new(Vec::new());

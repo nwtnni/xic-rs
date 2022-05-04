@@ -7,11 +7,10 @@ use crate::cfg::Cfg;
 use crate::cfg::Edge;
 use crate::cfg::Function;
 use crate::cfg::Terminator;
-use crate::data::ir;
 use crate::data::operand::Label;
 
-pub fn unit<T: Function>(unit: &ir::Unit<T>) -> ir::Unit<Cfg<T>> {
-    unit.map(|function| Walker::new(function).walk(function))
+pub fn construct_cfg<T: Function>(function: &T) -> Cfg<T> {
+    Walker::new(function).walk(function)
 }
 
 struct Walker<T: Function> {

@@ -1,63 +1,44 @@
-use std::collections::BTreeMap;
-
 use crate::abi;
 use crate::data::hir;
-use crate::data::ir;
 use crate::data::lir;
 use crate::data::operand::Immediate;
 use crate::data::operand::Label;
 use crate::data::operand::Temporary;
 use crate::data::symbol;
 
+pub fn canonize_function(function: &hir::Function) -> lir::Function<lir::Label> {
+    let mut canonizer = Canonizer::default();
+
+    canonizer.canonize_statement(&function.statements);
+    let mut canonized = std::mem::take(&mut canonizer.canonized);
+
+    match canonized.last() {
+        None => unreachable!(),
+        Some(
+            lir::Statement::Return(_) | lir::Statement::Jump(_) | lir::Statement::CJump { .. },
+        ) => (),
+        Some(
+            lir::Statement::Call(_, _, _) | lir::Statement::Move { .. } | lir::Statement::Label(_),
+        ) => {
+            // Guaranteed valid by type-checker
+            canonized.push(lir::Statement::Return(Vec::new()));
+        }
+    }
+
+    lir::Function {
+        name: function.name,
+        statements: canonized,
+        arguments: function.arguments,
+        returns: function.returns,
+    }
+}
+
 #[derive(Debug, Default)]
-pub struct Canonizer {
+struct Canonizer {
     canonized: Vec<lir::Statement<lir::Label>>,
 }
 
 impl Canonizer {
-    pub fn new() -> Self {
-        Canonizer::default()
-    }
-
-    pub fn canonize_unit(mut self, unit: &hir::Unit) -> lir::Unit<lir::Label> {
-        let mut functions = BTreeMap::default();
-        for (name, function) in &unit.functions {
-            functions.insert(*name, self.canonize_function(function));
-        }
-        ir::Unit {
-            name: unit.name,
-            functions,
-            data: unit.data.clone(),
-        }
-    }
-
-    fn canonize_function(&mut self, function: &hir::Function) -> lir::Function<lir::Label> {
-        self.canonize_statement(&function.statements);
-        let mut canonized = std::mem::take(&mut self.canonized);
-
-        match canonized.last() {
-            None => unreachable!(),
-            Some(
-                lir::Statement::Return(_) | lir::Statement::Jump(_) | lir::Statement::CJump { .. },
-            ) => (),
-            Some(
-                lir::Statement::Call(_, _, _)
-                | lir::Statement::Move { .. }
-                | lir::Statement::Label(_),
-            ) => {
-                // Guaranteed valid by type-checker
-                canonized.push(lir::Statement::Return(Vec::new()));
-            }
-        }
-
-        lir::Function {
-            name: function.name,
-            statements: canonized,
-            arguments: function.arguments,
-            returns: function.returns,
-        }
-    }
-
     fn canonize_expression(&mut self, exp: &hir::Expression) -> lir::Expression {
         match exp {
             hir::Expression::Immediate(immediate) => lir::Expression::Immediate(*immediate),

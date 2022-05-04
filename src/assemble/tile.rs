@@ -25,11 +25,7 @@ enum Mutate {
     No,
 }
 
-pub fn tile_unit(unit: &lir::Unit<lir::Fallthrough>) -> asm::Unit<Temporary> {
-    unit.map(tile_function)
-}
-
-fn tile_function(function: &lir::Function<lir::Fallthrough>) -> asm::Function<Temporary> {
+pub fn tile(function: &lir::Function<lir::Fallthrough>) -> asm::Function<Temporary> {
     let caller_returns = match function.returns {
         0 | 1 | 2 => None,
         _ => Some(Temporary::fresh("overflow")),

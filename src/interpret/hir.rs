@@ -21,7 +21,7 @@ pub fn interpret_hir<'io, R: io::BufRead + 'io, W: io::Write + 'io>(
     stdin: R,
     stdout: W,
 ) -> anyhow::Result<()> {
-    let unit = Postorder::traverse_hir_unit(unit);
+    let unit = unit.map(Postorder::traverse_hir);
 
     let mut global = Global::new(&unit.data, stdin, stdout);
     let mut local = Local::new(

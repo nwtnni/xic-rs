@@ -2,9 +2,8 @@ mod construct;
 mod destruct;
 mod dot;
 
-pub use construct::unit as construct_cfg;
-pub use destruct::destruct_function as destruct_cfg_function;
-pub use destruct::unit as destruct_cfg;
+pub use construct::construct_cfg;
+pub use destruct::destruct_cfg;
 pub(crate) use dot::Dot;
 
 use std::collections::BTreeMap;
@@ -94,27 +93,44 @@ impl<T: Function> Cfg<T> {
     }
 }
 
-impl<T: Function> ops::Index<&Label> for Cfg<T> {
-    type Output = [T::Statement];
-    fn index(&self, index: &Label) -> &Self::Output {
-        &self.blocks[index]
-    }
-}
-
-pub fn display_cfg<T>(unit: &ir::Unit<Cfg<T>>) -> impl fmt::Display + '_
+impl<T: Function> Cfg<T>
 where
-    T: Function,
     T::Statement: fmt::Display,
 {
-    unit.map(|cfg| {
-        dot::Dot::new(cfg, |_, statements| {
+    fn display(&self) -> dot::Dot<T> {
+        dot::Dot::new(self, |_, statements| {
             let mut string = String::new();
             for statement in statements {
                 writeln!(&mut string, "{}", statement)?;
             }
             Ok(string)
         })
-    })
+    }
+}
+
+impl<T: Function> fmt::Display for Cfg<T>
+where
+    T::Statement: fmt::Display,
+{
+    fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
+        write!(fmt, "{}", self.display())
+    }
+}
+
+impl<T: Function> fmt::Display for ir::Unit<Cfg<T>>
+where
+    T::Statement: fmt::Display,
+{
+    fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
+        write!(fmt, "{}", self.map(|cfg| cfg.display()))
+    }
+}
+
+impl<T: Function> ops::Index<&Label> for Cfg<T> {
+    type Output = [T::Statement];
+    fn index(&self, index: &Label) -> &Self::Output {
+        &self.blocks[index]
+    }
 }
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]

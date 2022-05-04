@@ -1,43 +1,38 @@
 ---
 source: tests/analyze.rs
-assertion_line: 76
+assertion_line: 66
 expression: "String::from_utf8(output.stdout).unwrap()"
 ---
 
-    test_mov_unit
+test_mov_function
 
-+ - - - - - - - - - - +
-'  test_mov_function  '
-'                     '
-' +-----------------+ '
-' |     enter0:     | '
-' | {rsp}           | '
-' | mov _x, 1       | '
-' | {rsp, _x}       | '
-' | mov _y, 2       | '
-' | {rsp, _x, _y}   | '
-' | mov _z, _x      | '
-' | {rsp, _y, _z}   | '
-' | add _z, _y      | '
-' | {rsp}           | '
-' | mov _z, 7       | '
-' | {rsp, _z}       | '
-' | mov _x, _z      | '
-' | {rsp, _x}       | '
-' | call _x         | '
-' | {rsp}           | '
-' | jmp exit1       | '
-' | {rsp}           | '
-' +-----------------+ '
-'   |                 '
-'   |                 '
-'   v                 '
-' +-----------------+ '
-' |     exit1:      | '
-' | {rsp}           | '
-' | ret             | '
-' | {}              | '
-' +-----------------+ '
-'                     '
-+ - - - - - - - - - - +
++---------------+
+|    enter0:    |
+| {rsp}         |
+| mov _x, 1     |
+| {rsp, _x}     |
+| mov _y, 2     |
+| {rsp, _x, _y} |
+| mov _z, _x    |
+| {rsp, _y, _z} |
+| add _z, _y    |
+| {rsp}         |
+| mov _z, 7     |
+| {rsp, _z}     |
+| mov _x, _z    |
+| {rsp, _x}     |
+| call _x       |
+| {rsp}         |
+| jmp exit1     |
+| {rsp}         |
++---------------+
+  |
+  |
+  v
++---------------+
+|    exit1:     |
+| {rsp}         |
+| ret           |
+| {}            |
++---------------+
 

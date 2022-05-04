@@ -22,11 +22,7 @@ struct Trivial {
     unused: iter::Rev<slice::Iter<'static, Register>>,
 }
 
-pub fn allocate_unit(unit: &asm::Unit<Temporary>) -> asm::Unit<Register> {
-    unit.map(allocate_function)
-}
-
-fn allocate_function(function: &asm::Function<Temporary>) -> asm::Function<Register> {
+pub fn allocate(function: &asm::Function<Temporary>) -> asm::Function<Register> {
     let mut trivial = Trivial {
         callee_arguments: function.callee_arguments,
         callee_returns: function.callee_returns,

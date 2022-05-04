@@ -1,3 +1,3 @@
 mod trivial;
 
-pub use trivial::allocate_unit as allocate_trivial;
+pub use trivial::allocate as allocate_trivial;
