@@ -86,6 +86,8 @@ pub fn tile(function: &lir::Function<lir::Fallthrough>) -> asm::Function<Tempora
         tiler.push(asm!((mov register, temporary)));
     }
 
+    tiler.push(Assembly::Nullary(asm::Nullary::Ret(function.returns)));
+
     asm::Function {
         name: function.name,
         instructions: tiler.instructions,
@@ -123,7 +125,7 @@ impl Tiler {
                 // placing a single `ret` at the end of the function epilogue:
                 //
                 // ```
-                // self.push(Assembly::Nullary(asm::Nullary::Ret));
+                // self.push(Assembly::Nullary(asm::Nullary::Ret(function.returns)));
                 // ```
             }
             &lir::Statement::Jump(label) => {

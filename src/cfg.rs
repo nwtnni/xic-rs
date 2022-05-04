@@ -156,7 +156,6 @@ pub trait Function {
     fn name(&self) -> Symbol;
     fn metadata(&self) -> Self::Metadata;
     fn statements(&self) -> &[Self::Statement];
-    fn r#return(&self) -> Option<Self::Statement>;
     fn enter(&self) -> Option<&Label>;
     fn exit(&self) -> Option<&Label>;
 
@@ -239,10 +238,6 @@ impl<T: lir::Target> Function for lir::Function<T> {
         &self.statements
     }
 
-    fn r#return(&self) -> Option<Self::Statement> {
-        None
-    }
-
     fn enter(&self) -> Option<&Label> {
         T::access(&self.enter)
     }
@@ -290,23 +285,11 @@ impl Function for asm::Function<Temporary> {
 
     fn new(
         name: Symbol,
-        mut instructions: Vec<Self::Statement>,
+        instructions: Vec<Self::Statement>,
         (arguments, returns, callee_arguments, callee_returns): Self::Metadata,
         enter: Label,
         exit: Label,
     ) -> Self {
-        // Note: we want to maintain some invariants:
-        //
-        // (1) `asm::Function<Temporary>` never contains a `ret` instruction
-        // (2) `cfg::Cfg<asm::Function<Temporary>>` contains a single `ret` instruction in its exit block
-        //
-        // Because `destruct_cfg` guarantees that the exit block will be at the end,
-        // we can preserve these two invariants across CFG round-trips by popping here.
-        assert_eq!(
-            instructions.pop(),
-            Some(asm::Assembly::Nullary(asm::Nullary::Ret(returns,)))
-        );
-
         asm::Function {
             name,
             instructions,
@@ -336,10 +319,6 @@ impl Function for asm::Function<Temporary> {
         &self.instructions
     }
 
-    fn r#return(&self) -> Option<Self::Statement> {
-        Some(asm::Assembly::Nullary(asm::Nullary::Ret(self.returns)))
-    }
-
     fn enter(&self) -> Option<&Label> {
         Some(&self.enter)
     }
@@ -359,9 +338,11 @@ impl Function for asm::Function<Temporary> {
     fn to_terminator(instruction: &Self::Statement) -> Option<Terminator> {
         match instruction {
             asm::Assembly::Nullary(asm::Nullary::Cqo) => None,
-            asm::Assembly::Nullary(asm::Nullary::Ret(_)) => {
-                unreachable!("no ret instruction until register allocation")
-            }
+            // Note: `ret` is ignored here at the abstract assembly level.
+            //
+            // There is guaranteed to be exactly one `ret` instruction at
+            // the very end, so it doesn't need any jumps or edges in the CFG.
+            asm::Assembly::Nullary(asm::Nullary::Ret(_)) => None,
             asm::Assembly::Binary(_, _) => None,
             asm::Assembly::Unary(_, _) => None,
             asm::Assembly::Label(label) => Some(Terminator::Label(*label)),

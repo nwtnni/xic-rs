@@ -100,8 +100,9 @@ impl<T: Function> Walker<T> {
                 },
                 Terminator::Return => {
                     // IR return takes arguments, but assembly return does not. In order to
-                    // simplify assembly tiling, we put this jump here and omit the actual `ret`
-                    // instruction when tiling, so we can have a single `ret` in the epilogue:
+                    // simplify assembly tiling, we (1) put this jump here and (2) omit the
+                    // actual `ret` instruction when tiling, so we can have a single `ret`
+                    // in the epilogue:
                     //
                     // ```text
                     // (LABEL foo)
@@ -137,10 +138,6 @@ impl<T: Function> Walker<T> {
             }
 
             self.blocks.insert(label, statements);
-        }
-
-        if let Some(r#return) = function.r#return() {
-            self.blocks.get_mut(&self.exit).unwrap().push(r#return);
         }
 
         Cfg {

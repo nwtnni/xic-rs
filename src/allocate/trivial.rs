@@ -47,22 +47,26 @@ pub fn allocate(function: &asm::Function<Temporary>) -> asm::Function<Register> 
         .for_each(|instruction| rewrite_rbp(stack_size, instruction));
 
     let rsp = Register::rsp();
-    let returns = function.returns;
 
     assert!(matches!(
         trivial.instructions.first(),
         Some(Assembly::Label(label)) if *label == function.enter,
     ));
 
+    assert!(matches!(
+        trivial.instructions.last(),
+        Some(Assembly::Nullary(asm::Nullary::Ret(returns))) if *returns == function.returns,
+    ));
+
     // Prologue
     trivial.instructions.insert(1, asm!((sub rsp, stack_size)));
 
+    let len = trivial.instructions.len();
+
     // Epilogue
-    #[rustfmt::skip]
-    trivial.instructions.extend([
-        asm!((add rsp, stack_size)),
-        asm!((ret<returns>)),
-    ]);
+    trivial
+        .instructions
+        .insert(len - 1, asm!((add rsp, stack_size)));
 
     asm::Function {
         name: function.name,
