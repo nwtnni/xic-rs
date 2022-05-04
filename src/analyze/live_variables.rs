@@ -38,11 +38,8 @@ where
         input.extend(output);
     }
 
-    fn transfer(&self, statement: &T::Statement, output: &mut Self::Data) -> bool {
-        let before = output.len();
+    fn transfer(&self, statement: &T::Statement, output: &mut Self::Data) {
         T::transfer(statement, output);
-        let after = output.len();
-        before != after
     }
 }
 

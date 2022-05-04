@@ -18,14 +18,14 @@ use crate::cfg::Function;
 use crate::data::operand::Label;
 
 pub trait Analysis<T: Function>: Sized {
-    type Data: Clone;
+    type Data: Clone + Eq;
     type Direction: Direction<T>;
 
     fn new(cfg: &Cfg<T>) -> Self;
 
     fn default(&self, cfg: &Cfg<T>, label: &Label) -> Self::Data;
 
-    fn transfer(&self, statements: &T::Statement, output: &mut Self::Data) -> bool;
+    fn transfer(&self, statements: &T::Statement, output: &mut Self::Data);
 
     fn merge(&self, output: &Self::Data, input: &mut Self::Data);
 }
@@ -120,26 +120,25 @@ pub fn analyze<A: Analysis<T>, T: Function>(cfg: &Cfg<T>) -> (A, Solution<A, T>)
                 analysis.merge(output, input);
             }
 
-            let output = outputs
-                .entry(label)
-                .or_insert_with(|| analysis.default(cfg, &label));
-
-            *output = input.clone();
-            let mut changed = false;
+            let mut output = input.clone();
 
             if A::Direction::REVERSE {
                 for statement in cfg[&label].iter().rev() {
-                    changed |= analysis.transfer(statement, output);
+                    analysis.transfer(statement, &mut output);
                 }
             } else {
                 for statement in &cfg[&label] {
-                    changed |= analysis.transfer(statement, output);
+                    analysis.transfer(statement, &mut output);
                 }
             }
 
-            if !changed {
-                continue;
-            }
+            match outputs.get_mut(&label) {
+                Some(existing) if *existing == output => continue,
+                Some(existing) => *existing = output,
+                None => {
+                    outputs.insert(label, output);
+                }
+            };
 
             A::Direction::successors(cfg, &label)
                 .filter(|successor| component.contains(successor))
