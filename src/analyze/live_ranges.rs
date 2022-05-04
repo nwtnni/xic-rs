@@ -112,15 +112,42 @@ impl LiveRanges {
 
         Self { ranges, function }
     }
+
+    /// Maximum number of simultaneously live variables.
+    pub fn width(&self) -> usize {
+        let mut max_width = 0;
+        let mut width = 0;
+        for point in self.points().iter().rev() {
+            width = if point.start { width + 1 } else { width - 1 };
+            max_width = cmp::max(width, max_width);
+        }
+        assert_eq!(width, 0);
+        max_width
+    }
+
+    fn points(&self) -> Vec<Point> {
+        let mut points = self
+            .ranges
+            .iter()
+            .flat_map(|(temporary, range)| {
+                [
+                    Point::start(*temporary, range.start),
+                    Point::end(*temporary, range.end),
+                ]
+            })
+            .collect::<Vec<_>>();
+
+        points.sort();
+        points
+    }
 }
 
-// Used for displaying maximum simultaenous live variables.
+// Used for computing width.
 //
 // Must be sorted first by (a) decreasing index, and then (b)
-// by end points first. This is so we can (a) scan in reverse,
-// so later in-order removal is fast via `.pop()`, and (b)
-// use an unsigned counter, since we will encounter starts
-// before ends.
+// by end points first. This is so we can (a) have fast in-order
+// removal via `.pop()`, and (b) use an unsigned counter, since
+// we will encounter starts before ends.
 #[derive(Copy, Clone, PartialOrd, Ord, PartialEq, Eq)]
 struct Point {
     index: cmp::Reverse<usize>,
@@ -152,39 +179,17 @@ impl fmt::Display for LiveRanges {
         let mut max_temporary_width = 0;
         let mut buffer = String::new();
 
-        let mut points = self
-            .ranges
-            .iter()
-            .inspect(|(temporary, _)| {
-                buffer.clear();
-                write!(&mut buffer, "{}", temporary).unwrap();
-                max_temporary_width = cmp::max(max_temporary_width, buffer.len() + 1);
-            })
-            .flat_map(|(temporary, range)| {
-                [
-                    Point::start(*temporary, range.start),
-                    Point::end(*temporary, range.end),
-                ]
-            })
-            .collect::<Vec<_>>();
+        for temporary in self.ranges.keys() {
+            buffer.clear();
+            write!(&mut buffer, "{}", temporary).unwrap();
+            max_temporary_width = cmp::max(max_temporary_width, buffer.len() + 1);
+        }
 
-        points.sort();
+        let mut points = self.points();
+        let width = self.width();
 
-        // Maximum number of simultaneous live variables
-        let (max_live, live) =
-            points
-                .iter()
-                .rev()
-                .fold((0usize, 0usize), |(max_live, live), Point { start, .. }| {
-                    let live = if *start { live + 1 } else { live - 1 };
-                    let max_live = cmp::max(max_live, live);
-                    (max_live, live)
-                });
-
-        assert_eq!(live, 0);
-
-        let mut used = vec![Option::<(Temporary, Range)>::None; max_live];
-        let mut free = (0..max_live).rev().collect::<Vec<_>>();
+        let mut used = vec![Option::<(Temporary, Range)>::None; width];
+        let mut free = (0..width).rev().collect::<Vec<_>>();
 
         for (index, instruction) in self.function.instructions.iter().enumerate() {
             while let Some(point) = points.last() {
