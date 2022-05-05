@@ -124,7 +124,7 @@ impl<const N: usize, T: Serialize> Serialize for [T; N] {
     }
 
     fn sexp_move(self) -> Sexp {
-        IntoIterator::into_iter(self)
+        self.into_iter()
             .map(Serialize::sexp_move)
             .collect::<Vec<_>>()
             .tap(Sexp::List)

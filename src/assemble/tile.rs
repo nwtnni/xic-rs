@@ -1,5 +1,4 @@
 use std::cmp;
-use std::convert::TryFrom as _;
 
 use crate::abi;
 use crate::asm;

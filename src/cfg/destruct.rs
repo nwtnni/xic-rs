@@ -37,7 +37,7 @@ pub fn destruct_cfg<T: Function>(function: &Cfg<T>) -> T::Fallthrough {
             }
         }
 
-        dfs.extend(IntoIterator::into_iter(conditional).flatten());
+        dfs.extend(conditional.into_iter().flatten());
     }
 
     statements.push(T::label(function.exit));

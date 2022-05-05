@@ -3,7 +3,6 @@ mod trivial;
 
 use std::array;
 use std::collections::BTreeMap;
-use std::convert::TryFrom as _;
 
 use crate::abi;
 use crate::asm;
@@ -69,7 +68,7 @@ fn allocate(
         allocated,
         spilled,
         statements: Vec::new(),
-        shuttle: IntoIterator::into_iter(SHUTTLE),
+        shuttle: SHUTTLE.into_iter(),
     };
 
     for statement in &function.statements {
@@ -121,7 +120,7 @@ fn allocate(
 
 impl Allocator {
     fn allocate_statement(&mut self, statement: &asm::Statement<Temporary>) {
-        self.shuttle = IntoIterator::into_iter(SHUTTLE);
+        self.shuttle = SHUTTLE.into_iter();
 
         let statement = match statement {
             // Since the linear scan allocator is based on live variable analysis,
