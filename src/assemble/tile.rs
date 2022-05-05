@@ -266,13 +266,17 @@ impl Tiler {
                     _ => unreachable!(),
                 };
 
+                let left = Temporary::fresh("tile");
+                let right = Temporary::fresh("tile");
                 let fresh = Temporary::fresh("tile");
 
-                self.tile_binary(asm::Binary::Mov, Register::Rax, destination);
+                self.tile_binary(asm::Binary::Mov, left, destination);
+                self.tile_binary(asm::Binary::Mov, right, source);
+                self.tile_binary(asm::Binary::Mov, Register::Rax, left);
                 if cqo {
                     self.push(asm!((cqo)));
                 }
-                self.tile_unary(unary, source, Mutate::Yes);
+                self.tile_unary(unary, &lir::Expression::Temporary(right), Mutate::Yes);
                 self.tile_binary(asm::Binary::Mov, fresh, register);
 
                 operand::Unary::R(fresh)
