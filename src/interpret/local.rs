@@ -33,7 +33,7 @@ impl<'a, T: 'a> Local<'a, T> {
     pub fn step(&mut self) -> Option<&'a T> {
         let index = self.index;
         self.index += 1;
-        self.postorder.get_instruction(index)
+        self.postorder.get_statement(index)
     }
 
     pub fn insert(&mut self, temporary: Temporary, value: Value) {

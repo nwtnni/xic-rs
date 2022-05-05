@@ -79,8 +79,8 @@ pub const CALLER_SAVED: &[Register] = &[
 pub fn stack_size(callee_arguments: usize, callee_returns: usize, spilled: usize) -> usize {
     let unaligned = callee_arguments.saturating_sub(6) + callee_returns.saturating_sub(2) + spilled;
 
-    // The stack must be aligned to 16 bytes (for the `call` instruction), but it starts off
-    // unaligned because the caller's `call` instruction pushes `rip` onto the stack.
+    // The stack must be aligned to 16 bytes (for the `call` statement), but it starts off
+    // unaligned because the caller's `call` statement pushes `rip` onto the stack.
     //
     // So we need an extra word of padding here.
     (unaligned | 1) * WORD as usize

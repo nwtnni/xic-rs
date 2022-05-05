@@ -1,15 +1,14 @@
 use std::collections::BTreeMap;
 
 use crate::data::asm;
-use crate::data::asm::Assembly;
 use crate::data::operand;
 use crate::data::operand::Memory;
 use crate::data::operand::Temporary;
 
 pub fn allocate(function: &asm::Function<Temporary>) -> BTreeMap<Temporary, usize> {
     let mut trivial = Trivial::default();
-    for instruction in &function.instructions {
-        trivial.allocate_instruction(instruction);
+    for statement in &function.statements {
+        trivial.allocate_statement(statement);
     }
     trivial.spilled
 }
@@ -20,11 +19,14 @@ struct Trivial {
 }
 
 impl Trivial {
-    fn allocate_instruction(&mut self, instruction: &asm::Assembly<Temporary>) {
-        match instruction {
-            Assembly::Nullary(_) | Assembly::Label(_) | Assembly::Jmp(_) | Assembly::Jcc(_, _) => {}
-            Assembly::Binary(_, operands) => self.allocate_binary(operands),
-            Assembly::Unary(_, operand) => self.allocate_unary(operand),
+    fn allocate_statement(&mut self, statement: &asm::Statement<Temporary>) {
+        match statement {
+            asm::Statement::Nullary(_)
+            | asm::Statement::Label(_)
+            | asm::Statement::Jmp(_)
+            | asm::Statement::Jcc(_, _) => {}
+            asm::Statement::Binary(_, operands) => self.allocate_binary(operands),
+            asm::Statement::Unary(_, operand) => self.allocate_unary(operand),
         }
     }
 

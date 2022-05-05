@@ -10,7 +10,6 @@ use crate::analyze::LiveVariables;
 use crate::cfg;
 use crate::cfg::Cfg;
 use crate::data::asm;
-use crate::data::asm::Assembly;
 use crate::data::operand;
 use crate::data::operand::Immediate;
 use crate::data::operand::Label;
@@ -83,25 +82,25 @@ impl LiveRanges {
         // Walk backward through straight-line abstract assembly to find basic blocks
         let labels =
             function
-                .instructions
+                .statements
                 .iter()
                 .enumerate()
                 .rev()
-                .filter_map(|(index, instruction)| match instruction {
-                    Assembly::Label(label) => Some((index, *label)),
+                .filter_map(|(index, statement)| match statement {
+                    asm::Statement::Label(label) => Some((index, *label)),
                     _ => None,
                 });
 
         let mut ranges = BTreeMap::<Temporary, Range>::new();
 
-        // Index of the instruction we're transfering over.
+        // Index of the statement we're transfering over.
         //
         // Careful: this starts at +1 to capture the dataflow input at the end
-        // of each block, before starting to transfer backwards for each instruction.
+        // of each block, before starting to transfer backwards for each statement.
         //
-        // With this convention, a range's start is the instruction *after* it is
-        // first defined, and a range's end is the instruction where it is first used.
-        let mut index = function.instructions.len();
+        // With this convention, a range's start is the statement *after* it is
+        // first defined, and a range's end is the statement where it is first used.
+        let mut index = function.statements.len();
 
         for (start, label) in labels {
             let mut output = solution.inputs[&label].clone();
@@ -116,21 +115,21 @@ impl LiveRanges {
             while index > start {
                 index -= 1;
 
-                let instruction = &function.instructions[index];
+                let statement = &function.statements[index];
 
-                analysis.transfer(instruction, &mut output);
+                analysis.transfer(statement, &mut output);
 
-                let clobbered = match instruction {
+                let clobbered = match statement {
                     // Allow caller-saved registers to be used across _xi_out_of_bounds
                     // calls, because it diverges anyway.
-                    Assembly::Unary(
+                    asm::Statement::Unary(
                         asm::Unary::Call { .. },
                         operand::Unary::I(Immediate::Label(Label::Fixed(label))),
                     ) if symbol::resolve(*label) == abi::XI_OUT_OF_BOUNDS => Clobbered::None,
-                    Assembly::Unary(asm::Unary::Call { .. }, _) => Clobbered::Caller,
-                    Assembly::Unary(asm::Unary::Mul | asm::Unary::Div, _) => Clobbered::Rdx,
-                    Assembly::Unary(asm::Unary::Hul | asm::Unary::Mod, _) => Clobbered::Rax,
-                    Assembly::Nullary(asm::Nullary::Cqo) => Clobbered::Rdx,
+                    asm::Statement::Unary(asm::Unary::Call { .. }, _) => Clobbered::Caller,
+                    asm::Statement::Unary(asm::Unary::Mul | asm::Unary::Div, _) => Clobbered::Rdx,
+                    asm::Statement::Unary(asm::Unary::Hul | asm::Unary::Mod, _) => Clobbered::Rax,
+                    asm::Statement::Nullary(asm::Nullary::Cqo) => Clobbered::Rdx,
                     _ => Clobbered::None,
                 };
 
@@ -227,7 +226,7 @@ impl fmt::Display for LiveRanges {
         let mut used = vec![Option::<(Temporary, Range)>::None; width];
         let mut free = (0..width).rev().collect::<Vec<_>>();
 
-        for (index, instruction) in self.function.instructions.iter().enumerate() {
+        for (index, statement) in self.function.statements.iter().enumerate() {
             while let Some(point) = points.last() {
                 match point.index.0.cmp(&index) {
                     cmp::Ordering::Less if point.start => unreachable!(),
@@ -283,7 +282,7 @@ impl fmt::Display for LiveRanges {
                 }
             }
 
-            writeln!(fmt, " {}", instruction)?;
+            writeln!(fmt, " {}", statement)?;
         }
 
         Ok(())

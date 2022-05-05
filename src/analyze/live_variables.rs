@@ -9,7 +9,6 @@ use crate::analyze::Backward;
 use crate::cfg;
 use crate::cfg::Cfg;
 use crate::data::asm;
-use crate::data::asm::Assembly;
 use crate::data::operand;
 use crate::data::operand::Immediate;
 use crate::data::operand::Label;
@@ -50,15 +49,15 @@ trait Function: cfg::Function {
 impl Function for asm::Function<Temporary> {
     fn transfer(statement: &Self::Statement, output: &mut BTreeSet<Temporary>) {
         match statement {
-            Assembly::Label(_) | Assembly::Jmp(_) | Assembly::Jcc(_, _) => {}
-            Assembly::Nullary(asm::Nullary::Cqo) => {
+            asm::Statement::Label(_) | asm::Statement::Jmp(_) | asm::Statement::Jcc(_, _) => {}
+            asm::Statement::Nullary(asm::Nullary::Cqo) => {
                 output.remove(&Temporary::Register(Register::Rdx));
 
                 // Both uses and defines `rax`:
                 // output.remove(&Temporary::Register(Register::Rax));
                 output.insert(Temporary::Register(Register::Rax));
             }
-            Assembly::Nullary(asm::Nullary::Ret(returns)) => {
+            asm::Statement::Nullary(asm::Nullary::Ret(returns)) => {
                 // ABI-specific value (2)
                 for r#return in 0..cmp::min(2, *returns) {
                     match abi::write_return(None, r#return) {
@@ -71,7 +70,7 @@ impl Function for asm::Function<Temporary> {
                 }
                 output.insert(Temporary::Register(Register::rsp()));
             }
-            Assembly::Binary(binary, operands) => {
+            asm::Statement::Binary(binary, operands) => {
                 use asm::Binary::*;
 
                 match (binary, operands.destination()) {
@@ -92,13 +91,13 @@ impl Function for asm::Function<Temporary> {
                 operands.source().map(|temporary| output.insert(*temporary));
             }
             // Special case: `_xi_out_of_bounds` diverges, so nothing after is reachable.
-            Assembly::Unary(
+            asm::Statement::Unary(
                 asm::Unary::Call { .. },
                 operand::Unary::I(Immediate::Label(Label::Fixed(label))),
             ) if symbol::resolve(*label) == abi::XI_OUT_OF_BOUNDS => {
                 output.clear();
             }
-            Assembly::Unary(asm::Unary::Call { arguments, returns }, operand) => {
+            asm::Statement::Unary(asm::Unary::Call { arguments, returns }, operand) => {
                 for r#return in 0..*returns {
                     match abi::read_return(*arguments, r#return) {
                         operand::Unary::I(_) => (),
@@ -117,10 +116,10 @@ impl Function for asm::Function<Temporary> {
 
                 operand.map(|temporary| output.insert(*temporary));
             }
-            Assembly::Unary(asm::Unary::Neg, operand) => {
+            asm::Statement::Unary(asm::Unary::Neg, operand) => {
                 operand.map(|temporary| output.insert(*temporary));
             }
-            Assembly::Unary(
+            asm::Statement::Unary(
                 unary @ (asm::Unary::Mul | asm::Unary::Hul | asm::Unary::Div | asm::Unary::Mod),
                 operand,
             ) => {

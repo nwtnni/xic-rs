@@ -179,7 +179,7 @@ impl Linear {
     fn expire(&mut self, start: usize) {
         while let Some(cmp::Reverse((end, temporary))) = self.active.last() {
             // With our implementation of live ranges, using `>=` here is
-            // important. Consider the following sequence of instructions,
+            // important. Consider the following sequence of statements,
             // with live ranges annotated on the right:
             //
             // ```text

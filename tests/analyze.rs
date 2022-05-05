@@ -10,8 +10,8 @@ use xic::data::operand::Temporary;
 use xic::data::symbol;
 
 macro_rules! assembly {
-    ($($instruction:tt)*) => {
-        vec![$(asm!($instruction)),*]
+    ($($statement:tt)*) => {
+        vec![$(asm!($statement)),*]
     }
 }
 
@@ -24,7 +24,7 @@ fn basic() {
     let enter = Label::Fixed(symbol::intern_static("enter"));
     let exit = Label::Fixed(symbol::intern_static("exit"));
 
-    let instructions = assembly!(
+    let statements = assembly!(
         (enter:)
         (mov x, 1)
         (mov y, 2)
@@ -39,7 +39,7 @@ fn basic() {
 
     let function = Function {
         name: symbol::intern_static("test_mov_function"),
-        instructions,
+        statements,
         arguments: 0,
         returns: 0,
         callee_arguments: 0,

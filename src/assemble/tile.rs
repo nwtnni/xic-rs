@@ -4,7 +4,6 @@ use std::convert::TryFrom as _;
 use crate::abi;
 use crate::asm;
 use crate::data::asm;
-use crate::data::asm::Assembly;
 use crate::data::ir;
 use crate::data::lir;
 use crate::data::operand;
@@ -15,7 +14,7 @@ use crate::data::operand::Temporary;
 use crate::util::Or;
 
 struct Tiler {
-    instructions: Vec<Assembly<Temporary>>,
+    statements: Vec<asm::Statement<Temporary>>,
     caller_returns: Option<Temporary>,
     callee_arguments: usize,
 }
@@ -49,7 +48,7 @@ pub fn tile(function: &lir::Function<lir::Fallthrough>) -> asm::Function<Tempora
         );
 
     let mut tiler = Tiler {
-        instructions: Vec::new(),
+        statements: Vec::new(),
         caller_returns,
         callee_arguments,
     };
@@ -59,7 +58,7 @@ pub fn tile(function: &lir::Function<lir::Fallthrough>) -> asm::Function<Tempora
         Some(lir::Statement::Label(label)) if *label == function.enter,
     ));
 
-    // Preserve invariant that `enter` label is the first instruction
+    // Preserve invariant that `enter` label is the first statement
     tiler.tile_statement(function.statements.first().unwrap());
 
     let callee_saved = abi::CALLEE_SAVED
@@ -86,11 +85,11 @@ pub fn tile(function: &lir::Function<lir::Fallthrough>) -> asm::Function<Tempora
         tiler.push(asm!((mov register, temporary)));
     }
 
-    tiler.push(Assembly::Nullary(asm::Nullary::Ret(function.returns)));
+    tiler.push(asm::Statement::Nullary(asm::Nullary::Ret(function.returns)));
 
     asm::Function {
         name: function.name,
-        instructions: tiler.instructions,
+        statements: tiler.statements,
         arguments: function.arguments,
         returns: function.returns,
         callee_arguments,
@@ -109,7 +108,7 @@ impl Tiler {
 
     fn tile_statement(&mut self, statement: &lir::Statement<lir::Fallthrough>) {
         match statement {
-            lir::Statement::Label(label) => self.push(Assembly::Label(*label)),
+            lir::Statement::Label(label) => self.push(asm::Statement::Label(*label)),
             lir::Statement::Return(returns) => {
                 for (index, r#return) in returns.iter().enumerate() {
                     self.tile_binary(
@@ -121,11 +120,11 @@ impl Tiler {
 
                 // CFG construction guarantees that (1) an IR return is immediately
                 // followed by a jump to the exit label, and (2) the exit block is
-                // at the end. Then we omit the `ret` instruction here, in favor of
+                // at the end. Then we omit the `ret` statement here, in favor of
                 // placing a single `ret` at the end of the function epilogue:
                 //
                 // ```
-                // self.push(Assembly::Nullary(asm::Nullary::Ret(function.returns)));
+                // self.push(asm::Statement::Nullary(asm::Nullary::Ret(function.returns)));
                 // ```
             }
             &lir::Statement::Jump(label) => {
@@ -226,7 +225,7 @@ impl Tiler {
             lir::Expression::Return(index) => {
                 return abi::read_return(self.callee_arguments, *index)
             }
-            // Only `mov r64, i64` instructions can use 64-bit immediates (handled above).
+            // Only `mov r64, i64` statements can use 64-bit immediates (handled above).
             lir::Expression::Immediate(Immediate::Integer(integer)) => {
                 return match i32::try_from(*integer) {
                     Ok(integer) => operand::Unary::from(integer as i64),
@@ -353,7 +352,7 @@ impl Tiler {
             },
         };
 
-        self.push(Assembly::Binary(binary, operands));
+        self.push(asm::Statement::Binary(binary, operands));
     }
 
     /// Assumes `unary` operates only on register and memory operands. Immediates will be shuttled.
@@ -377,7 +376,7 @@ impl Tiler {
             }
         };
 
-        self.push(Assembly::Unary(unary, destination));
+        self.push(asm::Statement::Unary(unary, destination));
         destination
     }
 
@@ -609,8 +608,8 @@ impl Tiler {
         }
     }
 
-    fn push(&mut self, instruction: Assembly<Temporary>) {
-        self.instructions.push(instruction);
+    fn push(&mut self, statement: asm::Statement<Temporary>) {
+        self.statements.push(statement);
     }
 }
 

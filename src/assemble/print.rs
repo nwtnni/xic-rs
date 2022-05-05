@@ -20,7 +20,7 @@ impl<T: fmt::Display> fmt::Display for Intel<&asm::Unit<T>> {
             writeln!(fmt, "{}", asm::Directive::Local(*label))?;
             writeln!(fmt, "{}", asm::Directive::Align(abi::WORD as usize))?;
             writeln!(fmt, "{}", asm::Directive::Quad(vec![string.len() as i64]))?;
-            writeln!(fmt, "{}", Intel(&asm::Assembly::<T>::Label(*label)))?;
+            writeln!(fmt, "{}", Intel(&asm::Statement::<T>::Label(*label)))?;
             writeln!(
                 fmt,
                 "{}\n",
@@ -42,28 +42,28 @@ impl<T: fmt::Display> fmt::Display for Intel<&asm::Unit<T>> {
 impl<T: fmt::Display> fmt::Display for Intel<&asm::Function<T>> {
     fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
         writeln!(fmt, "{}:", self.0.name)?;
-        for instruction in &self.0.instructions {
-            if !matches!(instruction, asm::Assembly::Label(_)) {
+        for statement in &self.0.statements {
+            if !matches!(statement, asm::Statement::Label(_)) {
                 write!(fmt, "  ")?;
             }
 
-            writeln!(fmt, "{}", Intel(instruction))?;
+            writeln!(fmt, "{}", Intel(statement))?;
         }
         Ok(())
     }
 }
 
-impl<T: fmt::Display> fmt::Display for Intel<&asm::Assembly<T>> {
+impl<T: fmt::Display> fmt::Display for Intel<&asm::Statement<T>> {
     fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
         match &self.0 {
-            asm::Assembly::Binary(binary, operands) => {
+            asm::Statement::Binary(binary, operands) => {
                 write!(fmt, "{} {}", binary, Intel(operands))
             }
-            asm::Assembly::Unary(unary, operand) => write!(fmt, "{} {}", unary, Intel(operand)),
-            asm::Assembly::Nullary(nullary) => write!(fmt, "{}", nullary),
-            asm::Assembly::Label(label) => write!(fmt, "{}:", label),
-            asm::Assembly::Jmp(label) => write!(fmt, "jmp {}", label),
-            asm::Assembly::Jcc(condition, label) => write!(fmt, "j{} {}", condition, label),
+            asm::Statement::Unary(unary, operand) => write!(fmt, "{} {}", unary, Intel(operand)),
+            asm::Statement::Nullary(nullary) => write!(fmt, "{}", nullary),
+            asm::Statement::Label(label) => write!(fmt, "{}:", label),
+            asm::Statement::Jmp(label) => write!(fmt, "jmp {}", label),
+            asm::Statement::Jcc(condition, label) => write!(fmt, "j{} {}", condition, label),
         }
     }
 }

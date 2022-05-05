@@ -42,12 +42,12 @@ impl<'a, T: lir::Target> Local<'a, postorder::Lir<'a, T>> {
         global: &mut Global,
     ) -> anyhow::Result<Vec<Value>> {
         loop {
-            let instruction = match self.step() {
-                Some(instruction) => instruction,
+            let statement = match self.step() {
+                Some(statement) => statement,
                 None => return Ok(Vec::new()),
             };
 
-            match instruction {
+            match statement {
                 postorder::Lir::Expression(expression) => {
                     self.interpret_expression(global, expression)?
                 }

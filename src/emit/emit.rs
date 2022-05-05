@@ -297,7 +297,7 @@ impl<'env> Emitter<'env> {
                             (EXP (CALL (NAME (Label::Fixed(symbol::intern_static(abi::XI_OUT_OF_BOUNDS)))) 0))
                             // In order to (1) minimize special logic for `XI_OUT_OF_BOUNDS` and (2) still
                             // treat it correctly in dataflow analyses as an exit site, we put this dummy
-                            // return instruction here.
+                            // return statement here.
                             //
                             // The number of returns must match the rest of the function, so return values
                             // are defined along all paths to the exit.

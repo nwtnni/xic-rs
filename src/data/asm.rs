@@ -22,7 +22,7 @@ impl<T: fmt::Display> Unit<T> {
 #[derive(Clone, Debug)]
 pub struct Function<T> {
     pub name: Symbol,
-    pub instructions: Vec<Assembly<T>>,
+    pub statements: Vec<Statement<T>>,
     pub arguments: usize,
     pub returns: usize,
     pub callee_arguments: usize,
@@ -44,7 +44,7 @@ impl<T: fmt::Display> fmt::Display for Function<T> {
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub enum Assembly<T> {
+pub enum Statement<T> {
     Binary(Binary, operand::Binary<T>),
     Unary(Unary, operand::Unary<T>),
     Nullary(Nullary),
@@ -53,13 +53,13 @@ pub enum Assembly<T> {
     Jcc(Condition, Label),
 }
 
-impl<T: fmt::Display> Assembly<T> {
+impl<T: fmt::Display> Statement<T> {
     pub fn intel(&self) -> impl fmt::Display + '_ {
         crate::assemble::Intel(self)
     }
 }
 
-impl<T: fmt::Display> fmt::Display for Assembly<T> {
+impl<T: fmt::Display> fmt::Display for Statement<T> {
     fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
         write!(fmt, "{}", crate::assemble::Intel(self))
     }
@@ -144,25 +144,25 @@ impl From<ir::Condition> for Condition {
 #[macro_export]
 macro_rules! asm {
     (($label:ident:)) => {
-        $crate::data::asm::Assembly::Label($label)
+        $crate::data::asm::Statement::Label($label)
     };
     ((jmp $label:expr)) => {
-        $crate::data::asm::Assembly::Jmp($label)
+        $crate::data::asm::Statement::Jmp($label)
     };
     ((jcc $condition:expr, $label:expr)) => {
-        $crate::data::asm::Assembly::Jcc($condition, $label)
+        $crate::data::asm::Statement::Jcc($condition, $label)
     };
     ((cqo)) => {
-        $crate::data::asm::Assembly::Nullary($crate::data::asm::Nullary::Cqo)
+        $crate::data::asm::Statement::Nullary($crate::data::asm::Nullary::Cqo)
     };
     ((ret<$returns:tt>)) => {
-        $crate::data::asm::Assembly::Nullary($crate::data::asm::Nullary::Ret(
+        $crate::data::asm::Statement::Nullary($crate::data::asm::Nullary::Ret(
             $returns,
         ))
     };
 
     ((call<$arguments:tt, $returns:tt> $operand:tt)) => {
-        $crate::data::asm::Assembly::Unary(
+        $crate::data::asm::Statement::Unary(
             $crate::data::asm::Unary::Call {
                 arguments: $arguments,
                 returns: $returns,
@@ -171,13 +171,13 @@ macro_rules! asm {
         )
     };
     (($unary:tt $operand:tt)) => {
-        $crate::data::asm::Assembly::Unary(
+        $crate::data::asm::Statement::Unary(
             asm!(@unary $unary),
             $crate::data::operand::Unary::from(asm!($operand))
         )
     };
     (($binary:tt $destination:tt, $source:tt)) => {
-        $crate::data::asm::Assembly::Binary(
+        $crate::data::asm::Statement::Binary(
             asm!(@binary $binary),
             $crate::data::operand::Binary::from((asm!($destination), asm!($source)))
         )

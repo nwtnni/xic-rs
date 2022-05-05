@@ -42,13 +42,13 @@ use crate::data::lir;
 use crate::data::operand::Label;
 
 pub struct Postorder<T> {
-    instructions: Vec<T>,
+    statements: Vec<T>,
     labels: BTreeMap<Label, usize>,
 }
 
 impl<T> Postorder<T> {
-    pub fn get_instruction(&self, index: usize) -> Option<&T> {
-        self.instructions.get(index)
+    pub fn get_statement(&self, index: usize) -> Option<&T> {
+        self.statements.get(index)
     }
 
     pub fn get_label(&self, label: &Label) -> Option<&usize> {
@@ -59,7 +59,7 @@ impl<T> Postorder<T> {
 impl<T> Default for Postorder<T> {
     fn default() -> Self {
         Self {
-            instructions: Vec::new(),
+            statements: Vec::new(),
             labels: BTreeMap::new(),
         }
     }
@@ -104,7 +104,7 @@ impl<'a> Postorder<Hir<'a>> {
             }
         }
 
-        self.instructions.push(Hir::Expression(expression));
+        self.statements.push(Hir::Expression(expression));
     }
 
     fn traverse_hir_statement(&mut self, statement: &'a hir::Statement) {
@@ -121,7 +121,7 @@ impl<'a> Postorder<Hir<'a>> {
                 self.traverse_hir_expression(right);
             }
             hir::Statement::Label(label) => {
-                self.labels.insert(*label, self.instructions.len());
+                self.labels.insert(*label, self.statements.len());
                 return;
             }
             hir::Statement::Expression(expression) => {
@@ -146,7 +146,7 @@ impl<'a> Postorder<Hir<'a>> {
             }
         }
 
-        self.instructions.push(Hir::Statement(statement));
+        self.statements.push(Hir::Statement(statement));
     }
 }
 
@@ -181,7 +181,7 @@ impl<'a, T: lir::Target> Postorder<Lir<'a, T>> {
             }
         }
 
-        self.instructions.push(Lir::Expression(expression));
+        self.statements.push(Lir::Expression(expression));
     }
 
     fn traverse_lir_statement(&mut self, statement: &'a lir::Statement<T>) {
@@ -198,7 +198,7 @@ impl<'a, T: lir::Target> Postorder<Lir<'a, T>> {
                 self.traverse_lir_expression(right);
             }
             lir::Statement::Label(label) => {
-                self.labels.insert(*label, self.instructions.len());
+                self.labels.insert(*label, self.statements.len());
                 return;
             }
             lir::Statement::Call(name, arguments, _) => {
@@ -219,6 +219,6 @@ impl<'a, T: lir::Target> Postorder<Lir<'a, T>> {
                 .for_each(|r#return| self.traverse_lir_expression(r#return)),
         }
 
-        self.instructions.push(Lir::Statement(statement));
+        self.statements.push(Lir::Statement(statement));
     }
 }

@@ -161,7 +161,7 @@ pub trait Function {
 
     fn jump(label: Label) -> Self::Statement;
     fn label(label: Label) -> Self::Statement;
-    fn to_terminator(instruction: &Self::Statement) -> Option<Terminator>;
+    fn to_terminator(statement: &Self::Statement) -> Option<Terminator>;
 }
 
 pub enum Terminator {
@@ -254,8 +254,8 @@ impl<T: lir::Target> Function for lir::Function<T> {
         lir::Statement::Label(label)
     }
 
-    fn to_terminator(instruction: &Self::Statement) -> Option<Terminator> {
-        match instruction {
+    fn to_terminator(statement: &Self::Statement) -> Option<Terminator> {
+        match statement {
             lir::Statement::Jump(label) => Some(Terminator::Jump(*label)),
             lir::Statement::CJump {
                 condition: _,
@@ -279,20 +279,20 @@ impl<T: lir::Target> Function for lir::Function<T> {
 }
 
 impl Function for asm::Function<Temporary> {
-    type Statement = asm::Assembly<Temporary>;
+    type Statement = asm::Statement<Temporary>;
     type Metadata = (usize, usize, usize, usize);
     type Fallthrough = asm::Function<Temporary>;
 
     fn new(
         name: Symbol,
-        instructions: Vec<Self::Statement>,
+        statements: Vec<Self::Statement>,
         (arguments, returns, callee_arguments, callee_returns): Self::Metadata,
         enter: Label,
         exit: Label,
     ) -> Self {
         asm::Function {
             name,
-            instructions,
+            statements,
             arguments,
             returns,
             callee_arguments,
@@ -316,7 +316,7 @@ impl Function for asm::Function<Temporary> {
     }
 
     fn statements(&self) -> &[Self::Statement] {
-        &self.instructions
+        &self.statements
     }
 
     fn enter(&self) -> Option<&Label> {
@@ -328,26 +328,26 @@ impl Function for asm::Function<Temporary> {
     }
 
     fn jump(label: Label) -> Self::Statement {
-        asm::Assembly::Jmp(label)
+        asm::Statement::Jmp(label)
     }
 
     fn label(label: Label) -> Self::Statement {
-        asm::Assembly::Label(label)
+        asm::Statement::Label(label)
     }
 
-    fn to_terminator(instruction: &Self::Statement) -> Option<Terminator> {
-        match instruction {
-            asm::Assembly::Nullary(asm::Nullary::Cqo) => None,
+    fn to_terminator(statement: &Self::Statement) -> Option<Terminator> {
+        match statement {
+            asm::Statement::Nullary(asm::Nullary::Cqo) => None,
             // Note: `ret` is ignored here at the abstract assembly level.
             //
-            // There is guaranteed to be exactly one `ret` instruction at
+            // There is guaranteed to be exactly one `ret` statement at
             // the very end, so it doesn't need any jumps or edges in the CFG.
-            asm::Assembly::Nullary(asm::Nullary::Ret(_)) => None,
-            asm::Assembly::Binary(_, _) => None,
-            asm::Assembly::Unary(_, _) => None,
-            asm::Assembly::Label(label) => Some(Terminator::Label(*label)),
-            asm::Assembly::Jmp(label) => Some(Terminator::Jump(*label)),
-            asm::Assembly::Jcc(_, label) => Some(Terminator::CJump {
+            asm::Statement::Nullary(asm::Nullary::Ret(_)) => None,
+            asm::Statement::Binary(_, _) => None,
+            asm::Statement::Unary(_, _) => None,
+            asm::Statement::Label(label) => Some(Terminator::Label(*label)),
+            asm::Statement::Jmp(label) => Some(Terminator::Jump(*label)),
+            asm::Statement::Jcc(_, label) => Some(Terminator::CJump {
                 r#true: *label,
                 r#false: None,
             }),

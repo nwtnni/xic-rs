@@ -8,7 +8,6 @@ use std::convert::TryFrom as _;
 use crate::abi;
 use crate::asm;
 use crate::data::asm;
-use crate::data::asm::Assembly;
 use crate::data::operand;
 use crate::data::operand::Immediate;
 use crate::data::operand::Memory;
@@ -33,14 +32,14 @@ struct Allocator {
     callee_returns: usize,
     allocated: BTreeMap<Temporary, Register>,
     spilled: BTreeMap<Temporary, usize>,
-    instructions: Vec<Assembly<Register>>,
+    statements: Vec<asm::Statement<Register>>,
     shuttle: array::IntoIter<Register, 2>,
 }
 
 // Registers reserved for shuttling spilled temmporaries.
 //
 // In the worst case, we need at most two registers. For example,
-// consider the following abstract assembly instruction:
+// consider the following abstract assembly statement:
 //
 // ```text
 // mov [t0 + t1 * 8 + label], t2
@@ -56,7 +55,7 @@ struct Allocator {
 // It turns out we can actually use a single register to compute
 // `[rsp + 0] + [rsp + 8] * scale + offset`, but we need a second
 // register to shuttle `[rsp + 16]`, since there's no memory-to-memory
-// instruction encoding.
+// statement encoding.
 const SHUTTLE: [Register; 2] = [Register::R10, Register::R11];
 
 fn allocate(
@@ -69,12 +68,12 @@ fn allocate(
         callee_returns: function.callee_returns,
         allocated,
         spilled,
-        instructions: Vec::new(),
+        statements: Vec::new(),
         shuttle: IntoIterator::into_iter(SHUTTLE),
     };
 
-    for instruction in &function.instructions {
-        allocator.allocate_instruction(instruction);
+    for statement in &function.statements {
+        allocator.allocate_statement(statement);
     }
 
     let stack_size = abi::stack_size(
@@ -84,30 +83,28 @@ fn allocate(
     ) as i64;
 
     allocator
-        .instructions
+        .statements
         .iter_mut()
-        .for_each(|instruction| rewrite_rbp(stack_size, instruction));
+        .for_each(|statement| rewrite_rbp(stack_size, statement));
 
     let rsp = Register::rsp();
 
     assert!(matches!(
-        allocator.instructions.first(),
-        Some(Assembly::Label(label)) if *label == function.enter,
+        allocator.statements.first(),
+        Some(asm::Statement::Label(label)) if *label == function.enter,
     ));
 
     assert!(matches!(
-        allocator.instructions.last(),
-        Some(Assembly::Nullary(asm::Nullary::Ret(returns))) if *returns == function.returns,
+        allocator.statements.last(),
+        Some(asm::Statement::Nullary(asm::Nullary::Ret(returns))) if *returns == function.returns,
     ));
 
-    allocator
-        .instructions
-        .insert(1, asm!((sub rsp, stack_size)));
+    allocator.statements.insert(1, asm!((sub rsp, stack_size)));
 
-    let len = allocator.instructions.len();
+    let len = allocator.statements.len();
 
     allocator
-        .instructions
+        .statements
         .insert(len - 1, asm!((add rsp, stack_size)));
 
     asm::Function {
@@ -116,21 +113,21 @@ fn allocate(
         returns: function.returns,
         callee_arguments: function.callee_arguments,
         callee_returns: function.callee_returns,
-        instructions: allocator.instructions,
+        statements: allocator.statements,
         enter: function.enter,
         exit: function.exit,
     }
 }
 
 impl Allocator {
-    fn allocate_instruction(&mut self, instruction: &Assembly<Temporary>) {
+    fn allocate_statement(&mut self, statement: &asm::Statement<Temporary>) {
         self.shuttle = IntoIterator::into_iter(SHUTTLE);
 
-        let instruction = match instruction {
+        let statement = match statement {
             // Since the linear scan allocator is based on live variable analysis,
             // it doesn't allocate registers for dead variables. This is only allowed
-            // for `mov` and `lea` instructions, since they don't read their destinations.
-            Assembly::Binary(
+            // for `mov` and `lea` statements, since they don't read their destinations.
+            asm::Statement::Binary(
                 asm::Binary::Mov | asm::Binary::Lea,
                 operand::Binary::RI { destination, .. }
                 | operand::Binary::RM { destination, .. }
@@ -142,9 +139,9 @@ impl Allocator {
                 return;
             }
 
-            // This is the only instruction that can take a 64-bit immediate operand.
+            // This is the only statement that can take a 64-bit immediate operand.
             // Tiling guarantees that all other uses will be shuttled into a move like this one.
-            &Assembly::Binary(
+            &asm::Statement::Binary(
                 asm::Binary::Mov,
                 operand::Binary::RI {
                     destination,
@@ -154,23 +151,23 @@ impl Allocator {
                 Or::L(register) => asm!((mov register, integer)),
                 Or::R(memory) => {
                     let register = self.shuttle.next().unwrap();
-                    self.instructions.push(asm!((mov register, integer)));
+                    self.statements.push(asm!((mov register, integer)));
                     asm!((mov memory, register))
                 }
             },
-            Assembly::Binary(binary, operands) => {
-                Assembly::Binary(*binary, self.allocate_binary(operands))
+            asm::Statement::Binary(binary, operands) => {
+                asm::Statement::Binary(*binary, self.allocate_binary(operands))
             }
-            Assembly::Unary(unary, operand) => {
-                Assembly::Unary(*unary, self.allocate_unary(operand))
+            asm::Statement::Unary(unary, operand) => {
+                asm::Statement::Unary(*unary, self.allocate_unary(operand))
             }
-            Assembly::Nullary(nullary) => Assembly::Nullary(*nullary),
-            Assembly::Label(label) => Assembly::Label(*label),
-            Assembly::Jmp(label) => Assembly::Jmp(*label),
-            Assembly::Jcc(condition, label) => Assembly::Jcc(*condition, *label),
+            asm::Statement::Nullary(nullary) => asm::Statement::Nullary(*nullary),
+            asm::Statement::Label(label) => asm::Statement::Label(*label),
+            asm::Statement::Jmp(label) => asm::Statement::Jmp(*label),
+            asm::Statement::Jcc(condition, label) => asm::Statement::Jcc(*condition, *label),
         };
 
-        self.instructions.push(instruction);
+        self.statements.push(statement);
     }
 
     fn allocate_binary(
@@ -344,7 +341,8 @@ impl Allocator {
             operand::Unary::M(memory) => operand::Binary::from((destination, memory)),
             operand::Unary::I(immediate) => operand::Binary::from((destination, immediate)),
         };
-        self.instructions.push(Assembly::Binary(binary, operands));
+        self.statements
+            .push(asm::Statement::Binary(binary, operands));
         destination
     }
 
@@ -381,21 +379,21 @@ impl From<Or<Register, Memory<Register>>> for operand::Unary<Register> {
 //
 // This needs to be rewritten in terms of `rsp` after the stack size is
 // computed, since we don't keep around `rbp` within the function.
-fn rewrite_rbp(stack_size: i64, instruction: &mut Assembly<Register>) {
-    let memory = match instruction {
-        Assembly::Binary(_, operand::Binary::RI { .. })
-        | Assembly::Binary(_, operand::Binary::RR { .. })
-        | Assembly::Unary(_, operand::Unary::R(_))
-        | Assembly::Unary(_, operand::Unary::I(_))
-        | Assembly::Nullary(_)
-        | Assembly::Label(_)
-        | Assembly::Jmp(_)
-        | Assembly::Jcc(_, _) => return,
+fn rewrite_rbp(stack_size: i64, statement: &mut asm::Statement<Register>) {
+    let memory = match statement {
+        asm::Statement::Binary(_, operand::Binary::RI { .. })
+        | asm::Statement::Binary(_, operand::Binary::RR { .. })
+        | asm::Statement::Unary(_, operand::Unary::R(_))
+        | asm::Statement::Unary(_, operand::Unary::I(_))
+        | asm::Statement::Nullary(_)
+        | asm::Statement::Label(_)
+        | asm::Statement::Jmp(_)
+        | asm::Statement::Jcc(_, _) => return,
         #[rustfmt::skip]
-        Assembly::Binary(_, operand::Binary::MI { destination: memory, .. })
-        | Assembly::Binary( _, operand::Binary::MR { destination: memory, .. })
-        | Assembly::Binary(_, operand::Binary::RM { source: memory, .. })
-        | Assembly::Unary(_, operand::Unary::M(memory)) => memory,
+        asm::Statement::Binary(_, operand::Binary::MI { destination: memory, .. })
+        | asm::Statement::Binary( _, operand::Binary::MR { destination: memory, .. })
+        | asm::Statement::Binary(_, operand::Binary::RM { source: memory, .. })
+        | asm::Statement::Unary(_, operand::Unary::M(memory)) => memory,
     };
 
     if let Memory::BO {
