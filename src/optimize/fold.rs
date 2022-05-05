@@ -291,5 +291,6 @@ fn fold_condition(condition: ir::Condition, left: i64, right: i64) -> bool {
         ir::Condition::Gt => left > right,
         ir::Condition::Ne => left != right,
         ir::Condition::Eq => left == right,
+        ir::Condition::Ae => left as u64 >= right as u64,
     }
 }

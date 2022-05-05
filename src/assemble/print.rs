@@ -224,6 +224,7 @@ impl fmt::Display for asm::Condition {
             asm::Condition::Ge => "ge",
             asm::Condition::L => "l",
             asm::Condition::Le => "le",
+            asm::Condition::Ae => "ae",
         };
 
         write!(fmt, "{}", condition)

@@ -102,6 +102,7 @@ impl<'a, T: 'a> Local<'a, T> {
             ir::Condition::Gt => left > right,
             ir::Condition::Ne => left != right,
             ir::Condition::Eq => left == right,
+            ir::Condition::Ae => left as u64 >= right as u64,
         }
     }
 

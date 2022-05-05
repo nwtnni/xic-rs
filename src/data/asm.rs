@@ -127,6 +127,7 @@ pub enum Condition {
     G,
     Ne,
     E,
+    Ae,
 }
 
 impl From<ir::Condition> for Condition {
@@ -138,6 +139,7 @@ impl From<ir::Condition> for Condition {
             ir::Condition::Gt => Condition::G,
             ir::Condition::Ne => Condition::Ne,
             ir::Condition::Eq => Condition::E,
+            ir::Condition::Ae => Condition::Ae,
         }
     }
 }

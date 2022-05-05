@@ -272,13 +272,11 @@ impl<'env> Emitter<'env> {
                 use ir::Binary::Mul;
                 use ir::Binary::Sub;
 
-                use ir::Condition::Ge;
-                use ir::Condition::Lt;
+                use ir::Condition::Ae;
 
                 let base = Temporary::fresh("base");
                 let index = Temporary::fresh("index");
 
-                let low = Label::fresh("low");
                 let high = Label::fresh("high");
                 let out = Label::fresh("out");
                 let r#in = Label::fresh("in");
@@ -288,9 +286,7 @@ impl<'env> Emitter<'env> {
                         (SEQ
                             (MOVE (TEMP base) (self.emit_expression(&*array, variables).into()))
                             (MOVE (TEMP index) (self.emit_expression(&*array_index, variables).into()))
-                            (CJUMP (Lt (TEMP index) (CONST 0)) out low)
-                            (LABEL low)
-                            (CJUMP (Ge (TEMP index) (MEM (Sub (TEMP base) (CONST abi::WORD)))) out high)
+                            (CJUMP (Ae (TEMP index) (MEM (Sub (TEMP base) (CONST abi::WORD)))) out high)
                             (LABEL high)
                             (JUMP r#in)
                             (LABEL out)

@@ -199,6 +199,7 @@ impl Serialize for ir::Condition {
             Gt => "GT",
             Ne => "NEQ",
             Eq => "EQ",
+            Ae => "AEQ",
         }
         .sexp()
     }

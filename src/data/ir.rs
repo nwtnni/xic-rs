@@ -65,6 +65,12 @@ pub enum Condition {
     Gt,
     Ne,
     Eq,
+
+    /// Unsigned above or equal (http://www.unixwiz.net/techtips/x86-jumps.html)
+    ///
+    /// Used for optimizing (0 <= signed < max) into (unsigned < max),
+    /// relying on integer underflow.
+    Ae,
 }
 
 impl Condition {
@@ -76,6 +82,7 @@ impl Condition {
             Condition::Gt => Condition::Ge,
             Condition::Ne => Condition::Eq,
             Condition::Eq => Condition::Ne,
+            Condition::Ae => unreachable!(),
         }
     }
 }
