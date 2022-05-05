@@ -159,7 +159,7 @@ impl<'env> Emitter<'env> {
                 use ir::Binary::Mul;
                 use ir::Binary::Sub;
 
-                use ir::Condition::Lt;
+                use ir::Condition::Ge;
 
                 hir!(
                     (ESEQ
@@ -181,26 +181,26 @@ impl<'env> Emitter<'env> {
                             // Copy left array into final destination, starting at
                             // `address + WORD`
                             (LABEL while_left)
-                            (CJUMP (Lt (TEMP index) (Add (TEMP length_left) (CONST 1))) true_left false_left)
-                            (LABEL true_left)
+                            (CJUMP (Ge (TEMP index) (Add (TEMP length_left) (CONST 1))) true_left false_left)
+                            (LABEL false_left)
                             (MOVE
                                 (MEM (Add (TEMP address) (Mul (TEMP index) (CONST abi::WORD))))
                                 (MEM (Add (TEMP address_left) (Mul (Sub (TEMP index) (CONST 1)) (CONST abi::WORD)))))
                             (MOVE (TEMP index) (Add (TEMP index) (CONST 1)))
                             (JUMP while_left)
-                            (LABEL false_left)
+                            (LABEL true_left)
 
                             // Copy right array into final destination, starting at
                             // `address + WORD + length_left * WORD`
                             (LABEL while_right)
-                            (CJUMP (Lt (TEMP index) (Add (TEMP length) (CONST 1))) true_right false_right)
-                            (LABEL true_right)
+                            (CJUMP (Ge (TEMP index) (Add (TEMP length) (CONST 1))) true_right false_right)
+                            (LABEL false_right)
                             (MOVE
                                 (MEM (Add (TEMP address) (Mul (TEMP index) (CONST abi::WORD))))
                                 (MEM (Add (TEMP address_right) (Mul (Sub (Sub (TEMP index) (TEMP length_left)) (CONST 1)) (CONST abi::WORD)))))
                             (MOVE (TEMP index) (Add (TEMP index) (CONST 1)))
                             (JUMP while_right)
-                            (LABEL false_right))
+                            (LABEL true_right))
                         (Add (TEMP address) (CONST abi::WORD)))
                 )
                 .into()
@@ -390,20 +390,20 @@ impl<'env> Emitter<'env> {
                 let r#false = Label::fresh("false");
                 let index = Temporary::fresh("index");
 
-                use ir::Condition::Lt;
+                use ir::Condition::Ge;
 
                 statements.extend([
                     hir!((MOVE (TEMP index) (CONST 0))),
                     hir!((LABEL r#while)),
-                    hir!((CJUMP (Lt (TEMP index) (TEMP length)) r#true r#false)),
-                    hir!((LABEL r#true)),
+                    hir!((CJUMP (Ge (TEMP index) (TEMP length)) r#true r#false)),
+                    hir!((LABEL r#false)),
                     hir!(
                         (MOVE
                             (MEM (Add (TEMP array) (Mul (Add (TEMP index) (CONST 1)) (CONST abi::WORD))))
                             (self.emit_array_declaration(r#type, len, variables, lengths)))),
                     hir!((MOVE (TEMP index) (Add (TEMP index) (CONST 1)))),
                     hir!((JUMP r#while)),
-                    hir!((LABEL r#false)),
+                    hir!((LABEL r#true)),
                 ]);
             }
         }
@@ -505,14 +505,34 @@ impl<'env> Emitter<'env> {
                 let r#true = Label::fresh("true");
                 let r#false = Label::fresh("false");
 
+                let condition = match hir::Condition::from(
+                    self.emit_expression(condition, variables),
+                )(r#true, r#false)
+                {
+                    hir::Statement::CJump {
+                        condition,
+                        left,
+                        right,
+                        r#true,
+                        r#false,
+                    } => hir::Statement::CJump {
+                        condition: condition.negate(),
+                        left,
+                        right,
+                        r#true,
+                        r#false,
+                    },
+                    _ => unreachable!(),
+                };
+
                 hir!(
                     (SEQ
                         (LABEL r#while)
-                        (hir::Condition::from(self.emit_expression(condition, variables))(r#true, r#false))
-                        (LABEL r#true)
+                        (condition)
+                        (LABEL r#false)
                         (self.emit_statement(statements, variables))
                         (JUMP r#while)
-                        (LABEL r#false))
+                        (LABEL r#true))
                 )
             }
         }
