@@ -31,7 +31,7 @@ impl Trivial {
     }
 
     fn allocate_binary(&mut self, binary: &operand::Binary<Temporary>) {
-        self.allocate_unary(&binary.destination());
+        self.allocate_unary(&operand::Unary::from(binary.destination()));
         self.allocate_unary(&binary.source());
     }
 

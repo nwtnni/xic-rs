@@ -15,6 +15,7 @@ use crate::data::operand::Label;
 use crate::data::operand::Register;
 use crate::data::operand::Temporary;
 use crate::data::symbol;
+use crate::util::Or;
 
 pub struct LiveVariables<T>(PhantomData<T>);
 
@@ -72,19 +73,25 @@ impl Function for asm::Function<Temporary> {
                 output.insert(Temporary::Register(Register::rsp()));
             }
             asm::Statement::Binary(binary, operands) => {
-                use asm::Binary::*;
-
                 match (binary, operands.destination()) {
-                    (_, operand::Unary::I(_)) => (),
-                    (Mov | Lea, operand::Unary::R(temporary)) => {
+                    (asm::Binary::Mov | asm::Binary::Lea, Or::L(temporary)) => {
                         output.remove(&temporary);
                     }
-                    (Cmp | Add | Sub | Shl | And | Or | Xor, operand::Unary::R(temporary)) => {
+                    (
+                        asm::Binary::Cmp
+                        | asm::Binary::Add
+                        | asm::Binary::Sub
+                        | asm::Binary::Shl
+                        | asm::Binary::And
+                        | asm::Binary::Or
+                        | asm::Binary::Xor,
+                        Or::L(temporary),
+                    ) => {
                         // Both uses and defines `temporary`
                         // output.remove(&temporary);
                         output.insert(temporary);
                     }
-                    (_, operand::Unary::M(memory)) => {
+                    (_, Or::R(memory)) => {
                         memory.map(|temporary| output.insert(*temporary));
                     }
                 }

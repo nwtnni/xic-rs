@@ -366,15 +366,6 @@ impl Allocator {
     }
 }
 
-impl From<Or<Register, Memory<Register>>> for operand::Unary<Register> {
-    fn from(operand: Or<Register, Memory<Register>>) -> Self {
-        match operand {
-            Or::L(register) => operand::Unary::R(register),
-            Or::R(memory) => operand::Unary::M(memory),
-        }
-    }
-}
-
 // We should only tile `[rbp + offset]` when returning multiple arguments.
 //
 // This needs to be rewritten in terms of `rsp` after the stack size is

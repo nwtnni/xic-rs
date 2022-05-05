@@ -7,6 +7,7 @@ use std::sync::atomic::Ordering;
 use crate::abi;
 use crate::data::symbol;
 use crate::data::symbol::Symbol;
+use crate::util::Or;
 
 static LABELS: AtomicUsize = AtomicUsize::new(0);
 static TEMPS: AtomicUsize = AtomicUsize::new(0);
@@ -313,30 +314,36 @@ impl<T> Memory<T> {
     }
 }
 
+impl<T: Operand> From<T> for Memory<T> {
+    fn from(base: T) -> Self {
+        Self::B { base }
+    }
+}
+
+impl<T: Operand> From<(T, T)> for Memory<T> {
+    fn from((base, index): (T, T)) -> Self {
+        Self::BI { base, index }
+    }
+}
+
+impl<T: Operand> From<(T, T, Scale)> for Memory<T> {
+    fn from((base, index, scale): (T, T, Scale)) -> Self {
+        Self::BIS { base, index, scale }
+    }
+}
+
 macro_rules! impl_memory {
-    ($type:ty) => {
-        impl<I: Into<Immediate>> From<I> for Memory<$type> {
-            fn from(offset: I) -> Self {
+    ($immediate:ty) => {
+        impl<T: Operand> From<$immediate> for Memory<T> {
+            fn from(offset: $immediate) -> Self {
                 Self::O {
                     offset: offset.into(),
                 }
             }
         }
 
-        impl From<$type> for Memory<$type> {
-            fn from(base: $type) -> Self {
-                Self::B { base }
-            }
-        }
-
-        impl From<($type, $type)> for Memory<$type> {
-            fn from((base, index): ($type, $type)) -> Self {
-                Self::BI { base, index }
-            }
-        }
-
-        impl<I: Into<Immediate>> From<($type, I)> for Memory<$type> {
-            fn from((base, offset): ($type, I)) -> Self {
+        impl<T: Operand> From<(T, $immediate)> for Memory<T> {
+            fn from((base, offset): (T, $immediate)) -> Self {
                 Self::BO {
                     base,
                     offset: offset.into(),
@@ -344,14 +351,8 @@ macro_rules! impl_memory {
             }
         }
 
-        impl From<($type, $type, Scale)> for Memory<$type> {
-            fn from((base, index, scale): ($type, $type, Scale)) -> Self {
-                Self::BIS { base, index, scale }
-            }
-        }
-
-        impl<I: Into<Immediate>> From<($type, $type, I)> for Memory<$type> {
-            fn from((base, index, offset): ($type, $type, I)) -> Self {
+        impl<T: Operand> From<(T, T, $immediate)> for Memory<T> {
+            fn from((base, index, offset): (T, T, $immediate)) -> Self {
                 Self::BIO {
                     base,
                     index,
@@ -360,8 +361,8 @@ macro_rules! impl_memory {
             }
         }
 
-        impl<I: Into<Immediate>> From<($type, Scale, I)> for Memory<$type> {
-            fn from((index, scale, offset): ($type, Scale, I)) -> Self {
+        impl<T: Operand> From<(T, Scale, $immediate)> for Memory<T> {
+            fn from((index, scale, offset): (T, Scale, $immediate)) -> Self {
                 Self::ISO {
                     index,
                     scale,
@@ -370,8 +371,8 @@ macro_rules! impl_memory {
             }
         }
 
-        impl<I: Into<Immediate>> From<($type, $type, Scale, I)> for Memory<$type> {
-            fn from((base, index, scale, offset): ($type, $type, Scale, I)) -> Self {
+        impl<T: Operand> From<(T, T, Scale, $immediate)> for Memory<T> {
+            fn from((base, index, scale, offset): (T, T, Scale, $immediate)) -> Self {
                 Self::BISO {
                     base,
                     index,
@@ -383,8 +384,9 @@ macro_rules! impl_memory {
     };
 }
 
-impl_memory!(Temporary);
-impl_memory!(Register);
+impl_memory!(Immediate);
+impl_memory!(Label);
+impl_memory!(i64);
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub enum Scale {
@@ -432,7 +434,7 @@ pub enum Binary<T> {
 }
 
 impl<T: Clone> Binary<T> {
-    pub fn destination(&self) -> Unary<T> {
+    pub fn destination(&self) -> Or<T, Memory<T>> {
         match self {
             Binary::RI {
                 destination,
@@ -445,7 +447,7 @@ impl<T: Clone> Binary<T> {
             | Binary::RR {
                 destination,
                 source: _,
-            } => Unary::R(destination.clone()),
+            } => Or::L(destination.clone()),
             Binary::MI {
                 destination,
                 source: _,
@@ -453,7 +455,7 @@ impl<T: Clone> Binary<T> {
             | Binary::MR {
                 destination,
                 source: _,
-            } => Unary::M(destination.clone()),
+            } => Or::R(destination.clone()),
         }
     }
 
@@ -484,9 +486,9 @@ impl<T: Clone> Binary<T> {
 }
 
 macro_rules! impl_binary {
-    ($type:ty) => {
-        impl<I: Into<Immediate>> From<(Memory<$type>, I)> for Binary<$type> {
-            fn from((destination, source): (Memory<$type>, I)) -> Self {
+    ($immediate:ty) => {
+        impl<T: Operand> From<(Memory<T>, $immediate)> for Binary<T> {
+            fn from((destination, source): (Memory<T>, $immediate)) -> Self {
                 Binary::MI {
                     destination,
                     source: source.into(),
@@ -494,46 +496,47 @@ macro_rules! impl_binary {
             }
         }
 
-        impl<I: Into<Immediate>> From<($type, I)> for Binary<$type> {
-            fn from((destination, source): ($type, I)) -> Self {
+        impl<T: Operand> From<(T, $immediate)> for Binary<T> {
+            fn from((destination, source): (T, $immediate)) -> Self {
                 Binary::RI {
                     destination,
                     source: source.into(),
                 }
             }
         }
-
-        impl From<($type, Memory<$type>)> for Binary<$type> {
-            fn from((destination, source): ($type, Memory<$type>)) -> Self {
-                Binary::RM {
-                    destination,
-                    source,
-                }
-            }
-        }
-
-        impl From<(Memory<$type>, $type)> for Binary<$type> {
-            fn from((destination, source): (Memory<$type>, $type)) -> Self {
-                Binary::MR {
-                    destination,
-                    source,
-                }
-            }
-        }
-
-        impl From<($type, $type)> for Binary<$type> {
-            fn from((destination, source): ($type, $type)) -> Self {
-                Binary::RR {
-                    destination,
-                    source,
-                }
-            }
-        }
     };
 }
 
-impl_binary!(Temporary);
-impl_binary!(Register);
+impl_binary!(Immediate);
+impl_binary!(Label);
+impl_binary!(i64);
+
+impl<T: Operand> From<(T, Memory<T>)> for Binary<T> {
+    fn from((destination, source): (T, Memory<T>)) -> Self {
+        Binary::RM {
+            destination,
+            source,
+        }
+    }
+}
+
+impl<T: Operand> From<(Memory<T>, T)> for Binary<T> {
+    fn from((destination, source): (Memory<T>, T)) -> Self {
+        Binary::MR {
+            destination,
+            source,
+        }
+    }
+}
+
+impl<T: Operand> From<(T, T)> for Binary<T> {
+    fn from((destination, source): (T, T)) -> Self {
+        Binary::RR {
+            destination,
+            source,
+        }
+    }
+}
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub enum Unary<T> {
@@ -585,5 +588,14 @@ impl<T> From<Memory<T>> for Unary<T> {
 impl<T> From<Immediate> for Unary<T> {
     fn from(immediate: Immediate) -> Self {
         Unary::I(immediate)
+    }
+}
+
+impl<T> From<Or<T, Memory<T>>> for Unary<T> {
+    fn from(operand: Or<T, Memory<T>>) -> Self {
+        match operand {
+            Or::L(temporary) => Unary::R(temporary),
+            Or::R(memory) => Unary::M(memory),
+        }
     }
 }
