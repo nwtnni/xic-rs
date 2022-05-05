@@ -337,12 +337,13 @@ impl Function for asm::Function<Temporary> {
 
     fn to_terminator(statement: &Self::Statement) -> Option<Terminator> {
         match statement {
-            asm::Statement::Nullary(asm::Nullary::Cqo) => None,
+            asm::Statement::Nullary(asm::Nullary::Nop)
+            | asm::Statement::Nullary(asm::Nullary::Cqo)
             // Note: `ret` is ignored here at the abstract assembly level.
             //
             // There is guaranteed to be exactly one `ret` statement at
             // the very end, so it doesn't need any jumps or edges in the CFG.
-            asm::Statement::Nullary(asm::Nullary::Ret(_)) => None,
+            | asm::Statement::Nullary(asm::Nullary::Ret(_)) => None,
             asm::Statement::Binary(_, _) => None,
             asm::Statement::Unary(_, _) => None,
             asm::Statement::Label(label) => Some(Terminator::Label(*label)),

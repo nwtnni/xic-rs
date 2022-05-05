@@ -114,6 +114,7 @@ pub enum Unary {
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum Nullary {
+    Nop,
     Cqo,
     Ret(usize),
 }
@@ -151,6 +152,9 @@ macro_rules! asm {
     };
     ((jcc $condition:expr, $label:expr)) => {
         $crate::data::asm::Statement::Jcc($condition, $label)
+    };
+    ((nop)) => {
+        $crate::data::asm::Statement::Nullary($crate::data::asm::Nullary::Nop)
     };
     ((cqo)) => {
         $crate::data::asm::Statement::Nullary($crate::data::asm::Nullary::Cqo)

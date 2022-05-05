@@ -50,6 +50,7 @@ impl Function for asm::Function<Temporary> {
     fn transfer(statement: &Self::Statement, output: &mut BTreeSet<Temporary>) {
         match statement {
             asm::Statement::Label(_) | asm::Statement::Jmp(_) | asm::Statement::Jcc(_, _) => {}
+            asm::Statement::Nullary(asm::Nullary::Nop) => {}
             asm::Statement::Nullary(asm::Nullary::Cqo) => {
                 output.remove(&Temporary::Register(Register::Rdx));
 
