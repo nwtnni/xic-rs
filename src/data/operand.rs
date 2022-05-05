@@ -216,7 +216,10 @@ impl fmt::Display for Register {
     }
 }
 
-pub trait Operand: Copy + Eq + Hash + std::fmt::Debug + PartialOrd + Ord {}
+pub trait Operand:
+    Copy + Eq + Hash + std::fmt::Debug + std::fmt::Display + PartialOrd + Ord
+{
+}
 impl Operand for Temporary {}
 impl Operand for Register {}
 

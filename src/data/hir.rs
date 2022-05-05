@@ -1,7 +1,10 @@
+use std::fmt;
+
 use crate::data::ir;
 use crate::data::operand::Immediate;
 use crate::data::operand::Label;
 use crate::data::operand::Temporary;
+use crate::data::sexp::Serialize as _;
 use crate::data::symbol::Symbol;
 
 pub const ZERO: Expression = Expression::Immediate(Immediate::Integer(0));
@@ -9,12 +12,24 @@ pub const ONE: Expression = Expression::Immediate(Immediate::Integer(1));
 
 pub type Unit = ir::Unit<Function>;
 
+impl fmt::Display for Unit {
+    fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
+        write!(fmt, "{}", self.sexp())
+    }
+}
+
 #[derive(Clone, Debug)]
 pub struct Function {
     pub name: Symbol,
     pub statement: Statement,
     pub arguments: usize,
     pub returns: usize,
+}
+
+impl fmt::Display for Function {
+    fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
+        write!(fmt, "{}", self.sexp())
+    }
 }
 
 pub enum Tree {
@@ -42,6 +57,103 @@ impl From<Tree> for Condition {
                 r#false,
             }),
         }
+    }
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum Expression {
+    Argument(usize),
+    Return(usize),
+    Immediate(Immediate),
+    Temporary(Temporary),
+    Memory(Box<Expression>),
+    Binary(ir::Binary, Box<Expression>, Box<Expression>),
+    Call(Box<Expression>, Vec<Expression>, usize),
+    Sequence(Box<Statement>, Box<Expression>),
+}
+
+impl fmt::Display for Expression {
+    fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
+        write!(fmt, "{}", self.sexp())
+    }
+}
+
+impl From<Temporary> for Expression {
+    fn from(temporary: Temporary) -> Self {
+        Self::Temporary(temporary)
+    }
+}
+
+impl From<Label> for Expression {
+    fn from(label: Label) -> Self {
+        Self::Immediate(Immediate::Label(label))
+    }
+}
+
+impl From<i64> for Expression {
+    fn from(integer: i64) -> Self {
+        Self::Immediate(Immediate::Integer(integer))
+    }
+}
+
+impl From<Expression> for Tree {
+    fn from(expression: Expression) -> Self {
+        Tree::Expression(expression)
+    }
+}
+
+impl From<Tree> for Expression {
+    fn from(tree: Tree) -> Self {
+        match tree {
+            Tree::Expression(expression) => expression,
+            Tree::Condition(condition) => {
+                let r#true = Label::fresh("true");
+                let r#false = Label::fresh("false");
+                let value = Expression::Temporary(Temporary::fresh("bool"));
+
+                let sequence = vec![
+                    Statement::Move {
+                        destination: value.clone(),
+                        source: Expression::from(0),
+                    },
+                    condition(r#true, r#false),
+                    Statement::Label(r#true),
+                    Statement::Move {
+                        destination: value.clone(),
+                        source: Expression::from(1),
+                    },
+                    Statement::Label(r#false),
+                ];
+
+                Expression::Sequence(Box::new(Statement::Sequence(sequence)), Box::new(value))
+            }
+        }
+    }
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum Statement {
+    Jump(Label),
+    CJump {
+        condition: ir::Condition,
+        left: Expression,
+        right: Expression,
+        r#true: Label,
+        r#false: Label,
+    },
+    Label(Label),
+    Expression(Expression),
+    Move {
+        destination: Expression,
+        source: Expression,
+    },
+    Return(Vec<Expression>),
+    Sequence(Vec<Statement>),
+}
+
+impl fmt::Display for Statement {
+    fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
+        write!(fmt, "{}", self.sexp())
     }
 }
 
@@ -120,89 +232,4 @@ macro_rules! hir {
     ($expression:expr) => {
         $expression
     }
-}
-
-#[derive(Clone, Debug, PartialEq, Eq)]
-pub enum Expression {
-    Argument(usize),
-    Return(usize),
-    Immediate(Immediate),
-    Temporary(Temporary),
-    Memory(Box<Expression>),
-    Binary(ir::Binary, Box<Expression>, Box<Expression>),
-    Call(Box<Expression>, Vec<Expression>, usize),
-    Sequence(Box<Statement>, Box<Expression>),
-}
-
-impl From<Temporary> for Expression {
-    fn from(temporary: Temporary) -> Self {
-        Self::Temporary(temporary)
-    }
-}
-
-impl From<Label> for Expression {
-    fn from(label: Label) -> Self {
-        Self::Immediate(Immediate::Label(label))
-    }
-}
-
-impl From<i64> for Expression {
-    fn from(integer: i64) -> Self {
-        Self::Immediate(Immediate::Integer(integer))
-    }
-}
-
-impl From<Expression> for Tree {
-    fn from(expression: Expression) -> Self {
-        Tree::Expression(expression)
-    }
-}
-
-impl From<Tree> for Expression {
-    fn from(tree: Tree) -> Self {
-        match tree {
-            Tree::Expression(expression) => expression,
-            Tree::Condition(condition) => {
-                let r#true = Label::fresh("true");
-                let r#false = Label::fresh("false");
-                let value = Expression::Temporary(Temporary::fresh("bool"));
-
-                let sequence = vec![
-                    Statement::Move {
-                        destination: value.clone(),
-                        source: Expression::from(0),
-                    },
-                    condition(r#true, r#false),
-                    Statement::Label(r#true),
-                    Statement::Move {
-                        destination: value.clone(),
-                        source: Expression::from(1),
-                    },
-                    Statement::Label(r#false),
-                ];
-
-                Expression::Sequence(Box::new(Statement::Sequence(sequence)), Box::new(value))
-            }
-        }
-    }
-}
-
-#[derive(Clone, Debug, PartialEq, Eq)]
-pub enum Statement {
-    Jump(Label),
-    CJump {
-        condition: ir::Condition,
-        left: Expression,
-        right: Expression,
-        r#true: Label,
-        r#false: Label,
-    },
-    Label(Label),
-    Expression(Expression),
-    Move {
-        destination: Expression,
-        source: Expression,
-    },
-    Return(Vec<Expression>),
-    Sequence(Vec<Statement>),
 }

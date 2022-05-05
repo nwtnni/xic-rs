@@ -8,8 +8,6 @@ use std::str;
 use anyhow::anyhow;
 use structopt::StructOpt;
 
-use xic::data::sexp::Serialize as _;
-
 #[derive(Debug, StructOpt)]
 #[structopt(name = "xic", about = "Compiler for the Xi programming language.")]
 struct Command {
@@ -110,7 +108,7 @@ fn main() -> anyhow::Result<()> {
             write!(
                 debug(&command.directory_debug, &path, "parsed")?,
                 "{}",
-                program.sexp(),
+                program,
             )?;
         }
 
@@ -140,11 +138,7 @@ fn main() -> anyhow::Result<()> {
         }
 
         if command.debug_ir {
-            write!(
-                debug(&command.directory_debug, &path, "hir")?,
-                "{}",
-                hir.sexp(),
-            )?;
+            write!(debug(&command.directory_debug, &path, "hir")?, "{}", hir,)?;
         }
 
         let mut lir = hir.map(xic::api::emit_lir);
@@ -170,11 +164,7 @@ fn main() -> anyhow::Result<()> {
         }
 
         if command.debug_ir {
-            write!(
-                debug(&command.directory_debug, &path, "lir")?,
-                "{}",
-                lir.sexp(),
-            )?;
+            write!(debug(&command.directory_debug, &path, "lir")?, "{}", lir,)?;
         }
 
         if command.interpret_ir {

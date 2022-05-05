@@ -7,7 +7,6 @@ use crate::abi;
 use crate::data::hir;
 use crate::data::ir;
 use crate::data::operand::Immediate;
-use crate::data::sexp::Serialize as _;
 use crate::data::symbol;
 use crate::interpret::postorder;
 use crate::interpret::Global;
@@ -66,7 +65,7 @@ impl<'a> Local<'a, postorder::Hir<'a>> {
         global: &mut Global,
         expression: &hir::Expression,
     ) -> anyhow::Result<()> {
-        log::trace!("E> {}", expression.sexp());
+        log::trace!("E> {}", expression);
         match expression {
             hir::Expression::Sequence(_, _) => unreachable!(),
             hir::Expression::Immediate(Immediate::Integer(integer)) => {
@@ -118,7 +117,7 @@ impl<'a> Local<'a, postorder::Hir<'a>> {
         global: &mut Global,
         statement: &hir::Statement,
     ) -> anyhow::Result<Option<Vec<Value>>> {
-        log::trace!("S> {}", statement.sexp());
+        log::trace!("S> {}", statement);
         match statement {
             hir::Statement::Expression(_) => unreachable!(),
             hir::Statement::Label(_) => unreachable!(),

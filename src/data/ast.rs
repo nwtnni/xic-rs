@@ -1,5 +1,7 @@
 use std::cell::Cell;
+use std::fmt;
 
+use crate::data::sexp::Serialize as _;
 use crate::data::span::Span;
 use crate::data::symbol::Symbol;
 
@@ -9,6 +11,12 @@ pub struct Interface {
     pub signatures: Vec<Signature>,
 }
 
+impl fmt::Display for Interface {
+    fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
+        write!(fmt, "{}", self.sexp())
+    }
+}
+
 /// Represents a Xi source file.
 #[derive(Clone, Debug)]
 pub struct Program {
@@ -16,11 +24,23 @@ pub struct Program {
     pub functions: Vec<Function>,
 }
 
+impl fmt::Display for Program {
+    fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
+        write!(fmt, "{}", self.sexp())
+    }
+}
+
 /// Represents a use statement for importing interfaces.
 #[derive(Clone, Debug)]
 pub struct Use {
     pub name: Symbol,
     pub span: Span,
+}
+
+impl fmt::Display for Use {
+    fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
+        write!(fmt, "{}", self.sexp())
+    }
 }
 
 pub trait Callable {
@@ -58,6 +78,12 @@ pub struct Signature {
 
 impl_callable!(Signature);
 
+impl fmt::Display for Signature {
+    fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
+        write!(fmt, "{}", self.sexp())
+    }
+}
+
 /// Represents a function definition (i.e. with implementation).
 #[derive(Clone, Debug)]
 pub struct Function {
@@ -69,6 +95,12 @@ pub struct Function {
 }
 
 impl_callable!(Function);
+
+impl fmt::Display for Function {
+    fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
+        write!(fmt, "{}", self.sexp())
+    }
+}
 
 /// Represents a primitive type.
 #[derive(Clone, Debug)]
@@ -100,6 +132,12 @@ impl PartialEq for Type {
 
 impl Eq for Type {}
 
+impl fmt::Display for Type {
+    fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
+        write!(fmt, "{}", self.sexp())
+    }
+}
+
 /// Represents a binary operator.
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
 pub enum Binary {
@@ -120,11 +158,23 @@ pub enum Binary {
     Or,
 }
 
+impl fmt::Display for Binary {
+    fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
+        write!(fmt, "{}", self.sexp())
+    }
+}
+
 /// Represents a unary operator.
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
 pub enum Unary {
     Neg,
     Not,
+}
+
+impl fmt::Display for Unary {
+    fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
+        write!(fmt, "{}", self.sexp())
+    }
 }
 
 /// Represents an expression (i.e. a term that can be evaluated).
@@ -193,6 +243,12 @@ impl Expression {
     }
 }
 
+impl fmt::Display for Expression {
+    fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
+        write!(fmt, "{}", self.sexp())
+    }
+}
+
 /// Represents a variable declaration.
 #[derive(Clone, Debug)]
 pub struct Declaration {
@@ -211,12 +267,24 @@ impl Declaration {
     }
 }
 
+impl fmt::Display for Declaration {
+    fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
+        write!(fmt, "{}", self.sexp())
+    }
+}
+
 /// Represents a function call.
 #[derive(Clone, Debug)]
 pub struct Call {
     pub name: Symbol,
     pub arguments: Vec<Expression>,
     pub span: Span,
+}
+
+impl fmt::Display for Call {
+    fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
+        write!(fmt, "{}", self.sexp())
+    }
 }
 
 /// Represents an imperative statement.
@@ -259,5 +327,11 @@ impl Statement {
             | Statement::If(_, _, _, span)
             | Statement::While(_, _, span) => *span,
         }
+    }
+}
+
+impl fmt::Display for Statement {
+    fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
+        write!(fmt, "{}", self.sexp())
     }
 }

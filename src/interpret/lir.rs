@@ -7,7 +7,6 @@ use crate::abi;
 use crate::data::ir;
 use crate::data::lir;
 use crate::data::operand::Immediate;
-use crate::data::sexp::Serialize as _;
 use crate::data::symbol;
 use crate::interpret::postorder;
 use crate::interpret::postorder::Postorder;
@@ -66,7 +65,7 @@ impl<'a, T: lir::Target> Local<'a, postorder::Lir<'a, T>> {
         global: &mut Global,
         expression: &lir::Expression,
     ) -> anyhow::Result<()> {
-        log::trace!("E> {}", expression.sexp());
+        log::trace!("E> {}", expression);
         match expression {
             lir::Expression::Immediate(Immediate::Integer(integer)) => {
                 self.push(Operand::Integer(*integer))
@@ -99,7 +98,7 @@ impl<'a, T: lir::Target> Local<'a, postorder::Lir<'a, T>> {
         global: &mut Global,
         statement: &lir::Statement<T>,
     ) -> anyhow::Result<Option<Vec<Value>>> {
-        log::debug!("S> {}", statement.sexp());
+        log::debug!("S> {}", statement);
         match statement {
             lir::Statement::Label(_) => unreachable!(),
             lir::Statement::Jump(label) => {

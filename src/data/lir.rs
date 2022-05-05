@@ -16,6 +16,12 @@ pub const EIGHT: Expression = Expression::Immediate(Immediate::Integer(abi::WORD
 
 pub type Unit<T> = ir::Unit<Function<T>>;
 
+impl<T: Target> fmt::Display for Unit<T> {
+    fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
+        write!(fmt, "{}", self.sexp())
+    }
+}
+
 pub struct Function<T: Target> {
     pub name: Symbol,
     pub statements: Vec<Statement<T>>,
@@ -23,6 +29,12 @@ pub struct Function<T: Target> {
     pub returns: usize,
     pub enter: T::Access,
     pub exit: T::Access,
+}
+
+impl<T: Target> fmt::Display for Function<T> {
+    fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
+        write!(fmt, "{}", self.sexp())
+    }
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -33,6 +45,12 @@ pub enum Expression {
     Temporary(Temporary),
     Memory(Box<Expression>),
     Binary(ir::Binary, Box<Expression>, Box<Expression>),
+}
+
+impl fmt::Display for Expression {
+    fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
+        write!(fmt, "{}", self.sexp())
+    }
 }
 
 impl From<i64> for Expression {

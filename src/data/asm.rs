@@ -7,6 +7,12 @@ use crate::data::symbol::Symbol;
 
 pub type Unit<T> = ir::Unit<Function<T>>;
 
+impl<T: fmt::Display> fmt::Display for Unit<T> {
+    fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
+        write!(fmt, "{}", crate::assemble::Intel(self))
+    }
+}
+
 impl<T: fmt::Display> Unit<T> {
     pub fn intel(&self) -> impl fmt::Display + '_ {
         crate::assemble::Intel(self)
@@ -25,6 +31,18 @@ pub struct Function<T> {
     pub exit: Label,
 }
 
+impl<T: fmt::Display> Function<T> {
+    pub fn intel(&self) -> impl fmt::Display + '_ {
+        crate::assemble::Intel(self)
+    }
+}
+
+impl<T: fmt::Display> fmt::Display for Function<T> {
+    fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
+        write!(fmt, "{}", crate::assemble::Intel(self))
+    }
+}
+
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum Assembly<T> {
     Binary(Binary, operand::Binary<T>),
@@ -33,6 +51,12 @@ pub enum Assembly<T> {
     Label(Label),
     Jmp(Label),
     Jcc(Condition, Label),
+}
+
+impl<T: fmt::Display> Assembly<T> {
+    pub fn intel(&self) -> impl fmt::Display + '_ {
+        crate::assemble::Intel(self)
+    }
 }
 
 impl<T: fmt::Display> fmt::Display for Assembly<T> {
