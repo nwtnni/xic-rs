@@ -6,6 +6,7 @@ use std::collections::BTreeMap;
 
 use crate::abi;
 use crate::asm;
+use crate::cfg;
 use crate::data::asm;
 use crate::data::operand;
 use crate::data::operand::Immediate;
@@ -22,7 +23,8 @@ pub fn allocate_trivial(function: &asm::Function<Temporary>) -> asm::Function<Re
 }
 
 pub fn allocate_linear(function: &asm::Function<Temporary>) -> asm::Function<Register> {
-    let (function, allocated, spilled) = linear::allocate(function);
+    let function = crate::optimize::eliminate_dead_code(&cfg::construct_cfg(function));
+    let (function, allocated, spilled) = linear::allocate(&function);
     allocate(&function, allocated, spilled)
 }
 
