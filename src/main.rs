@@ -67,6 +67,7 @@ struct Command {
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
 enum Optimization {
     ConstantFold,
+    DeadCodeElimination,
     RegisterAllocation,
 }
 
@@ -75,6 +76,7 @@ impl str::FromStr for Optimization {
     fn from_str(string: &str) -> Result<Self, Self::Err> {
         match string {
             "cf" => Ok(Optimization::ConstantFold),
+            "dec" => Ok(Optimization::DeadCodeElimination),
             "reg" => Ok(Optimization::RegisterAllocation),
             _ => Err(anyhow!(
                 "Unknown optimization {}, expected one of [cf, reg]",
@@ -185,6 +187,13 @@ fn main() -> anyhow::Result<()> {
             optimizations.contains(&Optimization::RegisterAllocation)
         }) {
             abstract_assembly.map(xic::api::allocate_linear)
+        } else if command.optimize.as_ref().map_or(true, |optimizations| {
+            optimizations.contains(&Optimization::DeadCodeElimination)
+        }) {
+            abstract_assembly
+                .map(xic::api::construct_cfg)
+                .map(xic::api::eliminate_dead_code)
+                .map(xic::api::allocate_trivial)
         } else {
             abstract_assembly.map(xic::api::allocate_trivial)
         };
