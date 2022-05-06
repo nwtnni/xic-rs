@@ -136,7 +136,7 @@ fn main() -> anyhow::Result<()> {
         if command.optimize.as_ref().map_or(true, |optimizations| {
             optimizations.contains(&Optimization::ConstantFold)
         }) {
-            hir = hir.map(xic::api::optimize::constant_fold_hir);
+            hir = hir.map(xic::api::optimize::constant_fold);
         }
 
         if command.debug_ir {
@@ -148,7 +148,7 @@ fn main() -> anyhow::Result<()> {
         if command.optimize.as_ref().map_or(true, |optimizations| {
             optimizations.contains(&Optimization::ConstantFold)
         }) {
-            lir = lir.map(xic::api::optimize::constant_fold_lir);
+            lir = lir.map(xic::api::optimize::constant_fold);
         }
 
         let cfg = lir.map(xic::api::construct_cfg);

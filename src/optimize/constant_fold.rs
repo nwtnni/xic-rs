@@ -7,6 +7,10 @@ pub trait Foldable {
     fn fold(self) -> Self;
 }
 
+pub fn fold<T: Foldable>(foldable: T) -> T {
+    foldable.fold()
+}
+
 impl Foldable for hir::Function {
     fn fold(self) -> Self {
         hir::Function {
