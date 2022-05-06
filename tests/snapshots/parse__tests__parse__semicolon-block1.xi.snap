@@ -1,6 +1,0 @@
----
-source: tests/parse.rs
-assertion_line: 23
-expression: Snapshot(program)
----
-(() ((foo () () (()))))

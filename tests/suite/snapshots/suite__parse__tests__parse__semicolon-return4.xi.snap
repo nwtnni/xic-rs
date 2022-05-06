@@ -1,0 +1,6 @@
+---
+source: tests/suite/parse.rs
+assertion_line: 22
+expression: Snapshot(program)
+---
+(() ((foo () (int int int) ((return 5 6 7)))))

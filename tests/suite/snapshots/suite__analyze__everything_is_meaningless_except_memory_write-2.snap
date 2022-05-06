@@ -1,0 +1,15 @@
+---
+source: tests/suite/analyze.rs
+assertion_line: 322
+expression: live_ranges
+---
+rsp          enter:
+|              mov _x, 1
+|   _x         mov _y, 2
+|   ●   _y     mov qword ptr [_x + _y], 5
+|              add _x, 1
+|              add _y, 1
+|              jmp exit
+|            exit:
+●              ret
+

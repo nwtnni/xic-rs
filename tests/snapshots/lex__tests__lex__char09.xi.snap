@@ -1,6 +1,0 @@
----
-source: tests/lex.rs
-expression: Snapshot(tokens)
----
-1:1 error:Unclosed character literal
-

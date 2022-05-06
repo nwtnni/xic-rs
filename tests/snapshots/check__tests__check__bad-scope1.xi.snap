@@ -1,6 +1,0 @@
----
-source: tests/check.rs
-assertion_line: 21
-expression: Snapshot(context)
----
-6:9 error:Unbound variable y

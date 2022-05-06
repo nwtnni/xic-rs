@@ -1,0 +1,12 @@
+---
+source: tests/suite/parse.rs
+assertion_line: 22
+expression: Snapshot(program)
+---
+(()
+((foo
+        ()
+        ()
+        ((= (x ([] int)) (1 2))
+            (= (h int) ([] x 0))
+            (= (i int) ([] (1 2) 'c'))))))

@@ -1,0 +1,6 @@
+---
+source: tests/suite/parse.rs
+assertion_line: 22
+expression: Snapshot(program)
+---
+4:1 error:Unexpected token use

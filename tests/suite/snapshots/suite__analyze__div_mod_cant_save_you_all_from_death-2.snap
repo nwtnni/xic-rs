@@ -1,0 +1,22 @@
+---
+source: tests/suite/analyze.rs
+assertion_line: 332
+expression: live_ranges
+---
+rsp          enter:
+┊              mov _useless, 0
+┊              mov _x, 1
+┊   _x         mov _y, 2
+┊   ●   _y     add _y, _x
+┊       ●      mov rax, _y
+┊       rax    add _useless, 5
+┊       ┊      cqo
+┊   rdx D      idiv 2
+┊              mov _x, rax
+┊              add _x, 1
+┊              add _x, _y
+┊              add _useless, 5
+┊              jmp exit
+┊            exit:
+D              ret
+

@@ -1,5 +1,0 @@
----
-source: tests/emit.rs
-expression: lir_stdout
----
-Largest prime less than 100 is 97

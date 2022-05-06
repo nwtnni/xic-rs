@@ -1,0 +1,6 @@
+---
+source: tests/suite/parse.rs
+assertion_line: 22
+expression: Snapshot(program)
+---
+(() ((foo () () (((= x 1) ((= y 2) ((if (== 3 3) (= z 4)))))))))

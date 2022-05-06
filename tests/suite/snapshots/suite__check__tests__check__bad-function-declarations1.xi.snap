@@ -1,0 +1,6 @@
+---
+source: tests/suite/check.rs
+assertion_line: 21
+expression: Snapshot(context)
+---
+2:1 error:Name already bound in environment

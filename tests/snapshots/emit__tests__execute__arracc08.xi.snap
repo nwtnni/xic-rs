@@ -1,8 +1,0 @@
----
-source: tests/emit.rs
-expression: lir_stdout
----
-Index: 4 2
-Index: 4 2
-8
-

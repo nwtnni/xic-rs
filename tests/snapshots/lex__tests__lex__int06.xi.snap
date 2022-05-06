@@ -1,7 +1,0 @@
----
-source: tests/lex.rs
-expression: Snapshot(tokens)
----
-1:1 -
-1:2 integer 9223372036854775808
-

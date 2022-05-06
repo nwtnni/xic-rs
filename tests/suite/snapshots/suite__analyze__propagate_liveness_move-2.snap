@@ -1,0 +1,15 @@
+---
+source: tests/suite/analyze.rs
+assertion_line: 207
+expression: live_ranges
+---
+rsp      enter:
+|          mov _x, 0
+|   _x     mov _y, _x
+|   _y     mov _z, _y
+|   _z     mov rdx, _z
+|   rdx    mov rax, rdx
+|   rax    jmp exit
+|   |    exit:
+●   ●      ret
+

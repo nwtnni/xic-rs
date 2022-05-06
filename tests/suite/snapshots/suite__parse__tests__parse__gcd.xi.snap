@@ -1,0 +1,11 @@
+---
+source: tests/suite/parse.rs
+assertion_line: 22
+expression: Snapshot(program)
+---
+(()
+((gcd
+        ((a int) (b int))
+        (int)
+        ((while (!= a 0) ((if (< a b) (= b (- b a)) (= a (- a b)))))
+            (return b)))))

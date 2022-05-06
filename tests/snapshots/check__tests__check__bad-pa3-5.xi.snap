@@ -1,6 +1,0 @@
----
-source: tests/check.rs
-assertion_line: 21
-expression: Snapshot(context)
----
-2:28 error:Expected bool but found int

@@ -1,0 +1,6 @@
+---
+source: tests/suite/parse.rs
+assertion_line: 22
+expression: Snapshot(program)
+---
+2:15 error:Invalid integer literal

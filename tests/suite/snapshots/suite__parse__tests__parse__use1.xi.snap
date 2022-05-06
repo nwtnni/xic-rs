@@ -1,0 +1,12 @@
+---
+source: tests/suite/parse.rs
+assertion_line: 22
+expression: Snapshot(program)
+---
+(((use foo)
+    (use bar)
+    (use freddie1)
+    (use charlie_qian)
+    (use frank'lin)
+    (use edward_chen'))
+((foo () () ())))

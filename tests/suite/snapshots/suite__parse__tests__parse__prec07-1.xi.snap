@@ -1,0 +1,11 @@
+---
+source: tests/suite/parse.rs
+assertion_line: 22
+expression: Snapshot(program)
+---
+(()
+((f
+        ((x int) (y ([] int)))
+        ()
+        ((= x (- ([] y 0))) (= x (- ([] (1 2 3) 0))) (= x (- ([] (g) 0)))))
+    (g () (([] int)) ((return (1))))))

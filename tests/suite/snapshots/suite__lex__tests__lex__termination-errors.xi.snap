@@ -1,0 +1,7 @@
+---
+source: tests/suite/lex.rs
+assertion_line: 17
+expression: Snapshot(tokens)
+---
+1:1 error:Invalid escape sequence
+

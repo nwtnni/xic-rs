@@ -1,0 +1,6 @@
+---
+source: tests/suite/check.rs
+assertion_line: 21
+expression: Snapshot(context)
+---
+2:14 error:Expected int but found bool

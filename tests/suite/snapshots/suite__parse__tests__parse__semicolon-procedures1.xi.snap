@@ -1,0 +1,6 @@
+---
+source: tests/suite/parse.rs
+assertion_line: 22
+expression: Snapshot(program)
+---
+(() ((foo () () ((bar) (bar 5) (bar x) (bar 5 6) (bar x y z)))))

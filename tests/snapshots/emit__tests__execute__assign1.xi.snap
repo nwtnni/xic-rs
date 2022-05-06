@@ -1,7 +1,0 @@
----
-source: tests/emit.rs
-expression: lir_stdout
----
-Before: 2
-After: 5
-

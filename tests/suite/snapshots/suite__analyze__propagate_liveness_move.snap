@@ -1,0 +1,34 @@
+---
+source: tests/suite/analyze.rs
+assertion_line: 207
+expression: live_variables
+---
+
+ propagate_liveness_move
+
+     +--------------+
+     |    enter:    |
+     | {rsp}        |
+     | mov _x, 0    |
+     | {rsp, _x}    |
+     | mov _y, _x   |
+     | {rsp, _y}    |
+     | mov _z, _y   |
+     | {rsp, _z}    |
+     | mov rdx, _z  |
+     | {rdx, rsp}   |
+     | mov rax, rdx |
+     | {rax, rsp}   |
+     | jmp exit     |
+     | {rax, rsp}   |
+     +--------------+
+       |
+       |
+       v
+     +--------------+
+     |    exit:     |
+     | {rax, rsp}   |
+     | ret          |
+     | {}           |
+     +--------------+
+

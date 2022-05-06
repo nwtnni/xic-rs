@@ -1,5 +1,0 @@
----
-source: tests/check.rs
-expression: Snapshot(context)
----
-3:12 error:Not a single expression type

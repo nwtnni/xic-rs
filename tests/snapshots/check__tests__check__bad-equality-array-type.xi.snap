@@ -1,5 +1,0 @@
----
-source: tests/check.rs
-expression: Snapshot(context)
----
-4:20 error:Expected int[][] but found bool[][]

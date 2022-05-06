@@ -1,0 +1,6 @@
+---
+source: tests/suite/parse.rs
+assertion_line: 22
+expression: Snapshot(program)
+---
+(() ((f1 ((x int)) () ()) (f2 ((x int)) (int) ((return 0)))))

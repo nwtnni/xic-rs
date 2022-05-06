@@ -1,0 +1,21 @@
+---
+source: tests/suite/analyze.rs
+assertion_line: 244
+expression: live_ranges
+---
+rsp                  enter:
+|                      mov _a, 0
+|   _a                 mov _b, 1
+|   |   _b             mov _c, 2
+|   |   |   _c         mov _d, 3
+|   |   |   |   _d     mov _a, [_a + 8]
+|   |   |   |   |      mov _b, [_b + _c]
+|   |   |   |   |      mov _c, [_c * 8 + 8]
+|   |   |   |   |      mov _d, [_d]
+|   |   |   ●   ●      mov _l, [_c + _d + 8]
+|   ●   ●   _l         mov _r, [_a + _b * 8]
+|   _r      ●          mov rax, [_l + _r * 8 + 16]
+|           rax        jmp exit
+|           |        exit:
+●           ●          ret
+

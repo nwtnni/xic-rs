@@ -1,0 +1,12 @@
+---
+source: tests/suite/emit.rs
+assertion_line: 31
+expression: lir_stdout
+---
+5
+0
+2
+4
+6
+8
+

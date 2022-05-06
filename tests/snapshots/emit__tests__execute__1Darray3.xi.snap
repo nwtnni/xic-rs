@@ -1,5 +1,0 @@
----
-source: tests/emit.rs
-expression: lir_stdout
----
-Bello

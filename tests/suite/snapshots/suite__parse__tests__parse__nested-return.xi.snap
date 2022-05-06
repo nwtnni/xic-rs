@@ -1,0 +1,17 @@
+---
+source: tests/suite/parse.rs
+assertion_line: 22
+expression: Snapshot(program)
+---
+(()
+((foo
+        ((x bool) (y bool))
+        (int)
+        ((if
+                (== x true)
+                ((if
+                        (== y false)
+                        ((return 1))
+                        (if false ((return 2)) ((return 3))))
+                    (return 4)))
+            (return 5)))))

@@ -1,0 +1,46 @@
+---
+source: tests/suite/analyze.rs
+assertion_line: 260
+expression: live_variables
+---
+
+ everything_is_meaningless
+
+   +--------------------+
+   |       enter:       |
+   | {rsp}              |
+   | mov _x, 1          |
+   | {rsp}              |
+   | mov _y, 2          |
+   | {rsp}              |
+   | add _y, _x         |
+   | {rsp}              |
+   | mov _z, 5          |
+   | {rsp}              |
+   | sub _x, _y         |
+   | {rsp}              |
+   | mov rax, [_x + _z] |
+   | {rsp}              |
+   | imul 5             |
+   | {rsp}              |
+   | imul 2             |
+   | {rsp}              |
+   | neg rax            |
+   | {rsp}              |
+   | nop                |
+   | {rsp}              |
+   | mov _z, rdx        |
+   | {rsp}              |
+   | jmp exit           |
+   | {rsp}              |
+   +--------------------+
+     |
+     |
+     v
+   +--------------------+
+   |       exit:        |
+   | {rsp}              |
+   | ret                |
+   | {}                 |
+   +--------------------+
+

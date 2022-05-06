@@ -1,0 +1,19 @@
+---
+source: tests/suite/emit.rs
+assertion_line: 31
+expression: lir_stdout
+---
+Index: 3
+Index: 2
+Index: 2
+Index: 1
+Index: 1
+Index: 0
+1
+2
+2
+2
+4
+5
+5
+

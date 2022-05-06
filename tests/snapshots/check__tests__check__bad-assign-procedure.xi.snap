@@ -1,5 +1,0 @@
----
-source: tests/check.rs
-expression: Snapshot(context)
----
-4:5 error:Cannot initialize with a procedure

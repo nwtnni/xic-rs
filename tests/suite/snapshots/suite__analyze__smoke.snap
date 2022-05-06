@@ -1,0 +1,24 @@
+---
+source: tests/suite/analyze.rs
+assertion_line: 99
+expression: live_variables
+---
+
+   smoke
+
++----------+
+|  enter:  |
+| {rsp}    |
+| jmp exit |
+| {rsp}    |
++----------+
+  |
+  |
+  v
++----------+
+|  exit:   |
+| {rsp}    |
+| ret      |
+| {}       |
++----------+
+
