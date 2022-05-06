@@ -25,10 +25,32 @@ pub struct Function<T> {
     pub statements: Vec<Statement<T>>,
     pub arguments: usize,
     pub returns: usize,
-    pub callee_arguments: usize,
-    pub callee_returns: usize,
     pub enter: Label,
     pub exit: Label,
+}
+
+impl<T> Function<T> {
+    pub fn callee_arguments(&self) -> usize {
+        self.statements
+            .iter()
+            .filter_map(|statement| match statement {
+                Statement::Unary(Unary::Call { arguments, .. }, _) => Some(*arguments),
+                _ => None,
+            })
+            .max()
+            .unwrap_or(0)
+    }
+
+    pub fn callee_returns(&self) -> usize {
+        self.statements
+            .iter()
+            .filter_map(|statement| match statement {
+                Statement::Unary(Unary::Call { returns, .. }, _) => Some(*returns),
+                _ => None,
+            })
+            .max()
+            .unwrap_or(0)
+    }
 }
 
 impl<T: fmt::Display> Function<T> {

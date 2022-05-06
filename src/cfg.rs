@@ -280,13 +280,13 @@ impl<T: lir::Target> Function for lir::Function<T> {
 
 impl Function for asm::Function<Temporary> {
     type Statement = asm::Statement<Temporary>;
-    type Metadata = (usize, usize, usize, usize);
+    type Metadata = (usize, usize);
     type Fallthrough = asm::Function<Temporary>;
 
     fn new(
         name: Symbol,
         statements: Vec<Self::Statement>,
-        (arguments, returns, callee_arguments, callee_returns): Self::Metadata,
+        (arguments, returns): Self::Metadata,
         enter: Label,
         exit: Label,
     ) -> Self {
@@ -295,8 +295,6 @@ impl Function for asm::Function<Temporary> {
             statements,
             arguments,
             returns,
-            callee_arguments,
-            callee_returns,
             enter,
             exit,
         }
@@ -307,12 +305,7 @@ impl Function for asm::Function<Temporary> {
     }
 
     fn metadata(&self) -> Self::Metadata {
-        (
-            self.arguments,
-            self.returns,
-            self.callee_arguments,
-            self.callee_returns,
-        )
+        (self.arguments, self.returns)
     }
 
     fn statements(&self) -> &[Self::Statement] {

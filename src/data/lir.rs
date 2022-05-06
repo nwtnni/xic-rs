@@ -31,6 +31,19 @@ pub struct Function<T: Target> {
     pub exit: T::Access,
 }
 
+impl<T: Target> Function<T> {
+    pub fn callee_arguments(&self) -> usize {
+        self.statements
+            .iter()
+            .filter_map(|statement| match statement {
+                Statement::Call(_, arguments, _) => Some(arguments.len()),
+                _ => None,
+            })
+            .max()
+            .unwrap_or(0)
+    }
+}
+
 impl<T: Target> fmt::Display for Function<T> {
     fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
         write!(fmt, "{}", self.sexp())

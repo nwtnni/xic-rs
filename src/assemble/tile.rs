@@ -1,5 +1,3 @@
-use std::cmp;
-
 use crate::abi;
 use crate::asm;
 use crate::data::asm;
@@ -24,32 +22,15 @@ enum Mutate {
 }
 
 pub fn tile(function: &lir::Function<lir::Fallthrough>) -> asm::Function<Temporary> {
-    let caller_returns = match function.returns {
-        0 | 1 | 2 => None,
-        _ => Some(Temporary::fresh("overflow")),
+    let caller_returns = match function.returns > abi::RETURN.len() {
+        true => Some(Temporary::fresh("return")),
+        false => None,
     };
-
-    let (callee_arguments, callee_returns) = function
-        .statements
-        .iter()
-        .filter_map(|statement| match statement {
-            lir::Statement::Call(_, arguments, returns) => Some((arguments.len(), *returns)),
-            _ => None,
-        })
-        .fold(
-            (0, 0),
-            |(callee_arguments, callee_returns), (arguments, returns)| {
-                (
-                    cmp::max(callee_arguments, arguments),
-                    cmp::max(callee_returns, returns),
-                )
-            },
-        );
 
     let mut tiler = Tiler {
         statements: Vec::new(),
         caller_returns,
-        callee_arguments,
+        callee_arguments: function.callee_arguments(),
     };
 
     assert!(matches!(
@@ -91,8 +72,6 @@ pub fn tile(function: &lir::Function<lir::Fallthrough>) -> asm::Function<Tempora
         statements: tiler.statements,
         arguments: function.arguments,
         returns: function.returns,
-        callee_arguments,
-        callee_returns,
         enter: function.enter,
         exit: function.exit,
     }

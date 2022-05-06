@@ -63,8 +63,8 @@ fn allocate(
     spilled: BTreeMap<Temporary, usize>,
 ) -> asm::Function<Register> {
     let mut allocator = Allocator {
-        callee_arguments: function.callee_arguments,
-        callee_returns: function.callee_returns,
+        callee_arguments: function.callee_arguments(),
+        callee_returns: function.callee_returns(),
         allocated,
         spilled,
         statements: Vec::new(),
@@ -76,8 +76,8 @@ fn allocate(
     }
 
     let stack_size = abi::stack_size(
-        function.callee_arguments,
-        function.callee_returns,
+        allocator.callee_arguments,
+        allocator.callee_returns,
         allocator.spilled.len(),
     ) as i64;
 
@@ -110,8 +110,6 @@ fn allocate(
         name: function.name,
         arguments: function.arguments,
         returns: function.returns,
-        callee_arguments: function.callee_arguments,
-        callee_returns: function.callee_returns,
         statements: allocator.statements,
         enter: function.enter,
         exit: function.exit,

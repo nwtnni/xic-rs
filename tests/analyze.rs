@@ -42,8 +42,6 @@ fn basic() {
         statements,
         arguments: 0,
         returns: 0,
-        callee_arguments: 0,
-        callee_returns: 0,
         enter,
         exit,
     };
