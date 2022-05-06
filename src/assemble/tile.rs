@@ -186,7 +186,7 @@ impl Tiler {
                 }
 
                 let function = self.tile_expression(function);
-                let arguments = arguments.len();
+                let arguments = arguments.len() + offset;
                 let returns = *returns;
                 #[rustfmt::skip]
                 self.push(asm!((call<arguments, returns> function)));
