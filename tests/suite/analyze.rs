@@ -1,6 +1,3 @@
-use std::io::Write as _;
-use std::process;
-
 use xic::api::analyze::analyze;
 use xic::api::analyze::display;
 use xic::api::analyze::LiveRanges;
@@ -68,31 +65,9 @@ macro_rules! live_variables {
 
 fn live(function: Function<Temporary>) -> (String, String) {
     let cfg = xic::api::construct_cfg(function);
-
-    let mut graph = process::Command::new("graph-easy")
-        .stdin(process::Stdio::piped())
-        .stdout(process::Stdio::piped())
-        .arg("-")
-        .spawn()
-        .unwrap();
-
     let live_variables = analyze::<LiveVariables<_>, _>(&cfg);
-
-    write!(
-        &mut graph.stdin.as_mut().unwrap(),
-        "{}",
-        display(&live_variables, &cfg)
-    )
-    .unwrap();
-
-    let annotated_cfg = match graph.wait_with_output() {
-        Ok(output) if !output.status.success() => panic!("Failed to process .dot output"),
-        Ok(output) => String::from_utf8(output.stdout).unwrap(),
-        Err(error) => panic!("Failed to execute `graph-easy`: {}", error),
-    };
-
+    let annotated_cfg = super::graph(display(&live_variables, &cfg));
     let annotated_assembly = LiveRanges::new(&live_variables, cfg).to_string();
-
     (annotated_cfg, annotated_assembly)
 }
 
