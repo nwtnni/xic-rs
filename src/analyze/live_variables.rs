@@ -1,5 +1,4 @@
 use core::fmt;
-use std::cmp;
 use std::collections::BTreeSet;
 use std::marker::PhantomData;
 
@@ -17,6 +16,20 @@ use crate::data::operand::Temporary;
 use crate::data::symbol;
 use crate::util::Or;
 
+/// This module technically implements a stronger version of live variable analysis,
+/// which seems to be referred to as truly or strongly live variable analysis (or its
+/// complement, faint variable analysis):
+///
+/// - https://pages.cs.wisc.edu/~cs701-1/LectureNotes/trunk/DataflowAnalysisProblems.pdf
+/// - https://suif.stanford.edu/~courses/cs243/hws/hw2.pdf
+/// - https://www.cl.cam.ac.uk/teaching/1011/L111/general-frameworks.pdf
+/// - https://www.rw.cdl.uni-saarland.de/people/joba/private/PA/Slides/backward_4.pdf
+///
+/// We implement the live analysis instead of the faint analysis for performance:
+/// this way, we don't need to eagerly construct and clone the set of all variables
+/// in the program.
+///
+/// Note: we could also switch to (compressed) bitmaps if profiling indicates a bottleneck.
 pub struct LiveVariables<T>(PhantomData<T>);
 
 impl<T: Function> Analysis<T> for LiveVariables<T>
@@ -52,26 +65,37 @@ impl Function for asm::Function<Temporary> {
         match statement {
             asm::Statement::Label(_) | asm::Statement::Jmp(_) | asm::Statement::Jcc(_, _) => {}
             asm::Statement::Nullary(asm::Nullary::Nop) => {}
+
+            asm::Statement::Nullary(asm::Nullary::Cqo) if dead(Register::Rdx, output) => {
+                assert!(dead(Register::Rax, output));
+            }
             asm::Statement::Nullary(asm::Nullary::Cqo) => {
                 output.remove(&Temporary::Register(Register::Rdx));
 
-                // Both uses and defines `rax`:
-                // output.remove(&Temporary::Register(Register::Rax));
+                // Both uses and defines `rax`
                 output.insert(Temporary::Register(Register::Rax));
             }
+
             asm::Statement::Nullary(asm::Nullary::Ret(returns)) => {
-                // ABI-specific value (2)
-                for r#return in 0..cmp::min(2, *returns) {
-                    match abi::write_return(None, r#return) {
-                        operand::Unary::I(_) => (),
-                        operand::Unary::M(_) => unreachable!(),
-                        operand::Unary::R(temporary) => {
-                            output.insert(temporary);
-                        }
-                    }
+                for r#return in abi::RETURN.iter().take(*returns) {
+                    output.insert(Temporary::Register(*r#return));
                 }
+
+                // `rsp` must be live throughout the entire program
                 output.insert(Temporary::Register(Register::rsp()));
             }
+
+            asm::Statement::Binary(
+                asm::Binary::Mov
+                | asm::Binary::Lea
+                | asm::Binary::Add
+                | asm::Binary::Sub
+                | asm::Binary::Shl
+                | asm::Binary::And
+                | asm::Binary::Or
+                | asm::Binary::Xor,
+                operands,
+            ) if dead(operands.destination(), output) => (),
             asm::Statement::Binary(binary, operands) => {
                 match (binary, operands.destination()) {
                     (asm::Binary::Mov | asm::Binary::Lea, Or::L(temporary)) => {
@@ -88,7 +112,6 @@ impl Function for asm::Function<Temporary> {
                         Or::L(temporary),
                     ) => {
                         // Both uses and defines `temporary`
-                        // output.remove(&temporary);
                         output.insert(temporary);
                     }
                     (_, Or::R(memory)) => {
@@ -98,6 +121,7 @@ impl Function for asm::Function<Temporary> {
 
                 operands.source().map(|temporary| output.insert(*temporary));
             }
+
             // Special case: `_xi_out_of_bounds` diverges, so nothing after is reachable.
             asm::Statement::Unary(
                 asm::Unary::Call { .. },
@@ -106,43 +130,62 @@ impl Function for asm::Function<Temporary> {
                 output.clear();
             }
             asm::Statement::Unary(asm::Unary::Call { arguments, returns }, operand) => {
-                for r#return in 0..*returns {
-                    match abi::read_return(*arguments, r#return) {
-                        operand::Unary::I(_) => (),
-                        operand::Unary::M(_) => (),
-                        operand::Unary::R(temporary) => {
-                            output.remove(&temporary);
-                        }
-                    }
+                for r#return in abi::RETURN.iter().take(*returns) {
+                    output.remove(&Temporary::Register(*r#return));
                 }
 
-                output.insert(Temporary::Register(Register::rsp()));
-
-                for argument in 0..*arguments {
-                    abi::write_argument(argument).map(|temporary| output.insert(*temporary));
+                for argument in abi::ARGUMENT.iter().take(*arguments) {
+                    output.insert(Temporary::Register(*argument));
                 }
 
                 operand.map(|temporary| output.insert(*temporary));
             }
+
+            asm::Statement::Unary(asm::Unary::Neg, operand) if dead(*operand, output) => (),
             asm::Statement::Unary(asm::Unary::Neg, operand) => {
+                // Both uses and defines `operand`
                 operand.map(|temporary| output.insert(*temporary));
             }
+
+            // We don't check `div` and `mod` as they can have side effects (x / 0, x % 0)
+            asm::Statement::Unary(asm::Unary::Mul, _) if dead(Register::Rax, output) => (),
+            asm::Statement::Unary(asm::Unary::Hul, _) if dead(Register::Rdx, output) => (),
             asm::Statement::Unary(
                 unary @ (asm::Unary::Mul | asm::Unary::Hul | asm::Unary::Div | asm::Unary::Mod),
                 operand,
             ) => {
-                output.remove(&Temporary::Register(Register::Rdx));
+                if matches!(unary, asm::Unary::Hul | asm::Unary::Mod) {
+                    output.remove(&Temporary::Register(Register::Rdx));
+                }
 
-                // Both uses and defines `rax`:
-                // output.remove(&Temporary::Register(Register::Rax));
+                // Both uses and defines `rax`
                 output.insert(Temporary::Register(Register::Rax));
 
-                if let asm::Unary::Div | asm::Unary::Mod = unary {
+                if matches!(unary, asm::Unary::Div | asm::Unary::Mod) {
                     output.insert(Temporary::Register(Register::Rdx));
                 }
 
                 operand.map(|temporary| output.insert(*temporary));
             }
         }
+    }
+}
+
+fn dead<I: Into<operand::Unary<Temporary>>>(destination: I, live: &BTreeSet<Temporary>) -> bool {
+    match destination.into() {
+        // Special case: another option is to mark all callee-saved registers live at
+        // the `ret` instruction, just like we do for `rsp`. However, because the linear
+        // scan register allocator operates on coarse live ranges and not fine intervals,
+        // each register ends up with a live range spanning the entire program.
+        //
+        // So instead, we pretend callee-saved registers are dead at the end, and preserve
+        // otherwise dead assignments of the form `mov callee_saved_register, save` here.
+        operand::Unary::R(Temporary::Register(register)) if register.is_callee_saved() => false,
+
+        // Without alias analysis, we can't say anything about memory addresses.
+        // Conservatively mark all memory accesses as live (and observable).
+        operand::Unary::M(_) => false,
+        operand::Unary::R(temporary) => !live.contains(&temporary),
+        operand::Unary::I(_) => unreachable!(),
     }
 }

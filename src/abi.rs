@@ -75,6 +75,17 @@ pub const CALLER_SAVED: &[Register] = &[
     Register::R11,
 ];
 
+pub const ARGUMENT: &[Register] = &[
+    Register::Rdi,
+    Register::Rsi,
+    Register::Rdx,
+    Register::Rcx,
+    Register::R8,
+    Register::R9,
+];
+
+pub const RETURN: &[Register] = &[Register::Rax, Register::Rdx];
+
 /// Total stack size. Guaranteed to align to 16 bytes.
 pub fn stack_size(callee_arguments: usize, callee_returns: usize, spilled: usize) -> usize {
     let unaligned = callee_arguments.saturating_sub(6) + callee_returns.saturating_sub(2) + spilled;
@@ -95,8 +106,8 @@ pub fn stack_offset(callee_arguments: usize, callee_returns: usize, index: usize
 ///
 /// Extra arguments are stored in the caller's stack frame.
 pub fn read_argument(index: usize) -> Unary<Temporary> {
-    if let Some(register) = argument_register(index) {
-        return register;
+    if let Some(register) = ARGUMENT.get(index) {
+        return Unary::from(*register);
     }
 
     Unary::M(Memory::BO {
@@ -107,8 +118,8 @@ pub fn read_argument(index: usize) -> Unary<Temporary> {
 
 /// Pass `argument` to callee function.
 pub fn write_argument(index: usize) -> Unary<Temporary> {
-    if let Some(register) = argument_register(index) {
-        return register;
+    if let Some(register) = ARGUMENT.get(index) {
+        return Unary::from(*register);
     }
 
     Unary::M(Memory::BO {
@@ -121,8 +132,8 @@ pub fn write_argument(index: usize) -> Unary<Temporary> {
 ///
 /// Multiple returns are stored below multiple arguments (if any) in the stack.
 pub fn read_return(arguments: usize, index: usize) -> Unary<Temporary> {
-    if let Some(register) = return_register(index) {
-        return register;
+    if let Some(register) = RETURN.get(index) {
+        return Unary::from(*register);
     }
 
     Unary::M(Memory::BO {
@@ -135,38 +146,14 @@ pub fn read_return(arguments: usize, index: usize) -> Unary<Temporary> {
 ///
 /// The caller will pass `address`, pointing to a stack location to write to.
 pub fn write_return(address: Option<Temporary>, index: usize) -> Unary<Temporary> {
-    if let Some(register) = return_register(index) {
-        return register;
+    if let Some(register) = RETURN.get(index) {
+        return Unary::from(*register);
     }
 
     Unary::M(Memory::BO {
         base: address.expect("[INTERNAL ERROR]: missing return address"),
         offset: Immediate::Integer((index as i64 - 2) * WORD),
     })
-}
-
-fn argument_register(index: usize) -> Option<Unary<Temporary>> {
-    let register = match index {
-        0 => Register::Rdi,
-        1 => Register::Rsi,
-        2 => Register::Rdx,
-        3 => Register::Rcx,
-        4 => Register::R8,
-        5 => Register::R9,
-        _ => return None,
-    };
-
-    Some(Unary::from(register))
-}
-
-fn return_register(index: usize) -> Option<Unary<Temporary>> {
-    let register = match index {
-        0 => Register::Rax,
-        1 => Register::Rdx,
-        _ => return None,
-    };
-
-    Some(Unary::from(register))
 }
 
 pub fn mangle_function(
