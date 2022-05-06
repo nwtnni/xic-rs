@@ -314,6 +314,12 @@ impl<T> Memory<T> {
     }
 }
 
+impl From<Memory<Register>> for Memory<Temporary> {
+    fn from(memory: Memory<Register>) -> Self {
+        memory.map(|register| Temporary::from(*register))
+    }
+}
+
 impl<T: Operand> From<T> for Memory<T> {
     fn from(base: T) -> Self {
         Self::B { base }
@@ -332,6 +338,33 @@ impl<T: Operand> From<(T, T, Scale)> for Memory<T> {
     }
 }
 
+macro_rules! impl_memory_register {
+    ($base:ty, $index:ty) => {
+        impl From<($base, $index)> for Memory<Temporary> {
+            fn from((base, index): ($base, $index)) -> Self {
+                Self::BI {
+                    base: base.into(),
+                    index: index.into(),
+                }
+            }
+        }
+
+        impl From<($base, $index, Scale)> for Memory<Temporary> {
+            fn from((base, index, scale): ($base, $index, Scale)) -> Self {
+                Self::BIS {
+                    base: base.into(),
+                    index: index.into(),
+                    scale,
+                }
+            }
+        }
+    };
+}
+
+impl_memory_register!(Register, Temporary);
+impl_memory_register!(Temporary, Register);
+impl_memory_register!(Register, Register);
+
 macro_rules! impl_memory {
     ($immediate:ty) => {
         impl<T: Operand> From<$immediate> for Memory<T> {
@@ -346,6 +379,15 @@ macro_rules! impl_memory {
             fn from((base, offset): (T, $immediate)) -> Self {
                 Self::BO {
                     base,
+                    offset: offset.into(),
+                }
+            }
+        }
+
+        impl From<(Register, $immediate)> for Memory<Temporary> {
+            fn from((base, offset): (Register, $immediate)) -> Self {
+                Self::BO {
+                    base: base.into(),
                     offset: offset.into(),
                 }
             }
@@ -371,6 +413,16 @@ macro_rules! impl_memory {
             }
         }
 
+        impl From<(Register, Scale, $immediate)> for Memory<Temporary> {
+            fn from((index, scale, offset): (Register, Scale, $immediate)) -> Self {
+                Self::ISO {
+                    index: index.into(),
+                    scale,
+                    offset: offset.into(),
+                }
+            }
+        }
+
         impl<T: Operand> From<(T, T, Scale, $immediate)> for Memory<T> {
             fn from((base, index, scale, offset): (T, T, Scale, $immediate)) -> Self {
                 Self::BISO {
@@ -381,6 +433,37 @@ macro_rules! impl_memory {
                 }
             }
         }
+
+        macro_rules! impl_memory_register {
+            ($base:ty, $index:ty) => {
+                impl From<($base, $index, $immediate)> for Memory<Temporary> {
+                    fn from((base, index, offset): ($base, $index, $immediate)) -> Self {
+                        Self::BIO {
+                            base: base.into(),
+                            index: index.into(),
+                            offset: offset.into(),
+                        }
+                    }
+                }
+
+                impl From<($base, $index, Scale, $immediate)> for Memory<Temporary> {
+                    fn from(
+                        (base, index, scale, offset): ($base, $index, Scale, $immediate),
+                    ) -> Self {
+                        Self::BISO {
+                            base: base.into(),
+                            index: index.into(),
+                            scale,
+                            offset: offset.into(),
+                        }
+                    }
+                }
+            };
+        }
+
+        impl_memory_register!(Register, Temporary);
+        impl_memory_register!(Temporary, Register);
+        impl_memory_register!(Register, Register);
     };
 }
 
@@ -504,6 +587,24 @@ macro_rules! impl_binary {
                 }
             }
         }
+
+        impl From<(Memory<Register>, $immediate)> for Binary<Temporary> {
+            fn from((destination, source): (Memory<Register>, $immediate)) -> Self {
+                Binary::MI {
+                    destination: destination.into(),
+                    source: source.into(),
+                }
+            }
+        }
+
+        impl From<(Register, $immediate)> for Binary<Temporary> {
+            fn from((destination, source): (Register, $immediate)) -> Self {
+                Binary::RI {
+                    destination: destination.into(),
+                    source: source.into(),
+                }
+            }
+        }
     };
 }
 
@@ -537,6 +638,41 @@ impl<T: Operand> From<(T, T)> for Binary<T> {
         }
     }
 }
+
+macro_rules! impl_binary_register {
+    ($destination:ty, $source:ty) => {
+        impl From<($destination, Memory<$source>)> for Binary<Temporary> {
+            fn from((destination, source): ($destination, Memory<$source>)) -> Self {
+                Binary::RM {
+                    destination: destination.into(),
+                    source: source.into(),
+                }
+            }
+        }
+
+        impl From<(Memory<$destination>, $source)> for Binary<Temporary> {
+            fn from((destination, source): (Memory<$destination>, $source)) -> Self {
+                Binary::MR {
+                    destination: destination.into(),
+                    source: source.into(),
+                }
+            }
+        }
+
+        impl From<($destination, $source)> for Binary<Temporary> {
+            fn from((destination, source): ($destination, $source)) -> Self {
+                Binary::RR {
+                    destination: destination.into(),
+                    source: source.into(),
+                }
+            }
+        }
+    };
+}
+
+impl_binary_register!(Register, Temporary);
+impl_binary_register!(Temporary, Register);
+impl_binary_register!(Register, Register);
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub enum Unary<T> {
