@@ -4,7 +4,9 @@ use std::collections::BTreeMap;
 use crate::abi;
 use crate::allocate::SHUTTLE;
 use crate::analyze;
+use crate::analyze::analyze;
 use crate::analyze::LiveRanges;
+use crate::analyze::LiveVariables;
 use crate::analyze::Range;
 use crate::cfg::Cfg;
 use crate::data::asm;
@@ -13,13 +15,15 @@ use crate::data::operand::Temporary;
 use crate::optimize;
 
 pub fn allocate(
-    function: Cfg<asm::Function<Temporary>>,
+    mut function: Cfg<asm::Function<Temporary>>,
 ) -> (
     asm::Function<Temporary>,
     BTreeMap<Temporary, Register>,
     BTreeMap<Temporary, usize>,
 ) {
-    let ranges = analyze::LiveRanges::new(optimize::eliminate_dead_code(function));
+    let live_variables = analyze::<LiveVariables<_>, _>(&function);
+    optimize::eliminate_dead_code(&live_variables, &mut function);
+    let ranges = analyze::LiveRanges::new(&live_variables, function);
     let mut linear = Linear::new();
     linear.allocate(&ranges);
     (ranges.function, linear.allocated, linear.spilled)

@@ -188,7 +188,11 @@ fn main() -> anyhow::Result<()> {
         }) {
             abstract_assembly
                 .map(xic::api::construct_cfg)
-                .map(xic::api::optimize::eliminate_dead_code)
+                .map(|mut cfg| {
+                    let live_variables = xic::api::analyze::analyze(&cfg);
+                    xic::api::optimize::eliminate_dead_code(&live_variables, &mut cfg);
+                    cfg
+                })
                 .map(xic::api::destruct_cfg)
                 .map_ref(xic::api::allocate_trivial)
         } else {

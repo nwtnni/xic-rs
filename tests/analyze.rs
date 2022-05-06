@@ -1,7 +1,9 @@
 use std::io::Write as _;
 use std::process;
 
+use xic::api::analyze::analyze;
 use xic::api::analyze::display;
+use xic::api::analyze::LiveRanges;
 use xic::api::analyze::LiveVariables;
 use xic::asm;
 use xic::data::asm::Function;
@@ -74,23 +76,24 @@ fn live(function: Function<Temporary>) -> (String, String) {
         .spawn()
         .unwrap();
 
+    let live_variables = analyze::<LiveVariables<_>, _>(&cfg);
+
     write!(
         &mut graph.stdin.as_mut().unwrap(),
         "{}",
-        display::<LiveVariables<Function<Temporary>>, _>(&cfg)
+        display(&live_variables, &cfg)
     )
     .unwrap();
 
-    let live_variables = graph.wait_with_output().unwrap();
-    if !live_variables.status.success() {
-        panic!("Failed to generate diagram from .dot file");
-    }
-    let live_ranges = xic::api::analyze::LiveRanges::new(cfg);
+    let annotated_cfg = match graph.wait_with_output() {
+        Ok(output) if !output.status.success() => panic!("Failed to process .dot output"),
+        Ok(output) => String::from_utf8(output.stdout).unwrap(),
+        Err(error) => panic!("Failed to execute `graph-easy`: {}", error),
+    };
 
-    (
-        String::from_utf8(live_variables.stdout).unwrap(),
-        live_ranges.to_string(),
-    )
+    let annotated_assembly = LiveRanges::new(&live_variables, cfg).to_string();
+
+    (annotated_cfg, annotated_assembly)
 }
 
 live_variables! {

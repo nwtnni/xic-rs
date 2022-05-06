@@ -83,11 +83,12 @@ impl<T: Function> Direction<T> for Forward {
 }
 
 pub struct Solution<A: Analysis<T>, T: Function> {
+    pub analysis: A,
     pub inputs: BTreeMap<Label, A::Data>,
     pub outputs: BTreeMap<Label, A::Data>,
 }
 
-pub fn analyze<A: Analysis<T>, T: Function>(cfg: &Cfg<T>) -> (A, Solution<A, T>) {
+pub fn analyze<A: Analysis<T>, T: Function>(cfg: &Cfg<T>) -> Solution<A, T> {
     let analysis = A::new(cfg);
 
     let strongly_connected_components = cfg.strongly_connected_components(A::Direction::REVERSE);
@@ -147,5 +148,9 @@ pub fn analyze<A: Analysis<T>, T: Function>(cfg: &Cfg<T>) -> (A, Solution<A, T>)
         }
     }
 
-    (analysis, Solution { inputs, outputs })
+    Solution {
+        analysis,
+        inputs,
+        outputs,
+    }
 }

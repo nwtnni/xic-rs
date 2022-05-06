@@ -1,6 +1,6 @@
-use crate::analyze::analyze;
 use crate::analyze::Analysis as _;
 use crate::analyze::LiveVariables;
+use crate::analyze::Solution;
 use crate::cfg::Cfg;
 use crate::data::asm;
 use crate::data::operand;
@@ -8,11 +8,12 @@ use crate::data::operand::Register;
 use crate::data::operand::Temporary;
 use crate::util::Or;
 
-pub fn eliminate(mut cfg: Cfg<asm::Function<Temporary>>) -> Cfg<asm::Function<Temporary>> {
-    let (analysis, mut solution) = analyze::<LiveVariables<_>, _>(&cfg);
-
+pub fn eliminate(
+    live_variables: &Solution<LiveVariables<asm::Function<Temporary>>, asm::Function<Temporary>>,
+    cfg: &mut Cfg<asm::Function<Temporary>>,
+) {
     for (label, statements) in cfg.blocks_mut() {
-        let output = solution.inputs.get_mut(label).unwrap();
+        let mut output = live_variables.inputs[label].clone();
 
         for statement in statements.iter_mut().rev() {
             let destination = match statement {
@@ -55,13 +56,11 @@ pub fn eliminate(mut cfg: Cfg<asm::Function<Temporary>>) -> Cfg<asm::Function<Te
 
             let live = destination.map_or(true, |destination| output.contains(&destination));
 
-            analysis.transfer(statement, output);
+            live_variables.analysis.transfer(statement, &mut output);
 
             if !live {
                 *statement = asm::Statement::Nullary(asm::Nullary::Nop);
             }
         }
     }
-
-    cfg
 }

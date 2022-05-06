@@ -4,9 +4,9 @@ use std::fmt;
 use std::fmt::Write as _;
 
 use crate::abi;
-use crate::analyze::analyze;
 use crate::analyze::Analysis as _;
 use crate::analyze::LiveVariables;
+use crate::analyze::Solution;
 use crate::cfg;
 use crate::cfg::Cfg;
 use crate::data::asm;
@@ -75,8 +75,13 @@ impl Range {
 }
 
 impl LiveRanges {
-    pub fn new(cfg: Cfg<asm::Function<Temporary>>) -> Self {
-        let (analysis, solution) = analyze::<LiveVariables<_>, _>(&cfg);
+    pub fn new(
+        live_variables: &Solution<
+            LiveVariables<asm::Function<Temporary>>,
+            asm::Function<Temporary>,
+        >,
+        cfg: Cfg<asm::Function<Temporary>>,
+    ) -> Self {
         let function = cfg::destruct_cfg(cfg);
 
         // Walk backward through straight-line abstract assembly to find basic blocks
@@ -103,7 +108,7 @@ impl LiveRanges {
         let mut index = function.statements.len();
 
         for (start, label) in labels {
-            let mut output = solution.inputs[&label].clone();
+            let mut output = live_variables.inputs[&label].clone();
 
             for temporary in &output {
                 ranges
@@ -117,7 +122,7 @@ impl LiveRanges {
 
                 let statement = &function.statements[index];
 
-                analysis.transfer(statement, &mut output);
+                live_variables.analysis.transfer(statement, &mut output);
 
                 let clobbered = match statement {
                     // Allow caller-saved registers to be used across _xi_out_of_bounds
