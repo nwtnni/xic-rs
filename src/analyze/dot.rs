@@ -1,3 +1,4 @@
+use std::collections::BTreeMap;
 use std::collections::BTreeSet;
 use std::fmt;
 use std::fmt::Write as _;
@@ -60,6 +61,24 @@ impl<T: fmt::Display> Display for BTreeSet<T> {
 
         for next in iter {
             write!(fmt, ", {}", next)?;
+        }
+
+        write!(fmt, "}}")
+    }
+}
+
+impl<K: fmt::Display, V: fmt::Display> Display for BTreeMap<K, V> {
+    fn format(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
+        write!(fmt, "{{")?;
+
+        let mut iter = self.iter();
+
+        if let Some((key, value)) = iter.next() {
+            write!(fmt, "{}: {}", key, value)?;
+        }
+
+        for (key, value) in iter {
+            write!(fmt, ", {}: {}", key, value)?;
         }
 
         write!(fmt, "}}")

@@ -40,6 +40,7 @@ pub mod api {
         pub use crate::analyze::analyze;
         pub use crate::analyze::display;
         pub use crate::analyze::Analysis;
+        pub use crate::analyze::CopyPropagation;
         pub use crate::analyze::LiveRanges;
         pub use crate::analyze::LiveVariables;
         pub use crate::analyze::Solution;

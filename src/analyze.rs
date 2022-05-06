@@ -1,7 +1,9 @@
+mod copy_propagation;
 mod dot;
 mod live_ranges;
 mod live_variables;
 
+pub use copy_propagation::CopyPropagation;
 pub use dot::display;
 pub use live_ranges::LiveRanges;
 pub use live_ranges::Range;
