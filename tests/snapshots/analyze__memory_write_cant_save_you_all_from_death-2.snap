@@ -1,0 +1,18 @@
+---
+source: tests/analyze.rs
+assertion_line: 381
+expression: live_ranges
+---
+rsp          enter:
+|            mov _x, 1
+|   _x       mov _y, 2
+|   |   _y   mov _useless, 0
+|   |   |    add _useless, _x
+|   ●   ●    mov qword ptr [_x + _y], 5
+|            add _x, 1
+|            add _y, 1
+|            add _useless, _y
+|            jmp exit
+|            exit:
+●            ret
+

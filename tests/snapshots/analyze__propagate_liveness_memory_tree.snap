@@ -1,0 +1,46 @@
+---
+source: tests/analyze.rs
+assertion_line: 241
+expression: live_variables
+---
+
+propagate_liveness_memory_tree
+
++-----------------------------+
+|           enter:            |
+| {rsp}                       |
+| mov _a, 0                   |
+| {rsp, _a}                   |
+| mov _b, 1                   |
+| {rsp, _a, _b}               |
+| mov _c, 2                   |
+| {rsp, _a, _b, _c}           |
+| mov _d, 3                   |
+| {rsp, _a, _b, _c, _d}       |
+| mov _a, [_a + 8]            |
+| {rsp, _a, _b, _c, _d}       |
+| mov _b, [_b + _c]           |
+| {rsp, _a, _b, _c, _d}       |
+| mov _c, [_c * 8 + 8]        |
+| {rsp, _a, _b, _c, _d}       |
+| mov _d, [_d]                |
+| {rsp, _a, _b, _c, _d}       |
+| mov _l, [_c + _d + 8]       |
+| {rsp, _a, _b, _l}           |
+| mov _r, [_a + _b * 8]       |
+| {rsp, _l, _r}               |
+| mov rax, [_l + _r * 8 + 16] |
+| {rax, rsp}                  |
+| jmp exit                    |
+| {rax, rsp}                  |
++-----------------------------+
+  |
+  |
+  v
++-----------------------------+
+|            exit:            |
+| {rax, rsp}                  |
+| ret                         |
+| {}                          |
++-----------------------------+
+

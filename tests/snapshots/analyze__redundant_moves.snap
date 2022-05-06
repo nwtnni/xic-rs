@@ -1,0 +1,34 @@
+---
+source: tests/analyze.rs
+assertion_line: 279
+expression: live_variables
+---
+
+  redundant_moves
+
++-------------------+
+|      enter:       |
+| {rsp}             |
+| mov _useless, 0   |
+| {rsp}             |
+| mov _useless, 1   |
+| {rsp}             |
+| mov _useless, 2   |
+| {rsp}             |
+| mov _useless, 3   |
+| {rsp, _useless}   |
+| mov rax, _useless |
+| {rax, rsp}        |
+| jmp exit          |
+| {rax, rsp}        |
++-------------------+
+  |
+  |
+  v
++-------------------+
+|       exit:       |
+| {rax, rsp}        |
+| ret               |
+| {}                |
++-------------------+
+
