@@ -23,11 +23,14 @@ pub trait Analysis<T: Function>: Sized {
 
     fn new(cfg: &Cfg<T>) -> Self;
 
-    fn default(&self, cfg: &Cfg<T>, label: &Label) -> Self::Data;
+    fn default(&self) -> Self::Data;
 
-    fn transfer(&self, statements: &T::Statement, output: &mut Self::Data);
+    fn transfer(&self, statement: &T::Statement, output: &mut Self::Data);
 
-    fn merge(&self, output: &Self::Data, input: &mut Self::Data);
+    fn merge<'a, I>(&'a self, outputs: I, input: &mut Self::Data)
+    where
+        I: Iterator<Item = &'a Self::Data>,
+        Self::Data: 'a;
 }
 
 pub trait Direction<T: Function> {
@@ -109,17 +112,18 @@ pub fn analyze<A: Analysis<T>, T: Function>(cfg: &Cfg<T>) -> Solution<A, T> {
         while let Some(label) = worklist.pop_front() {
             workset.remove(&label);
 
-            let input = inputs
-                .entry(label)
-                .or_insert_with(|| analysis.default(cfg, &label));
+            let input = inputs.entry(label).or_insert_with(|| analysis.default());
 
             for predecessor in A::Direction::predecessors(cfg, &label) {
-                let output = outputs
+                outputs
                     .entry(predecessor)
-                    .or_insert_with(|| analysis.default(cfg, &label));
-
-                analysis.merge(output, input);
+                    .or_insert_with(|| analysis.default());
             }
+
+            analysis.merge(
+                A::Direction::predecessors(cfg, &label).map(|predecessor| &outputs[&predecessor]),
+                input,
+            );
 
             let mut output = input.clone();
 

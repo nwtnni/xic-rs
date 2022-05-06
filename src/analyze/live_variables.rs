@@ -43,16 +43,23 @@ where
         LiveVariables(PhantomData)
     }
 
-    fn default(&self, _: &Cfg<T>, _: &Label) -> Self::Data {
+    fn default(&self) -> Self::Data {
         BTreeSet::new()
-    }
-
-    fn merge(&self, output: &Self::Data, input: &mut Self::Data) {
-        input.extend(output);
     }
 
     fn transfer(&self, statement: &T::Statement, output: &mut Self::Data) {
         T::transfer(statement, output);
+    }
+
+    fn merge<'a, I>(&'a self, outputs: I, input: &mut Self::Data)
+    where
+        I: Iterator<Item = &'a Self::Data>,
+        Self::Data: 'a,
+    {
+        input.clear();
+        for output in outputs {
+            input.extend(output);
+        }
     }
 }
 
