@@ -28,8 +28,8 @@ pub mod api {
     pub use crate::interpret::interpret_hir;
     pub use crate::interpret::interpret_lir;
     pub use crate::lex::lex;
-    pub use crate::optimize::fold_hir;
-    pub use crate::optimize::fold_lir;
+    pub use crate::optimize::constant_fold_hir;
+    pub use crate::optimize::constant_fold_lir;
     pub use crate::parse::parse;
 
     pub mod analyze {
