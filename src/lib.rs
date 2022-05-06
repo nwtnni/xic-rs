@@ -32,6 +32,7 @@ pub mod api {
 
     pub mod optimize {
         pub use crate::optimize::constant_fold;
+        pub use crate::optimize::copy_propagate;
         pub use crate::optimize::eliminate_dead_code;
     }
 
