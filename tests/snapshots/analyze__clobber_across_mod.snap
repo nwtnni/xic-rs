@@ -1,0 +1,36 @@
+---
+source: tests/analyze.rs
+assertion_line: 158
+expression: live_variables
+---
+
+  clobber_across_mod
+
++---------------------+
+|       enter:        |
+| {rsp}               |
+| mov _x, 1           |
+| {rsp, _x}           |
+| mov _y, 2           |
+| {rsp, _x, _y}       |
+| mov rax, _x         |
+| {rax, rsp, _y}      |
+| cqo                 |
+| {rax, rdx, rsp, _y} |
+| idiv 5              |
+| {rdx, rsp, _y}      |
+| mov rax, _y         |
+| {rax, rdx, rsp}     |
+| jmp exit            |
+| {rax, rdx, rsp}     |
++---------------------+
+  |
+  |
+  v
++---------------------+
+|        exit:        |
+| {rax, rdx, rsp}     |
+| ret                 |
+| {}                  |
++---------------------+
+

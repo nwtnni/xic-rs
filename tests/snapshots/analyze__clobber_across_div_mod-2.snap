@@ -1,0 +1,18 @@
+---
+source: tests/analyze.rs
+assertion_line: 180
+expression: live_ranges
+---
+rsp              enter:
+┊                mov _x, 1
+┊   _x           mov _y, 2
+┊   ●   _y       mov rax, _x
+┊   rax ┊        cqo
+┊   ┊   ┊   rdx  idiv 1
+┊   ┊   ┊   ┊    cqo
+┊   ┊   ┊   ┊    idiv 10
+┊   ┊   R   ┊    mov rax, _y
+┊   ┊       ┊    jmp exit
+┊   ┊       ┊    exit:
+R   R       R    ret
+

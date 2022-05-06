@@ -1,0 +1,15 @@
+---
+source: tests/analyze.rs
+assertion_line: 127
+expression: live_ranges
+---
+rsp          enter:
+┊            mov _x, 1
+┊   _x       mov _y, 2
+┊   ●   _y   mov rax, _x
+┊   rax ┊    imul 5
+┊   ┊   D    mov rdx, _y
+┊   ┊   rdx  jmp exit
+┊   ┊   |    exit:
+D   D   ●    ret
+

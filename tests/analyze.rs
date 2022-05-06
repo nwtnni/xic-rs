@@ -101,3 +101,91 @@ live_variables! {
     temporaries: x;
     (mov rax, x)
 }
+
+live_variables! {
+    pass_one_receieve_one: 0 -> 1;
+    labels: black_box;
+    temporaries: x;
+    (mov x, 5)
+    (mov rdi, x)
+    (call<1, 1> black_box)
+    (mov x, rax)
+    (mov rax, x)
+}
+
+live_variables! {
+    clobber_across_call: 0 -> 2;
+    labels: clobber;
+    temporaries: x, y;
+    (mov x, 0)
+    (mov y, 1)
+    (call<0, 0> clobber)
+    (mov rax, x)
+    (mov rdx, y)
+}
+
+live_variables! {
+    clobber_across_mul: 0 -> 2;
+    temporaries: x, y;
+    (mov x, 1)
+    (mov y, 2)
+    (mov rax, x)
+    (imul 5)
+    (mov rdx, y)
+}
+
+live_variables! {
+    clobber_across_div: 0 -> 2;
+    temporaries: x, y;
+    (mov x, 1)
+    (mov y, 2)
+    (mov rax, x)
+    (cqo)
+    (idiv 5)
+    (mov rdx, y)
+}
+
+live_variables! {
+    clobber_across_hul: 0 -> 2;
+    temporaries: x, y;
+    (mov x, 1)
+    (mov y, 2)
+    (mov rax, x)
+    (ihul 5)
+    (mov rax, y)
+}
+
+live_variables! {
+    clobber_across_mod: 0 -> 2;
+    temporaries: x, y;
+    (mov x, 1)
+    (mov y, 2)
+    (mov rax, x)
+    (cqo)
+    (imod 5)
+    (mov rax, y)
+}
+
+live_variables! {
+    clobber_across_mul_hul: 0 -> 2;
+    temporaries: x, y;
+    (mov x, 1)
+    (mov y, 2)
+    (mov rax, x)
+    (imul 3)
+    (ihul 4)
+    (mov rax, y)
+}
+
+live_variables! {
+    clobber_across_div_mod: 0 -> 2;
+    temporaries: x, y;
+    (mov x, 1)
+    (mov y, 2)
+    (mov rax, x)
+    (cqo)
+    (idiv 1)
+    (cqo)
+    (imod 10)
+    (mov rax, y)
+}
