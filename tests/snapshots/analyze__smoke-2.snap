@@ -1,10 +1,10 @@
 ---
 source: tests/analyze.rs
-assertion_line: 95
+assertion_line: 96
 expression: live_ranges
 ---
 rsp  enter:
-|    jmp exit
+|      jmp exit
 |    exit:
-●    ret
+●      ret
 

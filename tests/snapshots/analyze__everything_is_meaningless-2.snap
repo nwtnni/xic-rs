@@ -1,21 +1,21 @@
 ---
 source: tests/analyze.rs
-assertion_line: 253
+assertion_line: 257
 expression: live_ranges
 ---
 rsp  enter:
-┊    mov _x, 1
-┊    mov _y, 2
-┊    add _y, _x
-┊    mov _z, 5
-┊    sub _x, _y
-┊    mov rax, [_x + _z]
-┊    imul 5
-┊    imul 2
-┊    neg rax
-┊    nop
-┊    mov _z, rdx
-┊    jmp exit
+┊      mov _x, 1
+┊      mov _y, 2
+┊      add _y, _x
+┊      mov _z, 5
+┊      sub _x, _y
+┊      mov rax, [_x + _z]
+┊      imul 5
+┊      imul 2
+┊      neg rax
+┊      nop
+┊      mov _z, rdx
+┊      jmp exit
 ┊    exit:
-R    ret
+R      ret
 

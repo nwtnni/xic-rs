@@ -1,15 +1,15 @@
 ---
 source: tests/analyze.rs
-assertion_line: 116
+assertion_line: 117
 expression: live_ranges
 ---
 rsp          enter:
-┊            mov _x, 0
-┊   _x       mov _y, 1
-┊   ┊   _y   call clobber
-┊   C   ┊    mov rax, _x
-┊   rax C    mov rdx, _y
-┊   |   rdx  jmp exit
+┊              mov _x, 0
+┊   _x         mov _y, 1
+┊   ┊   _y     call clobber
+┊   C   ┊      mov rax, _x
+┊   rax C      mov rdx, _y
+┊   |   rdx    jmp exit
 ┊   |   |    exit:
-C   ●   ●    ret
+C   ●   ●      ret
 

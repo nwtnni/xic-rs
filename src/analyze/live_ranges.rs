@@ -282,7 +282,12 @@ impl fmt::Display for LiveRanges {
                 }
             }
 
-            writeln!(fmt, " {}", statement)?;
+            let indent = match statement {
+                asm::Statement::Label(_) => "",
+                _ => "  ",
+            };
+
+            writeln!(fmt, " {}{}", indent, statement)?;
         }
 
         Ok(())

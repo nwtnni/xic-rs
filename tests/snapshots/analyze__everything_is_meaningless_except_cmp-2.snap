@@ -1,17 +1,17 @@
 ---
 source: tests/analyze.rs
-assertion_line: 271
+assertion_line: 305
 expression: live_ranges
 ---
 rsp          enter:
-|            mov _x, 1
-|   _x       mov _y, 2
-|   ●   _y   cmp _x, _y
-|            add _x, 1
-|            je exit
+|              mov _x, 1
+|   _x         mov _y, 2
+|   ●   _y     cmp _x, _y
+|              add _x, 1
+|              je exit
 |            fallthrough:
-|            add _y, 1
-|            jmp exit
+|              add _y, 1
+|              jmp exit
 |            exit:
-●            ret
+●              ret
 

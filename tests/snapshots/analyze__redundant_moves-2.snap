@@ -1,15 +1,15 @@
 ---
 source: tests/analyze.rs
-assertion_line: 279
+assertion_line: 194
 expression: live_ranges
 ---
 rsp                enter:
-|                  mov _useless, 0
-|                  mov _useless, 1
-|                  mov _useless, 2
-|                  mov _useless, 3
-|        _useless  mov rax, _useless
-|        rax       jmp exit
+|                    mov _useless, 0
+|                    mov _useless, 1
+|                    mov _useless, 2
+|                    mov _useless, 3
+|        _useless    mov rax, _useless
+|        rax         jmp exit
 |        |         exit:
-●        ●         ret
+●        ●           ret
 
