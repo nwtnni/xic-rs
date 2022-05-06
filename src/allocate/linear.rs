@@ -6,20 +6,20 @@ use crate::allocate::SHUTTLE;
 use crate::analyze;
 use crate::analyze::LiveRanges;
 use crate::analyze::Range;
-use crate::cfg;
+use crate::cfg::Cfg;
 use crate::data::asm;
 use crate::data::operand::Register;
 use crate::data::operand::Temporary;
+use crate::optimize;
 
 pub fn allocate(
-    function: &asm::Function<Temporary>,
+    function: Cfg<asm::Function<Temporary>>,
 ) -> (
     asm::Function<Temporary>,
     BTreeMap<Temporary, Register>,
     BTreeMap<Temporary, usize>,
 ) {
-    let cfg = cfg::construct_cfg(function);
-    let ranges = analyze::LiveRanges::new(&cfg);
+    let ranges = analyze::LiveRanges::new(optimize::eliminate_dead_code(function));
     let mut linear = Linear::new();
     linear.allocate(&ranges);
     (ranges.function, linear.allocated, linear.spilled)

@@ -12,12 +12,36 @@ pub struct Unit<T> {
 }
 
 impl<T> Unit<T> {
-    pub fn map<'a, F: FnMut(&'a T) -> U, U>(&'a self, mut apply: F) -> Unit<U> {
+    pub fn map<F: FnMut(T) -> U, U>(self, mut apply: F) -> Unit<U> {
+        Unit {
+            name: self.name,
+            functions: self
+                .functions
+                .into_iter()
+                .map(|(symbol, function)| (symbol, apply(function)))
+                .collect(),
+            data: self.data,
+        }
+    }
+
+    pub fn map_ref<'a, F: FnMut(&'a T) -> U, U>(&'a self, mut apply: F) -> Unit<U> {
         Unit {
             name: self.name,
             functions: self
                 .functions
                 .iter()
+                .map(|(symbol, function)| (*symbol, apply(function)))
+                .collect(),
+            data: self.data.clone(),
+        }
+    }
+
+    pub fn map_mut<'a, F: FnMut(&'a mut T) -> U, U>(&'a mut self, mut apply: F) -> Unit<U> {
+        Unit {
+            name: self.name,
+            functions: self
+                .functions
+                .iter_mut()
                 .map(|(symbol, function)| (*symbol, apply(function)))
                 .collect(),
             data: self.data.clone(),

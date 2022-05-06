@@ -75,8 +75,8 @@ impl Range {
 }
 
 impl LiveRanges {
-    pub fn new(cfg: &Cfg<asm::Function<Temporary>>) -> Self {
-        let (analysis, solution) = analyze::<LiveVariables<_>, _>(cfg);
+    pub fn new(cfg: Cfg<asm::Function<Temporary>>) -> Self {
+        let (analysis, solution) = analyze::<LiveVariables<_>, _>(&cfg);
         let function = cfg::destruct_cfg(cfg);
 
         // Walk backward through straight-line abstract assembly to find basic blocks

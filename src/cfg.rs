@@ -9,6 +9,7 @@ pub(crate) use dot::Dot;
 use std::collections::BTreeMap;
 use std::fmt;
 use std::fmt::Write as _;
+use std::mem;
 use std::ops;
 
 use petgraph::algo;
@@ -129,7 +130,7 @@ where
     T::Statement: fmt::Display,
 {
     fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
-        write!(fmt, "{}", self.map(|cfg| cfg.display()))
+        write!(fmt, "{}", self.map_ref(|cfg| cfg.display()))
     }
 }
 
@@ -162,7 +163,7 @@ pub trait Function {
 
     fn name(&self) -> Symbol;
     fn metadata(&self) -> Self::Metadata;
-    fn statements(&self) -> &[Self::Statement];
+    fn statements(&mut self) -> Vec<Self::Statement>;
     fn enter(&self) -> Option<&Label>;
     fn exit(&self) -> Option<&Label>;
 
@@ -241,8 +242,8 @@ impl<T: lir::Target> Function for lir::Function<T> {
         (self.arguments, self.returns)
     }
 
-    fn statements(&self) -> &[Self::Statement] {
-        &self.statements
+    fn statements(&mut self) -> Vec<Self::Statement> {
+        mem::take(&mut self.statements)
     }
 
     fn enter(&self) -> Option<&Label> {
@@ -315,8 +316,8 @@ impl Function for asm::Function<Temporary> {
         (self.arguments, self.returns)
     }
 
-    fn statements(&self) -> &[Self::Statement] {
-        &self.statements
+    fn statements(&mut self) -> Vec<Self::Statement> {
+        mem::take(&mut self.statements)
     }
 
     fn enter(&self) -> Option<&Label> {

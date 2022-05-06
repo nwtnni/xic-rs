@@ -21,7 +21,7 @@ where
     W: io::Write + 'io,
     T: lir::Target,
 {
-    let unit = unit.map(Postorder::traverse_lir);
+    let unit = unit.map_ref(Postorder::traverse_lir);
 
     let mut global = Global::new(&unit.data, stdin, stdout);
     let mut local = Local::new(

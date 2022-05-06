@@ -9,8 +9,8 @@ use crate::cfg::Function;
 use crate::cfg::Terminator;
 use crate::data::operand::Label;
 
-pub fn construct_cfg<T: Function>(function: &T) -> Cfg<T> {
-    Walker::new(function).walk(function)
+pub fn construct_cfg<T: Function>(function: T) -> Cfg<T> {
+    Walker::new(&function).walk(function)
 }
 
 struct Walker<T: Function> {
@@ -24,16 +24,7 @@ struct Walker<T: Function> {
 impl<T: Function> Walker<T> {
     fn new(function: &T) -> Self {
         let (enter, block) = match function.enter() {
-            Some(enter) => {
-                assert!(matches!(
-                    function
-                        .statements()
-                        .first()
-                        .and_then(T::to_terminator),
-                    Some(Terminator::Label(label)) if *enter == label
-                ));
-                (*enter, Block::Unreachable)
-            }
+            Some(enter) => (*enter, Block::Unreachable),
             None => {
                 let enter = Label::fresh("enter");
                 (enter, Block::reachable(enter))
@@ -59,13 +50,15 @@ impl<T: Function> Walker<T> {
         }
     }
 
-    fn walk(mut self, function: &T) -> Cfg<T> {
-        let statements = function.statements();
+    fn walk(mut self, mut function: T) -> Cfg<T> {
+        let mut statements = function.statements().into_iter().peekable();
 
-        for (index, statement) in statements.iter().enumerate() {
-            self.block.push(statement.clone());
+        while let Some(statement) = statements.next() {
+            let terminator = T::to_terminator(&statement);
 
-            let terminator = match T::to_terminator(statement) {
+            self.block.push(statement);
+
+            let terminator = match terminator {
                 Some(terminator) => terminator,
                 None => continue,
             };
@@ -88,7 +81,7 @@ impl<T: Function> Walker<T> {
                 Terminator::CJump {
                     r#true,
                     r#false: None,
-                } => match statements.get(index + 1).map(T::to_terminator) {
+                } => match statements.peek().map(T::to_terminator) {
                     None => self.pop_conditional(Block::Unreachable, r#true, self.exit),
                     Some(Some(Terminator::Label(label))) => {
                         self.pop_conditional(Block::Unreachable, r#true, label);

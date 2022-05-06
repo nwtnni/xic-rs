@@ -11,10 +11,10 @@ fn compile(path: &str) -> lir::Unit<lir::Fallthrough> {
     let tokens = xic::api::lex(Path::new(path)).unwrap();
     let program = xic::api::parse(tokens).unwrap();
     let context = xic::api::check(Path::new(path).parent().unwrap(), &program).unwrap();
-    let hir = xic::api::emit_hir(Path::new(path), &program, &context);
-    let lir = hir.map(xic::api::emit_lir);
-    let cfg = lir.map(xic::api::construct_cfg);
-    cfg.map(xic::api::destruct_cfg)
+    xic::api::emit_hir(Path::new(path), &program, &context)
+        .map_ref(xic::api::emit_lir)
+        .map(xic::api::construct_cfg)
+        .map(xic::api::destruct_cfg)
 }
 
 fn execute(assembly: &asm::Unit<Register>) -> String {
@@ -60,31 +60,34 @@ pub fn tile(path: &str) {
     xic::api::interpret_lir(&lir, &mut lir_stdin, &mut lir_stdout).unwrap();
     let lir_stdout = String::from_utf8(lir_stdout.into_inner()).unwrap();
 
-    let assembly = lir.map(xic::api::tile).map(xic::api::allocate_trivial);
+    let assembly = lir
+        .map_ref(xic::api::tile)
+        .map_ref(xic::api::allocate_trivial);
     let assembly_stdout = execute(&assembly);
     pretty_assertions::assert_eq!(lir_stdout, assembly_stdout);
 }
 
 #[test_generator::test_resources("tests/execute/*.xi")]
 pub fn reorder(path: &str) {
-    let lir = compile(path);
+    let abstract_assembly = compile(path).map_ref(xic::api::tile);
 
-    let before = lir.map(xic::api::tile);
-    let cfg = before.map(xic::api::construct_cfg);
-    let after = cfg
+    let before = abstract_assembly.map_ref(xic::api::allocate_trivial);
+    let after = abstract_assembly
+        .map(xic::api::construct_cfg)
         .map(xic::api::destruct_cfg)
-        .map(xic::api::allocate_trivial);
-    let before = before.map(xic::api::allocate_trivial);
+        .map_ref(xic::api::allocate_trivial);
 
     pretty_assertions::assert_eq!(execute(&before), execute(&after));
 }
 
 #[test_generator::test_resources("tests/execute/*.xi")]
 pub fn allocate(path: &str) {
-    let lir = compile(path).map(xic::api::tile);
+    let lir = compile(path).map_ref(xic::api::tile);
 
-    let trivial = lir.map(xic::api::allocate_trivial);
-    let linear = lir.map(xic::api::allocate_linear);
+    let trivial = lir.map_ref(xic::api::allocate_trivial);
+    let linear = lir
+        .map(xic::api::construct_cfg)
+        .map(xic::api::allocate_linear);
 
     pretty_assertions::assert_eq!(execute(&trivial), execute(&linear));
 }

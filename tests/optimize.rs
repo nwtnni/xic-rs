@@ -19,7 +19,7 @@ pub fn constant_fold_hir(path: &str) {
     let mut hir_stdout = io::Cursor::new(Vec::new());
     xic::api::interpret_hir(&hir, &mut hir_stdin, &mut hir_stdout).unwrap();
 
-    let hir_folded = xic::api::optimize::constant_fold_hir(hir);
+    let hir_folded = hir.map(xic::api::optimize::constant_fold_hir);
 
     let mut hir_folded_stdin = io::Cursor::new(Vec::new());
     let mut hir_folded_stdout = io::Cursor::new(Vec::new());
@@ -34,13 +34,13 @@ pub fn constant_fold_hir(path: &str) {
 #[test_generator::test_resources("tests/execute/*.xi")]
 pub fn constant_fold_lir(path: &str) {
     let hir = compile(path);
-    let lir = hir.map(xic::api::emit_lir);
+    let lir = hir.map_ref(xic::api::emit_lir);
 
     let mut lir_stdin = io::Cursor::new(Vec::new());
     let mut lir_stdout = io::Cursor::new(Vec::new());
     xic::api::interpret_lir(&lir, &mut lir_stdin, &mut lir_stdout).unwrap();
 
-    let lir_folded = xic::api::optimize::constant_fold_lir(lir);
+    let lir_folded = lir.map(xic::api::optimize::constant_fold_lir);
 
     let mut lir_folded_stdin = io::Cursor::new(Vec::new());
     let mut lir_folded_stdout = io::Cursor::new(Vec::new());

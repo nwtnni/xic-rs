@@ -136,19 +136,19 @@ fn main() -> anyhow::Result<()> {
         if command.optimize.as_ref().map_or(true, |optimizations| {
             optimizations.contains(&Optimization::ConstantFold)
         }) {
-            hir = xic::api::optimize::constant_fold_hir(hir);
+            hir = hir.map(xic::api::optimize::constant_fold_hir);
         }
 
         if command.debug_ir {
             write!(debug(&command.directory_debug, &path, "hir")?, "{}", hir,)?;
         }
 
-        let mut lir = hir.map(xic::api::emit_lir);
+        let mut lir = hir.map_ref(xic::api::emit_lir);
 
         if command.optimize.as_ref().map_or(true, |optimizations| {
             optimizations.contains(&Optimization::ConstantFold)
         }) {
-            lir = xic::api::optimize::constant_fold_lir(lir);
+            lir = lir.map(xic::api::optimize::constant_fold_lir);
         }
 
         let cfg = lir.map(xic::api::construct_cfg);
@@ -157,23 +157,17 @@ fn main() -> anyhow::Result<()> {
             write!(debug(&command.directory_debug, &path, "dot")?, "{}", cfg)?;
         }
 
-        let mut lir = cfg.map(xic::api::destruct_cfg);
-
-        if command.optimize.as_ref().map_or(true, |optimizations| {
-            optimizations.contains(&Optimization::ConstantFold)
-        }) {
-            lir = xic::api::optimize::constant_fold_lir(lir);
-        }
+        let lir = cfg.map(xic::api::destruct_cfg);
 
         if command.debug_ir {
-            write!(debug(&command.directory_debug, &path, "lir")?, "{}", lir,)?;
+            write!(debug(&command.directory_debug, &path, "lir")?, "{}", lir)?;
         }
 
         if command.interpret_ir {
             xic::api::interpret_lir(&lir, io::BufReader::new(io::stdin()), io::stdout())?;
         }
 
-        let abstract_assembly = lir.map(xic::api::tile);
+        let abstract_assembly = lir.map_ref(xic::api::tile);
 
         if command.debug_abstract_assembly {
             write!(
@@ -186,16 +180,19 @@ fn main() -> anyhow::Result<()> {
         let assembly = if command.optimize.as_ref().map_or(true, |optimizations| {
             optimizations.contains(&Optimization::RegisterAllocation)
         }) {
-            abstract_assembly.map(xic::api::allocate_linear)
+            abstract_assembly
+                .map(xic::api::construct_cfg)
+                .map(xic::api::allocate_linear)
         } else if command.optimize.as_ref().map_or(true, |optimizations| {
             optimizations.contains(&Optimization::DeadCodeElimination)
         }) {
             abstract_assembly
                 .map(xic::api::construct_cfg)
                 .map(xic::api::optimize::eliminate_dead_code)
-                .map(xic::api::allocate_trivial)
+                .map(xic::api::destruct_cfg)
+                .map_ref(xic::api::allocate_trivial)
         } else {
-            abstract_assembly.map(xic::api::allocate_trivial)
+            abstract_assembly.map_ref(xic::api::allocate_trivial)
         };
 
         write!(

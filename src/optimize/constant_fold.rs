@@ -7,20 +7,6 @@ pub trait Foldable {
     fn fold(self) -> Self;
 }
 
-impl<T: Foldable> Foldable for ir::Unit<T> {
-    fn fold(self) -> Self {
-        ir::Unit {
-            name: self.name,
-            data: self.data,
-            functions: self
-                .functions
-                .into_iter()
-                .map(|(name, function)| (name, function.fold()))
-                .collect(),
-        }
-    }
-}
-
 impl Foldable for hir::Function {
     fn fold(self) -> Self {
         hir::Function {

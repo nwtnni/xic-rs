@@ -57,14 +57,14 @@ macro_rules! live_variables {
         #[test]
         fn $function() {
             let function = assembly!($function $($tt)*);
-            let (live_variables, live_ranges) = live(&function);
+            let (live_variables, live_ranges) = live(function);
             insta::assert_display_snapshot!(live_variables);
             insta::assert_display_snapshot!(live_ranges);
         }
     }
 }
 
-fn live(function: &Function<Temporary>) -> (String, String) {
+fn live(function: Function<Temporary>) -> (String, String) {
     let cfg = xic::api::construct_cfg(function);
 
     let mut graph = process::Command::new("graph-easy")
@@ -85,7 +85,7 @@ fn live(function: &Function<Temporary>) -> (String, String) {
     if !live_variables.status.success() {
         panic!("Failed to generate diagram from .dot file");
     }
-    let live_ranges = xic::api::analyze::LiveRanges::new(&cfg);
+    let live_ranges = xic::api::analyze::LiveRanges::new(cfg);
 
     (
         String::from_utf8(live_variables.stdout).unwrap(),

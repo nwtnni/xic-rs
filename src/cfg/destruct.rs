@@ -1,5 +1,3 @@
-use std::collections::BTreeSet;
-
 use crate::cfg::Cfg;
 use crate::cfg::Edge;
 use crate::cfg::Function;
@@ -9,22 +7,22 @@ use crate::cfg::Function;
 /// assembly, so we can place the function prologue and epilogue accurately.
 ///
 /// Also guarantees that conditional jumps are immediately followed by their false branch.
-pub fn destruct_cfg<T: Function>(function: &Cfg<T>) -> T::Fallthrough {
+pub fn destruct_cfg<T: Function>(mut function: Cfg<T>) -> T::Fallthrough {
     let mut dfs = vec![function.enter];
     let mut statements = Vec::new();
-    let mut visited = BTreeSet::new();
 
     while let Some(label) = dfs.pop() {
-        if !visited.insert(label) {
-            continue;
-        }
-
         if label == function.exit {
             continue;
         }
 
+        let mut block = match function.blocks.remove(&label) {
+            None => continue,
+            Some(block) => block,
+        };
+
         statements.push(T::label(label));
-        statements.extend_from_slice(&function.blocks[&label]);
+        statements.append(&mut block);
 
         let mut conditional = [None; 2];
 
@@ -32,7 +30,9 @@ pub fn destruct_cfg<T: Function>(function: &Cfg<T>) -> T::Fallthrough {
             match edge {
                 Edge::Unconditional => dfs.push(next),
                 Edge::Conditional(true) => conditional[0] = Some(next),
-                Edge::Conditional(false) if !visited.contains(&next) => conditional[1] = Some(next),
+                Edge::Conditional(false) if function.blocks.contains_key(&next) => {
+                    conditional[1] = Some(next)
+                }
                 Edge::Conditional(false) => statements.push(T::jump(next)),
             }
         }
@@ -41,7 +41,7 @@ pub fn destruct_cfg<T: Function>(function: &Cfg<T>) -> T::Fallthrough {
     }
 
     statements.push(T::label(function.exit));
-    statements.extend_from_slice(&*function.blocks[&function.exit]);
+    statements.append(&mut function.blocks.remove(&function.exit).unwrap());
 
     T::new(
         function.name,
