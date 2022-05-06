@@ -86,8 +86,6 @@ fn allocate(
         .iter_mut()
         .for_each(|statement| rewrite_rbp(stack_size, statement));
 
-    let rsp = Register::rsp();
-
     assert!(matches!(
         allocator.statements.first(),
         Some(asm::Statement::Label(label)) if *label == function.enter,

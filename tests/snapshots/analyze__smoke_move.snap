@@ -1,0 +1,26 @@
+---
+source: tests/analyze.rs
+assertion_line: 99
+expression: live_variables
+---
+
+  smoke_move
+
++-------------+
+|   enter:    |
+| {rsp, _x}   |
+| mov rax, _x |
+| {rax, rsp}  |
+| jmp exit    |
+| {rax, rsp}  |
++-------------+
+  |
+  |
+  v
++-------------+
+|    exit:    |
+| {rax, rsp}  |
+| ret         |
+| {}          |
++-------------+
+

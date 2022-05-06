@@ -1,0 +1,11 @@
+---
+source: tests/analyze.rs
+assertion_line: 99
+expression: live_ranges
+---
+_x  rsp  enter:
+●   |    mov rax, _x
+rax |    jmp exit
+|   |    exit:
+●   ●    ret
+
