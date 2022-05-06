@@ -164,7 +164,17 @@ impl Allocator {
             asm::Statement::Jcc(condition, label) => asm::Statement::Jcc(*condition, *label),
         };
 
-        self.statements.push(statement);
+        match statement {
+            // Omit now-redundant moves
+            asm::Statement::Binary(
+                asm::Binary::Mov,
+                operand::Binary::RR {
+                    destination,
+                    source,
+                },
+            ) if destination == source => (),
+            statement => self.statements.push(statement),
+        }
     }
 
     fn allocate_binary(
