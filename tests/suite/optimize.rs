@@ -1,3 +1,6 @@
+use xic::api::analyze::analyze;
+use xic::api::analyze::LiveVariables;
+
 #[test_generator::test_resources("tests/execute/*.xi")]
 pub fn constant_fold_hir(path: &str) {
     let hir = super::emit_hir(path);
@@ -18,4 +21,22 @@ pub fn constant_fold_lir(path: &str) {
     let lir_folded_stdout = super::interpret_lir(&lir_folded);
 
     pretty_assertions::assert_eq!(lir_stdout, lir_folded_stdout);
+}
+
+#[test_generator::test_resources("tests/execute/*.xi")]
+pub fn eliminate_dead_code(path: &str) {
+    let abstract_assembly = super::tile(path);
+
+    let unoptimized = abstract_assembly.map_ref(xic::api::allocate_trivial);
+    let optimized = abstract_assembly
+        .map(xic::api::construct_cfg)
+        .map(|mut cfg| {
+            let live_variables = analyze::<LiveVariables<_>, _>(&cfg);
+            xic::api::optimize::eliminate_dead_code(&live_variables, &mut cfg);
+            cfg
+        })
+        .map(xic::api::destruct_cfg)
+        .map_ref(xic::api::allocate_trivial);
+
+    pretty_assertions::assert_eq!(super::execute(&unoptimized), super::execute(&optimized))
 }
