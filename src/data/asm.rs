@@ -174,9 +174,16 @@ macro_rules! asm {
     ((jmp $label:expr)) => {
         $crate::data::asm::Statement::Jmp($label)
     };
-    ((jcc $condition:expr, $label:expr)) => {
-        $crate::data::asm::Statement::Jcc($condition, $label)
-    };
+
+    ((jl $label:expr)) => { $crate::data::asm::Statement::Jcc($crate::data::asm::Condition::L, $label) };
+    ((jle $label:expr)) => { $crate::data::asm::Statement::Jcc($crate::data::asm::Condition::Le, $label) };
+    ((jge $label:expr)) => { $crate::data::asm::Statement::Jcc($crate::data::asm::Condition::Ge, $label) };
+    ((jg $label:expr)) => { $crate::data::asm::Statement::Jcc($crate::data::asm::Condition::G, $label) };
+    ((jne $label:expr)) => { $crate::data::asm::Statement::Jcc($crate::data::asm::Condition::Ne, $label) };
+    ((je $label:expr)) => { $crate::data::asm::Statement::Jcc($crate::data::asm::Condition::E, $label) };
+    ((jae $label:expr)) => { $crate::data::asm::Statement::Jcc($crate::data::asm::Condition::Ae, $label) };
+    ((jcc $condition:expr, $label:expr)) => { $crate::data::asm::Statement::Jcc($condition, $label) };
+
     ((nop)) => {
         $crate::data::asm::Statement::Nullary($crate::data::asm::Nullary::Nop)
     };
@@ -245,6 +252,23 @@ macro_rules! asm {
     ([$base:tt + $index:tt * $scale:tt + $offset:tt]) => {
         $crate::data::operand::Memory::from(($base, $index, $scale, $offset))
     };
+
+    (rax) => { $crate::data::operand::Register::Rax };
+    (rbx) => { $crate::data::operand::Register::Rbx };
+    (rcx) => { $crate::data::operand::Register::Rcx };
+    (rdx) => { $crate::data::operand::Register::Rdx };
+    (rbp) => { $crate::data::operand::Register::Rbp };
+    (rsp) => { $crate::data::operand::Register::rsp() };
+    (rsi) => { $crate::data::operand::Register::Rsi };
+    (rdi) => { $crate::data::operand::Register::Rdi };
+    (r8) => { $crate::data::operand::Register::R8 };
+    (r9) => { $crate::data::operand::Register::R9 };
+    (r10) => { $crate::data::operand::Register::R10 };
+    (r11) => { $crate::data::operand::Register::R11 };
+    (r12) => { $crate::data::operand::Register::R12 };
+    (r13) => { $crate::data::operand::Register::R13 };
+    (r14) => { $crate::data::operand::Register::R14 };
+    (r15) => { $crate::data::operand::Register::R15 };
 
     ($tt:tt) => {
         $tt
