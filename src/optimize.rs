@@ -1,4 +1,7 @@
 mod constant_fold;
+mod dead_code;
+
+pub use dead_code::eliminate as eliminate_dead_code;
 
 use crate::data::hir;
 use crate::data::lir;

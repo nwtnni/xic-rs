@@ -23,6 +23,7 @@ use crate::data::operand::Label;
 use crate::data::operand::Temporary;
 use crate::data::symbol::Symbol;
 
+#[derive(Clone)]
 pub struct Cfg<T: Function> {
     name: Symbol,
     metadata: T::Metadata,
@@ -72,6 +73,12 @@ impl<T: Function> Cfg<T> {
         self.blocks
             .iter()
             .map(|(label, statement)| (label, statement.as_slice()))
+    }
+
+    pub fn blocks_mut(&mut self) -> impl Iterator<Item = (&Label, &mut [T::Statement])> {
+        self.blocks
+            .iter_mut()
+            .map(|(label, statement)| (label, statement.as_mut_slice()))
     }
 
     pub fn edges(&self) -> impl Iterator<Item = (Label, Label, &Edge)> {

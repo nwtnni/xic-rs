@@ -30,6 +30,7 @@ pub mod api {
     pub use crate::lex::lex;
     pub use crate::optimize::constant_fold_hir;
     pub use crate::optimize::constant_fold_lir;
+    pub use crate::optimize::eliminate_dead_code;
     pub use crate::parse::parse;
 
     pub mod analyze {
