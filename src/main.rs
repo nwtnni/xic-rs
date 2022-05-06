@@ -136,7 +136,7 @@ fn main() -> anyhow::Result<()> {
         if command.optimize.as_ref().map_or(true, |optimizations| {
             optimizations.contains(&Optimization::ConstantFold)
         }) {
-            hir = xic::api::constant_fold_hir(hir);
+            hir = xic::api::optimize::constant_fold_hir(hir);
         }
 
         if command.debug_ir {
@@ -148,7 +148,7 @@ fn main() -> anyhow::Result<()> {
         if command.optimize.as_ref().map_or(true, |optimizations| {
             optimizations.contains(&Optimization::ConstantFold)
         }) {
-            lir = xic::api::constant_fold_lir(lir);
+            lir = xic::api::optimize::constant_fold_lir(lir);
         }
 
         let cfg = lir.map(xic::api::construct_cfg);
@@ -162,7 +162,7 @@ fn main() -> anyhow::Result<()> {
         if command.optimize.as_ref().map_or(true, |optimizations| {
             optimizations.contains(&Optimization::ConstantFold)
         }) {
-            lir = xic::api::constant_fold_lir(lir);
+            lir = xic::api::optimize::constant_fold_lir(lir);
         }
 
         if command.debug_ir {
@@ -192,7 +192,7 @@ fn main() -> anyhow::Result<()> {
         }) {
             abstract_assembly
                 .map(xic::api::construct_cfg)
-                .map(xic::api::eliminate_dead_code)
+                .map(xic::api::optimize::eliminate_dead_code)
                 .map(xic::api::allocate_trivial)
         } else {
             abstract_assembly.map(xic::api::allocate_trivial)
