@@ -1,0 +1,54 @@
+---
+source: tests/suite/analyze/live_variables.rs
+assertion_line: 279
+expression: live_variables
+---
+
+ call_cant_save_you_all_from_death
+
+        +-----------------+
+        |     enter:      |
+        | {rsp}           |
+        | mov _useless, 0 |
+        | {rsp}           |
+        | mov _x, 1       |
+        | {rsp, _x}       |
+        | mov _y, 2       |
+        | {rsp, _x, _y}   |
+        | add _x, _y      |
+        | {rsp, _x, _y}   |
+        | add _y, _x      |
+        | {rsp, _x, _y}   |
+        | add _useless, 5 |
+        | {rsp, _x, _y}   |
+        | mov rdi, _x     |
+        | {rsp, rdi, _y}  |
+        | mov rsi, _y     |
+        | {rsp, rsi, rdi} |
+        | call black_box  |
+        | {rsp}           |
+        | add _x, _y      |
+        | {rsp}           |
+        | add _y, _x      |
+        | {rsp}           |
+        | mov _y, rax     |
+        | {rsp}           |
+        | imul _x         |
+        | {rsp}           |
+        | mov _x, rax     |
+        | {rsp}           |
+        | neg _useless    |
+        | {rsp}           |
+        | jmp exit        |
+        | {rsp}           |
+        +-----------------+
+          |
+          |
+          v
+        +-----------------+
+        |      exit:      |
+        | {rsp}           |
+        | ret             |
+        | {}              |
+        +-----------------+
+

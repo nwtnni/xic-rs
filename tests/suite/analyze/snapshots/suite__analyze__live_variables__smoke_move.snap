@@ -1,0 +1,26 @@
+---
+source: tests/suite/analyze/live_variables.rs
+assertion_line: 33
+expression: live_variables
+---
+
+  smoke_move
+
++-------------+
+|   enter:    |
+| {rsp, _x}   |
+| mov rax, _x |
+| {rax, rsp}  |
+| jmp exit    |
+| {rax, rsp}  |
++-------------+
+  |
+  |
+  v
++-------------+
+|    exit:    |
+| {rax, rsp}  |
+| ret         |
+| {}          |
++-------------+
+

@@ -1,0 +1,34 @@
+---
+source: tests/suite/analyze/live_variables.rs
+assertion_line: 82
+expression: live_variables
+---
+
+clobber_across_hul
+
++-----------------+
+|     enter:      |
+| {rsp}           |
+| mov _x, 1       |
+| {rsp, _x}       |
+| mov _y, 2       |
+| {rsp, _x, _y}   |
+| mov rax, _x     |
+| {rax, rsp, _y}  |
+| imul 5          |
+| {rdx, rsp, _y}  |
+| mov rax, _y     |
+| {rax, rdx, rsp} |
+| jmp exit        |
+| {rax, rdx, rsp} |
++-----------------+
+  |
+  |
+  v
++-----------------+
+|      exit:      |
+| {rax, rdx, rsp} |
+| ret             |
+| {}              |
++-----------------+
+

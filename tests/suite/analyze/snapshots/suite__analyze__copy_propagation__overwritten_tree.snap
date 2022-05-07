@@ -1,0 +1,32 @@
+---
+source: tests/suite/analyze/copy_propagation.rs
+assertion_line: 34
+expression: copy_propagation
+---
+
+     overwritten_tree
+
++--------------------------+
+|          enter:          |
+| {}                       |
+| mov _a, _b               |
+| {_a: _b}                 |
+| mov _c, _a               |
+| {_a: _b, _c: _a}         |
+| mov _d, _a               |
+| {_a: _b, _c: _a, _d: _a} |
+| mov _b, 1                |
+| {}                       |
+| jmp exit                 |
+| {}                       |
++--------------------------+
+  |
+  |
+  v
++--------------------------+
+|          exit:           |
+| {}                       |
+| ret                      |
+| {}                       |
++--------------------------+
+

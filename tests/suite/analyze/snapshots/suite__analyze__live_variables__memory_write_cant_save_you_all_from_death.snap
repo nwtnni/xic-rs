@@ -1,0 +1,40 @@
+---
+source: tests/suite/analyze/live_variables.rs
+assertion_line: 318
+expression: live_variables
+---
+
+ memory_write_cant_save_you_all_from_death
+
+       +----------------------------+
+       |           enter:           |
+       | {rsp}                      |
+       | mov _x, 1                  |
+       | {rsp, _x}                  |
+       | mov _y, 2                  |
+       | {rsp, _x, _y}              |
+       | mov _useless, 0            |
+       | {rsp, _x, _y}              |
+       | add _useless, _x           |
+       | {rsp, _x, _y}              |
+       | mov qword ptr [_x + _y], 5 |
+       | {rsp}                      |
+       | add _x, 1                  |
+       | {rsp}                      |
+       | add _y, 1                  |
+       | {rsp}                      |
+       | add _useless, _y           |
+       | {rsp}                      |
+       | jmp exit                   |
+       | {rsp}                      |
+       +----------------------------+
+         |
+         |
+         v
+       +----------------------------+
+       |           exit:            |
+       | {rsp}                      |
+       | ret                        |
+       | {}                         |
+       +----------------------------+
+

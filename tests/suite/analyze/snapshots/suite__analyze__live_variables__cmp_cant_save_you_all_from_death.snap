@@ -1,0 +1,51 @@
+---
+source: tests/suite/analyze/live_variables.rs
+assertion_line: 300
+expression: live_variables
+---
+
+ cmp_cant_save_you_all_from_death
+
+     +-----------------+
+     |     enter:      |
+     | {rsp}           |
+     | mov _useless, 0 |
+     | {rsp}           |
+     | mov _x, 1       |
+     | {rsp, _x}       |
+     | add _useless, 5 |
+     | {rsp, _x}       |
+     | mov _y, 2       |
+     | {rsp, _x, _y}   |
+     | cmp _x, _y      |
+     | {rsp}           |
+     | add _x, 1       |
+     | {rsp}           |
+     | and _useless, 1 |
+     | {rsp}           |
+     | je exit         |
+     | {rsp}           | -+
+     +-----------------+  |
+       |                  |
+       |                  |
+       v                  |
+     +-----------------+  |
+     |  fallthrough:   |  |
+     | {rsp}           |  |
+     | or _useless, 1  |  |
+     | {rsp}           |  |
+     | add _y, 1       |  |
+     | {rsp}           |  |
+     | jmp exit        |  |
+     | {rsp}           |  |
+     +-----------------+  |
+       |                  |
+       |                  |
+       v                  |
+     +-----------------+  |
+     |      exit:      |  |
+     | {rsp}           |  |
+     | ret             |  |
+     | {}              | <+
+     +-----------------+
+

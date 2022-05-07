@@ -1,0 +1,34 @@
+---
+source: tests/suite/analyze/copy_propagation.rs
+assertion_line: 43
+expression: copy_propagation
+---
+
+    partially_overwritten_tree
+
++----------------------------------+
+|              enter:              |
+| {}                               |
+| mov _a, _b                       |
+| {_a: _b}                         |
+| mov _d, _a                       |
+| {_a: _b, _d: _a}                 |
+| mov _c, _b                       |
+| {_a: _b, _c: _b, _d: _a}         |
+| mov _e, _c                       |
+| {_a: _b, _c: _b, _d: _a, _e: _c} |
+| mov _a, 1                        |
+| {_c: _b, _e: _c}                 |
+| jmp exit                         |
+| {_c: _b, _e: _c}                 |
++----------------------------------+
+  |
+  |
+  v
++----------------------------------+
+|              exit:               |
+| {_c: _b, _e: _c}                 |
+| ret                              |
+| {_c: _b, _e: _c}                 |
++----------------------------------+
+

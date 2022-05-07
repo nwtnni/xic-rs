@@ -1,0 +1,25 @@
+---
+source: tests/suite/analyze/live_variables.rs
+assertion_line: 279
+expression: live_ranges
+---
+rsp          enter:
+┊              mov _useless, 0
+┊              mov _x, 1
+┊   _x         mov _y, 2
+┊   |   _y     add _x, _y
+┊   |   |      add _y, _x
+┊   |   |      add _useless, 5
+┊   ●   |      mov rdi, _x
+┊   rdi ●      mov rsi, _y
+┊   ●   rsi    call black_box
+┊              add _x, _y
+┊              add _y, _x
+┊              mov _y, rax
+┊              imul _x
+┊              mov _x, rax
+┊              neg _useless
+┊              jmp exit
+┊            exit:
+C              ret
+

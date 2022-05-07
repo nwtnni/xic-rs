@@ -1,0 +1,43 @@
+---
+source: tests/suite/analyze/live_variables.rs
+assertion_line: 238
+expression: live_variables
+---
+
+ everything_is_meaningless_except_cmp
+
+        +---------------+
+        |    enter:     |
+        | {rsp}         |
+        | mov _x, 1     |
+        | {rsp, _x}     |
+        | mov _y, 2     |
+        | {rsp, _x, _y} |
+        | cmp _x, _y    |
+        | {rsp}         |
+        | add _x, 1     |
+        | {rsp}         |
+        | je exit       |
+        | {rsp}         | -+
+        +---------------+  |
+          |                |
+          |                |
+          v                |
+        +---------------+  |
+        | fallthrough:  |  |
+        | {rsp}         |  |
+        | add _y, 1     |  |
+        | {rsp}         |  |
+        | jmp exit      |  |
+        | {rsp}         |  |
+        +---------------+  |
+          |                |
+          |                |
+          v                |
+        +---------------+  |
+        |     exit:     |  |
+        | {rsp}         |  |
+        | ret           |  |
+        | {}            | <+
+        +---------------+
+

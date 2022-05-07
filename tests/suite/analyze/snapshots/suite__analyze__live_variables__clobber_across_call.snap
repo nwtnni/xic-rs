@@ -1,0 +1,34 @@
+---
+source: tests/suite/analyze/live_variables.rs
+assertion_line: 50
+expression: live_variables
+---
+
+clobber_across_call
+
++-----------------+
+|     enter:      |
+| {rsp}           |
+| mov _x, 0       |
+| {rsp, _x}       |
+| mov _y, 1       |
+| {rsp, _x, _y}   |
+| call clobber    |
+| {rsp, _x, _y}   |
+| mov rax, _x     |
+| {rax, rsp, _y}  |
+| mov rdx, _y     |
+| {rax, rdx, rsp} |
+| jmp exit        |
+| {rax, rdx, rsp} |
++-----------------+
+  |
+  |
+  v
++-----------------+
+|      exit:      |
+| {rax, rdx, rsp} |
+| ret             |
+| {}              |
++-----------------+
+

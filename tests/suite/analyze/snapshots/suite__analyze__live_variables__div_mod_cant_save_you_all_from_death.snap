@@ -1,0 +1,48 @@
+---
+source: tests/suite/analyze/live_variables.rs
+assertion_line: 262
+expression: live_variables
+---
+
+ div_mod_cant_save_you_all_from_death
+
+          +-----------------+
+          |     enter:      |
+          | {rsp}           |
+          | mov _useless, 0 |
+          | {rsp}           |
+          | mov _x, 1       |
+          | {rsp, _x}       |
+          | mov _y, 2       |
+          | {rsp, _x, _y}   |
+          | add _y, _x      |
+          | {rsp, _y}       |
+          | mov rax, _y     |
+          | {rax, rsp}      |
+          | add _useless, 5 |
+          | {rax, rsp}      |
+          | cqo             |
+          | {rax, rdx, rsp} |
+          | idiv 2          |
+          | {rsp}           |
+          | mov _x, rax     |
+          | {rsp}           |
+          | add _x, 1       |
+          | {rsp}           |
+          | add _x, _y      |
+          | {rsp}           |
+          | add _useless, 5 |
+          | {rsp}           |
+          | jmp exit        |
+          | {rsp}           |
+          +-----------------+
+            |
+            |
+            v
+          +-----------------+
+          |      exit:      |
+          | {rsp}           |
+          | ret             |
+          | {}              |
+          +-----------------+
+
