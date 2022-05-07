@@ -33,12 +33,13 @@ pub fn eliminate(
                     Or::L(temporary) => Some(temporary),
                     Or::R(_) => None,
                 },
-                asm::Statement::Unary(asm::Unary::Mul | asm::Unary::Div, _) => {
+                asm::Statement::Unary(asm::Unary::Mul, _) => {
                     Some(Temporary::Register(Register::Rax))
                 }
-                asm::Statement::Unary(asm::Unary::Hul | asm::Unary::Mod, _) => {
+                asm::Statement::Unary(asm::Unary::Hul, _) => {
                     Some(Temporary::Register(Register::Rdx))
                 }
+                asm::Statement::Unary(asm::Unary::Div | asm::Unary::Mod, _) => None,
                 asm::Statement::Unary(asm::Unary::Neg | asm::Unary::Call { .. }, operand) => {
                     match operand {
                         operand::Unary::M(_) | operand::Unary::I(_) => None,
