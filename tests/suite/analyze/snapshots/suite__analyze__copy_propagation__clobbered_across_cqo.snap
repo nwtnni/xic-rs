@@ -1,0 +1,30 @@
+---
+source: tests/suite/analyze/copy_propagation.rs
+assertion_line: 91
+expression: copy_propagation
+---
+
+clobbered_across_cqo
+
++--------------------+
+|       enter:       |
+| {}                 |
+| mov rax, _a        |
+| {rax: _a}          |
+| mov rdx, _a        |
+| {rax: _a, rdx: _a} |
+| cqo                |
+| {}                 |
+| jmp exit           |
+| {}                 |
++--------------------+
+  |
+  |
+  v
++--------------------+
+|       exit:        |
+| {}                 |
+| ret                |
+| {}                 |
++--------------------+
+

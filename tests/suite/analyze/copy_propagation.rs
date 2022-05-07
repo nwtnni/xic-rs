@@ -41,6 +41,62 @@ copy_propagation! {
 }
 
 copy_propagation! {
+    clobbered_across_call: 0 -> 0;
+    temporaries: a;
+    labels: black_box;
+    (mov rax, a)
+    (mov rcx, a)
+    (mov rdx, a)
+    (mov rsi, a)
+    (mov rdi, a)
+    (mov r8, a)
+    (mov r9, a)
+    (mov r10, a)
+    (mov r11, a)
+    (call<0, 0> black_box)
+}
+
+copy_propagation! {
+    clobbered_across_mul: 0 -> 0;
+    temporaries: a;
+    (mov rax, a)
+    (mov rdx, a)
+    (imul 1)
+}
+
+copy_propagation! {
+    clobbered_across_hul: 0 -> 0;
+    temporaries: a;
+    (mov rax, a)
+    (mov rdx, a)
+    (ihul 1)
+}
+
+copy_propagation! {
+    clobbered_across_div: 0 -> 0;
+    temporaries: a;
+    (mov rax, a)
+    (mov rdx, a)
+    (idiv 1)
+}
+
+copy_propagation! {
+    clobbered_across_mod: 0 -> 0;
+    temporaries: a;
+    (mov rax, a)
+    (mov rdx, a)
+    (imod 1)
+}
+
+copy_propagation! {
+    clobbered_across_cqo: 0 -> 0;
+    temporaries: a;
+    (mov rax, a)
+    (mov rdx, a)
+    (cqo)
+}
+
+copy_propagation! {
     partially_overwritten_tree: 0 -> 0;
     temporaries: a, b, c, d, e;
     (mov a, b)
@@ -52,9 +108,10 @@ copy_propagation! {
 
 copy_propagation! {
     defined_twice_different: 0 -> 0;
-    temporaries: a, b, c;
+    temporaries: a, b, c, d;
     labels: exit, branch, fallthrough;
     (cmp a, b)
+    (mov d, a)
     (jne branch)
     (fallthrough:)
     (mov a, b)
@@ -66,9 +123,10 @@ copy_propagation! {
 
 copy_propagation! {
     defined_twice_identical: 0 -> 0;
-    temporaries: a, b;
+    temporaries: a, b, c;
     labels: exit, branch, fallthrough;
     (cmp a, b)
+    (mov c, a)
     (jne branch)
     (fallthrough:)
     (mov a, b)

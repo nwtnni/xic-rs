@@ -1,25 +1,27 @@
 ---
 source: tests/suite/analyze/copy_propagation.rs
-assertion_line: 67
+assertion_line: 68
 expression: copy_propagation
 ---
 
      defined_twice_identical
 
 +--------------+     +------------+
-| fallthrough: |     |   enter:   |
-| {}           |     | {}         |
-| mov _a, _b   |     | cmp _a, _b |
-| {_a: _b}     |     | {}         |
-| jmp exit     |     | jne branch |
-| {_a: _b}     | <-- | {}         |
+|              |     |   enter:   |
+| fallthrough: |     | {}         |
+| {_c: _a}     |     | cmp _a, _b |
+| mov _a, _b   |     | {}         |
+| {_a: _b}     |     | mov _c, _a |
+| jmp exit     |     | {_c: _a}   |
+| {_a: _b}     |     | jne branch |
+|              | <-- | {_c: _a}   |
 +--------------+     +------------+
   |                    |
   |                    |
   |                    v
   |                  +------------+
   |                  |  branch:   |
-  |                  | {}         |
+  |                  | {_c: _a}   |
   |                  | mov _a, _b |
   |                  | {_a: _b}   |
   |                  | jmp exit   |

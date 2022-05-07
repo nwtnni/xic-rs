@@ -1,0 +1,44 @@
+---
+source: tests/suite/analyze/copy_propagation.rs
+assertion_line: 43
+expression: copy_propagation
+---
+
+                              clobbered_across_call
+
++---------------------------------------------------------------------------------+
+|                                     enter:                                      |
+| {}                                                                              |
+| mov rax, _a                                                                     |
+| {rax: _a}                                                                       |
+| mov rcx, _a                                                                     |
+| {rax: _a, rcx: _a}                                                              |
+| mov rdx, _a                                                                     |
+| {rax: _a, rcx: _a, rdx: _a}                                                     |
+| mov rsi, _a                                                                     |
+| {rax: _a, rcx: _a, rdx: _a, rsi: _a}                                            |
+| mov rdi, _a                                                                     |
+| {rax: _a, rcx: _a, rdx: _a, rsi: _a, rdi: _a}                                   |
+| mov r8, _a                                                                      |
+| {rax: _a, rcx: _a, rdx: _a, rsi: _a, rdi: _a, r8: _a}                           |
+| mov r9, _a                                                                      |
+| {rax: _a, rcx: _a, rdx: _a, rsi: _a, rdi: _a, r8: _a, r9: _a}                   |
+| mov r10, _a                                                                     |
+| {rax: _a, rcx: _a, rdx: _a, rsi: _a, rdi: _a, r8: _a, r9: _a, r10: _a}          |
+| mov r11, _a                                                                     |
+| {rax: _a, rcx: _a, rdx: _a, rsi: _a, rdi: _a, r8: _a, r9: _a, r10: _a, r11: _a} |
+| call black_box                                                                  |
+| {}                                                                              |
+| jmp exit                                                                        |
+| {}                                                                              |
++---------------------------------------------------------------------------------+
+  |
+  |
+  v
++---------------------------------------------------------------------------------+
+|                                      exit:                                      |
+| {}                                                                              |
+| ret                                                                             |
+| {}                                                                              |
++---------------------------------------------------------------------------------+
+

@@ -1,0 +1,30 @@
+---
+source: tests/suite/analyze/copy_propagation.rs
+assertion_line: 59
+expression: copy_propagation
+---
+
+clobbered_across_mul
+
++--------------------+
+|       enter:       |
+| {}                 |
+| mov rax, _a        |
+| {rax: _a}          |
+| mov rdx, _a        |
+| {rax: _a, rdx: _a} |
+| imul 1             |
+| {}                 |
+| jmp exit           |
+| {}                 |
++--------------------+
+  |
+  |
+  v
++--------------------+
+|       exit:        |
+| {}                 |
+| ret                |
+| {}                 |
++--------------------+
+

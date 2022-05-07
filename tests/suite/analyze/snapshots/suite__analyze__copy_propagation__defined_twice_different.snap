@@ -7,19 +7,21 @@ expression: copy_propagation
      defined_twice_different
 
 +--------------+     +------------+
-| fallthrough: |     |   enter:   |
-| {}           |     | {}         |
-| mov _a, _b   |     | cmp _a, _b |
-| {_a: _b}     |     | {}         |
-| jmp exit     |     | jne branch |
-| {_a: _b}     | <-- | {}         |
+|              |     |   enter:   |
+| fallthrough: |     | {}         |
+| {_d: _a}     |     | cmp _a, _b |
+| mov _a, _b   |     | {}         |
+| {_a: _b}     |     | mov _d, _a |
+| jmp exit     |     | {_d: _a}   |
+| {_a: _b}     |     | jne branch |
+|              | <-- | {_d: _a}   |
 +--------------+     +------------+
   |                    |
   |                    |
   |                    v
   |                  +------------+
   |                  |  branch:   |
-  |                  | {}         |
+  |                  | {_d: _a}   |
   |                  | mov _a, _c |
   |                  | {_a: _c}   |
   |                  | jmp exit   |
