@@ -110,28 +110,28 @@ copy_propagation! {
     defined_twice_different: 0 -> 0;
     temporaries: a, b, c, d;
     labels: exit, branch, fallthrough;
-    (cmp a, b)
-    (mov d, a)
-    (jne branch)
+        (cmp a, b)
+        (mov d, a)
+        (jne branch)
     (fallthrough:)
-    (mov a, b)
-    (jmp exit)
+        (mov a, b)
+        (jmp exit)
     (branch:)
-    (mov a, c)
-    (jmp exit)
+        (mov a, c)
+        (jmp exit)
 }
 
 copy_propagation! {
     defined_twice_identical: 0 -> 0;
     temporaries: a, b, c;
     labels: exit, branch, fallthrough;
-    (cmp a, b)
-    (mov c, a)
-    (jne branch)
+        (cmp a, b)
+        (mov c, a)
+        (jne branch)
     (fallthrough:)
-    (mov a, b)
-    (jmp exit)
+        (mov a, b)
+        (jmp exit)
     (branch:)
-    (mov a, b)
-    (jmp exit)
+        (mov a, b)
+        (jmp exit)
 }

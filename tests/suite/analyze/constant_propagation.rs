@@ -133,52 +133,52 @@ constant_propagation! {
     defined_twice_different: 0 -> 0;
     temporaries: a;
     labels: exit, branch, fallthrough;
-    (jne branch)
+        (jne branch)
     (fallthrough:)
-    (mov a, 1)
-    (jmp exit)
+        (mov a, 1)
+        (jmp exit)
     (branch:)
-    (mov a, 2)
-    (jmp exit)
+        (mov a, 2)
+        (jmp exit)
 }
 
 constant_propagation! {
     defined_twice_identical: 0 -> 0;
     temporaries: a;
     labels: exit, branch, fallthrough;
-    (jne branch)
+        (jne branch)
     (fallthrough:)
-    (mov a, 1)
-    (jmp exit)
+        (mov a, 1)
+        (jmp exit)
     (branch:)
-    (mov a, 1)
-    (jmp exit)
+        (mov a, 1)
+        (jmp exit)
 }
 
 constant_propagation! {
     merge_many: 0 -> 0;
     temporaries: a, b, c, d, e;
     labels: exit, fallthrough, branch1, branch2, branch3, merge;
-    (mov a, 1)
-    (jne branch3)
+        (mov a, 1)
+        (jne branch3)
     (fallthrough:)
-    (mov b, 2)
-    (jne branch2)
+        (mov b, 2)
+        (jne branch2)
     (branch1:)
-    (mov c, 1)
-    (mov d, 3)
-    (add d, b)
-    (mov e, 4)
-    (jmp merge)
+        (mov c, 1)
+        (mov d, 3)
+        (add d, b)
+        (mov e, 4)
+        (jmp merge)
     (branch2:)
-    (mov c, 2)
-    (mov d, 7)
-    (sub d, b)
-    (jmp merge)
+        (mov c, 2)
+        (mov d, 7)
+        (sub d, b)
+        (jmp merge)
     (branch3:)
-    (mov c, 1)
-    (mov d, 5)
-    (jmp merge)
+        (mov c, 1)
+        (mov d, 5)
+        (jmp merge)
     (merge:)
-    (jmp exit)
+        (jmp exit)
 }

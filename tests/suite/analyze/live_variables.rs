@@ -239,14 +239,14 @@ live_variables! {
     everything_is_meaningless_except_cmp: 0 -> 0;
     temporaries: x, y;
     labels: exit, fallthrough;
-    (mov x, 1)
-    (mov y, 2)
-    (cmp x, y)
-    (add x, 1)
-    (je exit)
+        (mov x, 1)
+        (mov y, 2)
+        (cmp x, y)
+        (add x, 1)
+        (je exit)
     (fallthrough:)
-    (add y, 1)
-    (jmp exit)
+        (add y, 1)
+        (jmp exit)
 }
 
 live_variables! {
@@ -301,18 +301,18 @@ live_variables! {
     cmp_cant_save_you_all_from_death: 0 -> 0;
     temporaries: x, y, useless;
     labels: exit, fallthrough;
-    (mov useless, 0)
-    (mov x, 1)
-    (add useless, 5)
-    (mov y, 2)
-    (cmp x, y)
-    (add x, 1)
-    (and useless, 1)
-    (je exit)
+        (mov useless, 0)
+        (mov x, 1)
+        (add useless, 5)
+        (mov y, 2)
+        (cmp x, y)
+        (add x, 1)
+        (and useless, 1)
+        (je exit)
     (fallthrough:)
-    (or useless, 1)
-    (add y, 1)
-    (jmp exit)
+        (or useless, 1)
+        (add y, 1)
+        (jmp exit)
 }
 
 live_variables! {
