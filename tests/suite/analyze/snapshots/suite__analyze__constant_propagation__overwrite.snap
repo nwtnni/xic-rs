@@ -1,0 +1,28 @@
+---
+source: tests/suite/analyze/constant_propagation.rs
+assertion_line: 31
+expression: copy_propagation
+---
+
+ overwrite
+
++-----------+
+|  enter:   |
+| {}        |
+| mov _a, 0 |
+| {_a: 0}   |
+| mov _a, 1 |
+| {_a: 1}   |
+| jmp exit  |
+| {_a: 1}   |
++-----------+
+  |
+  |
+  v
++-----------+
+|   exit:   |
+| {_a: 1}   |
+| ret       |
+| {_a: 1}   |
++-----------+
+

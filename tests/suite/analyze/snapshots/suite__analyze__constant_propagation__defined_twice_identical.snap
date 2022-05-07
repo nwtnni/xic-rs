@@ -1,0 +1,37 @@
+---
+source: tests/suite/analyze/constant_propagation.rs
+assertion_line: 145
+expression: copy_propagation
+---
+
+     defined_twice_identical
+
++--------------+     +------------+
+| fallthrough: |     |            |
+| {}           |     |   enter:   |
+| mov _a, 1    |     | {}         |
+| {_a: 1}      |     | jne branch |
+| jmp exit     |     | {}         |
+| {_a: 1}      | <-- |            |
++--------------+     +------------+
+  |                    |
+  |                    |
+  |                    v
+  |                  +------------+
+  |                  |  branch:   |
+  |                  | {}         |
+  |                  | mov _a, 1  |
+  |                  | {_a: 1}    |
+  |                  | jmp exit   |
+  |                  | {_a: 1}    |
+  |                  +------------+
+  |                    |
+  |                    |
+  |                    v
+  |                  +------------+
+  |                  |   exit:    |
+  |                  | {_a: 1}    |
+  |                  | ret        |
+  +----------------> | {_a: 1}    |
+                     +------------+
+

@@ -54,5 +54,8 @@ macro_rules! assembly {
 #[path = "analyze/live_variables.rs"]
 mod live_variables;
 
+#[path = "analyze/constant_propagation.rs"]
+mod constant_propagation;
+
 #[path = "analyze/copy_propagation.rs"]
 mod copy_propagation;

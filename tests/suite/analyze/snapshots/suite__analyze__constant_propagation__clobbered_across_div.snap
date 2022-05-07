@@ -1,0 +1,30 @@
+---
+source: tests/suite/analyze/constant_propagation.rs
+assertion_line: 109
+expression: copy_propagation
+---
+
+clobbered_across_div
+
++------------------+
+|      enter:      |
+| {}               |
+| mov rax, 1       |
+| {rax: 1}         |
+| mov rdx, 2       |
+| {rax: 1, rdx: 2} |
+| idiv _a          |
+| {}               |
+| jmp exit         |
+| {}               |
++------------------+
+  |
+  |
+  v
++------------------+
+|      exit:       |
+| {}               |
+| ret              |
+| {}               |
++------------------+
+

@@ -1,0 +1,30 @@
+---
+source: tests/suite/analyze/constant_propagation.rs
+assertion_line: 38
+expression: copy_propagation
+---
+
+       propagate
+
++-----------------------+
+|        enter:         |
+| {}                    |
+| mov _a, 0             |
+| {_a: 0}               |
+| mov _b, _a            |
+| {_a: 0, _b: 0}        |
+| mov _c, _b            |
+| {_a: 0, _b: 0, _c: 0} |
+| jmp exit              |
+| {_a: 0, _b: 0, _c: 0} |
++-----------------------+
+  |
+  |
+  v
++-----------------------+
+|         exit:         |
+| {_a: 0, _b: 0, _c: 0} |
+| ret                   |
+| {_a: 0, _b: 0, _c: 0} |
++-----------------------+
+

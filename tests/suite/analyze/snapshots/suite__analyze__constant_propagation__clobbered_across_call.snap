@@ -1,0 +1,44 @@
+---
+source: tests/suite/analyze/constant_propagation.rs
+assertion_line: 78
+expression: copy_propagation
+---
+
+                          clobbered_across_call
+
++------------------------------------------------------------------------+
+|                                 enter:                                 |
+| {}                                                                     |
+| mov rax, 0                                                             |
+| {rax: 0}                                                               |
+| mov rcx, 0                                                             |
+| {rax: 0, rcx: 0}                                                       |
+| mov rdx, 0                                                             |
+| {rax: 0, rcx: 0, rdx: 0}                                               |
+| mov rsi, 0                                                             |
+| {rax: 0, rcx: 0, rdx: 0, rsi: 0}                                       |
+| mov rdi, 0                                                             |
+| {rax: 0, rcx: 0, rdx: 0, rsi: 0, rdi: 0}                               |
+| mov r8, 0                                                              |
+| {rax: 0, rcx: 0, rdx: 0, rsi: 0, rdi: 0, r8: 0}                        |
+| mov r9, 0                                                              |
+| {rax: 0, rcx: 0, rdx: 0, rsi: 0, rdi: 0, r8: 0, r9: 0}                 |
+| mov r10, 0                                                             |
+| {rax: 0, rcx: 0, rdx: 0, rsi: 0, rdi: 0, r8: 0, r9: 0, r10: 0}         |
+| mov r11, 0                                                             |
+| {rax: 0, rcx: 0, rdx: 0, rsi: 0, rdi: 0, r8: 0, r9: 0, r10: 0, r11: 0} |
+| call black_box                                                         |
+| {}                                                                     |
+| jmp exit                                                               |
+| {}                                                                     |
++------------------------------------------------------------------------+
+  |
+  |
+  v
++------------------------------------------------------------------------+
+|                                 exit:                                  |
+| {}                                                                     |
+| ret                                                                    |
+| {}                                                                     |
++------------------------------------------------------------------------+
+

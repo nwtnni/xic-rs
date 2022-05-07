@@ -1,0 +1,28 @@
+---
+source: tests/suite/analyze/constant_propagation.rs
+assertion_line: 54
+expression: copy_propagation
+---
+
+propagate_sub
+
++-----------+
+|  enter:   |
+| {}        |
+| mov _a, 5 |
+| {_a: 5}   |
+| sub _a, 2 |
+| {_a: 3}   |
+| jmp exit  |
+| {_a: 3}   |
++-----------+
+  |
+  |
+  v
++-----------+
+|   exit:   |
+| {_a: 3}   |
+| ret       |
+| {_a: 3}   |
++-----------+
+

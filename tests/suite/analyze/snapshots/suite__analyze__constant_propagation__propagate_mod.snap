@@ -1,0 +1,32 @@
+---
+source: tests/suite/analyze/constant_propagation.rs
+assertion_line: 69
+expression: copy_propagation
+---
+
+      propagate_mod
+
++-------------------------+
+|         enter:          |
+| {}                      |
+| mov _a, 5               |
+| {_a: 5}                 |
+| mov rax, 3              |
+| {rax: 3, _a: 5}         |
+| cqo                     |
+| {rax: 3, rdx: 0, _a: 5} |
+| idiv _a                 |
+| {rax: 0, rdx: 3, _a: 5} |
+| jmp exit                |
+| {rax: 0, rdx: 3, _a: 5} |
++-------------------------+
+  |
+  |
+  v
++-------------------------+
+|          exit:          |
+| {rax: 0, rdx: 3, _a: 5} |
+| ret                     |
+| {rax: 0, rdx: 3, _a: 5} |
++-------------------------+
+

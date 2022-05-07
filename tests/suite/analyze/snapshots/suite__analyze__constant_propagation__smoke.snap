@@ -1,0 +1,26 @@
+---
+source: tests/suite/analyze/constant_propagation.rs
+assertion_line: 25
+expression: copy_propagation
+---
+
+   smoke
+
++-----------+
+|  enter:   |
+| {}        |
+| mov _a, 0 |
+| {_a: 0}   |
+| jmp exit  |
+| {_a: 0}   |
++-----------+
+  |
+  |
+  v
++-----------+
+|   exit:   |
+| {_a: 0}   |
+| ret       |
+| {_a: 0}   |
++-----------+
+
