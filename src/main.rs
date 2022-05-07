@@ -149,6 +149,7 @@ struct Command {
         value_name = "OPTIMIZATION",
         possible_values = [
             DebugOpt::Initial.to_static_str(),
+            Opt::ConstantPropagation.to_static_str(),
             Opt::CopyPropagation.to_static_str(),
             Opt::DeadCodeElimination.to_static_str(),
             Opt::RegisterAllocation.to_static_str(),
@@ -296,6 +297,7 @@ impl str::FromStr for DebugOpt {
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
 enum Opt {
     ConstantFold,
+    ConstantPropagation,
     CopyPropagation,
     DeadCodeElimination,
     RegisterAllocation,
@@ -304,8 +306,9 @@ enum Opt {
 // Need something like https://doc.rust-lang.org/std/mem/fn.variant_count.html
 // to make sure array matches up with enum definition. Procedural macro options
 // seem too heavyweight for something like this.
-const OPTIMIZATIONS: [&str; 4] = [
+const OPTIMIZATIONS: [&str; 5] = [
     Opt::ConstantFold.to_static_str(),
+    Opt::ConstantPropagation.to_static_str(),
     Opt::CopyPropagation.to_static_str(),
     Opt::DeadCodeElimination.to_static_str(),
     Opt::RegisterAllocation.to_static_str(),
@@ -315,6 +318,7 @@ impl Opt {
     const fn to_static_str(self) -> &'static str {
         match self {
             Opt::ConstantFold => "cf",
+            Opt::ConstantPropagation => "cp",
             Opt::CopyPropagation => "copy",
             Opt::DeadCodeElimination => "dce",
             Opt::RegisterAllocation => "reg",
@@ -327,6 +331,7 @@ impl str::FromStr for Opt {
     fn from_str(string: &str) -> Result<Self, Self::Err> {
         match string {
             "cf" => Ok(Opt::ConstantFold),
+            "cp" => Ok(Opt::ConstantPropagation),
             "copy" => Ok(Opt::CopyPropagation),
             "dce" => Ok(Opt::DeadCodeElimination),
             "reg" => Ok(Opt::RegisterAllocation),
@@ -422,6 +427,11 @@ fn main() -> anyhow::Result<()> {
         let mut cfg = abstract_assembly.map(api::construct_cfg);
 
         command.debug_optimize_assembly(&path, DebugOpt::Initial, &cfg)?;
+
+        if command.optimize(Opt::ConstantPropagation) {
+            cfg.map_mut(optimize::constant_propagate);
+            command.debug_optimize_assembly(&path, Opt::ConstantPropagation, &cfg)?;
+        }
 
         if command.optimize(Opt::CopyPropagation) {
             cfg.map_mut(optimize::copy_propagate);
