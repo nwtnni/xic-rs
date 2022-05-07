@@ -20,6 +20,7 @@ pub mod api {
     pub use crate::allocate::allocate_linear;
     pub use crate::allocate::allocate_trivial;
     pub use crate::assemble::tile;
+    pub use crate::cfg::clean_cfg;
     pub use crate::cfg::construct_cfg;
     pub use crate::cfg::destruct_cfg;
     pub use crate::check::check;

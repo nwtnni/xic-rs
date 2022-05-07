@@ -1,7 +1,9 @@
+mod clean;
 mod construct;
 mod destruct;
 mod dot;
 
+pub use clean::clean_cfg;
 pub use construct::construct_cfg;
 pub use destruct::destruct_cfg;
 pub(crate) use dot::Dot;
@@ -99,6 +101,24 @@ impl<T: Function> Cfg<T> {
     pub fn get(&self, label: &Label) -> Option<&[T::Statement]> {
         self.blocks.get(label).map(|block| block.as_slice())
     }
+
+    fn get_mut(&mut self, label: &Label) -> Option<&mut Vec<T::Statement>> {
+        self.blocks.get_mut(label)
+    }
+
+    fn get_terminator(&mut self, label: &Label) -> Option<Terminator> {
+        self.blocks
+            .get(label)
+            .and_then(|block| block.last())
+            .and_then(T::to_terminator)
+    }
+
+    fn get_terminator_mut(&mut self, label: &Label) -> Option<TerminatorMut> {
+        self.blocks
+            .get_mut(label)
+            .and_then(|block| block.last_mut())
+            .and_then(T::to_terminator_mut)
+    }
 }
 
 impl<T: Function> Cfg<T>
@@ -170,6 +190,7 @@ pub trait Function {
     fn jump(label: Label) -> Self::Statement;
     fn label(label: Label) -> Self::Statement;
     fn to_terminator(statement: &Self::Statement) -> Option<Terminator>;
+    fn to_terminator_mut(statement: &mut Self::Statement) -> Option<TerminatorMut>;
 }
 
 pub enum Terminator {
@@ -180,6 +201,14 @@ pub enum Terminator {
         r#false: Option<Label>,
     },
     Return,
+}
+
+pub enum TerminatorMut<'a> {
+    Jump(&'a mut Label),
+    CJump {
+        r#true: &'a mut Label,
+        r#false: Option<&'a mut Label>,
+    },
 }
 
 impl<T: lir::Target> Function for lir::Function<T> {
@@ -284,6 +313,23 @@ impl<T: lir::Target> Function for lir::Function<T> {
             lir::Statement::Return(_) => Some(Terminator::Return),
         }
     }
+
+    fn to_terminator_mut(statement: &mut Self::Statement) -> Option<TerminatorMut> {
+        match statement {
+            lir::Statement::Jump(label) => Some(TerminatorMut::Jump(label)),
+            lir::Statement::CJump {
+                condition: _,
+                left: _,
+                right: _,
+                r#true,
+                r#false,
+            } => Some(TerminatorMut::CJump {
+                r#true,
+                r#false: r#false.target_mut(),
+            }),
+            _ => None,
+        }
+    }
 }
 
 impl Function for asm::Function<Temporary> {
@@ -353,6 +399,17 @@ impl Function for asm::Function<Temporary> {
                 r#true: *label,
                 r#false: None,
             }),
+        }
+    }
+
+    fn to_terminator_mut(statement: &mut Self::Statement) -> Option<TerminatorMut> {
+        match statement {
+            asm::Statement::Jmp(label) => Some(TerminatorMut::Jump(label)),
+            asm::Statement::Jcc(_, label) => Some(TerminatorMut::CJump {
+                r#true: label,
+                r#false: None,
+            }),
+            _ => None,
         }
     }
 }

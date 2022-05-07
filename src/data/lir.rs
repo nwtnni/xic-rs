@@ -124,6 +124,7 @@ pub struct Label(pub(crate) operand::Label);
 pub trait Target: sexp::Serialize + Copy + Clone + Eq + fmt::Debug {
     type Access;
     fn target(&self) -> Option<&operand::Label>;
+    fn target_mut(&mut self) -> Option<&mut operand::Label>;
     fn access(access: &Self::Access) -> Option<&operand::Label>;
 }
 
@@ -131,6 +132,10 @@ impl Target for Fallthrough {
     type Access = operand::Label;
 
     fn target(&self) -> Option<&operand::Label> {
+        None
+    }
+
+    fn target_mut(&mut self) -> Option<&mut operand::Label> {
         None
     }
 
@@ -144,6 +149,10 @@ impl Target for Label {
 
     fn target(&self) -> Option<&operand::Label> {
         Some(&self.0)
+    }
+
+    fn target_mut(&mut self) -> Option<&mut operand::Label> {
+        Some(&mut self.0)
     }
 
     fn access((): &Self::Access) -> Option<&operand::Label> {
