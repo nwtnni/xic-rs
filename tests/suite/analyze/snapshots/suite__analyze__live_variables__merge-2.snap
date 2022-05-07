@@ -1,0 +1,18 @@
+---
+source: tests/suite/analyze/live_variables.rs
+assertion_line: 331
+expression: live_ranges
+---
+_b  _a  rsp  enter:
+|   |   |      jne branch
+|   |   |    fallthrough:
+|   |   |      mov _d, _c
+●   |   |      mov rax, _b
+rax |   |      jmp exit
+|   |   |    branch:
+|   |   |      mov _c, _d
+|   ●   |      mov rax, _a
+|       |      jmp exit
+|       |    exit:
+●       ●      ret
+

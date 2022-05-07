@@ -1,0 +1,41 @@
+---
+source: tests/suite/analyze/live_variables.rs
+assertion_line: 331
+expression: live_variables
+---
+
+                merge
+
++--------------+     +---------------+
+| fallthrough: |     |               |
+| {rsp, _b}    |     |               |
+| mov _d, _c   |     |    enter:     |
+| {rsp, _b}    |     | {rsp, _a, _b} |
+| mov rax, _b  |     | jne branch    |
+| {rax, rsp}   |     | {rsp, _a, _b} |
+| jmp exit     |     |               |
+| {rax, rsp}   | <-- |               |
++--------------+     +---------------+
+  |                    |
+  |                    |
+  |                    v
+  |                  +---------------+
+  |                  |    branch:    |
+  |                  | {rsp, _a}     |
+  |                  | mov _c, _d    |
+  |                  | {rsp, _a}     |
+  |                  | mov rax, _a   |
+  |                  | {rax, rsp}    |
+  |                  | jmp exit      |
+  |                  | {rax, rsp}    |
+  |                  +---------------+
+  |                    |
+  |                    |
+  |                    v
+  |                  +---------------+
+  |                  |     exit:     |
+  |                  | {rax, rsp}    |
+  |                  | ret           |
+  +----------------> | {}            |
+                     +---------------+
+

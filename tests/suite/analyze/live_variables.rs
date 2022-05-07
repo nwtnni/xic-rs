@@ -327,3 +327,18 @@ live_variables! {
     (add y, 1)
     (add useless, y)
 }
+
+live_variables! {
+    merge: 0 -> 1;
+    temporaries: a, b, c, d;
+    labels: exit, branch, fallthrough;
+        (jne branch)
+    (fallthrough:)
+        (mov d, c)
+        (mov rax, b)
+        (jmp exit)
+    (branch:)
+        (mov c, d)
+        (mov rax, a)
+        (jmp exit)
+}
