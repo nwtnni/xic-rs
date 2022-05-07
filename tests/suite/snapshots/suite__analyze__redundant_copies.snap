@@ -1,0 +1,32 @@
+---
+source: tests/suite/analyze.rs
+assertion_line: 395
+expression: copy_propagation
+---
+
+         redundant_copies
+
++----------------------------------+
+|              enter:              |
+| {}                               |
+| mov _b, _a                       |
+| {_b: _a}                         |
+| mov _c, _b                       |
+| {_b: _a, _c: _b}                 |
+| mov _d, _c                       |
+| {_b: _a, _c: _b, _d: _c}         |
+| mov _e, _d                       |
+| {_b: _a, _c: _b, _d: _c, _e: _d} |
+| jmp exit                         |
+| {_b: _a, _c: _b, _d: _c, _e: _d} |
++----------------------------------+
+  |
+  |
+  v
++----------------------------------+
+|              exit:               |
+| {_b: _a, _c: _b, _d: _c, _e: _d} |
+| ret                              |
+| {_b: _a, _c: _b, _d: _c, _e: _d} |
++----------------------------------+
+

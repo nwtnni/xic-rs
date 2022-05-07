@@ -1,0 +1,37 @@
+---
+source: tests/suite/analyze.rs
+assertion_line: 423
+expression: copy_propagation
+---
+
+     defined_twice_different
+
++--------------+     +------------+
+| fallthrough: |     |   enter:   |
+| {}           |     | {}         |
+| mov _a, _b   |     | cmp _a, _b |
+| {_a: _b}     |     | {}         |
+| jmp exit     |     | jne branch |
+| {_a: _b}     | <-- | {}         |
++--------------+     +------------+
+  |                    |
+  |                    |
+  |                    v
+  |                  +------------+
+  |                  |  branch:   |
+  |                  | {}         |
+  |                  | mov _a, _c |
+  |                  | {_a: _c}   |
+  |                  | jmp exit   |
+  |                  | {_a: _c}   |
+  |                  +------------+
+  |                    |
+  |                    |
+  |                    v
+  |                  +------------+
+  |                  |   exit:    |
+  |                  | {}         |
+  |                  | ret        |
+  +----------------> | {}         |
+                     +------------+
+
