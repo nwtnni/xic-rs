@@ -40,3 +40,20 @@ pub fn eliminate_dead_code(path: &str) {
 
     pretty_assertions::assert_eq!(super::execute(&unoptimized), super::execute(&optimized))
 }
+
+#[test_generator::test_resources("tests/execute/*.xi")]
+pub fn copy_propagate(path: &str) {
+    let abstract_assembly = super::tile(path);
+
+    let unoptimized = abstract_assembly.map_ref(xic::api::allocate_trivial);
+    let optimized = abstract_assembly
+        .map(xic::api::construct_cfg)
+        .map(|mut cfg| {
+            xic::api::optimize::copy_propagate(&mut cfg);
+            cfg
+        })
+        .map(xic::api::destruct_cfg)
+        .map_ref(xic::api::allocate_trivial);
+
+    pretty_assertions::assert_eq!(super::execute(&unoptimized), super::execute(&optimized))
+}
