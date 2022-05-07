@@ -172,6 +172,8 @@ impl Allocator {
                     source,
                 },
             ) if destination == source => (),
+            // Omit nops
+            asm::Statement::Nullary(asm::Nullary::Nop) => (),
             statement => self.statements.push(statement),
         }
     }
