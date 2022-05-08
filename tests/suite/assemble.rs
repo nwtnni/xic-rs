@@ -20,13 +20,27 @@ pub fn tile(path: &str) {
 pub fn reorder(path: &str) {
     let abstract_assembly = super::tile(path);
 
-    let before = abstract_assembly.map_ref(xic::api::allocate_trivial);
-    let after = abstract_assembly
-        .map(xic::api::construct_cfg)
+    let control = abstract_assembly.map_ref(xic::api::allocate_trivial);
+    let control_stdout = super::execute(&control);
+
+    let mut cfg = abstract_assembly.map(xic::api::construct_cfg);
+
+    let reordered = cfg
+        .clone()
         .map(xic::api::destruct_cfg)
         .map_ref(xic::api::allocate_trivial);
+    let reordered_stdout = super::execute(&reordered);
 
-    pretty_assertions::assert_eq!(super::execute(&before), super::execute(&after));
+    pretty_assertions::assert_eq!(control_stdout, reordered_stdout);
+
+    cfg.map_mut(xic::api::clean_cfg);
+
+    let cleaned = cfg
+        .map(xic::api::destruct_cfg)
+        .map_ref(xic::api::allocate_trivial);
+    let cleaned_stdout = super::execute(&cleaned);
+
+    pretty_assertions::assert_eq!(reordered_stdout, cleaned_stdout);
 }
 
 #[test_generator::test_resources("tests/execute/*.xi")]
