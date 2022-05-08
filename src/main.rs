@@ -121,6 +121,7 @@ struct Command {
         value_name = "OPTIMIZATION",
         possible_values = [
             DebugOpt::Initial.to_static_str(),
+            Opt::CleanCfg.to_static_str(),
             DebugOpt::Final.to_static_str(),
         ],
         display_order = 10,
@@ -149,6 +150,7 @@ struct Command {
         value_name = "OPTIMIZATION",
         possible_values = [
             DebugOpt::Initial.to_static_str(),
+            Opt::CleanCfg.to_static_str(),
             Opt::ConstantPropagation.to_static_str(),
             Opt::CopyPropagation.to_static_str(),
             Opt::DeadCodeElimination.to_static_str(),
@@ -297,6 +299,7 @@ impl str::FromStr for DebugOpt {
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
 enum Opt {
     ConstantFold,
+    CleanCfg,
     ConstantPropagation,
     CopyPropagation,
     DeadCodeElimination,
@@ -306,8 +309,9 @@ enum Opt {
 // Need something like https://doc.rust-lang.org/std/mem/fn.variant_count.html
 // to make sure array matches up with enum definition. Procedural macro options
 // seem too heavyweight for something like this.
-const OPTIMIZATIONS: [&str; 5] = [
+const OPTIMIZATIONS: [&str; 6] = [
     Opt::ConstantFold.to_static_str(),
+    Opt::CleanCfg.to_static_str(),
     Opt::ConstantPropagation.to_static_str(),
     Opt::CopyPropagation.to_static_str(),
     Opt::DeadCodeElimination.to_static_str(),
@@ -318,6 +322,7 @@ impl Opt {
     const fn to_static_str(self) -> &'static str {
         match self {
             Opt::ConstantFold => "cf",
+            Opt::CleanCfg => "clean",
             Opt::ConstantPropagation => "cp",
             Opt::CopyPropagation => "copy",
             Opt::DeadCodeElimination => "dce",
@@ -331,6 +336,7 @@ impl str::FromStr for Opt {
     fn from_str(string: &str) -> Result<Self, Self::Err> {
         match string {
             "cf" => Ok(Opt::ConstantFold),
+            "clean" => Ok(Opt::CleanCfg),
             "cp" => Ok(Opt::ConstantPropagation),
             "copy" => Ok(Opt::CopyPropagation),
             "dce" => Ok(Opt::DeadCodeElimination),
@@ -403,9 +409,15 @@ fn main() -> anyhow::Result<()> {
             lir = lir.map(optimize::constant_fold);
         }
 
-        let cfg = lir.map(api::construct_cfg);
+        let mut cfg = lir.map(api::construct_cfg);
 
         command.debug_optimize_lir(&path, DebugOpt::Initial, &cfg)?;
+
+        if command.optimize(Opt::CleanCfg) {
+            cfg.map_mut(api::clean_cfg);
+            command.debug_optimize_lir(&path, DebugOpt::Opt(Opt::CleanCfg), &cfg)?;
+        }
+
         command.debug_optimize_lir(&path, DebugOpt::Final, &cfg)?;
 
         let lir = cfg.map(api::destruct_cfg);
@@ -427,6 +439,11 @@ fn main() -> anyhow::Result<()> {
         let mut cfg = abstract_assembly.map(api::construct_cfg);
 
         command.debug_optimize_assembly(&path, DebugOpt::Initial, &cfg)?;
+
+        if command.optimize(Opt::CleanCfg) {
+            cfg.map_mut(api::clean_cfg);
+            command.debug_optimize_assembly(&path, DebugOpt::Opt(Opt::CleanCfg), &cfg)?;
+        }
 
         if command.optimize(Opt::ConstantPropagation) {
             cfg.map_mut(optimize::constant_propagate);
