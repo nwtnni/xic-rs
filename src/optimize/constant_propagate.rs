@@ -1,3 +1,5 @@
+use std::borrow::Cow;
+
 use crate::analyze::analyze;
 use crate::analyze::Analysis as _;
 use crate::analyze::ConstantPropagation;
@@ -5,7 +7,6 @@ use crate::cfg::Cfg;
 use crate::data::asm;
 use crate::data::asm::Statement;
 use crate::data::operand;
-use crate::data::operand::Immediate;
 use crate::data::operand::Temporary;
 
 pub fn propagate(cfg: &mut Cfg<asm::Function<Temporary>>) {
@@ -19,14 +20,12 @@ pub fn propagate(cfg: &mut Cfg<asm::Function<Temporary>>) {
             use asm::Nullary::*;
             use asm::Unary::*;
 
-            let save = statement.clone();
-
-            match statement {
+            let statement = match statement {
                 Statement::Binary(
                     binary @ (Cmp | Mov | Lea | Add | Sub | Shl | And | Or | Xor),
                     operands,
                 ) => {
-                    let replace = match operands {
+                    let propagate = match operands {
                         operand::Binary::RI { .. }
                         | operand::Binary::MI { .. }
                         | operand::Binary::RM { .. } => None,
@@ -34,10 +33,8 @@ pub fn propagate(cfg: &mut Cfg<asm::Function<Temporary>>) {
                             destination,
                             source,
                         } => output.get(source).and_then(|immediate| {
-                            if let Immediate::Integer(integer) = immediate {
-                                if i32::try_from(*integer).is_err() && *binary != Mov {
-                                    return None;
-                                }
+                            if immediate.is_64_bit() && *binary != Mov {
+                                return None;
                             }
 
                             Some(operand::Binary::MI {
@@ -49,10 +46,8 @@ pub fn propagate(cfg: &mut Cfg<asm::Function<Temporary>>) {
                             destination,
                             source,
                         } => output.get(source).and_then(|immediate| {
-                            if let Immediate::Integer(integer) = immediate {
-                                if i32::try_from(*integer).is_err() && *binary != Mov {
-                                    return None;
-                                }
+                            if immediate.is_64_bit() && *binary != Mov {
+                                return None;
                             }
 
                             Some(operand::Binary::RI {
@@ -62,18 +57,23 @@ pub fn propagate(cfg: &mut Cfg<asm::Function<Temporary>>) {
                         }),
                     };
 
-                    if let Some(replace) = replace {
-                        *operands = replace;
+                    match propagate {
+                        None => Cow::Borrowed(statement),
+                        Some(propagate) => {
+                            let owned = Statement::Binary(*binary, *operands);
+                            *operands = propagate;
+                            Cow::Owned(owned)
+                        }
                     }
                 }
                 Statement::Unary(Neg | Mul | Hul | Div | Mod | Call { .. }, _)
                 | Statement::Nullary(Nop | Cqo | Ret(_))
                 | Statement::Label(_)
                 | Statement::Jmp(_)
-                | Statement::Jcc(_, _) => (),
+                | Statement::Jcc(_, _) => Cow::Borrowed(statement),
             };
 
-            solution.analysis.transfer(&save, &mut output);
+            solution.analysis.transfer(&statement, &mut output);
         }
     }
 }

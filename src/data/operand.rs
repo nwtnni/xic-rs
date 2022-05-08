@@ -18,6 +18,15 @@ pub enum Immediate {
     Label(Label),
 }
 
+impl Immediate {
+    pub fn is_64_bit(&self) -> bool {
+        match self {
+            Immediate::Integer(integer) => i32::try_from(*integer).is_err(),
+            Immediate::Label(_) => false,
+        }
+    }
+}
+
 impl fmt::Display for Immediate {
     fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
         match self {

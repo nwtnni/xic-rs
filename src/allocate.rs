@@ -141,13 +141,13 @@ impl Allocator {
                 asm::Binary::Mov,
                 operand::Binary::RI {
                     destination,
-                    source: Immediate::Integer(integer),
+                    source,
                 },
-            ) if i32::try_from(integer).is_err() => match self.allocate(&destination) {
-                Or::L(register) => asm!((mov register, integer)),
+            ) if source.is_64_bit() => match self.allocate(&destination) {
+                Or::L(register) => asm!((mov register, source)),
                 Or::R(memory) => {
                     let register = self.shuttle.next().unwrap();
-                    self.statements.push(asm!((mov register, integer)));
+                    self.statements.push(asm!((mov register, source)));
                     asm!((mov memory, register))
                 }
             },

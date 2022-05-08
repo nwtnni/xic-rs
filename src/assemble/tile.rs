@@ -203,15 +203,12 @@ impl Tiler {
             lir::Expression::Return(index) => {
                 return abi::read_return(self.callee_arguments, *index)
             }
-            // Only `mov r64, i64` statements can use 64-bit immediates (handled above).
-            lir::Expression::Immediate(Immediate::Integer(integer)) => {
-                return match i32::try_from(*integer) {
-                    Ok(integer) => operand::Unary::from(integer as i64),
-                    Err(_) => operand::Unary::R(self.shuttle(operand::Unary::from(*integer))),
-                }
-            }
-            lir::Expression::Immediate(label @ Immediate::Label(_)) => {
-                return operand::Unary::I(*label)
+            lir::Expression::Immediate(immediate) => {
+                // Only `mov r64, i64` statements can use 64-bit immediates (handled above).
+                return match immediate.is_64_bit() {
+                    false => operand::Unary::I(*immediate),
+                    true => operand::Unary::R(self.shuttle(operand::Unary::I(*immediate))),
+                };
             }
             lir::Expression::Temporary(temporary) => return operand::Unary::R(*temporary),
             lir::Expression::Memory(address) => return self.tile_memory(address),
