@@ -1,8 +1,10 @@
 use std::cell::RefCell;
 use std::collections::BTreeMap;
+use std::collections::BTreeSet;
 use std::iter;
 use std::mem;
 
+use crate::abi;
 use crate::data::lir;
 use crate::data::operand::Immediate;
 use crate::data::operand::Label;
@@ -13,6 +15,21 @@ use crate::util::Or;
 pub fn inline(lir: &mut lir::Unit<lir::Fallthrough>) {
     let mut dirty = true;
     let mut stack = Vec::new();
+
+    let global = lir
+        .data
+        .values()
+        .copied()
+        .chain(lir.functions.keys().copied().map(Label::Fixed))
+        .chain(
+            abi::STANDARD_LIBRARY
+                .iter()
+                .copied()
+                .chain(iter::once(abi::XI_MAIN))
+                .map(symbol::intern_static)
+                .map(Label::Fixed),
+        )
+        .collect::<BTreeSet<_>>();
 
     while mem::take(&mut dirty) {
         stack.extend(lir.functions.keys().copied());
@@ -45,7 +62,7 @@ pub fn inline(lir: &mut lir::Unit<lir::Fallthrough>) {
                             callee_arguments,
                             callee_returns,
                             statements,
-                        } = rewrite(&lir.functions[&label]);
+                        } = rewrite(&global, &lir.functions[&label]);
 
                         assert_eq!(caller_returns, callee_returns.len());
 
@@ -85,8 +102,9 @@ pub fn inline(lir: &mut lir::Unit<lir::Fallthrough>) {
     }
 }
 
-fn rewrite(function: &lir::Function<lir::Fallthrough>) -> Rewritten {
+fn rewrite(global: &BTreeSet<Label>, function: &lir::Function<lir::Fallthrough>) -> Rewritten {
     let mut rewriter = Rewriter {
+        global,
         arguments: (0..function.arguments)
             .map(|_| Temporary::fresh("INLINE_ARG"))
             .collect::<Vec<_>>(),
@@ -113,7 +131,9 @@ struct Rewritten {
     statements: Vec<lir::Statement<lir::Fallthrough>>,
 }
 
-struct Rewriter {
+struct Rewriter<'a> {
+    // Globally accessible labels should not be rewritten.
+    global: &'a BTreeSet<Label>,
     arguments: Vec<Temporary>,
     returns: Vec<Temporary>,
     rename_temporary: RefCell<BTreeMap<Temporary, Temporary>>,
@@ -121,7 +141,7 @@ struct Rewriter {
     rewritten: Vec<lir::Statement<lir::Fallthrough>>,
 }
 
-impl Rewriter {
+impl<'a> Rewriter<'a> {
     fn rewrite_function(&mut self, function: &lir::Function<lir::Fallthrough>) {
         for statement in &function.statements {
             self.rewrite_statement(statement);
@@ -235,14 +255,19 @@ impl Rewriter {
     }
 
     fn rewrite_label(&self, label: &Label) -> Label {
-        match label {
-            // Note: fixed labels are typically globally scoped, and should not be rewritten.
-            Label::Fixed(fixed) => Label::Fixed(*fixed),
-            Label::Fresh(symbol, index) => *self
-                .rename_label
-                .borrow_mut()
-                .entry(Label::Fresh(*symbol, *index))
-                .or_insert_with(|| Label::fresh(symbol::resolve(*symbol))),
+        if self.global.contains(label) {
+            return *label;
         }
+
+        let symbol = match label {
+            Label::Fixed(symbol) => *symbol,
+            Label::Fresh(symbol, _) => *symbol,
+        };
+
+        *self
+            .rename_label
+            .borrow_mut()
+            .entry(*label)
+            .or_insert_with(|| Label::fresh(symbol::resolve(symbol)))
     }
 }
