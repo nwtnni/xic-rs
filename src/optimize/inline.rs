@@ -1,21 +1,91 @@
-#![allow(dead_code)]
-
 use std::cell::RefCell;
 use std::collections::BTreeMap;
+use std::iter;
+use std::mem;
 
 use crate::data::lir;
 use crate::data::operand::Immediate;
 use crate::data::operand::Label;
 use crate::data::operand::Temporary;
 use crate::data::symbol;
+use crate::util::Or;
+
+pub fn inline(lir: &mut lir::Unit<lir::Fallthrough>) {
+    let mut stack = lir.functions.keys().copied().collect::<Vec<_>>();
+
+    while let Some(name) = stack.pop() {
+        let mut function = lir.functions.remove(&name).unwrap();
+        let mut returns = None;
+
+        function.statements = mem::take(&mut function.statements)
+            .into_iter()
+            .flat_map(|statement| match statement {
+                lir::Statement::Call(
+                    lir::Expression::Immediate(Immediate::Label(Label::Fixed(label))),
+                    caller_arguments,
+                    caller_returns,
+                ) if // Non-recursive
+                    lir.functions.contains_key(&label) && (
+                        // Short function body
+                        lir.functions[&label].statements.len() < 30
+
+                        // Leaf function
+                        || lir.functions[&label].callee_arguments().is_none()
+
+                        // Constant arguments
+                        || caller_arguments.iter().all(|expression| {
+                            matches!(expression, lir::Expression::Immediate(_))
+                    })) =>
+                {
+                    let Rewritten {
+                        callee_arguments,
+                        callee_returns,
+                        statements,
+                    } = rewrite(&lir.functions[&label]);
+
+                    assert_eq!(caller_returns, callee_returns.len());
+
+                    // Note: we rely on IR emission to place `mov TEMPORARY, _RET<INDEX>`
+                    // instructions immediately after a `call`. Then these will be read
+                    // after inlining and then set back to `None` after processing these moves.
+                    returns = Some(callee_returns);
+
+                    Or::L(
+                        callee_arguments
+                            .into_iter()
+                            .zip(caller_arguments)
+                            .map(|(destination, source)| lir::Statement::Move {
+                                destination: lir::Expression::Temporary(destination),
+                                source,
+                            })
+                            .chain(statements),
+                    )
+                }
+                lir::Statement::Move {
+                    destination,
+                    source: lir::Expression::Return(index),
+                } if returns.is_some() => Or::R(iter::once(lir::Statement::Move {
+                    destination,
+                    source: lir::Expression::Temporary(returns.as_ref().unwrap()[index]),
+                })),
+                statement => {
+                    returns = None;
+                    Or::R(iter::once(statement))
+                }
+            })
+            .collect();
+
+        lir.functions.insert(name, function);
+    }
+}
 
 fn rewrite(function: &lir::Function<lir::Fallthrough>) -> Rewritten {
     let mut rewriter = Rewriter {
         arguments: (0..function.arguments)
-            .map(|_| Temporary::fresh("ARG_INLINE"))
+            .map(|_| Temporary::fresh("INLINE_ARG"))
             .collect::<Vec<_>>(),
         returns: (0..function.returns)
-            .map(|_| Temporary::fresh("RET_INLINE"))
+            .map(|_| Temporary::fresh("INLINE_RET"))
             .collect::<Vec<_>>(),
         rename_temporary: RefCell::default(),
         rename_label: RefCell::default(),
@@ -25,15 +95,15 @@ fn rewrite(function: &lir::Function<lir::Fallthrough>) -> Rewritten {
     rewriter.rewrite_function(function);
 
     Rewritten {
-        arguments: rewriter.arguments,
-        returns: rewriter.returns,
+        callee_arguments: rewriter.arguments,
+        callee_returns: rewriter.returns,
         statements: rewriter.rewritten,
     }
 }
 
 struct Rewritten {
-    arguments: Vec<Temporary>,
-    returns: Vec<Temporary>,
+    callee_arguments: Vec<Temporary>,
+    callee_returns: Vec<Temporary>,
     statements: Vec<lir::Statement<lir::Fallthrough>>,
 }
 

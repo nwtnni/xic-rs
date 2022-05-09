@@ -59,3 +59,17 @@ pub enum Or<L, R> {
     L(L),
     R(R),
 }
+
+impl<L, R, T> Iterator for Or<L, R>
+where
+    L: Iterator<Item = T>,
+    R: Iterator<Item = T>,
+{
+    type Item = T;
+    fn next(&mut self) -> Option<Self::Item> {
+        match self {
+            Or::L(left) => left.next(),
+            Or::R(right) => right.next(),
+        }
+    }
+}

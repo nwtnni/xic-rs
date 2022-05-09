@@ -36,6 +36,7 @@ pub mod api {
         pub use crate::optimize::constant_propagate;
         pub use crate::optimize::copy_propagate;
         pub use crate::optimize::eliminate_dead_code;
+        pub use crate::optimize::inline;
     }
 
     pub mod analyze {
