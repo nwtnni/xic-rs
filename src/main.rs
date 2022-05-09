@@ -300,6 +300,7 @@ impl str::FromStr for DebugOpt {
 enum Opt {
     ConstantFold,
     CleanCfg,
+    Inline,
     ConstantPropagation,
     CopyPropagation,
     DeadCodeElimination,
@@ -309,9 +310,10 @@ enum Opt {
 // Need something like https://doc.rust-lang.org/std/mem/fn.variant_count.html
 // to make sure array matches up with enum definition. Procedural macro options
 // seem too heavyweight for something like this.
-const OPTIMIZATIONS: [&str; 6] = [
+const OPTIMIZATIONS: [&str; 7] = [
     Opt::ConstantFold.to_static_str(),
     Opt::CleanCfg.to_static_str(),
+    Opt::Inline.to_static_str(),
     Opt::ConstantPropagation.to_static_str(),
     Opt::CopyPropagation.to_static_str(),
     Opt::DeadCodeElimination.to_static_str(),
@@ -323,6 +325,7 @@ impl Opt {
         match self {
             Opt::ConstantFold => "cf",
             Opt::CleanCfg => "clean",
+            Opt::Inline => "inl",
             Opt::ConstantPropagation => "cp",
             Opt::CopyPropagation => "copy",
             Opt::DeadCodeElimination => "dce",
@@ -337,6 +340,7 @@ impl str::FromStr for Opt {
         match string {
             "cf" => Ok(Opt::ConstantFold),
             "clean" => Ok(Opt::CleanCfg),
+            "inl" => Ok(Opt::Inline),
             "cp" => Ok(Opt::ConstantPropagation),
             "copy" => Ok(Opt::CopyPropagation),
             "dce" => Ok(Opt::DeadCodeElimination),
@@ -420,7 +424,11 @@ fn main() -> anyhow::Result<()> {
 
         command.debug_optimize_lir(&path, DebugOpt::Final, &cfg)?;
 
-        let lir = cfg.map(api::destruct_cfg);
+        let mut lir = cfg.map(api::destruct_cfg);
+
+        if command.optimize(Opt::Inline) {
+            api::optimize::inline(&mut lir);
+        }
 
         if command.debug_lir {
             command.debug(&path, "lir", &lir)?;
