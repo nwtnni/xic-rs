@@ -23,7 +23,7 @@ pub fn reorder(path: &str) {
     let control = abstract_assembly.map_ref(xic::api::allocate_trivial);
     let control_stdout = super::execute(&control);
 
-    let mut cfg = abstract_assembly.map(xic::api::construct_cfg);
+    let cfg = abstract_assembly.map(xic::api::construct_cfg);
 
     let reordered = cfg
         .clone()
@@ -33,9 +33,8 @@ pub fn reorder(path: &str) {
 
     pretty_assertions::assert_eq!(control_stdout, reordered_stdout);
 
-    cfg.map_mut(xic::api::clean_cfg);
-
     let cleaned = cfg
+        .map_mut(xic::api::clean_cfg)
         .map(xic::api::destruct_cfg)
         .map_ref(xic::api::allocate_trivial);
     let cleaned_stdout = super::execute(&cleaned);

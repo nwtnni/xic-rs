@@ -18,9 +18,10 @@ pub fn reorder(path: &str) {
     let cfg = lir.map(xic::api::construct_cfg).map(xic::api::destruct_cfg);
     let cfg_stdout = super::interpret_lir(&cfg);
 
-    let mut cfg_cleaned = cfg.map(xic::api::construct_cfg);
-    cfg_cleaned.map_mut(xic::api::clean_cfg);
-    let cfg_cleaned = cfg_cleaned.map(xic::api::destruct_cfg);
+    let cfg_cleaned = cfg
+        .map(xic::api::construct_cfg)
+        .map_mut(xic::api::clean_cfg)
+        .map(xic::api::destruct_cfg);
     let cfg_cleaned_stdout = super::interpret_lir(&cfg_cleaned);
 
     pretty_assertions::assert_eq!(lir_stdout, cfg_stdout);

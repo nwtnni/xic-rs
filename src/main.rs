@@ -414,7 +414,7 @@ fn main() -> anyhow::Result<()> {
         command.debug_optimize_lir(&path, DebugOpt::Initial, &cfg)?;
 
         if command.optimize(Opt::CleanCfg) {
-            cfg.map_mut(api::clean_cfg);
+            cfg = cfg.map_mut(api::clean_cfg);
             command.debug_optimize_lir(&path, DebugOpt::Opt(Opt::CleanCfg), &cfg)?;
         }
 
@@ -441,17 +441,17 @@ fn main() -> anyhow::Result<()> {
         command.debug_optimize_assembly(&path, DebugOpt::Initial, &cfg)?;
 
         if command.optimize(Opt::CleanCfg) {
-            cfg.map_mut(api::clean_cfg);
+            cfg = cfg.map_mut(api::clean_cfg);
             command.debug_optimize_assembly(&path, DebugOpt::Opt(Opt::CleanCfg), &cfg)?;
         }
 
         if command.optimize(Opt::ConstantPropagation) {
-            cfg.map_mut(optimize::constant_propagate);
+            cfg = cfg.map_mut(optimize::constant_propagate);
             command.debug_optimize_assembly(&path, Opt::ConstantPropagation, &cfg)?;
         }
 
         if command.optimize(Opt::CopyPropagation) {
-            cfg.map_mut(optimize::copy_propagate);
+            cfg = cfg.map_mut(optimize::copy_propagate);
             command.debug_optimize_assembly(&path, Opt::CopyPropagation, &cfg)?;
         }
 
@@ -463,7 +463,7 @@ fn main() -> anyhow::Result<()> {
                     .debug_optimize_assembly
                     .contains(&DebugOpt::Opt(Opt::DeadCodeElimination)))
         {
-            cfg.map_mut(|function| {
+            cfg = cfg.map_mut(|function| {
                 let live_variables = analyze::analyze(function);
                 optimize::eliminate_dead_code(&live_variables, function);
             });

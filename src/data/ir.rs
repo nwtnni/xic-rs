@@ -36,16 +36,11 @@ impl<T> Unit<T> {
         }
     }
 
-    pub fn map_mut<'a, F: FnMut(&'a mut T) -> U, U>(&'a mut self, mut apply: F) -> Unit<U> {
-        Unit {
-            name: self.name,
-            functions: self
-                .functions
-                .iter_mut()
-                .map(|(symbol, function)| (*symbol, apply(function)))
-                .collect(),
-            data: self.data.clone(),
-        }
+    pub fn map_mut<F: FnMut(&mut T)>(mut self, mut apply: F) -> Self {
+        self.functions
+            .iter_mut()
+            .for_each(|(_, function)| apply(function));
+        self
     }
 }
 
