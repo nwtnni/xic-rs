@@ -5,6 +5,7 @@ use std::iter;
 use std::mem;
 
 use crate::abi;
+use crate::analyze::CallGraph;
 use crate::data::lir;
 use crate::data::operand::Immediate;
 use crate::data::operand::Label;
@@ -13,8 +14,24 @@ use crate::data::symbol;
 use crate::util::Or;
 
 pub fn inline(lir: &mut lir::Unit<lir::Fallthrough>) {
-    let mut dirty = true;
-    let mut stack = Vec::new();
+    let call_graph = CallGraph::new(lir);
+
+    let start = if lir
+        .functions
+        .contains_key(&symbol::intern_static(abi::XI_MAIN))
+    {
+        symbol::intern_static(abi::XI_MAIN)
+    } else if let Some(name) = lir.functions.keys().next() {
+        *name
+    } else {
+        return;
+    };
+
+    // We can only inline within our compilation unit.
+    let postorder = call_graph
+        .postorder(&start)
+        .filter(|name| lir.functions.contains_key(name))
+        .collect::<Vec<_>>();
 
     let global = lir
         .data
@@ -31,74 +48,72 @@ pub fn inline(lir: &mut lir::Unit<lir::Fallthrough>) {
         )
         .collect::<BTreeSet<_>>();
 
-    while mem::take(&mut dirty) {
-        stack.extend(lir.functions.keys().copied());
+    for name in &postorder {
+        let mut function = lir.functions.remove(name).unwrap();
+        let mut returns = None;
 
-        while let Some(name) = stack.pop() {
-            let mut function = lir.functions.remove(&name).unwrap();
-            let mut returns = None;
+        function.statements = mem::take(&mut function.statements)
+            .into_iter()
+            .flat_map(|statement| match statement {
+                lir::Statement::Call(
+                    lir::Expression::Immediate(Immediate::Label(Label::Fixed(label))),
+                    caller_arguments,
+                    caller_returns,
+                ) if lir.functions.contains_key(&label)
+                    // Non-recursive
+                    && !call_graph.is_recursive(&label)
+                    && (
+                        // Leaf function
+                        call_graph.is_leaf(&label)
 
-            function.statements = mem::take(&mut function.statements)
-                .into_iter()
-                .flat_map(|statement| match statement {
-                    lir::Statement::Call(
-                        lir::Expression::Immediate(Immediate::Label(Label::Fixed(label))),
-                        caller_arguments,
-                        caller_returns,
-                    ) if // Non-recursive
-                        lir.functions.contains_key(&label) && (
-                            // Short function body
-                            lir.functions[&label].statements.len() < 30
+                        // Short function body
+                        || lir.functions[&label].statements.len() < 30
 
-                            // Leaf function
-                            || lir.functions[&label].callee_arguments().is_none()
+                        // Constant arguments
+                        || caller_arguments.iter().all(|expression| {
+                            matches!(expression, lir::Expression::Immediate(_))
+                    })
+                    ) =>
+                {
+                    let Rewritten {
+                        callee_arguments,
+                        callee_returns,
+                        statements,
+                    } = rewrite(&global, &lir.functions[&label]);
 
-                            // Constant arguments
-                            || caller_arguments.iter().all(|expression| {
-                                matches!(expression, lir::Expression::Immediate(_))
-                        })) =>
-                    {
-                        let Rewritten {
-                            callee_arguments,
-                            callee_returns,
-                            statements,
-                        } = rewrite(&global, &lir.functions[&label]);
+                    assert_eq!(caller_returns, callee_returns.len());
 
-                        assert_eq!(caller_returns, callee_returns.len());
+                    // Note: we rely on IR emission to place `mov TEMPORARY, _RET<INDEX>`
+                    // instructions immediately after a `call`. Then these will be read
+                    // after inlining and then set back to `None` after processing these moves.
+                    returns = Some(callee_returns);
 
-                        // Note: we rely on IR emission to place `mov TEMPORARY, _RET<INDEX>`
-                        // instructions immediately after a `call`. Then these will be read
-                        // after inlining and then set back to `None` after processing these moves.
-                        returns = Some(callee_returns);
-                        dirty = true;
+                    Or::L(
+                        callee_arguments
+                            .into_iter()
+                            .zip(caller_arguments)
+                            .map(|(destination, source)| lir::Statement::Move {
+                                destination: lir::Expression::Temporary(destination),
+                                source,
+                            })
+                            .chain(statements),
+                    )
+                }
+                lir::Statement::Move {
+                    destination,
+                    source: lir::Expression::Return(index),
+                } if returns.is_some() => Or::R(iter::once(lir::Statement::Move {
+                    destination,
+                    source: lir::Expression::Temporary(returns.as_ref().unwrap()[index]),
+                })),
+                statement => {
+                    returns = None;
+                    Or::R(iter::once(statement))
+                }
+            })
+            .collect();
 
-                        Or::L(
-                            callee_arguments
-                                .into_iter()
-                                .zip(caller_arguments)
-                                .map(|(destination, source)| lir::Statement::Move {
-                                    destination: lir::Expression::Temporary(destination),
-                                    source,
-                                })
-                                .chain(statements),
-                        )
-                    }
-                    lir::Statement::Move {
-                        destination,
-                        source: lir::Expression::Return(index),
-                    } if returns.is_some() => Or::R(iter::once(lir::Statement::Move {
-                        destination,
-                        source: lir::Expression::Temporary(returns.as_ref().unwrap()[index]),
-                    })),
-                    statement => {
-                        returns = None;
-                        Or::R(iter::once(statement))
-                    }
-                })
-                .collect();
-
-            lir.functions.insert(name, function);
-        }
+        lir.functions.insert(*name, function);
     }
 }
 
