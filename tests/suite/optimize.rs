@@ -74,3 +74,14 @@ pub fn constant_propagate(path: &str) {
 
     pretty_assertions::assert_eq!(super::execute(&unoptimized), super::execute(&optimized))
 }
+
+#[test_generator::test_resources("tests/execute/*.xi")]
+pub fn inline(path: &str) {
+    let mut lir = super::reorder(path);
+
+    let unoptimized = super::interpret_lir(&lir);
+    xic::api::optimize::inline(&mut lir);
+    let optimized = super::interpret_lir(&lir);
+
+    pretty_assertions::assert_eq!(unoptimized, optimized)
+}
