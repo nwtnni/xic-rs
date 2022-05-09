@@ -2,6 +2,7 @@ mod constant_fold;
 mod constant_propagate;
 mod copy;
 mod dead_code;
+mod inline;
 
 pub use constant_fold::fold as constant_fold;
 pub use constant_propagate::propagate as constant_propagate;
