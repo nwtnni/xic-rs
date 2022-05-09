@@ -132,7 +132,7 @@ impl LiveRanges {
                         operand::Unary::I(Immediate::Label(Label::Fixed(label))),
                     ) if symbol::resolve(*label) == abi::XI_OUT_OF_BOUNDS => Clobbered::None,
                     asm::Statement::Unary(asm::Unary::Call { .. }, _) => Clobbered::Caller,
-                    asm::Statement::Unary(asm::Unary::Mul | asm::Unary::Div, _) => Clobbered::Rdx,
+                    asm::Statement::Unary(asm::Unary::Div, _) => Clobbered::Rdx,
                     asm::Statement::Unary(asm::Unary::Hul | asm::Unary::Mod, _) => Clobbered::Rax,
                     asm::Statement::Nullary(asm::Nullary::Cqo) => Clobbered::Rdx,
                     _ => Clobbered::None,

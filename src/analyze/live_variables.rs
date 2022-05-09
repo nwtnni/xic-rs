@@ -98,6 +98,7 @@ impl Function for asm::Function<Temporary> {
                 | asm::Binary::Add
                 | asm::Binary::Sub
                 | asm::Binary::Shl
+                | asm::Binary::Mul
                 | asm::Binary::And
                 | asm::Binary::Or
                 | asm::Binary::Xor,
@@ -113,6 +114,7 @@ impl Function for asm::Function<Temporary> {
                         | asm::Binary::Add
                         | asm::Binary::Sub
                         | asm::Binary::Shl
+                        | asm::Binary::Mul
                         | asm::Binary::And
                         | asm::Binary::Or
                         | asm::Binary::Xor,
@@ -155,10 +157,9 @@ impl Function for asm::Function<Temporary> {
             }
 
             // We don't check `div` and `mod` as they can have side effects (x / 0, x % 0)
-            asm::Statement::Unary(asm::Unary::Mul, _) if dead(Register::Rax, output) => (),
             asm::Statement::Unary(asm::Unary::Hul, _) if dead(Register::Rdx, output) => (),
             asm::Statement::Unary(
-                unary @ (asm::Unary::Mul | asm::Unary::Hul | asm::Unary::Div | asm::Unary::Mod),
+                unary @ (asm::Unary::Hul | asm::Unary::Div | asm::Unary::Mod),
                 operand,
             ) => {
                 if matches!(unary, asm::Unary::Hul | asm::Unary::Mod) {

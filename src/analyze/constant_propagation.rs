@@ -58,7 +58,7 @@ impl Analysis<asm::Function<Temporary>> for ConstantPropagation {
                     output.remove(&temporary);
                 }
             }
-            asm::Statement::Binary(binary @ (Add | Sub | Shl | And | Or | Xor), operands) => {
+            asm::Statement::Binary(binary @ (Add | Sub | Shl | Mul | And | Or | Xor), operands) => {
                 match operands {
                     operand::Binary::RI {
                         destination,
@@ -94,7 +94,7 @@ impl Analysis<asm::Function<Temporary>> for ConstantPropagation {
                 }
             }
             asm::Statement::Binary(Cmp, _) => (),
-            asm::Statement::Unary(unary @ (Mul | Hul | Div | Mod), operand) => {
+            asm::Statement::Unary(unary @ (Hul | Div | Mod), operand) => {
                 let immediate = match operand {
                     operand::Unary::I(immediate) => Some(immediate),
                     operand::Unary::R(temporary) => output.get(temporary),
@@ -177,6 +177,7 @@ fn fold_binary(
         asm::Binary::Add => destination.wrapping_add(source),
         asm::Binary::Sub => destination.wrapping_sub(source),
         asm::Binary::Shl => destination << source,
+        asm::Binary::Mul => destination.wrapping_mul(source),
         asm::Binary::And => destination & source,
         asm::Binary::Or => destination | source,
         asm::Binary::Xor => destination ^ source,
@@ -198,7 +199,7 @@ fn fold_unary(
 
     let (rax, rdx) = match unary {
         asm::Unary::Neg | asm::Unary::Call { .. } => return None,
-        asm::Unary::Mul | asm::Unary::Hul => (
+        asm::Unary::Hul => (
             destination.wrapping_mul(source),
             (((destination as i128) * (source as i128)) >> 64) as i64,
         ),

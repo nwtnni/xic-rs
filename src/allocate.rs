@@ -135,8 +135,8 @@ impl Allocator {
                 return;
             }
 
-            // This is the only statement that can take a 64-bit immediate operand.
-            // Tiling guarantees that all other uses will be shuttled into a move like this one.
+            // Special case: this is the only statement that can take a 64-bit immediate operand.
+            // Tiling guarantees that all 64-bit uses will be shuttled into a move like this one.
             &asm::Statement::Binary(
                 asm::Binary::Mov,
                 operand::Binary::RI {
@@ -146,11 +146,47 @@ impl Allocator {
             ) if source.is_64_bit() => match self.allocate(&destination) {
                 Or::L(register) => asm!((mov register, source)),
                 Or::R(memory) => {
-                    let register = self.shuttle.next().unwrap();
-                    self.statements.push(asm!((mov register, source)));
-                    asm!((mov memory, register))
+                    let shuttle = self.shuttle.next().unwrap();
+                    self.statements.push(asm!((mov shuttle, source)));
+                    asm!((mov memory, shuttle))
                 }
             },
+
+            // Special case: `imul` can only take a register destination, so we need
+            // to shuttle any memory destinations.
+            asm::Statement::Binary(asm::Binary::Mul, operands) => {
+                match self.allocate_binary(operands) {
+                    operands @ (operand::Binary::RI { .. }
+                    | operand::Binary::RM { .. }
+                    | operand::Binary::RR { .. }) => {
+                        asm::Statement::Binary(asm::Binary::Mul, operands)
+                    }
+                    operand::Binary::MI {
+                        destination,
+                        source,
+                    } => {
+                        let shuttle = self.shuttle.next().unwrap();
+                        self.statements.push(asm!((mov shuttle, destination)));
+                        self.statements.push(asm!((imul shuttle, source)));
+                        asm!((mov destination, shuttle))
+                    }
+                    operand::Binary::MR {
+                        destination,
+                        source,
+                    } => {
+                        // FIXME: this actually requires three shuttle registers at worst.
+                        //
+                        // We can work around this with the `xchg` instruction, relying on
+                        // the commutativity of multiplication, but we need to implement
+                        // it first.
+                        let shuttle = self.shuttle.next().unwrap();
+                        self.statements.push(asm!((mov shuttle, destination)));
+                        self.statements.push(asm!((imul shuttle, source)));
+                        asm!((mov destination, shuttle))
+                    }
+                }
+            }
+
             asm::Statement::Binary(binary, operands) => {
                 asm::Statement::Binary(*binary, self.allocate_binary(operands))
             }

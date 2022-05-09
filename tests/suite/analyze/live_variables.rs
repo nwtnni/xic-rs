@@ -59,16 +59,6 @@ live_variables! {
 }
 
 live_variables! {
-    clobber_across_mul: 0 -> 2;
-    temporaries: x, y;
-    (mov x, 1)
-    (mov y, 2)
-    (mov rax, x)
-    (imul 5)
-    (mov rdx, y)
-}
-
-live_variables! {
     clobber_across_div: 0 -> 2;
     temporaries: x, y;
     (mov x, 1)
@@ -97,17 +87,6 @@ live_variables! {
     (mov rax, x)
     (cqo)
     (imod 5)
-    (mov rax, y)
-}
-
-live_variables! {
-    clobber_across_mul_hul: 0 -> 2;
-    temporaries: x, y;
-    (mov x, 1)
-    (mov y, 2)
-    (mov rax, x)
-    (imul 3)
-    (ihul 4)
     (mov rax, y)
 }
 
@@ -196,7 +175,6 @@ live_variables! {
     (mov z, 5)
     (sub x, y)
     (mov rax, [x + z])
-    (imul 5)
     (ihul 2)
     (neg rax)
     (nop)
@@ -230,9 +208,6 @@ live_variables! {
     (call<2, 0> black_box)
     (add x, y)
     (add y, x)
-    (mov y, rax)
-    (imul x)
-    (mov x, rax)
 }
 
 live_variables! {
@@ -291,9 +266,6 @@ live_variables! {
     (call<2, 0> black_box)
     (add x, y)
     (add y, x)
-    (mov y, rax)
-    (imul x)
-    (mov x, rax)
     (neg useless)
 }
 

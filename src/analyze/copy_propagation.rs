@@ -49,13 +49,13 @@ impl Analysis<asm::Function<Temporary>> for CopyPropagation {
                 }
                 operand::Binary::MR { .. } | operand::Binary::MI { .. } => (),
             },
-            asm::Statement::Binary(Lea | Add | Sub | Shl | And | Or | Xor, operands) => {
+            asm::Statement::Binary(Lea | Add | Sub | Shl | Mul | And | Or | Xor, operands) => {
                 if let util::Or::L(temporary) = operands.destination() {
                     remove(output, &temporary);
                 }
             }
             asm::Statement::Binary(Cmp, _) => (),
-            asm::Statement::Unary(Mul | Hul | Div | Mod, _) | asm::Statement::Nullary(Cqo) => {
+            asm::Statement::Unary(Hul | Div | Mod, _) | asm::Statement::Nullary(Cqo) => {
                 remove(output, &Temporary::Register(Register::Rax));
                 remove(output, &Temporary::Register(Register::Rdx));
             }

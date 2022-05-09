@@ -100,6 +100,7 @@ pub enum Directive {
 pub enum Binary {
     Add,
     Sub,
+    Mul,
     And,
     Or,
     Xor,
@@ -114,6 +115,7 @@ impl From<ir::Binary> for Binary {
         match binary {
             ir::Binary::Add => Binary::Add,
             ir::Binary::Sub => Binary::Sub,
+            ir::Binary::Mul => Binary::Mul,
             ir::Binary::Xor => Binary::Xor,
             ir::Binary::And => Binary::And,
             ir::Binary::Or => Binary::Or,
@@ -126,7 +128,6 @@ impl From<ir::Binary> for Binary {
 pub enum Unary {
     Neg,
     Call { arguments: usize, returns: usize },
-    Mul,
     Hul,
     Div,
     Mod,
@@ -217,13 +218,13 @@ macro_rules! asm {
     };
 
     (@unary neg) => { $crate::data::asm::Unary::Neg };
-    (@unary imul) => { $crate::data::asm::Unary::Mul };
     (@unary ihul) => { $crate::data::asm::Unary::Hul };
     (@unary idiv) => { $crate::data::asm::Unary::Div };
     (@unary imod) => { $crate::data::asm::Unary::Mod };
 
     (@binary add) => { $crate::data::asm::Binary::Add };
     (@binary sub) => { $crate::data::asm::Binary::Sub };
+    (@binary imul) => { $crate::data::asm::Binary::Mul };
     (@binary and) => { $crate::data::asm::Binary::And };
     (@binary shl) => { $crate::data::asm::Binary::Shl };
     (@binary or) => { $crate::data::asm::Binary::Or };

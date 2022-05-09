@@ -22,7 +22,7 @@ pub fn propagate(cfg: &mut Cfg<asm::Function<Temporary>>) {
 
             let statement = match statement {
                 Statement::Binary(
-                    binary @ (Cmp | Mov | Lea | Add | Sub | Shl | And | Or | Xor),
+                    binary @ (Cmp | Mov | Lea | Add | Sub | Shl | Mul | And | Or | Xor),
                     operands,
                 ) => {
                     let propagate = match operands {
@@ -66,7 +66,7 @@ pub fn propagate(cfg: &mut Cfg<asm::Function<Temporary>>) {
                         }
                     }
                 }
-                Statement::Unary(Neg | Mul | Hul | Div | Mod | Call { .. }, _)
+                Statement::Unary(Neg | Hul | Div | Mod | Call { .. }, _)
                 | Statement::Nullary(Nop | Cqo | Ret(_))
                 | Statement::Label(_)
                 | Statement::Jmp(_)

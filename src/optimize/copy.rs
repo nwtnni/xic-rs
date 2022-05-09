@@ -49,7 +49,7 @@ pub fn propagate(cfg: &mut Cfg<asm::Function<Temporary>>) {
                 }
 
                 Statement::Binary(
-                    Mov | Lea | Add | Sub | Shl | And | Or | Xor,
+                    Mov | Lea | Add | Sub | Shl | Mul | And | Or | Xor,
                     operand::Binary::RR { source, .. },
                 ) => {
                     *source = traverse(&output, source);
@@ -61,15 +61,12 @@ pub fn propagate(cfg: &mut Cfg<asm::Function<Temporary>>) {
                     *source = traverse(&output, source);
                 }
 
-                Statement::Unary(
-                    Mul | Hul | Div | Mod | Call { .. },
-                    operand::Unary::R(source),
-                ) => {
+                Statement::Unary(Hul | Div | Mod | Call { .. }, operand::Unary::R(source)) => {
                     *source = traverse(&output, source);
                 }
 
-                Statement::Binary(Cmp | Mov | Lea | Add | Sub | Shl | And | Or | Xor, _)
-                | Statement::Unary(Neg | Mul | Hul | Div | Mod | Call { .. }, _)
+                Statement::Binary(Cmp | Mov | Lea | Add | Sub | Shl | Mul | And | Or | Xor, _)
+                | Statement::Unary(Neg | Hul | Div | Mod | Call { .. }, _)
                 | Statement::Nullary(Nop | Cqo | Ret(_))
                 | Statement::Label(_)
                 | Statement::Jmp(_)

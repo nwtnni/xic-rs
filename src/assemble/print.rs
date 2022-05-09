@@ -188,6 +188,7 @@ impl fmt::Display for asm::Binary {
             asm::Binary::Sub => "sub",
             asm::Binary::And => "and",
             asm::Binary::Shl => "shl",
+            asm::Binary::Mul => "imul",
             asm::Binary::Or => "or",
             asm::Binary::Xor => "xor",
             asm::Binary::Cmp => "cmp",
@@ -207,7 +208,7 @@ impl fmt::Display for asm::Unary {
                 arguments: _,
                 returns: _,
             } => "call",
-            asm::Unary::Mul | asm::Unary::Hul => "imul",
+            asm::Unary::Hul => "imul",
             asm::Unary::Div | asm::Unary::Mod => "idiv",
         };
 

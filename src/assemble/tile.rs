@@ -131,18 +131,19 @@ impl Tiler {
             } => {
                 use ir::Binary::Add;
                 use ir::Binary::And;
+                use ir::Binary::Mul;
                 use ir::Binary::Or;
                 use ir::Binary::Sub;
                 use ir::Binary::Xor;
 
                 let (binary, source) = match source {
-                    lir::Expression::Binary(binary @ (Add | And | Or | Xor), left, right)
+                    lir::Expression::Binary(binary @ (Add | Mul | And | Or | Xor), left, right)
                         if &**left == destination =>
                     {
                         (asm::Binary::from(*binary), &**right)
                     }
 
-                    lir::Expression::Binary(binary @ (Add | And | Or | Xor), left, right)
+                    lir::Expression::Binary(binary @ (Add | Mul | And | Or | Xor), left, right)
                         if &**right == destination =>
                     {
                         (asm::Binary::from(*binary), &**left)
@@ -226,6 +227,7 @@ impl Tiler {
             ir::Binary::Add
             | ir::Binary::Sub
             | ir::Binary::And
+            | ir::Binary::Mul
             | ir::Binary::Or
             | ir::Binary::Xor => {
                 let fresh = Temporary::fresh("tile");
@@ -233,9 +235,8 @@ impl Tiler {
                 self.tile_binary(asm::Binary::from(*binary), fresh, source);
                 operand::Unary::R(fresh)
             }
-            ir::Binary::Mul | ir::Binary::Hul | ir::Binary::Div | ir::Binary::Mod => {
+            ir::Binary::Hul | ir::Binary::Div | ir::Binary::Mod => {
                 let (cqo, unary, register) = match binary {
-                    ir::Binary::Mul => (false, asm::Unary::Mul, Register::Rax),
                     ir::Binary::Hul => (false, asm::Unary::Hul, Register::Rdx),
                     ir::Binary::Div => (true, asm::Unary::Div, Register::Rax),
                     ir::Binary::Mod => (true, asm::Unary::Mod, Register::Rdx),

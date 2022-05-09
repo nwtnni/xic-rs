@@ -59,14 +59,6 @@ constant_propagation! {
 }
 
 constant_propagation! {
-    propagate_mul: 0 -> 0;
-    temporaries: a;
-    (mov a, 5)
-    (mov rax, 5)
-    (imul a)
-}
-
-constant_propagation! {
     propagate_mod: 0 -> 0;
     temporaries: a;
     (mov a, 5)
@@ -88,14 +80,6 @@ constant_propagation! {
     (mov r10, 0)
     (mov r11, 0)
     (call<0, 0> black_box)
-}
-
-constant_propagation! {
-    clobbered_across_mul: 0 -> 0;
-    temporaries: a;
-    (mov rax, 1)
-    (mov rdx, 2)
-    (imul a)
 }
 
 constant_propagation! {

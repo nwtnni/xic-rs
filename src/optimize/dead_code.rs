@@ -22,6 +22,7 @@ pub fn eliminate(
                     asm::Binary::Add
                     | asm::Binary::Sub
                     | asm::Binary::Shl
+                    | asm::Binary::Mul
                     | asm::Binary::And
                     | asm::Binary::Or
                     | asm::Binary::Xor
@@ -33,9 +34,6 @@ pub fn eliminate(
                     Or::L(temporary) => Some(temporary),
                     Or::R(_) => None,
                 },
-                asm::Statement::Unary(asm::Unary::Mul, _) => {
-                    Some(Temporary::Register(Register::Rax))
-                }
                 asm::Statement::Unary(asm::Unary::Hul, _) => {
                     Some(Temporary::Register(Register::Rdx))
                 }

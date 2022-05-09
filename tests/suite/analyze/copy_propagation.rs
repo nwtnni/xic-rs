@@ -57,14 +57,6 @@ copy_propagation! {
 }
 
 copy_propagation! {
-    clobbered_across_mul: 0 -> 0;
-    temporaries: a;
-    (mov rax, a)
-    (mov rdx, a)
-    (imul 1)
-}
-
-copy_propagation! {
     clobbered_across_hul: 0 -> 0;
     temporaries: a;
     (mov rax, a)

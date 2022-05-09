@@ -1,6 +1,6 @@
 ---
 source: tests/suite/analyze/live_variables.rs
-assertion_line: 279
+assertion_line: 254
 expression: live_variables
 ---
 
@@ -30,12 +30,6 @@ expression: live_variables
         | add _x, _y      |
         | {rsp}           |
         | add _y, _x      |
-        | {rsp}           |
-        | mov _y, rax     |
-        | {rsp}           |
-        | imul _x         |
-        | {rsp}           |
-        | mov _x, rax     |
         | {rsp}           |
         | neg _useless    |
         | {rsp}           |
