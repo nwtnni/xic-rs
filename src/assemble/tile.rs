@@ -30,7 +30,7 @@ pub fn tile(function: &lir::Function<lir::Fallthrough>) -> asm::Function<Tempora
     let mut tiler = Tiler {
         statements: Vec::new(),
         caller_returns,
-        callee_arguments: function.callee_arguments(),
+        callee_arguments: function.callee_arguments().unwrap_or(0),
     };
 
     assert!(matches!(

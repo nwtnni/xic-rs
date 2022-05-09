@@ -64,8 +64,8 @@ fn allocate(
     spilled: BTreeMap<Temporary, usize>,
 ) -> asm::Function<Register> {
     let mut allocator = Allocator {
-        callee_arguments: function.callee_arguments(),
-        callee_returns: function.callee_returns(),
+        callee_arguments: function.callee_arguments().unwrap_or(0),
+        callee_returns: function.callee_returns().unwrap_or(0),
         allocated,
         spilled,
         statements: Vec::new(),

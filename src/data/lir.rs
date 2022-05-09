@@ -32,7 +32,7 @@ pub struct Function<T: Target> {
 }
 
 impl<T: Target> Function<T> {
-    pub fn callee_arguments(&self) -> usize {
+    pub fn callee_arguments(&self) -> Option<usize> {
         self.statements
             .iter()
             .filter_map(|statement| match statement {
@@ -40,7 +40,6 @@ impl<T: Target> Function<T> {
                 _ => None,
             })
             .max()
-            .unwrap_or(0)
     }
 }
 
