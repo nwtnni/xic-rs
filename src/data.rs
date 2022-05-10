@@ -1,6 +1,7 @@
 pub mod asm;
 pub mod ast;
 pub mod hir;
+#[macro_use]
 pub mod ir;
 pub mod lir;
 pub mod operand;

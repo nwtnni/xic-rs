@@ -190,7 +190,7 @@ macro_rules! hir {
     };
     ((CJUMP ($condition:ident $left:tt $right:tt) $r#true:ident $r#false:ident)) => {
         $crate::data::hir::Statement::CJump {
-            condition: hir!(@condition $condition),
+            condition: ir!($condition),
             left: hir!($left),
             right: hir!($right),
             r#true: $r#true,
@@ -224,31 +224,11 @@ macro_rules! hir {
 
     (($binary:ident $left:tt $right:tt)) => {
         $crate::data::hir::Expression::Binary(
-            hir!(@binary $binary),
+            ir!($binary),
             Box::new(hir!($left)),
             Box::new(hir!($right)),
         )
     };
-
-    (@binary ADD) => { $crate::data::ir::Binary::Add };
-    (@binary SUB) => { $crate::data::ir::Binary::Sub };
-    (@binary MUL) => { $crate::data::ir::Binary::Mul };
-    (@binary HUL) => { $crate::data::ir::Binary::Hul };
-    (@binary DIV) => { $crate::data::ir::Binary::Div };
-    (@binary MOD) => { $crate::data::ir::Binary::Mod };
-    (@binary XOR) => { $crate::data::ir::Binary::Xor };
-    (@binary AND) => { $crate::data::ir::Binary::And };
-    (@binary OR) => { $crate::data::ir::Binary::Or };
-    (@binary $binary:ident) => { $binary };
-
-    (@condition LT) => { $crate::data::ir::Condition::Lt };
-    (@condition LE) => { $crate::data::ir::Condition::Le };
-    (@condition GE) => { $crate::data::ir::Condition::Ge };
-    (@condition GT) => { $crate::data::ir::Condition::Gt };
-    (@condition NE) => { $crate::data::ir::Condition::Ne };
-    (@condition EQ) => { $crate::data::ir::Condition::Eq };
-    (@condition AE) => { $crate::data::ir::Condition::Ae };
-    (@condition $condition:ident) => { $condition };
 
     ($expression:expr) => {
         $expression

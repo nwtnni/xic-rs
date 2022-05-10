@@ -119,3 +119,28 @@ impl From<ast::Binary> for Condition {
         }
     }
 }
+
+#[doc(hidden)]
+#[rustfmt::skip]
+#[macro_export]
+macro_rules! ir {
+    (ADD) => { $crate::data::ir::Binary::Add };
+    (SUB) => { $crate::data::ir::Binary::Sub };
+    (MUL) => { $crate::data::ir::Binary::Mul };
+    (HUL) => { $crate::data::ir::Binary::Hul };
+    (DIV) => { $crate::data::ir::Binary::Div };
+    (MOD) => { $crate::data::ir::Binary::Mod };
+    (XOR) => { $crate::data::ir::Binary::Xor };
+    (AND) => { $crate::data::ir::Binary::And };
+    (OR) => { $crate::data::ir::Binary::Or };
+
+    (LT) => { $crate::data::ir::Condition::Lt };
+    (LE) => { $crate::data::ir::Condition::Le };
+    (GE) => { $crate::data::ir::Condition::Ge };
+    (GT) => { $crate::data::ir::Condition::Gt };
+    (NE) => { $crate::data::ir::Condition::Ne };
+    (EQ) => { $crate::data::ir::Condition::Eq };
+    (AE) => { $crate::data::ir::Condition::Ae };
+
+    ($ident:ident) => { $ident };
+}
