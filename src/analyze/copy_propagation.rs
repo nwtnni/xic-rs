@@ -1,7 +1,6 @@
 use std::collections::BTreeMap;
 
 use crate::abi;
-use crate::analyze::Forward;
 use crate::api::analyze::Analysis;
 use crate::data::asm;
 use crate::data::operand;
@@ -12,9 +11,9 @@ use crate::util;
 pub struct CopyPropagation;
 
 impl Analysis<asm::Function<Temporary>> for CopyPropagation {
-    type Data = BTreeMap<Temporary, Temporary>;
+    const BACKWARD: bool = false;
 
-    type Direction = Forward;
+    type Data = BTreeMap<Temporary, Temporary>;
 
     fn new(_: &crate::cfg::Cfg<asm::Function<Temporary>>) -> Self {
         CopyPropagation

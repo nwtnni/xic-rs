@@ -17,15 +17,16 @@ use std::collections::BTreeMap;
 use std::collections::BTreeSet;
 use std::collections::VecDeque;
 
-use petgraph::graphmap::NeighborsDirected;
+use petgraph::Direction;
 
 use crate::cfg::Cfg;
 use crate::cfg::Function;
 use crate::data::operand::Label;
 
 pub trait Analysis<T: Function>: Sized {
+    const BACKWARD: bool;
+
     type Data: Clone + Eq;
-    type Direction: Direction<T>;
 
     fn new(cfg: &Cfg<T>) -> Self;
 
@@ -39,58 +40,6 @@ pub trait Analysis<T: Function>: Sized {
         Self::Data: 'a;
 }
 
-pub trait Direction<T: Function> {
-    const REVERSE: bool;
-    fn successors<'cfg>(
-        cfg: &'cfg Cfg<T>,
-        label: &Label,
-    ) -> NeighborsDirected<'cfg, Label, petgraph::Directed>;
-    fn predecessors<'cfg>(
-        cfg: &'cfg Cfg<T>,
-        label: &Label,
-    ) -> NeighborsDirected<'cfg, Label, petgraph::Directed>;
-}
-
-pub struct Backward;
-
-impl<T: Function> Direction<T> for Backward {
-    const REVERSE: bool = true;
-
-    fn successors<'cfg>(
-        cfg: &'cfg Cfg<T>,
-        label: &Label,
-    ) -> NeighborsDirected<'cfg, Label, petgraph::Directed> {
-        cfg.incoming(label)
-    }
-
-    fn predecessors<'cfg>(
-        cfg: &'cfg Cfg<T>,
-        label: &Label,
-    ) -> NeighborsDirected<'cfg, Label, petgraph::Directed> {
-        cfg.outgoing(label)
-    }
-}
-
-pub struct Forward;
-
-impl<T: Function> Direction<T> for Forward {
-    const REVERSE: bool = false;
-
-    fn successors<'cfg>(
-        cfg: &'cfg Cfg<T>,
-        label: &Label,
-    ) -> NeighborsDirected<'cfg, Label, petgraph::Directed> {
-        cfg.outgoing(label)
-    }
-
-    fn predecessors<'cfg>(
-        cfg: &'cfg Cfg<T>,
-        label: &Label,
-    ) -> NeighborsDirected<'cfg, Label, petgraph::Directed> {
-        cfg.incoming(label)
-    }
-}
-
 pub struct Solution<A: Analysis<T>, T: Function> {
     pub analysis: A,
     pub inputs: BTreeMap<Label, A::Data>,
@@ -100,7 +49,11 @@ pub struct Solution<A: Analysis<T>, T: Function> {
 pub fn analyze<A: Analysis<T>, T: Function>(cfg: &Cfg<T>) -> Solution<A, T> {
     let analysis = A::new(cfg);
 
-    let strongly_connected_components = cfg.strongly_connected_components(A::Direction::REVERSE);
+    let strongly_connected_components = cfg.strongly_connected_components(A::BACKWARD);
+    let (predecessors, successors) = match A::BACKWARD {
+        true => (Direction::Outgoing, Direction::Incoming),
+        false => (Direction::Incoming, Direction::Outgoing),
+    };
 
     let mut inputs = BTreeMap::<Label, A::Data>::new();
     let mut outputs = BTreeMap::<Label, A::Data>::new();
@@ -120,20 +73,21 @@ pub fn analyze<A: Analysis<T>, T: Function>(cfg: &Cfg<T>) -> Solution<A, T> {
 
             let input = inputs.entry(label).or_insert_with(|| analysis.default());
 
-            for predecessor in A::Direction::predecessors(cfg, &label) {
+            for predecessor in cfg.neighbors(predecessors, &label) {
                 outputs
                     .entry(predecessor)
                     .or_insert_with(|| analysis.default());
             }
 
             analysis.merge(
-                A::Direction::predecessors(cfg, &label).map(|predecessor| &outputs[&predecessor]),
+                cfg.neighbors(predecessors, &label)
+                    .map(|predecessor| &outputs[&predecessor]),
                 input,
             );
 
             let mut output = input.clone();
 
-            if A::Direction::REVERSE {
+            if A::BACKWARD {
                 for statement in cfg[&label].iter().rev() {
                     analysis.transfer(statement, &mut output);
                 }
@@ -151,7 +105,7 @@ pub fn analyze<A: Analysis<T>, T: Function>(cfg: &Cfg<T>) -> Solution<A, T> {
                 }
             };
 
-            A::Direction::successors(cfg, &label)
+            cfg.neighbors(successors, &label)
                 .filter(|successor| component.contains(successor))
                 .filter(|successor| workset.insert(*successor))
                 .for_each(|successor| worklist.push_back(successor));

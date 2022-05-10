@@ -98,6 +98,14 @@ impl<T: Function> Cfg<T> {
             .neighbors_directed(*label, petgraph::Direction::Outgoing)
     }
 
+    pub fn neighbors(
+        &self,
+        direction: petgraph::Direction,
+        label: &Label,
+    ) -> NeighborsDirected<Label, petgraph::Directed> {
+        self.graph.neighbors_directed(*label, direction)
+    }
+
     pub fn get(&self, label: &Label) -> Option<&[T::Statement]> {
         self.blocks.get(label).map(|block| block.as_slice())
     }

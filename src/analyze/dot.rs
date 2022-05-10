@@ -4,7 +4,6 @@ use std::fmt;
 use std::fmt::Write as _;
 
 use crate::analyze::Analysis;
-use crate::analyze::Direction as _;
 use crate::analyze::Solution;
 use crate::cfg::Cfg;
 use crate::cfg::Dot;
@@ -21,7 +20,7 @@ where
         let mut output = solution.inputs[label].clone();
         let mut outputs = vec![(&output as &dyn Display).to_string()];
 
-        if A::Direction::REVERSE {
+        if A::BACKWARD {
             for statement in statements.iter().rev() {
                 solution.analysis.transfer(statement, &mut output);
                 outputs.push((&output as &dyn Display).to_string());

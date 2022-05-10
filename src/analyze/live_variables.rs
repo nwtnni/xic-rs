@@ -4,7 +4,6 @@ use std::marker::PhantomData;
 
 use crate::abi;
 use crate::analyze::Analysis;
-use crate::analyze::Backward;
 use crate::cfg;
 use crate::cfg::Cfg;
 use crate::data::asm;
@@ -36,8 +35,9 @@ impl<T: Function> Analysis<T> for LiveVariables<T>
 where
     T::Statement: fmt::Display,
 {
+    const BACKWARD: bool = true;
+
     type Data = BTreeSet<Temporary>;
-    type Direction = Backward;
 
     fn new(_: &Cfg<T>) -> Self {
         LiveVariables(PhantomData)
