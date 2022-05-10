@@ -8,9 +8,8 @@ macro_rules! constant_propagation {
     ($function:ident $($tt:tt)*) => {
         #[test]
         fn $function() {
-            let function = assembly!($function $($tt)*);
-            let copy_propagation = constant_propagation(function);
-            insta::assert_display_snapshot!(copy_propagation);
+            let function = asm_function!($function $($tt)*);
+            insta::assert_display_snapshot!(constant_propagation(function));
         }
     }
 }

@@ -1,16 +1,14 @@
-macro_rules! assembly {
+macro_rules! asm_function {
     ($function:ident: $arguments:tt -> $returns:tt; $($tt:tt)*) => {
         {
             let enter = xic::data::operand::Label::Fixed(xic::data::symbol::intern_static("enter"));
             let exit = xic::data::operand::Label::Fixed(xic::data::symbol::intern_static("exit"));
 
-            use xic::asm;
+            let mut statements = asm_function!($($tt)*);
 
-            let mut statements = assembly!($($tt)*);
-
-            statements.insert(0, asm!((enter:)));
-            statements.push(asm!((exit:)));
-            statements.push(asm!((ret<$returns>)));
+            statements.insert(0, xic::asm!((enter:)));
+            statements.push(xic::asm!((exit:)));
+            statements.push(xic::asm!((ret<$returns>)));
 
             xic::data::asm::Function::<xic::data::operand::Temporary> {
                 name: xic::data::symbol::intern_static(stringify!($function)),
@@ -30,7 +28,7 @@ macro_rules! assembly {
                 );
             )*
             {
-                assembly!($($tt)*)
+                asm_function!($($tt)*)
             }
         }
     };
@@ -42,12 +40,12 @@ macro_rules! assembly {
                 );
             )*
             {
-                assembly!($($tt)*)
+                asm_function!($($tt)*)
             }
         }
     };
     ($($statement:tt)*) => {
-        vec![$(asm!($statement)),*]
+        vec![$(xic::asm!($statement)),*]
     };
 }
 

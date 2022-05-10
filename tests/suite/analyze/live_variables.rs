@@ -10,7 +10,7 @@ macro_rules! live_variables {
     ($function:ident $($tt:tt)*) => {
         #[test]
         fn $function() {
-            let function = assembly!($function $($tt)*);
+            let function = asm_function!($function $($tt)*);
             let (live_variables, live_ranges) = live(function);
             insta::assert_display_snapshot!(live_variables);
             insta::assert_display_snapshot!(live_ranges);

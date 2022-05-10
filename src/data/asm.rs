@@ -201,19 +201,26 @@ macro_rules! asm {
                 arguments: $arguments,
                 returns: $returns,
             },
-            $crate::data::operand::Unary::from(asm!($operand))
+            $crate::data::operand::Unary::from(
+                $crate::data::asm::asm!($operand)
+            )
         )
     };
     (($unary:tt $operand:tt)) => {
         $crate::data::asm::Statement::Unary(
-            asm!(@unary $unary),
-            $crate::data::operand::Unary::from(asm!($operand))
+            $crate::data::asm::asm!(@unary $unary),
+            $crate::data::operand::Unary::from(
+                $crate::data::asm::asm!($operand)
+            ),
         )
     };
     (($binary:tt $destination:tt, $source:tt)) => {
         $crate::data::asm::Statement::Binary(
-            asm!(@binary $binary),
-            $crate::data::operand::Binary::from((asm!($destination), asm!($source)))
+            $crate::data::asm::asm!(@binary $binary),
+            $crate::data::operand::Binary::from((
+                $crate::data::asm::asm!($destination),
+                $crate::data::asm::asm!($source),
+            ))
         )
     };
 
@@ -273,3 +280,7 @@ macro_rules! asm {
         $tt
     };
 }
+
+// https://github.com/rust-lang/rust/pull/52234#issuecomment-976702997
+#[doc(hidden)]
+pub use asm;
