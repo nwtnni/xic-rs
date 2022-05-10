@@ -49,7 +49,7 @@ impl<T: Target> fmt::Display for Function<T> {
     }
 }
 
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum Expression {
     Argument(usize),
     Return(usize),
