@@ -6,7 +6,7 @@ use crate::data::operand::Label;
 use crate::data::operand::Temporary;
 use crate::data::symbol;
 
-pub fn canonize_function(function: &hir::Function) -> lir::Function<lir::Label> {
+pub fn canonize_function(function: &hir::Function) -> lir::Function<Label> {
     let mut canonizer = Canonizer::default();
 
     canonizer.canonize_statement(&function.statement);
@@ -37,7 +37,7 @@ pub fn canonize_function(function: &hir::Function) -> lir::Function<lir::Label> 
 
 #[derive(Debug, Default)]
 struct Canonizer {
-    canonized: Vec<lir::Statement<lir::Label>>,
+    canonized: Vec<lir::Statement<Label>>,
 }
 
 impl Canonizer {
@@ -126,7 +126,7 @@ impl Canonizer {
                     left,
                     right,
                     r#true: *r#true,
-                    r#false: lir::Label(*r#false),
+                    r#false: *r#false,
                 };
                 self.canonized.push(cjump);
             }

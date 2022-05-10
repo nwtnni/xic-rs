@@ -2,8 +2,8 @@ use std::fmt;
 
 use crate::abi;
 use crate::data::ir;
-use crate::data::operand;
 use crate::data::operand::Immediate;
+use crate::data::operand::Label;
 use crate::data::operand::Register;
 use crate::data::operand::Temporary;
 use crate::data::sexp;
@@ -71,8 +71,8 @@ impl From<i64> for Expression {
     }
 }
 
-impl From<operand::Label> for Expression {
-    fn from(label: operand::Label) -> Self {
+impl From<Label> for Expression {
+    fn from(label: Label) -> Self {
         Expression::Immediate(Immediate::Label(label))
     }
 }
@@ -91,16 +91,16 @@ impl From<Register> for Expression {
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Statement<T> {
-    Jump(operand::Label),
+    Jump(Label),
     CJump {
         condition: ir::Condition,
         left: Expression,
         right: Expression,
-        r#true: operand::Label,
+        r#true: Label,
         r#false: T,
     },
     Call(Expression, Vec<Expression>, usize),
-    Label(operand::Label),
+    Label(Label),
     Move {
         destination: Expression,
         source: Expression,
@@ -117,28 +117,25 @@ impl<T: Serialize> fmt::Display for Statement<T> {
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
 pub struct Fallthrough;
 
-#[derive(Copy, Clone, Debug, PartialEq, Eq)]
-pub struct Label(pub operand::Label);
-
 pub trait Target: sexp::Serialize + Copy + Clone + Eq + fmt::Debug {
     type Access;
-    fn target(&self) -> Option<&operand::Label>;
-    fn target_mut(&mut self) -> Option<&mut operand::Label>;
-    fn access(access: &Self::Access) -> Option<&operand::Label>;
+    fn target(&self) -> Option<&Label>;
+    fn target_mut(&mut self) -> Option<&mut Label>;
+    fn access(access: &Self::Access) -> Option<&Label>;
 }
 
 impl Target for Fallthrough {
-    type Access = operand::Label;
+    type Access = Label;
 
-    fn target(&self) -> Option<&operand::Label> {
+    fn target(&self) -> Option<&Label> {
         None
     }
 
-    fn target_mut(&mut self) -> Option<&mut operand::Label> {
+    fn target_mut(&mut self) -> Option<&mut Label> {
         None
     }
 
-    fn access(access: &Self::Access) -> Option<&operand::Label> {
+    fn access(access: &Self::Access) -> Option<&Label> {
         Some(access)
     }
 }
@@ -146,15 +143,15 @@ impl Target for Fallthrough {
 impl Target for Label {
     type Access = ();
 
-    fn target(&self) -> Option<&operand::Label> {
-        Some(&self.0)
+    fn target(&self) -> Option<&Label> {
+        Some(self)
     }
 
-    fn target_mut(&mut self) -> Option<&mut operand::Label> {
-        Some(&mut self.0)
+    fn target_mut(&mut self) -> Option<&mut Label> {
+        Some(self)
     }
 
-    fn access((): &Self::Access) -> Option<&operand::Label> {
+    fn access((): &Self::Access) -> Option<&Label> {
         None
     }
 }
@@ -206,7 +203,7 @@ macro_rules! lir {
             left: $crate::data::lir::lir!($left),
             right: $crate::data::lir::lir!($right),
             r#true: $r#true,
-            r#false: $crate::data::lir::Label($r#false),
+            r#false: $r#false,
         }
     };
     ((CALL $function:tt $returns:tt $($argument:tt)*)) => {

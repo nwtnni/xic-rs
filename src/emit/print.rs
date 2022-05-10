@@ -165,12 +165,6 @@ impl Serialize for lir::Fallthrough {
     }
 }
 
-impl Serialize for lir::Label {
-    fn sexp(&self) -> Sexp {
-        self.0.sexp()
-    }
-}
-
 impl Serialize for ir::Binary {
     fn sexp(&self) -> Sexp {
         use ir::Binary::*;

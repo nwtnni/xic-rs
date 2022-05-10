@@ -32,6 +32,7 @@ use xic::data::asm;
 use xic::data::ast;
 use xic::data::hir;
 use xic::data::lir;
+use xic::data::operand::Label;
 use xic::data::operand::Register;
 use xic::data::operand::Temporary;
 use xic::data::token::Tokens;
@@ -50,7 +51,7 @@ pub fn emit_hir(path: &str) -> hir::Unit {
     xic::api::emit_hir(Path::new(path), &program, &context)
 }
 
-pub fn emit_lir(path: &str) -> lir::Unit<lir::Label> {
+pub fn emit_lir(path: &str) -> lir::Unit<Label> {
     emit_hir(path).map_ref(xic::api::emit_lir)
 }
 
