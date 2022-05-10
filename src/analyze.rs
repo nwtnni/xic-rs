@@ -1,3 +1,4 @@
+mod anticipated_expressions;
 mod call_graph;
 mod constant_propagation;
 mod copy_propagation;
@@ -5,6 +6,7 @@ mod dot;
 mod live_ranges;
 mod live_variables;
 
+pub use anticipated_expressions::AnticipatedExpressions;
 pub use call_graph::CallGraph;
 pub use constant_propagation::ConstantPropagation;
 pub use copy_propagation::CopyPropagation;
