@@ -160,28 +160,42 @@ impl fmt::Display for Statement {
 #[macro_export]
 macro_rules! hir {
     ((CONST $($integer:tt)+)) => {
-        $crate::data::hir::Expression::from(hir!($($integer)+))
+        $crate::data::hir::Expression::from(
+            $crate::data::hir::hir!($($integer)+)
+        )
     };
     ((NAME $($label:tt)+)) => {
-        $crate::data::hir::Expression::from(hir!($($label)+))
+        $crate::data::hir::Expression::from(
+            $crate::data::hir::hir!($($label)+)
+        )
     };
     ((TEMP $($temporary:tt)+)) => {
-        $crate::data::hir::Expression::from(hir!($($temporary)+))
+        $crate::data::hir::Expression::from(
+            $crate::data::hir::hir!($($temporary)+)
+        )
     };
     ((MEM $expression:tt)) => {
-        $crate::data::hir::Expression::Memory(Box::new(hir!($expression)))
+        $crate::data::hir::Expression::Memory(Box::new(
+            $crate::data::hir::hir!($expression)
+        ))
     };
     ((CALL $function:tt $returns:tt $($argument:tt)*)) => {
         $crate::data::hir::Expression::Call(
-            Box::new(hir!($function)),
-            vec![$(hir!($argument),)*],
+            Box::new(
+                $crate::data::hir::hir!($function)
+            ),
+            vec![
+                $(
+                    $crate::data::hir::hir!($argument),
+                )*
+            ],
             $returns,
         )
     };
     ((ESEQ $statement:tt $expression:tt)) => {
         $crate::data::hir::Expression::Sequence(
-            Box::new(hir!($statement)),
-            Box::new(hir!($expression)),
+            Box::new($crate::data::hir::hir!($statement)),
+            Box::new($crate::data::hir::hir!($expression)),
         )
     };
 
@@ -190,9 +204,9 @@ macro_rules! hir {
     };
     ((CJUMP ($condition:ident $left:tt $right:tt) $r#true:ident $r#false:ident)) => {
         $crate::data::hir::Statement::CJump {
-            condition: ir!($condition),
-            left: hir!($left),
-            right: hir!($right),
+            condition: $crate::data::ir::ir!($condition),
+            left: $crate::data::hir::hir!($left),
+            right: $crate::data::hir::hir!($right),
             r#true: $r#true,
             r#false: $r#false,
         }
@@ -201,32 +215,39 @@ macro_rules! hir {
         $crate::data::hir::Statement::Label($label)
     };
     ((EXP $expression:tt)) => {
-        $crate::data::hir::Statement::Expression(hir!($expression))
+        $crate::data::hir::Statement::Expression(
+            $crate::data::hir::hir!($expression)
+        )
     };
     ((MOVE $into:tt $from:tt)) => {
         $crate::data::hir::Statement::Move {
-            destination: hir!($into),
-            source: hir!($from),
+            destination: $crate::data::hir::hir!($into),
+            source: $crate::data::hir::hir!($from),
         }
     };
-    ((RETURN $returns:expr)) => {
-        $crate::data::hir::Statement::Return($returns)
+    ((RETURN $($expression:tt)*)) => {
+        $crate::data::hir::Statement::Return(
+            vec![
+                $(
+                    $crate::data::hir::hir!($expression),
+                )*
+            ]
+        )
     };
-    ((SEQ $statement:tt $($statements:tt)+)) => {
-        $crate::data::hir::Statement::Sequence(vec![
-            hir!($statement),
-            $(hir!($statements),)*
-        ])
+    ((SEQ $($statement:tt)*)) => {
+        $crate::data::hir::Statement::Sequence(
+            vec![
+                $(
+                    $crate::data::hir::hir!($statement),
+                )*
+            ],
+        )
     };
-    ((SEQ $statements:expr)) => {
-        $crate::data::hir::Statement::Sequence($statements)
-    };
-
     (($binary:ident $left:tt $right:tt)) => {
         $crate::data::hir::Expression::Binary(
-            ir!($binary),
-            Box::new(hir!($left)),
-            Box::new(hir!($right)),
+            $crate::data::ir::ir!($binary),
+            Box::new($crate::data::hir::hir!($left)),
+            Box::new($crate::data::hir::hir!($right)),
         )
     };
 
@@ -234,3 +255,7 @@ macro_rules! hir {
         $expression
     }
 }
+
+// https://github.com/rust-lang/rust/pull/52234#issuecomment-976702997
+#[doc(hidden)]
+pub use hir;

@@ -71,7 +71,7 @@ impl<'env> Emitter<'env> {
 
         hir::Function {
             name,
-            statement: hir!((SEQ statements)),
+            statement: hir::Statement::Sequence(statements),
             arguments: function.parameters.len(),
             returns: function.returns.len(),
         }
@@ -125,7 +125,7 @@ impl<'env> Emitter<'env> {
 
                 hir!(
                     (ESEQ
-                        (SEQ statements)
+                        (hir::Statement::Sequence(statements))
                         (ADD (TEMP array) (CONST abi::WORD))))
                 .into()
             }
@@ -281,7 +281,7 @@ impl<'env> Emitter<'env> {
                             //
                             // The number of returns must match the rest of the function, so return values
                             // are defined along all paths to the exit.
-                            (RETURN vec![hir!((CONST 0)); self.returns])
+                            (hir::Statement::Return(vec![hir!((CONST 0)); self.returns]))
                             (LABEL r#in))
                         (MEM (ADD (TEMP base) (MUL (TEMP index) (CONST abi::WORD)))))
                 ).into()
@@ -329,7 +329,7 @@ impl<'env> Emitter<'env> {
                 lengths.push(hir!((MOVE (TEMP fresh) (declaration))));
 
                 hir::Expression::Sequence(
-                    Box::new(hir!((SEQ lengths))),
+                    Box::new(hir::Statement::Sequence(lengths)),
                     Box::new(hir!((TEMP fresh))),
                 )
             }
@@ -382,7 +382,11 @@ impl<'env> Emitter<'env> {
             }
         }
 
-        hir!((ESEQ (SEQ statements) (ADD (TEMP array) (CONST abi::WORD))))
+        hir!(
+            (ESEQ
+                (hir::Statement::Sequence(statements))
+                (ADD (TEMP array) (CONST abi::WORD)))
+        )
     }
 
     fn emit_statement(

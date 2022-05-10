@@ -144,3 +144,7 @@ macro_rules! ir {
 
     ($ident:ident) => { $ident };
 }
+
+// https://github.com/rust-lang/rust/pull/52234#issuecomment-976702997
+#[doc(hidden)]
+pub use ir;
