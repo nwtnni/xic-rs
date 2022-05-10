@@ -60,7 +60,7 @@ impl<'env> Emitter<'env> {
             statements.push(hir!(
                 (MOVE
                     (self.emit_declaration(parameter, &mut variables))
-                    (hir::Expression::Argument(index)))
+                    (_ARG index))
             ));
         }
 
@@ -424,7 +424,7 @@ impl<'env> Emitter<'env> {
                         statements.push(hir!(
                             (MOVE
                                 (self.emit_declaration(declaration, variables))
-                                (hir::Expression::Return(index)))
+                                (_RET index))
                         ));
                     }
                 }
