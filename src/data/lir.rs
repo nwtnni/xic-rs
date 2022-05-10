@@ -118,7 +118,7 @@ impl<T: Serialize> fmt::Display for Statement<T> {
 pub struct Fallthrough;
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
-pub struct Label(pub(crate) operand::Label);
+pub struct Label(pub operand::Label);
 
 pub trait Target: sexp::Serialize + Copy + Clone + Eq + fmt::Debug {
     type Access;
@@ -158,3 +158,101 @@ impl Target for Label {
         None
     }
 }
+
+#[macro_export]
+macro_rules! lir {
+    ((_ARG $integer:expr)) => {
+        $crate::data::lir::Expression::Argument($integer)
+    };
+    ((_RET $integer:expr)) => {
+        $crate::data::lir::Expression::Return($integer)
+    };
+    ((CONST $($integer:tt)+)) => {
+        $crate::data::lir::Expression::from(
+            $crate::data::lir::lir!($($integer)+)
+        )
+    };
+    ((NAME $($label:tt)+)) => {
+        $crate::data::lir::Expression::from(
+            $crate::data::lir::lir!($($label)+)
+        )
+    };
+    ((TEMP $($temporary:tt)+)) => {
+        $crate::data::lir::Expression::from(
+            $crate::data::lir::lir!($($temporary)+)
+        )
+    };
+    ((MEM $expression:tt)) => {
+        $crate::data::lir::Expression::Memory(Box::new(
+            $crate::data::lir::lir!($expression)
+        ))
+    };
+
+    ((JUMP $label:ident)) => {
+        $crate::data::lir::Statement::Jump($label)
+    };
+    ((CJUMP ($condition:ident $left:tt $right:tt) $r#true:ident)) => {
+        $crate::data::lir::Statement::CJump {
+            condition: $crate::data::ir::ir!($condition),
+            left: $crate::data::lir::lir!($left),
+            right: $crate::data::lir::lir!($right),
+            r#true: $r#true,
+            r#false: $crate::data::lir::Fallthrough,
+        }
+    };
+    ((CJUMP ($condition:ident $left:tt $right:tt) $r#true:ident $r#false:ident)) => {
+        $crate::data::lir::Statement::CJump {
+            condition: $crate::data::ir::ir!($condition),
+            left: $crate::data::lir::lir!($left),
+            right: $crate::data::lir::lir!($right),
+            r#true: $r#true,
+            r#false: $crate::data::lir::Label($r#false),
+        }
+    };
+    ((CALL $function:tt $returns:tt $($argument:tt)*)) => {
+        $crate::data::lir::Statement::Call(
+            Box::new(
+                $crate::data::lir::lir!($function)
+            ),
+            vec![
+                $(
+                    $crate::data::lir::lir!($argument),
+                )*
+            ],
+            $returns,
+        )
+    };
+    ((LABEL $label:tt)) => {
+        $crate::data::lir::Statement::Label($label)
+    };
+    ((MOVE $into:tt $from:tt)) => {
+        $crate::data::lir::Statement::Move {
+            destination: $crate::data::lir::lir!($into),
+            source: $crate::data::lir::lir!($from),
+        }
+    };
+    ((RETURN $($expression:tt)*)) => {
+        $crate::data::lir::Statement::Return(
+            vec![
+                $(
+                    $crate::data::lir::lir!($expression),
+                )*
+            ]
+        )
+    };
+    (($binary:ident $left:tt $right:tt)) => {
+        $crate::data::lir::Expression::Binary(
+            $crate::data::ir::ir!($binary),
+            Box::new($crate::data::lir::lir!($left)),
+            Box::new($crate::data::lir::lir!($right)),
+        )
+    };
+
+    ($expression:expr) => {
+        $expression
+    }
+}
+
+// https://github.com/rust-lang/rust/pull/52234#issuecomment-976702997
+#[doc(hidden)]
+pub use lir;
