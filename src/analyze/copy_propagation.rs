@@ -84,7 +84,7 @@ impl Analysis<asm::Function<Temporary>> for CopyPropagation {
         }
     }
 
-    fn merge<'a, I>(&'a self, mut outputs: I, input: &mut Self::Data)
+    fn merge<'a, I>(&self, mut outputs: I, input: &mut Self::Data)
     where
         I: Iterator<Item = Option<&'a Self::Data>>,
         Self::Data: 'a,

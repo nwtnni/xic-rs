@@ -51,7 +51,7 @@ where
         T::transfer(statement, output);
     }
 
-    fn merge<'a, I>(&'a self, outputs: I, input: &mut Self::Data)
+    fn merge<'a, I>(&self, outputs: I, input: &mut Self::Data)
     where
         I: Iterator<Item = Option<&'a Self::Data>>,
         Self::Data: 'a,

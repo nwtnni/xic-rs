@@ -36,7 +36,7 @@ pub trait Analysis<T: Function>: Sized {
 
     fn transfer(&self, statement: &T::Statement, output: &mut Self::Data);
 
-    fn merge<'a, I>(&'a self, outputs: I, input: &mut Self::Data)
+    fn merge<'a, I>(&self, outputs: I, input: &mut Self::Data)
     where
         I: Iterator<Item = Option<&'a Self::Data>>,
         Self::Data: 'a;
