@@ -36,7 +36,7 @@ pub trait Analysis<T: Function>: Sized {
 
     fn merge<'a, I>(&'a self, outputs: I, input: &mut Self::Data)
     where
-        I: Iterator<Item = &'a Self::Data>,
+        I: Iterator<Item = Option<&'a Self::Data>>,
         Self::Data: 'a;
 }
 
@@ -73,15 +73,9 @@ pub fn analyze<A: Analysis<T>, T: Function>(cfg: &Cfg<T>) -> Solution<A, T> {
 
             let input = inputs.entry(label).or_insert_with(|| analysis.default());
 
-            for predecessor in cfg.neighbors(predecessors, &label) {
-                outputs
-                    .entry(predecessor)
-                    .or_insert_with(|| analysis.default());
-            }
-
             analysis.merge(
                 cfg.neighbors(predecessors, &label)
-                    .map(|predecessor| &outputs[&predecessor]),
+                    .map(|predecessor| outputs.get(&predecessor)),
                 input,
             );
 

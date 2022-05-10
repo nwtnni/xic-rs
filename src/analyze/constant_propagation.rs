@@ -147,13 +147,21 @@ impl Analysis<asm::Function<Temporary>> for ConstantPropagation {
 
     fn merge<'a, I>(&'a self, mut outputs: I, input: &mut Self::Data)
     where
-        I: Iterator<Item = &'a Self::Data>,
+        I: Iterator<Item = Option<&'a Self::Data>>,
         Self::Data: 'a,
     {
         input.clear();
-        input.extend(outputs.next().into_iter().flatten());
+        input.extend(outputs.next().into_iter().flatten().flatten());
 
         for output in outputs {
+            let output = match output {
+                Some(output) => output,
+                None => {
+                    input.clear();
+                    return;
+                }
+            };
+
             input.retain(|temporary, old| match output.get(temporary) {
                 Some(new) if old == new => true,
                 Some(_) | None => false,

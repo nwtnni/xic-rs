@@ -53,11 +53,11 @@ where
 
     fn merge<'a, I>(&'a self, outputs: I, input: &mut Self::Data)
     where
-        I: Iterator<Item = &'a Self::Data>,
+        I: Iterator<Item = Option<&'a Self::Data>>,
         Self::Data: 'a,
     {
         input.clear();
-        for output in outputs {
+        for output in outputs.flatten() {
             input.extend(output);
         }
     }
