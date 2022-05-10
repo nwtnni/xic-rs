@@ -32,16 +32,42 @@ pub trait Analysis<T: Function>: Sized {
 
     type Data: Clone + Eq;
 
-    fn new(cfg: &Cfg<T>) -> Self;
+    fn new() -> Self;
 
-    fn default(&self, label: &Label) -> Self::Data;
+    fn new_with_metadata(_cfg: &Cfg<T>) -> Self {
+        Self::new()
+    }
+
+    fn default(&self) -> Self::Data;
+
+    fn default_with_metadata(&self, _label: &Label) -> Self::Data {
+        self.default()
+    }
 
     fn transfer(&self, statement: &T::Statement, output: &mut Self::Data);
+
+    fn transfer_with_metadata(
+        &self,
+        _label: &Label,
+        _index: usize,
+        statement: &T::Statement,
+        output: &mut Self::Data,
+    ) {
+        self.transfer(statement, output);
+    }
 
     fn merge<'a, I>(&self, outputs: I, input: &mut Self::Data)
     where
         I: Iterator<Item = Option<&'a Self::Data>>,
         Self::Data: 'a;
+
+    fn merge_with_metadata<'a, I>(&self, outputs: I, input: &mut Self::Data)
+    where
+        I: Iterator<Item = (Label, Option<&'a Self::Data>)>,
+        Self::Data: 'a,
+    {
+        self.merge(outputs.map(|(_, data)| data), input)
+    }
 }
 
 pub struct Solution<A: Analysis<T>, T: Function> {
@@ -51,7 +77,7 @@ pub struct Solution<A: Analysis<T>, T: Function> {
 }
 
 pub fn analyze<A: Analysis<T>, T: Function>(cfg: &Cfg<T>) -> Solution<A, T> {
-    let analysis = A::new(cfg);
+    let analysis = A::new_with_metadata(cfg);
 
     let strongly_connected_components = cfg.strongly_connected_components(A::BACKWARD);
     let (predecessors, successors) = match A::BACKWARD {
@@ -77,23 +103,23 @@ pub fn analyze<A: Analysis<T>, T: Function>(cfg: &Cfg<T>) -> Solution<A, T> {
 
             let input = inputs
                 .entry(label)
-                .or_insert_with(|| analysis.default(&label));
+                .or_insert_with(|| analysis.default_with_metadata(&label));
 
-            analysis.merge(
+            analysis.merge_with_metadata(
                 cfg.neighbors(predecessors, &label)
-                    .map(|predecessor| outputs.get(&predecessor)),
+                    .map(|predecessor| (predecessor, outputs.get(&predecessor))),
                 input,
             );
 
             let mut output = input.clone();
 
             if A::BACKWARD {
-                for statement in cfg[&label].iter().rev() {
-                    analysis.transfer(statement, &mut output);
+                for (index, statement) in cfg[&label].iter().enumerate().rev() {
+                    analysis.transfer_with_metadata(&label, index, statement, &mut output);
                 }
             } else {
-                for statement in &cfg[&label] {
-                    analysis.transfer(statement, &mut output);
+                for (index, statement) in cfg[&label].iter().enumerate() {
+                    analysis.transfer_with_metadata(&label, index, statement, &mut output);
                 }
             }
 

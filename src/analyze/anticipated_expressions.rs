@@ -2,7 +2,6 @@ use std::collections::BTreeSet;
 
 use crate::analyze::Analysis;
 use crate::data::lir;
-use crate::data::operand::Label;
 
 pub struct AnticipatedExpressions;
 
@@ -11,11 +10,11 @@ impl<T: lir::Target> Analysis<lir::Function<T>> for AnticipatedExpressions {
 
     type Data = BTreeSet<lir::Expression>;
 
-    fn new(_: &crate::cfg::Cfg<lir::Function<T>>) -> Self {
+    fn new() -> Self {
         Self
     }
 
-    fn default(&self, _: &Label) -> Self::Data {
+    fn default(&self) -> Self::Data {
         BTreeSet::new()
     }
 

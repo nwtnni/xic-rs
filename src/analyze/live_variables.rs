@@ -5,7 +5,6 @@ use std::marker::PhantomData;
 use crate::abi;
 use crate::analyze::Analysis;
 use crate::cfg;
-use crate::cfg::Cfg;
 use crate::data::asm;
 use crate::data::operand;
 use crate::data::operand::Immediate;
@@ -39,11 +38,11 @@ where
 
     type Data = BTreeSet<Temporary>;
 
-    fn new(_: &Cfg<T>) -> Self {
+    fn new() -> Self {
         LiveVariables(PhantomData)
     }
 
-    fn default(&self, _: &Label) -> Self::Data {
+    fn default(&self) -> Self::Data {
         BTreeSet::new()
     }
 

@@ -21,14 +21,18 @@ where
         let mut outputs = vec![(&output as &dyn Display).to_string()];
 
         if A::BACKWARD {
-            for statement in statements.iter().rev() {
-                solution.analysis.transfer(statement, &mut output);
+            for (index, statement) in statements.iter().enumerate().rev() {
+                solution
+                    .analysis
+                    .transfer_with_metadata(label, index, statement, &mut output);
                 outputs.push((&output as &dyn Display).to_string());
             }
             outputs.reverse();
         } else {
-            for statement in statements {
-                solution.analysis.transfer(statement, &mut output);
+            for (index, statement) in statements.iter().enumerate() {
+                solution
+                    .analysis
+                    .transfer_with_metadata(label, index, statement, &mut output);
                 outputs.push((&output as &dyn Display).to_string());
             }
         }

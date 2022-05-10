@@ -16,13 +16,21 @@ impl<T: lir::Target> Analysis<lir::Function<T>> for AvailableExpressions<T> {
 
     type Data = BTreeSet<lir::Expression>;
 
-    fn new(cfg: &crate::cfg::Cfg<lir::Function<T>>) -> Self {
+    fn new() -> Self {
+        unreachable!()
+    }
+
+    fn new_with_metadata(cfg: &crate::cfg::Cfg<lir::Function<T>>) -> Self {
         Self {
             anticipated: analyze(cfg),
         }
     }
 
-    fn default(&self, label: &Label) -> Self::Data {
+    fn default(&self) -> Self::Data {
+        unreachable!()
+    }
+
+    fn default_with_metadata(&self, label: &Label) -> Self::Data {
         self.anticipated.outputs[label].clone()
     }
 

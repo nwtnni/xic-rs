@@ -4,7 +4,6 @@ use crate::abi;
 use crate::api::analyze::Analysis;
 use crate::data::asm;
 use crate::data::operand;
-use crate::data::operand::Label;
 use crate::data::operand::Register;
 use crate::data::operand::Temporary;
 use crate::util;
@@ -16,11 +15,11 @@ impl Analysis<asm::Function<Temporary>> for CopyPropagation {
 
     type Data = BTreeMap<Temporary, Temporary>;
 
-    fn new(_: &crate::cfg::Cfg<asm::Function<Temporary>>) -> Self {
-        CopyPropagation
+    fn new() -> Self {
+        Self
     }
 
-    fn default(&self, _: &Label) -> Self::Data {
+    fn default(&self) -> Self::Data {
         BTreeMap::new()
     }
 
