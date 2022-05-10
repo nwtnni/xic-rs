@@ -5,6 +5,7 @@ use crate::api::analyze::Analysis;
 use crate::data::asm;
 use crate::data::operand;
 use crate::data::operand::Immediate;
+use crate::data::operand::Label;
 use crate::data::operand::Register;
 use crate::data::operand::Temporary;
 use crate::util;
@@ -20,7 +21,7 @@ impl Analysis<asm::Function<Temporary>> for ConstantPropagation {
         ConstantPropagation
     }
 
-    fn default(&self) -> Self::Data {
+    fn default(&self, _: &Label) -> Self::Data {
         BTreeMap::new()
     }
 

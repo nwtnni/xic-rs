@@ -43,7 +43,7 @@ where
         LiveVariables(PhantomData)
     }
 
-    fn default(&self) -> Self::Data {
+    fn default(&self, _: &Label) -> Self::Data {
         BTreeSet::new()
     }
 

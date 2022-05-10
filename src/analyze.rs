@@ -32,7 +32,7 @@ pub trait Analysis<T: Function>: Sized {
 
     fn new(cfg: &Cfg<T>) -> Self;
 
-    fn default(&self) -> Self::Data;
+    fn default(&self, label: &Label) -> Self::Data;
 
     fn transfer(&self, statement: &T::Statement, output: &mut Self::Data);
 
@@ -73,7 +73,9 @@ pub fn analyze<A: Analysis<T>, T: Function>(cfg: &Cfg<T>) -> Solution<A, T> {
         while let Some(label) = worklist.pop_front() {
             workset.remove(&label);
 
-            let input = inputs.entry(label).or_insert_with(|| analysis.default());
+            let input = inputs
+                .entry(label)
+                .or_insert_with(|| analysis.default(&label));
 
             analysis.merge(
                 cfg.neighbors(predecessors, &label)
