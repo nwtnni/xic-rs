@@ -1,0 +1,35 @@
+---
+source: tests/suite/analyze/anticipated_expressions.rs
+assertion_line: 37
+expression: anticipated_expressions(function)
+---
+
+                                       used_on_one_branch
+
++--------------------------------------------+     +--------------------------------------------+
+|                fallthrough:                |     |                   enter:                   |
+| {(ADD (TEMP _b) (CONST 1))}                |     | {(TEMP _b), (ADD (TEMP _b) (CONST 1))}     |
+| (MOVE (TEMP _c) (ADD (TEMP _b) (CONST 1))) |     | (MOVE (TEMP _a) (ADD (TEMP _b) (CONST 1))) |
+| {}                                         |     | {(TEMP _a), (TEMP _b)}                     |
+| (JUMP exit)                                |     | (CJUMP (GEQ (TEMP _a) (TEMP _b)) branch)   |
+| {}                                         | <-- | {}                                         |
++--------------------------------------------+     +--------------------------------------------+
+  |                                                  |
+  |                                                  |
+  |                                                  v
+  |                                                +--------------------------------------------+
+  |                                                |                  branch:                   |
+  |                                                | {(ADD (TEMP _b) (CONST 2))}                |
+  |                                                | (MOVE (TEMP _d) (ADD (TEMP _b) (CONST 2))) |
+  |                                                | {}                                         |
+  |                                                | (JUMP exit)                                |
+  |                                                | {}                                         |
+  |                                                +--------------------------------------------+
+  |                                                  |
+  |                                                  |
+  |                                                  v
+  |                                                +--------------------------------------------+
+  |                                                |                   exit:                    |
+  +----------------------------------------------> | {}                                         |
+                                                   +--------------------------------------------+
+

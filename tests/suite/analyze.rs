@@ -99,6 +99,9 @@ macro_rules! asm_function {
     };
 }
 
+#[path = "analyze/anticipated_expressions.rs"]
+mod anticipated_expressions;
+
 #[path = "analyze/live_variables.rs"]
 mod live_variables;
 
