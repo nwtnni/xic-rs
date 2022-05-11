@@ -7,6 +7,7 @@ mod dot;
 mod live_ranges;
 mod live_variables;
 mod postponable_expressions;
+mod used_expressions;
 
 pub use anticipated_expressions::AnticipatedExpressions;
 pub use available_expressions::AvailableExpressions;
@@ -18,6 +19,7 @@ pub use live_ranges::LiveRanges;
 pub use live_ranges::Range;
 pub use live_variables::LiveVariables;
 pub use postponable_expressions::PostponableExpressions;
+pub use used_expressions::UsedExpressions;
 
 use std::collections::BTreeMap;
 use std::collections::BTreeSet;

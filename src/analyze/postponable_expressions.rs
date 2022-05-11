@@ -11,7 +11,7 @@ use crate::data::lir;
 use crate::data::operand::Label;
 
 pub struct PostponableExpressions<T: lir::Target> {
-    earliest: BTreeMap<Label, Vec<BTreeSet<lir::Expression>>>,
+    pub(super) earliest: BTreeMap<Label, Vec<BTreeSet<lir::Expression>>>,
     marker: PhantomData<T>,
 }
 
