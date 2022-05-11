@@ -8,7 +8,7 @@ use crate::data::lir;
 use crate::data::operand::Label;
 
 pub struct AvailableExpressions<T: lir::Target> {
-    anticipated: Solution<AnticipatedExpressions, lir::Function<T>>,
+    pub(super) anticipated: Solution<AnticipatedExpressions, lir::Function<T>>,
 }
 
 impl<T: lir::Target> Analysis<lir::Function<T>> for AvailableExpressions<T> {

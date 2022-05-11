@@ -77,7 +77,7 @@ impl<T: lir::Target> Analysis<lir::Function<T>> for AnticipatedExpressions {
 }
 
 impl AnticipatedExpressions {
-    pub fn remove(output: &mut BTreeSet<lir::Expression>, kill: &lir::Expression) {
+    pub(super) fn remove(output: &mut BTreeSet<lir::Expression>, kill: &lir::Expression) {
         output.remove(kill);
 
         let mut stack = vec![kill.clone()];

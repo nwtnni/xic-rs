@@ -6,6 +6,7 @@ mod copy_propagation;
 mod dot;
 mod live_ranges;
 mod live_variables;
+mod postponable_expressions;
 
 pub use anticipated_expressions::AnticipatedExpressions;
 pub use available_expressions::AvailableExpressions;
@@ -16,6 +17,7 @@ pub use dot::display;
 pub use live_ranges::LiveRanges;
 pub use live_ranges::Range;
 pub use live_variables::LiveVariables;
+pub use postponable_expressions::PostponableExpressions;
 
 use std::collections::BTreeMap;
 use std::collections::BTreeSet;

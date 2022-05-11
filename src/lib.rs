@@ -49,6 +49,7 @@ pub mod api {
         pub use crate::analyze::CopyPropagation;
         pub use crate::analyze::LiveRanges;
         pub use crate::analyze::LiveVariables;
+        pub use crate::analyze::PostponableExpressions;
         pub use crate::analyze::Solution;
     }
 }
