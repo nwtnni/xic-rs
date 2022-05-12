@@ -85,3 +85,19 @@ pub fn inline(path: &str) {
 
     pretty_assertions::assert_eq!(unoptimized, optimized)
 }
+
+#[test_generator::test_resources("tests/execute/*.xi")]
+pub fn eliminate_partial_redundancy(path: &str) {
+    let lir = super::emit_lir(path);
+
+    let unoptimized = super::interpret_lir(&lir);
+
+    let lir = lir
+        .map(xic::api::construct_cfg)
+        .map_mut(xic::api::optimize::eliminate_partial_redundancy)
+        .map(xic::api::destruct_cfg);
+
+    let optimized = super::interpret_lir(&lir);
+
+    pretty_assertions::assert_eq!(unoptimized, optimized)
+}
