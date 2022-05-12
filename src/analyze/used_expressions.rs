@@ -4,6 +4,7 @@ use std::marker::PhantomData;
 
 use crate::analyze::analyze;
 use crate::analyze::Analysis;
+use crate::analyze::AnticipatedExpressions;
 use crate::analyze::PostponableExpressions;
 use crate::cfg::Cfg;
 use crate::data::lir;
@@ -129,21 +130,25 @@ impl<T: lir::Target> Analysis<lir::Function<T>> for UsedExpressions<T> {
                 r#true: _,
                 r#false: _,
             } => {
-                output.insert(left.clone());
-                output.insert(right.clone());
+                AnticipatedExpressions::insert(output, left);
+                AnticipatedExpressions::insert(output, right);
             }
             lir::Statement::Call(function, arguments, _) => {
-                output.insert(function.clone());
-                output.extend(arguments.iter().cloned());
+                AnticipatedExpressions::insert(output, function);
+                for argument in arguments {
+                    AnticipatedExpressions::insert(output, argument);
+                }
             }
             lir::Statement::Move {
                 destination: _,
                 source,
             } => {
-                output.insert(source.clone());
+                AnticipatedExpressions::insert(output, source);
             }
             lir::Statement::Return(returns) => {
-                output.extend(returns.iter().cloned());
+                for r#return in returns {
+                    AnticipatedExpressions::insert(output, r#return);
+                }
             }
         }
 

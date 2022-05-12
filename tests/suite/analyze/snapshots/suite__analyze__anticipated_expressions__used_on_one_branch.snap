@@ -8,9 +8,9 @@ expression: anticipated_expressions(function)
 
 +--------------------------------------------+     +--------------------------------------------+
 |                fallthrough:                |     |                   enter:                   |
-| {(ADD (TEMP _b) (CONST 1))}                |     | {(TEMP _b), (ADD (TEMP _b) (CONST 1))}     |
+| {(ADD (TEMP _b) (CONST 1))}                |     | {(ADD (TEMP _b) (CONST 1))}                |
 | (MOVE (TEMP _c) (ADD (TEMP _b) (CONST 1))) |     | (MOVE (TEMP _a) (ADD (TEMP _b) (CONST 1))) |
-| {}                                         |     | {(TEMP _a), (TEMP _b)}                     |
+| {}                                         |     | {}                                         |
 | (JUMP exit)                                |     | (CJUMP (GEQ (TEMP _a) (TEMP _b)) branch)   |
 | {}                                         | <-- | {}                                         |
 +--------------------------------------------+     +--------------------------------------------+
