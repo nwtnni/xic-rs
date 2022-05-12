@@ -56,24 +56,24 @@ impl<T: lir::Target> Analysis<lir::Function<T>> for PostponableExpressions<T> {
                 r#true: _,
                 r#false: _,
             } => {
-                AnticipatedExpressions::remove(output, left);
-                AnticipatedExpressions::remove(output, right);
+                output.remove(left);
+                output.remove(right);
             }
             lir::Statement::Call(function, arguments, _) => {
-                AnticipatedExpressions::remove(output, function);
+                output.remove(function);
                 for argument in arguments {
-                    AnticipatedExpressions::remove(output, argument);
+                    output.remove(argument);
                 }
             }
             lir::Statement::Move {
                 destination: _,
                 source,
             } => {
-                AnticipatedExpressions::remove(output, source);
+                output.remove(source);
             }
             lir::Statement::Return(returns) => {
                 for r#return in returns {
-                    AnticipatedExpressions::remove(output, r#return);
+                    output.remove(r#return);
                 }
             }
         }

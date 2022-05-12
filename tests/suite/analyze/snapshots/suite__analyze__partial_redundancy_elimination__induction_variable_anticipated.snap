@@ -1,0 +1,35 @@
+---
+source: tests/suite/analyze/partial_redundancy_elimination.rs
+assertion_line: 144
+expression: anticipated
+---
+
+                 induction_variable
+
++--------------------------------------------+
+|                   enter:                   |
+| {}                                         |
+| (MOVE (TEMP _a) (CONST 0))                 |
+| {(ADD (TEMP _a) (CONST 1))}                |
+| (JUMP r#loop)                              |
+| {(ADD (TEMP _a) (CONST 1))}                |
++--------------------------------------------+
+  |
+  |
+  v
++--------------------------------------------+
+|                  r#loop:                   |
+| {(ADD (TEMP _a) (CONST 1))}                |
+| (MOVE (TEMP _a) (ADD (TEMP _a) (CONST 1))) |
+| {}                                         | ---+
+| (CJUMP (GEQ (TEMP _a) (CONST 5)) r#loop)   |    |
+| {}                                         | <--+
++--------------------------------------------+
+  |
+  |
+  v
++--------------------------------------------+
+|                   exit:                    |
+| {}                                         |
++--------------------------------------------+
+
