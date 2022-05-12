@@ -73,8 +73,21 @@ impl<T: lir::Target> Transformer<T> {
         statements: &mut Vec<lir::Statement<T>>,
     ) {
         match statement {
-            statement @ (lir::Statement::Jump(_) | lir::Statement::Label(_)) => {
-                statements.push(statement);
+            lir::Statement::Label(label) => {
+                statements.push(lir::Statement::Label(label));
+            }
+            lir::Statement::Jump(target) => {
+                for expression in self.latest[label][index]
+                    .iter()
+                    .filter(|expression| self.used[label][index + 1].contains(expression))
+                    .cloned()
+                    .collect::<Vec<_>>()
+                {
+                    let temporary = self.rewrite(expression.clone());
+                    statements.push(lir!((MOVE (TEMP temporary) expression)));
+                }
+
+                statements.push(lir::Statement::Jump(target));
             }
             lir::Statement::CJump {
                 condition,
@@ -83,6 +96,16 @@ impl<T: lir::Target> Transformer<T> {
                 r#true,
                 r#false,
             } => {
+                for expression in self.latest[label][index]
+                    .iter()
+                    .filter(|expression| self.used[label][index + 1].contains(expression))
+                    .cloned()
+                    .collect::<Vec<_>>()
+                {
+                    let temporary = self.rewrite(expression.clone());
+                    statements.push(lir!((MOVE (TEMP temporary) expression)));
+                }
+
                 let left = self.eliminate_expression(label, index, left, statements);
                 let right = self.eliminate_expression(label, index, right, statements);
                 statements.push(lir::Statement::CJump {
@@ -132,10 +155,7 @@ impl<T: lir::Target> Transformer<T> {
             self.used[label][index + 1].contains(&expression),
         ) {
             (true, true) => {
-                let temporary = *self
-                    .redundant
-                    .entry(expression.clone())
-                    .or_insert_with(|| Temporary::fresh("pre"));
+                let temporary = self.rewrite(expression.clone());
                 statements.push(lir!((MOVE (TEMP temporary) (expression))));
                 lir::Expression::Temporary(temporary)
             }
@@ -146,10 +166,16 @@ impl<T: lir::Target> Transformer<T> {
                 | lir::Expression::Argument(_)
                 | lir::Expression::Return(_)) => expression,
                 expression @ (lir::Expression::Memory(_) | lir::Expression::Binary(_, _, _)) => {
-                    let temporary = *self.redundant.get(&expression).unwrap();
-                    lir::Expression::Temporary(temporary)
+                    lir::Expression::Temporary(self.rewrite(expression))
                 }
             },
         }
+    }
+
+    fn rewrite(&mut self, expression: lir::Expression) -> Temporary {
+        *self
+            .redundant
+            .entry(expression)
+            .or_insert_with(|| Temporary::fresh("pre"))
     }
 }
