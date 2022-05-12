@@ -1,7 +1,7 @@
 ---
-source: tests/suite/analyze/lazy_code_motion.rs
+source: tests/suite/analyze/partial_redundancy_elimination.rs
 assertion_line: 86
-expression: available
+expression: used
 ---
 
                                                                                                     knoop_ruthing_steffen
@@ -30,18 +30,18 @@ expression: available
                                                           |                                                | (MOVE (TEMP _a) (TEMP _c))                 |
                                                           |                                                | {}                                         |
                                                           |                                                | (JUMP _3)                                  |
-                                                          |                                                | {(ADD (TEMP _a) (TEMP _b))}                |
+                                                          |                                                | {}                                         |
                                                           |                                                +--------------------------------------------+
                                                           |                                                  |
                                                           |                                                  |
                                                           |                                                  v
                                                           |                                                +--------------------------------------------+
                                                           |                                                |                    _3:                     |
-                                                          |                                                | {(ADD (TEMP _a) (TEMP _b))}                |
+                                                          |                                                | {}                                         |
                                                           |                                                | (MOVE (TEMP _x) (ADD (TEMP _a) (TEMP _b))) |
-                                                          |                                                | {(ADD (TEMP _a) (TEMP _b))}                |
+                                                          |                                                | {}                                         |
                                                           |                                                | (JUMP _5)                                  |
-                                                          |                                                | {(ADD (TEMP _a) (TEMP _b))}                |
+                                                          |                                                | {}                                         |
                                                           |                                                +--------------------------------------------+
                                                           |                                                  |
                                                           |                                                  |
@@ -57,27 +57,27 @@ expression: available
                                                                                                              v                                                  |
                                                         +--------------------------------------------+     +--------------------------------------------+       |
                                                         |                    _9:                     |     |                    _6:                     |       |
-                                                        | {(ADD (TEMP _a) (TEMP _b))}                |     | {}                                         |       |
+                                                        | {}                                         |     | {}                                         |       |
                                                         | (JUMP _12)                                 |     | (CJUMP (EQ (CONST 0) (CONST 0)) _8)        |       |
-                                                        | {(ADD (TEMP _a) (TEMP _b))}                | <-- | {(ADD (TEMP _a) (TEMP _b))}                |       |
+                                                        | {}                                         | <-- | {}                                         |       |
                                                         +--------------------------------------------+     +--------------------------------------------+       |
                                                           |                                                  |                                                  |
                                                           |                                                  |                                                  |
                                                           v                                                  v                                                  |
      +--------------------------------------------+     +--------------------------------------------+     +--------------------------------------------+       |
      |                    _17:                    |     |                                            |     |                                            |       |
-     | {(ADD (TEMP _a) (TEMP _b))}                |     |                    _12:                    |     |                    _8:                     |       |
-     | (MOVE (TEMP _x) (ADD (TEMP _a) (TEMP _b))) |     | {(ADD (TEMP _a) (TEMP _b))}                |     | {(ADD (TEMP _a) (TEMP _b))}                |       |
-     | {(ADD (TEMP _a) (TEMP _b))}                |     | (CJUMP (EQ (CONST 0) (CONST 0)) _17)       |     | (JUMP _11)                                 |       |
-     | (JUMP _18)                                 |     | {(ADD (TEMP _a) (TEMP _b))}                |     | {(ADD (TEMP _a) (TEMP _b))}                |       |
-     | {(ADD (TEMP _a) (TEMP _b))}                | <-- |                                            |     |                                            |       |
+     | {}                                         |     |                    _12:                    |     |                    _8:                     |       |
+     | (MOVE (TEMP _x) (ADD (TEMP _a) (TEMP _b))) |     | {}                                         |     | {}                                         |       |
+     | {}                                         |     | (CJUMP (EQ (CONST 0) (CONST 0)) _17)       |     | (JUMP _11)                                 |       |
+     | (JUMP _18)                                 |     | {}                                         |     | {(ADD (TEMP _a) (TEMP _b))}                |       |
+     | {}                                         | <-- |                                            |     |                                            |       |
      +--------------------------------------------+     +--------------------------------------------+     +--------------------------------------------+       |
        |                                                  |                                                  |                                                  |
        |                                                  |                                                  |                                                  |
        |                                                  v                                                  v                                                  |
        |                                                +--------------------------------------------+     +--------------------------------------------+       |                +--------------------------------------------+
        |                                                |                    _15:                    |     |                                            |       |                |                    _10:                    |
-       |                                                | {(ADD (TEMP _a) (TEMP _b))}                |     |                    _11:                    |       |                | {(ADD (TEMP _a) (TEMP _b))}                |
+       |                                                | {}                                         |     |                    _11:                    |       |                | {(ADD (TEMP _a) (TEMP _b))}                |
        |                                                | (MOVE (TEMP _y) (ADD (TEMP _a) (TEMP _b))) |     | {(ADD (TEMP _a) (TEMP _b))}                |       |                | (MOVE (TEMP _y) (ADD (TEMP _a) (TEMP _b))) |
        |                                                | {(ADD (TEMP _a) (TEMP _b))}                |     | (CJUMP (EQ (CONST 0) (CONST 0)) _14)       |       |                | {(ADD (TEMP _a) (TEMP _b))}                |
        |                                                | (JUMP _16)                                 |     | {(ADD (TEMP _a) (TEMP _b))}                |       |                | (JUMP _11)                                 |
@@ -99,9 +99,9 @@ expression: available
   |    |                                                  |                                                |                    _16:                    |       |                  |
   |    |                                                  |                                                | {(ADD (TEMP _a) (TEMP _b))}                |       |                  |
   |    |                                                  |                                                | (MOVE (TEMP _x) (ADD (TEMP _a) (TEMP _b))) |       |                  |
-  |    |                                                  |                                                | {(ADD (TEMP _a) (TEMP _b))}                |       |                  |
+  |    |                                                  |                                                | {}                                         |       |                  |
   |    |                                                  |                                                | (JUMP _18)                                 |       |                  |
-  |    |                                                  +----------------------------------------------> | {(ADD (TEMP _a) (TEMP _b))}                |       |                  |
+  |    |                                                  +----------------------------------------------> | {}                                         |       |                  |
   |    |                                                                                                   +--------------------------------------------+       |                  |
   |    |                                                                                                     |                                                  |                  |
   |    |                                                                                                     |                                                  |                  |

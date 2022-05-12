@@ -1,5 +1,5 @@
 ---
-source: tests/suite/analyze/lazy_code_motion.rs
+source: tests/suite/analyze/partial_redundancy_elimination.rs
 assertion_line: 86
 expression: latest
 ---

@@ -1,7 +1,7 @@
 ---
-source: tests/suite/analyze/lazy_code_motion.rs
+source: tests/suite/analyze/partial_redundancy_elimination.rs
 assertion_line: 71
-expression: latest
+expression: postponable
 ---
 
                                basic_loop
@@ -13,9 +13,9 @@ expression: latest
   |                   |                   enter:                   |  |
   |                   | {}                                         |  |
   |                   | (MOVE (TEMP _a) (CONST 0))                 |  |
-  |                   | {(ADD (TEMP _a) (TEMP _b))}                |  |
-  |                   | (JUMP r#loop)                              |  |
   |                   | {}                                         |  |
+  |                   | (JUMP r#loop)                              |  |
+  |                   | {(ADD (TEMP _a) (TEMP _b))}                |  |
   |                   +--------------------------------------------+  |
   |                     |                                             |
   |                     |                                             |

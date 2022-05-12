@@ -1,7 +1,7 @@
 ---
-source: tests/suite/analyze/lazy_code_motion.rs
+source: tests/suite/analyze/partial_redundancy_elimination.rs
 assertion_line: 71
-expression: available
+expression: anticipated
 ---
 
                                       basic_loop
@@ -13,7 +13,7 @@ expression: available
   |                                 |                   enter:                   |  |
   |                                 | {}                                         |  |
   |                                 | (MOVE (TEMP _a) (CONST 0))                 |  |
-  |                                 | {}                                         |  |
+  |                                 | {(ADD (TEMP _a) (TEMP _b))}                |  |
   |                                 | (JUMP r#loop)                              |  |
   |                                 | {(ADD (TEMP _a) (TEMP _b))}                |  |
   |                                 +--------------------------------------------+  |
@@ -24,24 +24,24 @@ expression: available
 |                             |     |                  r#loop:                   |  |
 |           split:            |     | {(ADD (TEMP _a) (TEMP _b))}                |  |
 | {(ADD (TEMP _a) (TEMP _b))} |     | (MOVE (TEMP _c) (ADD (TEMP _a) (TEMP _b))) |  |
-| (JUMP r#loop)               |     | {(ADD (TEMP _a) (TEMP _b))}                |  |
+| (JUMP r#loop)               |     | {}                                         |  |
 | {(ADD (TEMP _a) (TEMP _b))} |     | (CJUMP (EQ (CONST 0) (CONST 0)) split)     |  |
-|                             | <-- | {(ADD (TEMP _a) (TEMP _b))}                | <+
+|                             | <-- | {}                                         | <+
 +-----------------------------+     +--------------------------------------------+
                                       |
                                       |
                                       v
                                     +--------------------------------------------+
                                     |                fallthrough:                |
-                                    | {(ADD (TEMP _a) (TEMP _b))}                |
+                                    | {}                                         |
                                     | (JUMP exit)                                |
-                                    | {(ADD (TEMP _a) (TEMP _b))}                |
+                                    | {}                                         |
                                     +--------------------------------------------+
                                       |
                                       |
                                       v
                                     +--------------------------------------------+
                                     |                   exit:                    |
-                                    | {(ADD (TEMP _a) (TEMP _b))}                |
+                                    | {}                                         |
                                     +--------------------------------------------+
 

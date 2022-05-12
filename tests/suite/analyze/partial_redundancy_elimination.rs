@@ -9,12 +9,12 @@ use xic::api::analyze::UsedExpressions;
 use xic::data::lir::Fallthrough;
 use xic::data::lir::Function;
 
-macro_rules! lazy_code_motion {
+macro_rules! partial_redundancy_elimination {
     ($function:ident $($tt:tt)*) => {
         #[test]
         fn $function() {
             let function = lir_function!($function $($tt)*);
-            let (anticipated, available, earliest, postponable, latest, used) = lazy_code_motion(function);
+            let (anticipated, available, earliest, postponable, latest, used) = partial_redundancy_elimination(function);
             insta::assert_display_snapshot!(concat!(stringify!($function), "_anticipated"), anticipated);
             insta::assert_display_snapshot!(concat!(stringify!($function), "_available"), available);
             insta::assert_display_snapshot!(concat!(stringify!($function), "_earliest"), earliest);
@@ -25,7 +25,7 @@ macro_rules! lazy_code_motion {
     }
 }
 
-fn lazy_code_motion(
+fn partial_redundancy_elimination(
     function: Function<Fallthrough>,
 ) -> (String, String, String, String, String, String) {
     let cfg = xic::api::construct_cfg(function);
@@ -51,7 +51,7 @@ fn lazy_code_motion(
     (anticipated, available, earliest, postponable, latest, used)
 }
 
-lazy_code_motion! {
+partial_redundancy_elimination! {
     used_on_one_branch: 0 -> 0;
     temporaries: a, b, c;
     labels: branch, fallthrough, merge, exit;
@@ -68,7 +68,7 @@ lazy_code_motion! {
         (JUMP exit)
 }
 
-lazy_code_motion! {
+partial_redundancy_elimination! {
     basic_loop: 0 -> 0;
     temporaries: a, b, c;
     labels: r#loop, split, fallthrough, exit;
@@ -83,7 +83,7 @@ lazy_code_motion! {
         (JUMP r#loop)
 }
 
-lazy_code_motion! {
+partial_redundancy_elimination! {
     // https://citeseerx.ist.psu.edu/viewdoc/download?doi=10.1.1.92.4197&rep=rep1&type=pdf
     //
     // Note: loop between _12 and _13 omitted, as there's nothing interesting there.

@@ -105,8 +105,8 @@ mod constant_propagation;
 #[path = "analyze/copy_propagation.rs"]
 mod copy_propagation;
 
-#[path = "analyze/lazy_code_motion.rs"]
-mod lazy_code_motion;
+#[path = "analyze/partial_redundancy_elimination.rs"]
+mod partial_redundancy_elimination;
 
 #[path = "analyze/live_variables.rs"]
 mod live_variables;

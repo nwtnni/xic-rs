@@ -1,7 +1,7 @@
 ---
-source: tests/suite/analyze/lazy_code_motion.rs
+source: tests/suite/analyze/partial_redundancy_elimination.rs
 assertion_line: 71
-expression: earliest
+expression: latest
 ---
 
                                basic_loop
