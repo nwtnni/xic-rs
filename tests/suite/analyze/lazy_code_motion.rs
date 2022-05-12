@@ -82,3 +82,55 @@ lazy_code_motion! {
     (LABEL split)
         (JUMP r#loop)
 }
+
+lazy_code_motion! {
+    // https://citeseerx.ist.psu.edu/viewdoc/download?doi=10.1.1.92.4197&rep=rep1&type=pdf
+    //
+    // Note: loop between _12 and _13 omitted, as there's nothing interesting there.
+    knoop_ruthing_steffen: 0 -> 0;
+    temporaries: a, b, c, x, y;
+    labels: _1, _2, _3, _4, _5, _6, _7, _8, _9, _10, _11, _12, _14, _15, _16, _17, _18, exit;
+    (LABEL _1)
+        (CJUMP (EQ (CONST 0) (CONST 0)) _2)
+    (LABEL _4)
+        (JUMP _5)
+    (LABEL _2)
+        (MOVE (TEMP a) (TEMP c))
+        (JUMP _3)
+    (LABEL _3)
+        (MOVE (TEMP x) (ADD (TEMP a) (TEMP b)))
+        (JUMP _5)
+    (LABEL _5)
+        (CJUMP (EQ (CONST 0) (CONST 0)) _6)
+    (LABEL _7)
+        (JUMP _18)
+    (LABEL _6)
+        (CJUMP (EQ (CONST 0) (CONST 0)) _8)
+
+    (LABEL _9)
+        (JUMP _12)
+    (LABEL _12)
+        (CJUMP (EQ (CONST 0) (CONST 0)) _17)
+    (LABEL _15)
+        (MOVE (TEMP y) (ADD (TEMP a) (TEMP b)))
+        (JUMP _16)
+    (LABEL _17)
+        (MOVE (TEMP x) (ADD (TEMP a) (TEMP b)))
+        (JUMP _18)
+
+    (LABEL _8)
+        (JUMP _11)
+    (LABEL _11)
+        (CJUMP (EQ (CONST 0) (CONST 0)) _14)
+    (LABEL _10)
+        (MOVE (TEMP y) (ADD (TEMP a) (TEMP b)))
+        (JUMP _11)
+    (LABEL _14)
+        (JUMP _16)
+
+    (LABEL _16)
+        (MOVE (TEMP x) (ADD (TEMP a) (TEMP b)))
+        (JUMP _18)
+    (LABEL _18)
+        (JUMP exit)
+}
