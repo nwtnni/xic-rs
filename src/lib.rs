@@ -47,10 +47,12 @@ pub mod api {
         pub use crate::analyze::AvailableExpressions;
         pub use crate::analyze::ConstantPropagation;
         pub use crate::analyze::CopyPropagation;
+        pub use crate::analyze::Earliest;
+        pub use crate::analyze::Latest;
         pub use crate::analyze::LiveRanges;
         pub use crate::analyze::LiveVariables;
         pub use crate::analyze::PostponableExpressions;
-        pub use crate::analyze::UsedExpressions;
         pub use crate::analyze::Solution;
+        pub use crate::analyze::UsedExpressions;
     }
 }

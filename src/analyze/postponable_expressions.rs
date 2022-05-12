@@ -2,10 +2,9 @@ use std::collections::BTreeMap;
 use std::collections::BTreeSet;
 use std::marker::PhantomData;
 
-use crate::analyze::analyze;
 use crate::analyze::Analysis;
 use crate::analyze::AnticipatedExpressions;
-use crate::analyze::AvailableExpressions;
+use crate::analyze::Earliest;
 use crate::cfg::Cfg;
 use crate::data::lir;
 use crate::data::operand::Label;
@@ -25,45 +24,8 @@ impl<T: lir::Target> Analysis<lir::Function<T>> for PostponableExpressions<T> {
     }
 
     fn new_with_metadata(cfg: &Cfg<lir::Function<T>>) -> Self {
-        let mut solution = analyze::<AvailableExpressions<T>, lir::Function<T>>(cfg);
-        let mut earliest = BTreeMap::new();
-
-        for (label, statements) in cfg.blocks() {
-            let mut anticipated_output =
-                solution.analysis.anticipated.inputs.remove(label).unwrap();
-
-            let mut outputs = vec![anticipated_output.clone()];
-
-            for (index, statement) in statements.iter().enumerate().rev() {
-                solution
-                    .analysis
-                    .anticipated
-                    .analysis
-                    .transfer_with_metadata(label, index, statement, &mut anticipated_output);
-                outputs.push(anticipated_output.clone());
-            }
-
-            outputs.reverse();
-
-            let mut available_output = solution.inputs.remove(label).unwrap();
-
-            outputs[0].retain(|expression| !available_output.contains(expression));
-
-            for (index, statement) in statements.iter().enumerate() {
-                solution.analysis.transfer_with_metadata(
-                    label,
-                    index,
-                    statement,
-                    &mut available_output,
-                );
-                outputs[index + 1].retain(|expression| !available_output.contains(expression));
-            }
-
-            earliest.insert(*label, outputs);
-        }
-
         Self {
-            earliest,
+            earliest: Earliest::new_with_metadata(cfg).into_inner(),
             marker: PhantomData,
         }
     }
@@ -76,7 +38,19 @@ impl<T: lir::Target> Analysis<lir::Function<T>> for PostponableExpressions<T> {
         self.earliest[label][0].clone()
     }
 
-    fn transfer(&self, statement: &lir::Statement<T>, output: &mut Self::Data) {
+    fn transfer(&self, _: &lir::Statement<T>, _: &mut Self::Data) {
+        unreachable!()
+    }
+
+    fn transfer_with_metadata(
+        &self,
+        label: &Label,
+        index: usize,
+        statement: &lir::Statement<T>,
+        output: &mut Self::Data,
+    ) {
+        output.extend(self.earliest[label][index].iter().cloned());
+
         match statement {
             lir::Statement::Jump(_) | lir::Statement::Label(_) => (),
             lir::Statement::CJump {

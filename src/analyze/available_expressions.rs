@@ -1,14 +1,16 @@
+use std::collections::BTreeMap;
 use std::collections::BTreeSet;
+use std::marker::PhantomData;
 
 use crate::analyze::analyze;
 use crate::analyze::Analysis;
 use crate::analyze::AnticipatedExpressions;
-use crate::analyze::Solution;
 use crate::data::lir;
 use crate::data::operand::Label;
 
 pub struct AvailableExpressions<T: lir::Target> {
-    pub(super) anticipated: Solution<AnticipatedExpressions, lir::Function<T>>,
+    pub(super) anticipated: BTreeMap<Label, Vec<BTreeSet<lir::Expression>>>,
+    marker: PhantomData<T>,
 }
 
 impl<T: lir::Target> Analysis<lir::Function<T>> for AvailableExpressions<T> {
@@ -21,8 +23,27 @@ impl<T: lir::Target> Analysis<lir::Function<T>> for AvailableExpressions<T> {
     }
 
     fn new_with_metadata(cfg: &crate::cfg::Cfg<lir::Function<T>>) -> Self {
+        let mut solution = analyze::<AnticipatedExpressions, _>(cfg);
+        let mut anticipated = BTreeMap::new();
+
+        for (label, statements) in cfg.blocks() {
+            let mut output = solution.inputs.remove(label).unwrap();
+            let mut outputs = vec![output.clone()];
+
+            for (index, statement) in statements.iter().enumerate().rev() {
+                solution
+                    .analysis
+                    .transfer_with_metadata(label, index, statement, &mut output);
+                outputs.push(output.clone());
+            }
+
+            outputs.reverse();
+            anticipated.insert(*label, outputs);
+        }
+
         Self {
-            anticipated: analyze(cfg),
+            anticipated,
+            marker: PhantomData,
         }
     }
 
@@ -31,10 +52,22 @@ impl<T: lir::Target> Analysis<lir::Function<T>> for AvailableExpressions<T> {
     }
 
     fn default_with_metadata(&self, label: &Label) -> Self::Data {
-        self.anticipated.outputs[label].clone()
+        self.anticipated[label][0].clone()
     }
 
-    fn transfer(&self, statement: &lir::Statement<T>, output: &mut Self::Data) {
+    fn transfer(&self, _: &lir::Statement<T>, _: &mut Self::Data) {
+        unreachable!()
+    }
+
+    fn transfer_with_metadata(
+        &self,
+        label: &Label,
+        index: usize,
+        statement: &lir::Statement<T>,
+        output: &mut Self::Data,
+    ) {
+        output.extend(self.anticipated[label][index].iter().cloned());
+
         match statement {
             lir::Statement::Jump(_)
             | lir::Statement::CJump { .. }
@@ -60,7 +93,7 @@ impl<T: lir::Target> Analysis<lir::Function<T>> for AvailableExpressions<T> {
         Self::Data: 'a,
     {
         <AnticipatedExpressions as Analysis<lir::Function<T>>>::merge(
-            &self.anticipated.analysis,
+            &AnticipatedExpressions,
             outputs,
             input,
         );

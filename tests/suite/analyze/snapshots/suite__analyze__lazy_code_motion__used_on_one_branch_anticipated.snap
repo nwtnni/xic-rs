@@ -1,0 +1,46 @@
+---
+source: tests/suite/analyze/lazy_code_motion.rs
+assertion_line: 56
+expression: anticipated
+---
+
+                                       used_on_one_branch
+
++--------------------------------------------+     +--------------------------------------------+
+|                fallthrough:                |     |                   enter:                   |
+| {(ADD (TEMP _b) (CONST 1))}                |     | {}                                         |
+| (MOVE (TEMP _a) (ADD (TEMP _b) (CONST 1))) |     | (MOVE (TEMP _b) (CONST 0))                 |
+| {(ADD (TEMP _b) (CONST 1))}                |     | {(ADD (TEMP _b) (CONST 1))}                |
+| (JUMP merge)                               |     | (CJUMP (EQ (CONST 0) (CONST 0)) branch)    |
+| {(ADD (TEMP _b) (CONST 1))}                | <-- | {(ADD (TEMP _b) (CONST 1))}                |
++--------------------------------------------+     +--------------------------------------------+
+  |                                                  |
+  |                                                  |
+  |                                                  v
+  |                                                +--------------------------------------------+
+  |                                                |                  branch:                   |
+  |                                                | {(ADD (TEMP _b) (CONST 1))}                |
+  |                                                | (MOVE (TEMP _a) (CONST 0))                 |
+  |                                                | {(ADD (TEMP _b) (CONST 1))}                |
+  |                                                | (JUMP merge)                               |
+  |                                                | {(ADD (TEMP _b) (CONST 1))}                |
+  |                                                +--------------------------------------------+
+  |                                                  |
+  |                                                  |
+  |                                                  v
+  |                                                +--------------------------------------------+
+  |                                                |                   merge:                   |
+  |                                                | {(ADD (TEMP _b) (CONST 1))}                |
+  |                                                | (MOVE (TEMP _c) (ADD (TEMP _b) (CONST 1))) |
+  |                                                | {}                                         |
+  |                                                | (JUMP exit)                                |
+  +----------------------------------------------> | {}                                         |
+                                                   +--------------------------------------------+
+                                                     |
+                                                     |
+                                                     v
+                                                   +--------------------------------------------+
+                                                   |                   exit:                    |
+                                                   | {}                                         |
+                                                   +--------------------------------------------+
+

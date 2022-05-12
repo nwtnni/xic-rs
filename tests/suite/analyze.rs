@@ -99,14 +99,14 @@ macro_rules! asm_function {
     };
 }
 
-#[path = "analyze/anticipated_expressions.rs"]
-mod anticipated_expressions;
-
-#[path = "analyze/live_variables.rs"]
-mod live_variables;
-
 #[path = "analyze/constant_propagation.rs"]
 mod constant_propagation;
 
 #[path = "analyze/copy_propagation.rs"]
 mod copy_propagation;
+
+#[path = "analyze/lazy_code_motion.rs"]
+mod lazy_code_motion;
+
+#[path = "analyze/live_variables.rs"]
+mod live_variables;
