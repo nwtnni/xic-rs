@@ -10,7 +10,7 @@ use crate::data::lir;
 use crate::data::operand::Label;
 
 pub struct UsedExpressions<T: lir::Target> {
-    latest: BTreeMap<Label, Vec<BTreeSet<lir::Expression>>>,
+    pub(crate) latest: BTreeMap<Label, Vec<BTreeSet<lir::Expression>>>,
     marker: PhantomData<T>,
 }
 

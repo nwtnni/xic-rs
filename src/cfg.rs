@@ -78,10 +78,8 @@ impl<T: Function> Cfg<T> {
             .map(|(label, statement)| (label, statement.as_slice()))
     }
 
-    pub fn blocks_mut(&mut self) -> impl Iterator<Item = (&Label, &mut [T::Statement])> {
-        self.blocks
-            .iter_mut()
-            .map(|(label, statement)| (label, statement.as_mut_slice()))
+    pub fn blocks_mut(&mut self) -> impl Iterator<Item = (&Label, &mut Vec<T::Statement>)> {
+        self.blocks.iter_mut()
     }
 
     pub fn edges(&self) -> impl Iterator<Item = (Label, Label, &Edge)> {
