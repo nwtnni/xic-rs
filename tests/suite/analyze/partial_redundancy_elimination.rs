@@ -171,3 +171,19 @@ partial_redundancy_elimination! {
         (RETURN)
         (JUMP exit)
 }
+
+partial_redundancy_elimination! {
+    loop_invariant_in_cjump: 0 -> 0;
+    temporaries: a, index;
+    labels: r#while, r#true, r#false, exit;
+        (MOVE (TEMP a) (MEM (CONST 0)))
+        (MOVE (TEMP index) (CONST 0))
+        (JUMP r#while)
+    (LABEL r#while)
+        (CJUMP (GE (TEMP index) (ADD (TEMP a) (CONST 1))) r#true)
+    (LABEL r#false)
+        (MOVE (TEMP index) (ADD (TEMP index) (CONST 1)))
+        (JUMP r#while)
+    (LABEL r#true)
+        (JUMP exit)
+}
