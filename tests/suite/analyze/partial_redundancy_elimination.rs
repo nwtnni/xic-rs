@@ -134,3 +134,9 @@ partial_redundancy_elimination! {
     (LABEL _18)
         (JUMP exit)
 }
+
+partial_redundancy_elimination! {
+    call_argument: 0 -> 0;
+    labels: black_box;
+    (CALL (NAME black_box) 0 (ADD (CONST 1) (CONST 2)))
+}

@@ -1,0 +1,24 @@
+---
+source: tests/suite/analyze/partial_redundancy_elimination.rs
+assertion_line: 138
+expression: anticipated
+---
+
+                      call_argument
+
++---------------------------------------------------------+
+|                         enter:                          |
+| {(ADD (CONST 1) (CONST 2))}                             |
+| (EXP (CALL (NAME black_box) (ADD (CONST 1) (CONST 2)))) |
+| {}                                                      |
+| (JUMP exit)                                             |
+| {}                                                      |
++---------------------------------------------------------+
+  |
+  |
+  v
++---------------------------------------------------------+
+|                          exit:                          |
+| {}                                                      |
++---------------------------------------------------------+
+

@@ -31,11 +31,7 @@ impl<T: lir::Target> Analysis<lir::Function<T>> for PostponableExpressions<T> {
     }
 
     fn default(&self) -> Self::Data {
-        unreachable!()
-    }
-
-    fn default_with_metadata(&self, label: &Label) -> Self::Data {
-        self.earliest[label][0].clone()
+        BTreeSet::new()
     }
 
     fn transfer(&self, _: &lir::Statement<T>, _: &mut Self::Data) {

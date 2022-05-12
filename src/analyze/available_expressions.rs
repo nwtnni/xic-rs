@@ -48,11 +48,7 @@ impl<T: lir::Target> Analysis<lir::Function<T>> for AvailableExpressions<T> {
     }
 
     fn default(&self) -> Self::Data {
-        unreachable!()
-    }
-
-    fn default_with_metadata(&self, label: &Label) -> Self::Data {
-        self.anticipated[label][0].clone()
+        BTreeSet::new()
     }
 
     fn transfer(&self, _: &lir::Statement<T>, _: &mut Self::Data) {
