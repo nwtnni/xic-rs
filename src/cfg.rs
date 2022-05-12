@@ -2,11 +2,13 @@ mod clean;
 mod construct;
 mod destruct;
 mod dot;
+mod split;
 
 pub use clean::clean_cfg;
 pub use construct::construct_cfg;
 pub use destruct::destruct_cfg;
 pub(crate) use dot::Dot;
+pub use split::split_cfg;
 
 use std::collections::BTreeMap;
 use std::fmt;
