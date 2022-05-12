@@ -67,3 +67,18 @@ lazy_code_motion! {
         (MOVE (TEMP c) (ADD (TEMP b) (CONST 1)))
         (JUMP exit)
 }
+
+lazy_code_motion! {
+    basic_loop: 0 -> 0;
+    temporaries: a, b, c;
+    labels: r#loop, split, fallthrough, exit;
+        (MOVE (TEMP a) (CONST 0))
+        (JUMP r#loop)
+    (LABEL r#loop)
+        (MOVE (TEMP c) (ADD (TEMP a) (TEMP b)))
+        (CJUMP (EQ (CONST 0) (CONST 0)) split)
+    (LABEL fallthrough)
+        (JUMP exit)
+    (LABEL split)
+        (JUMP r#loop)
+}
