@@ -208,9 +208,7 @@ macro_rules! lir {
     };
     ((CALL $function:tt $returns:tt $($argument:tt)*)) => {
         $crate::data::lir::Statement::Call(
-            Box::new(
-                $crate::data::lir::lir!($function)
-            ),
+            $crate::data::lir::lir!($function),
             vec![
                 $(
                     $crate::data::lir::lir!($argument),
