@@ -92,8 +92,6 @@ impl Analysis<asm::Function<Temporary>> for CopyPropagation {
         input.clear();
         input.extend(outputs.next().into_iter().flatten().flatten());
 
-        let mut stack = Vec::new();
-
         for output in outputs {
             let output = match output {
                 Some(output) => output,
@@ -103,18 +101,10 @@ impl Analysis<asm::Function<Temporary>> for CopyPropagation {
                 }
             };
 
-            stack.extend(
-                input
-                    .iter()
-                    .filter_map(|(temporary, old)| match output.get(temporary) {
-                        Some(new) if old == new => None,
-                        Some(_) | None => Some(*temporary),
-                    }),
-            );
-
-            stack
-                .drain(..)
-                .for_each(|temporary| remove(input, &temporary));
+            input.retain(|temporary, old| match output.get(temporary) {
+                Some(new) if old == new => true,
+                Some(_) | None => false,
+            });
         }
     }
 }
