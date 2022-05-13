@@ -6,6 +6,7 @@ use crate::abi;
 use crate::analyze::Analysis;
 use crate::cfg;
 use crate::data::asm;
+use crate::data::lir;
 use crate::data::operand;
 use crate::data::operand::Immediate;
 use crate::data::operand::Label;
@@ -72,8 +73,8 @@ impl Function for asm::Function<Temporary> {
             asm::Statement::Label(_) | asm::Statement::Jmp(_) | asm::Statement::Jcc(_, _) => {}
             asm::Statement::Nullary(asm::Nullary::Nop) => {}
 
-            asm::Statement::Nullary(asm::Nullary::Cqo) if dead(Register::Rdx, output) => {
-                assert!(dead(Register::Rax, output));
+            asm::Statement::Nullary(asm::Nullary::Cqo) if dead_assembly(Register::Rdx, output) => {
+                assert!(dead_assembly(Register::Rax, output));
             }
             asm::Statement::Nullary(asm::Nullary::Cqo) => {
                 output.remove(&Temporary::Register(Register::Rdx));
@@ -102,7 +103,7 @@ impl Function for asm::Function<Temporary> {
                 | asm::Binary::Or
                 | asm::Binary::Xor,
                 operands,
-            ) if dead(operands.destination(), output) => (),
+            ) if dead_assembly(operands.destination(), output) => (),
             asm::Statement::Binary(binary, operands) => {
                 match (binary, operands.destination()) {
                     (asm::Binary::Mov | asm::Binary::Lea, Or::L(temporary)) => {
@@ -149,14 +150,14 @@ impl Function for asm::Function<Temporary> {
                 operand.map(|temporary| output.insert(*temporary));
             }
 
-            asm::Statement::Unary(asm::Unary::Neg, operand) if dead(*operand, output) => (),
+            asm::Statement::Unary(asm::Unary::Neg, operand) if dead_assembly(*operand, output) => {}
             asm::Statement::Unary(asm::Unary::Neg, operand) => {
                 // Both uses and defines `operand`
                 operand.map(|temporary| output.insert(*temporary));
             }
 
             // We don't check `div` and `mod` as they can have side effects (x / 0, x % 0)
-            asm::Statement::Unary(asm::Unary::Hul, _) if dead(Register::Rdx, output) => (),
+            asm::Statement::Unary(asm::Unary::Hul, _) if dead_assembly(Register::Rdx, output) => (),
             asm::Statement::Unary(
                 unary @ (asm::Unary::Hul | asm::Unary::Div | asm::Unary::Mod),
                 operand,
@@ -178,7 +179,10 @@ impl Function for asm::Function<Temporary> {
     }
 }
 
-fn dead<I: Into<operand::Unary<Temporary>>>(destination: I, live: &BTreeSet<Temporary>) -> bool {
+fn dead_assembly<I: Into<operand::Unary<Temporary>>>(
+    destination: I,
+    live: &BTreeSet<Temporary>,
+) -> bool {
     match destination.into() {
         // Special case: another option is to mark all callee-saved registers live at
         // the `ret` instruction, just like we do for `rsp`. However, because the linear
@@ -194,5 +198,81 @@ fn dead<I: Into<operand::Unary<Temporary>>>(destination: I, live: &BTreeSet<Temp
         operand::Unary::M(_) => false,
         operand::Unary::R(temporary) => !live.contains(&temporary),
         operand::Unary::I(_) => unreachable!(),
+    }
+}
+
+impl<T: lir::Target> Function for lir::Function<T> {
+    fn transfer(statement: &Self::Statement, output: &mut BTreeSet<Temporary>) {
+        match statement {
+            lir::Statement::Jump(_) | lir::Statement::Label(_) => (),
+            lir::Statement::CJump {
+                condition: _,
+                left,
+                right,
+                r#true: _,
+                r#false: _,
+            } => {
+                transfer_expression(left, output);
+                transfer_expression(right, output);
+            }
+            lir::Statement::Call(function, arguments, _) => {
+                transfer_expression(function, output);
+                for argument in arguments {
+                    transfer_expression(argument, output);
+                }
+            }
+            lir::Statement::Move {
+                destination,
+                source: _,
+            } if dead_lir(destination, output) => (),
+            lir::Statement::Move {
+                destination,
+                source,
+            } => {
+                match destination {
+                    lir::Expression::Argument(_)
+                    | lir::Expression::Return(_)
+                    | lir::Expression::Immediate(_)
+                    | lir::Expression::Binary(_, _, _) => unreachable!(),
+                    lir::Expression::Memory(address) => transfer_expression(address, output),
+                    lir::Expression::Temporary(temporary) => {
+                        output.remove(temporary);
+                    }
+                }
+                transfer_expression(source, output);
+            }
+            lir::Statement::Return(returns) => {
+                for r#return in returns {
+                    transfer_expression(r#return, output);
+                }
+            }
+        }
+    }
+}
+
+fn transfer_expression(expression: &lir::Expression, output: &mut BTreeSet<Temporary>) {
+    match expression {
+        lir::Expression::Argument(_)
+        | lir::Expression::Return(_)
+        | lir::Expression::Immediate(_) => (),
+        lir::Expression::Temporary(temporary) => {
+            output.insert(*temporary);
+        }
+        lir::Expression::Memory(address) => transfer_expression(address, output),
+        lir::Expression::Binary(_, left, right) => {
+            transfer_expression(left, output);
+            transfer_expression(right, output);
+        }
+    }
+}
+
+fn dead_lir(expression: &lir::Expression, live: &BTreeSet<Temporary>) -> bool {
+    match expression {
+        lir::Expression::Argument(_)
+        | lir::Expression::Immediate(_)
+        | lir::Expression::Return(_)
+        | lir::Expression::Binary(_, _, _) => unreachable!(),
+        lir::Expression::Temporary(temporary) => !live.contains(temporary),
+        lir::Expression::Memory(_) => false,
     }
 }
