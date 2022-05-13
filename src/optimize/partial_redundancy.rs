@@ -23,6 +23,31 @@ pub fn eliminate<T: lir::Target>(cfg: &mut Cfg<lir::Function<T>>) {
     }
 }
 
+/// Implements the lazy code motion algorithm for partial redundancy elimination,
+/// from the research paper "Lazy Code Motion" by Knoop, Rüthing, and Steffen.
+///
+/// We use the following analyses and predicates:
+///
+/// ```text
+/// anticipated
+///     |      \
+///     |   available
+///     v      /
+/// earliest  <
+///     |   \
+///     |  postponable
+///     v    /
+///  latest <
+///     |  \
+///     |  used
+///     v   /
+/// placed <
+/// ```
+///
+/// - https://citeseerx.ist.psu.edu/viewdoc/download?doi=10.1.1.92.4197&rep=rep1&type=pdf
+/// - https://sites.cs.ucsb.edu/~yufeiding/cs293s/slides/293S_08_PRE_LCM.pdf
+/// - http://www.cs.toronto.edu/~pekhimenko/courses/cscd70-w18/docs/Tutorial%205%20-%20Lazy%20Code%20Motion.pdf
+/// - https://www.cs.utexas.edu/~pingali/CS380C/2020/lectures/LazyCodeMotion.pdf
 struct Transformer<T> {
     latest: BTreeMap<Label, Vec<BTreeSet<lir::Expression>>>,
     used: BTreeMap<Label, Vec<BTreeSet<lir::Expression>>>,
