@@ -97,21 +97,59 @@ impl<T: lir::Target> Transformer<T> {
         statement: lir::Statement<T>,
         statements: &mut Vec<lir::Statement<T>>,
     ) {
+        // Cache all live expressions created before this statement.
+        //
+        // The only two cases where we create an expression are:
+        //
+        // 1. Before a use site.
+        //
+        // Note that a use recursively uses all subexpressions,
+        // so something like:
+        //
+        // ```text
+        // (MOVE (TEMP a) (ADD (ADD (TEMP b) (TEMP c)) (TEMP d))
+        // ```
+        //
+        // is conservatively assumed to use both subexpressions:
+        //
+        // ```text
+        // (ADD (TEMP b) (TEMP c))
+        // (ADD (ADD (TEMP b) (TEMP c)) (TEMP d))
+        // ```
+        //
+        // This is because we can't statically determine which
+        // of these computations will be useful to reuse later on,
+        // so we keep both and eliminate dead code afterward.
+        //
+        // 2. Before a terminator.
+        //
+        // It's possible for an expression to be postponable at
+        // the end of a basic block, but then be killed when merging
+        // into a successor block. In this case, the latest point of
+        // insertion is before the terminator, which doesn't necessarily
+        // use the expression.
+        //
+        // ---
+        //
+        // For convenience and readability, we put this more general loop
+        // here, but it would be possible to do more runtime verification
+        // that these two cases hold if we checked against `statement` and
+        // asserted that it was either a terminator or used a subexpression.
+        for expression in self.latest[label][index]
+            .iter()
+            .filter(|expression| self.used[label][index + 1].contains(expression))
+            .cloned()
+            .collect::<Vec<_>>()
+        {
+            let temporary = self.rewrite(expression.clone());
+            statements.push(lir!((MOVE (TEMP temporary) expression)));
+        }
+
         match statement {
             lir::Statement::Label(label) => {
                 statements.push(lir::Statement::Label(label));
             }
             lir::Statement::Jump(target) => {
-                for expression in self.latest[label][index]
-                    .iter()
-                    .filter(|expression| self.used[label][index + 1].contains(expression))
-                    .cloned()
-                    .collect::<Vec<_>>()
-                {
-                    let temporary = self.rewrite(expression.clone());
-                    statements.push(lir!((MOVE (TEMP temporary) expression)));
-                }
-
                 statements.push(lir::Statement::Jump(target));
             }
             lir::Statement::CJump {
@@ -121,18 +159,8 @@ impl<T: lir::Target> Transformer<T> {
                 r#true,
                 r#false,
             } => {
-                for expression in self.latest[label][index]
-                    .iter()
-                    .filter(|expression| self.used[label][index + 1].contains(expression))
-                    .cloned()
-                    .collect::<Vec<_>>()
-                {
-                    let temporary = self.rewrite(expression.clone());
-                    statements.push(lir!((MOVE (TEMP temporary) expression)));
-                }
-
-                let left = self.eliminate_expression(label, index, left, statements);
-                let right = self.eliminate_expression(label, index, right, statements);
+                let left = self.eliminate_expression(label, index, left);
+                let right = self.eliminate_expression(label, index, right);
                 statements.push(lir::Statement::CJump {
                     condition,
                     left,
@@ -142,10 +170,10 @@ impl<T: lir::Target> Transformer<T> {
                 });
             }
             lir::Statement::Call(function, arguments, returns) => {
-                let function = self.eliminate_expression(label, index, function, statements);
+                let function = self.eliminate_expression(label, index, function);
                 let arguments = arguments
                     .into_iter()
-                    .map(|argument| self.eliminate_expression(label, index, argument, statements))
+                    .map(|argument| self.eliminate_expression(label, index, argument))
                     .collect();
 
                 statements.push(lir::Statement::Call(function, arguments, returns));
@@ -154,13 +182,13 @@ impl<T: lir::Target> Transformer<T> {
                 destination,
                 source,
             } => {
-                let source = self.eliminate_expression(label, index, source, statements);
+                let source = self.eliminate_expression(label, index, source);
                 statements.push(lir!((MOVE destination source)));
             }
             lir::Statement::Return(returns) => {
                 let returns = returns
                     .into_iter()
-                    .map(|r#return| self.eliminate_expression(label, index, r#return, statements))
+                    .map(|r#return| self.eliminate_expression(label, index, r#return))
                     .collect::<Vec<_>>();
 
                 statements.push(lir::Statement::Return(returns));
@@ -173,25 +201,62 @@ impl<T: lir::Target> Transformer<T> {
         label: &Label,
         index: usize,
         expression: lir::Expression,
-        statements: &mut Vec<lir::Statement<T>>,
     ) -> lir::Expression {
+        // If no subexpressions were found to be redundant, then fall back to the original expression.
+        self.eliminate_subexpression(label, index, expression.clone())
+            .unwrap_or(expression)
+    }
+
+    fn eliminate_subexpression(
+        &mut self,
+        label: &Label,
+        index: usize,
+        expression: lir::Expression,
+    ) -> Option<lir::Expression> {
         match (
             self.latest[label][index].contains(&expression),
             self.used[label][index + 1].contains(&expression),
         ) {
-            (true, true) => {
-                let temporary = self.rewrite(expression.clone());
-                statements.push(lir!((MOVE (TEMP temporary) (expression))));
-                lir::Expression::Temporary(temporary)
-            }
-            (true, false) => expression,
-            (false, _) => match expression {
-                expression @ (lir::Expression::Temporary(_)
+            // Expression was just defined, so rewrite.
+            (true, true) => Some(lir::Expression::Temporary(self.rewrite(expression))),
+
+            // Expression was defined, but is not used anywhere else. However, if we recurse,
+            // we may be able to find a subexpression that has already been computed, and
+            // rewrite this expression in terms of that.
+            (true, false) => match expression {
+                lir::Expression::Temporary(_)
                 | lir::Expression::Immediate(_)
                 | lir::Expression::Argument(_)
-                | lir::Expression::Return(_)) => expression,
+                | lir::Expression::Return(_) => None,
+                lir::Expression::Memory(address) => {
+                    let address = self.eliminate_subexpression(label, index, *address)?;
+                    Some(lir::Expression::Memory(Box::new(address)))
+                }
+                lir::Expression::Binary(binary, left, right) => {
+                    let (left, right) = match (
+                        self.eliminate_subexpression(label, index, (&*left).clone())
+                            .map(Box::new),
+                        self.eliminate_subexpression(label, index, (&*right).clone())
+                            .map(Box::new),
+                    ) {
+                        (None, None) => return None,
+                        (None, Some(right)) => (left, right),
+                        (Some(left), None) => (left, right),
+                        (Some(left), Some(right)) => (left, right),
+                    };
+
+                    Some(lir::Expression::Binary(binary, left, right))
+                }
+            },
+
+            // Expression must have been computed before, so rewrite.
+            (false, _) => match expression {
+                lir::Expression::Temporary(_)
+                | lir::Expression::Immediate(_)
+                | lir::Expression::Argument(_)
+                | lir::Expression::Return(_) => None,
                 expression @ (lir::Expression::Memory(_) | lir::Expression::Binary(_, _, _)) => {
-                    lir::Expression::Temporary(self.rewrite(expression))
+                    Some(lir::Expression::Temporary(self.rewrite(expression)))
                 }
             },
         }

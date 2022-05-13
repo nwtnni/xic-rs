@@ -82,7 +82,13 @@ impl AnticipatedExpressions {
             | lir::Expression::Return(_)
             | lir::Expression::Immediate(_)
             | lir::Expression::Temporary(_) => (),
-            lir::Expression::Memory(_) | lir::Expression::Binary(_, _, _) => {
+            lir::Expression::Memory(address) => {
+                Self::insert(output, &*address);
+                output.insert(r#use.clone());
+            }
+            lir::Expression::Binary(_, left, right) => {
+                Self::insert(output, &*left);
+                Self::insert(output, &*right);
                 output.insert(r#use.clone());
             }
         }
@@ -107,7 +113,7 @@ impl AnticipatedExpressions {
         }
     }
 
-    fn contains(expression: &lir::Expression, killed: &lir::Expression) -> bool {
+    pub(super) fn contains(expression: &lir::Expression, killed: &lir::Expression) -> bool {
         match expression {
             lir::Expression::Argument(_)
             | lir::Expression::Return(_)

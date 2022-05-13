@@ -56,24 +56,24 @@ impl<T: lir::Target> Analysis<lir::Function<T>> for PostponableExpressions<T> {
                 r#true: _,
                 r#false: _,
             } => {
-                output.remove(left);
-                output.remove(right);
+                Self::remove(output, left);
+                Self::remove(output, right);
             }
             lir::Statement::Call(function, arguments, _) => {
-                output.remove(function);
+                Self::remove(output, function);
                 for argument in arguments {
-                    output.remove(argument);
+                    Self::remove(output, argument);
                 }
             }
             lir::Statement::Move {
                 destination: _,
                 source,
             } => {
-                output.remove(source);
+                Self::remove(output, source);
             }
             lir::Statement::Return(returns) => {
                 for r#return in returns {
-                    output.remove(r#return);
+                    Self::remove(output, r#return);
                 }
             }
         }
@@ -89,5 +89,23 @@ impl<T: lir::Target> Analysis<lir::Function<T>> for PostponableExpressions<T> {
             outputs,
             input,
         )
+    }
+}
+
+impl<T: lir::Target> PostponableExpressions<T> {
+    pub(super) fn remove(output: &mut BTreeSet<lir::Expression>, kill: &lir::Expression) {
+        output.remove(kill);
+
+        match kill {
+            lir::Expression::Argument(_)
+            | lir::Expression::Return(_)
+            | lir::Expression::Immediate(_)
+            | lir::Expression::Temporary(_) => (),
+            lir::Expression::Memory(address) => Self::remove(output, address),
+            lir::Expression::Binary(_, left, right) => {
+                Self::remove(output, left);
+                Self::remove(output, right);
+            }
+        }
     }
 }
