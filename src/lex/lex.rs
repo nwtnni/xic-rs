@@ -138,6 +138,7 @@ impl<'source> Lexer<'source> {
         let token = match &self.source[start.idx..end.idx] {
             "use" => USE,
             "if" => IF,
+            "do" => DO,
             "while" => WHILE,
             "else" => ELSE,
             "return" => RETURN,

@@ -478,7 +478,7 @@ impl<'env> Emitter<'env> {
                         (LABEL endif))
                 )
             }
-            While(condition, statements, _) => {
+            While(r#do, condition, statements, _) => {
                 let r#while = Label::fresh("while");
                 let r#true = Label::fresh("true");
                 let r#false = Label::fresh("false");
@@ -503,15 +503,30 @@ impl<'env> Emitter<'env> {
                     _ => unreachable!(),
                 };
 
-                hir!(
-                    (SEQ
-                        (LABEL r#while)
-                        (condition)
-                        (LABEL r#false)
-                        (self.emit_statement(statements, variables))
-                        (JUMP r#while)
-                        (LABEL r#true))
-                )
+                match r#do {
+                    ast::Do::Yes => {
+                        hir!(
+                            (SEQ
+                                (LABEL r#while)
+                                (self.emit_statement(statements, variables))
+                                (condition)
+                                (LABEL r#false)
+                                (JUMP r#while)
+                                (LABEL r#true))
+                        )
+                    }
+                    ast::Do::No => {
+                        hir!(
+                            (SEQ
+                                (LABEL r#while)
+                                (condition)
+                                (LABEL r#false)
+                                (self.emit_statement(statements, variables))
+                                (JUMP r#while)
+                                (LABEL r#true))
+                        )
+                    }
+                }
             }
         }
     }

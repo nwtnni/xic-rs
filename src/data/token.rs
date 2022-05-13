@@ -57,6 +57,9 @@ pub enum Token {
     /// `if` keyword
     IF,
 
+    /// `do` keyword
+    DO,
+
     /// `while` keyword
     WHILE,
 
@@ -172,6 +175,7 @@ impl std::fmt::Display for Token {
             Token::INTEGER(i) => write!(fmt, "integer {}", i),
             Token::USE => write!(fmt, "use"),
             Token::IF => write!(fmt, "if"),
+            Token::DO => write!(fmt, "do"),
             Token::WHILE => write!(fmt, "while"),
             Token::ELSE => write!(fmt, "else"),
             Token::RETURN => write!(fmt, "return"),

@@ -166,7 +166,12 @@ impl Serialize for ast::Statement {
                 ["if".sexp(), cond.sexp(), pass.sexp(), fail.sexp()].sexp_move()
             }
             If(cond, pass, None, _) => ["if".sexp(), cond.sexp(), pass.sexp()].sexp_move(),
-            While(cond, body, _) => ["while".sexp(), cond.sexp(), body.sexp()].sexp_move(),
+            While(ast::Do::Yes, cond, body, _) => {
+                ["do".sexp(), body.sexp(), "while".sexp(), cond.sexp()].sexp_move()
+            }
+            While(ast::Do::No, cond, body, _) => {
+                ["while".sexp(), cond.sexp(), body.sexp()].sexp_move()
+            }
         }
     }
 }

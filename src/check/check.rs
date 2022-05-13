@@ -487,7 +487,7 @@ impl Checker {
 
                 Ok(r#if.least_upper_bound(&r#else))
             }
-            ast::Statement::While(cond, body, _) => {
+            ast::Statement::While(_, cond, body, _) => {
                 match self.check_expression(cond)? {
                     r#type::Expression::Boolean => (),
                     typ => expected!(cond.span(), r#type::Expression::Boolean, typ),

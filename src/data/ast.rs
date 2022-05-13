@@ -312,7 +312,13 @@ pub enum Statement {
     If(Expression, Box<Statement>, Option<Box<Statement>>, Span),
 
     /// While block
-    While(Expression, Box<Statement>, Span),
+    While(Do, Expression, Box<Statement>, Span),
+}
+
+#[derive(Clone, Debug)]
+pub enum Do {
+    Yes,
+    No,
 }
 
 impl Statement {
@@ -325,7 +331,7 @@ impl Statement {
             | Statement::Return(_, span)
             | Statement::Sequence(_, span)
             | Statement::If(_, _, _, span)
-            | Statement::While(_, _, span) => *span,
+            | Statement::While(_, _, _, span) => *span,
         }
     }
 }

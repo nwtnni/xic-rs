@@ -1,0 +1,11 @@
+---
+source: tests/suite/parse.rs
+assertion_line: 22
+expression: Snapshot(program)
+---
+(()
+((f ((b bool)) () ((do (if true (f)) while b)))
+    (f2
+        ((b bool))
+        ()
+        ((do (if true (if false (f2 b) (if true (f b) (f2 b)))) while b)))))

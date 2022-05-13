@@ -91,7 +91,12 @@ ClosedStatement: Statement = {
 
     // While statement
     <l: @L> "while" <condition: Expression> <statements: ClosedStatement> <r: @R> => {
-        Statement::While(condition, Box::new(statements), Span::new(l, r))
+        Statement::While(Do::No, condition, Box::new(statements), Span::new(l, r))
+    },
+
+    // Do while statement
+    <l: @L> "do" <statements: NoReturnStatement> "while" <condition: Expression> <r: @R> => {
+        Statement::While(Do::Yes, condition, Box::new(statements), Span::new(l, r))
     },
 
     <Block> ";"?,
@@ -364,6 +369,7 @@ extern {
         STR      => Token::STRING(<String>),
         "use"    => Token::USE,
         "if"     => Token::IF,
+        "do"     => Token::DO,
         "while"  => Token::WHILE,
         "else"   => Token::ELSE,
         "length" => Token::LENGTH,
