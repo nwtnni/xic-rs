@@ -38,6 +38,7 @@ pub mod api {
         pub use crate::optimize::eliminate_dead_code;
         pub use crate::optimize::eliminate_partial_redundancy;
         pub use crate::optimize::inline;
+        pub use crate::optimize::invert_loops;
     }
 
     pub mod analyze {
