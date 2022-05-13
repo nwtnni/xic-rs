@@ -69,18 +69,8 @@ impl<T: lir::Target> Analysis<lir::Function<T>> for AnticipatedExpressions {
             }
         }
 
-        let mut stack = Vec::new();
-
         for output in outputs.flatten() {
-            stack.extend(
-                input
-                    .iter()
-                    .filter(|expression| !output.contains(expression))
-                    // Could be avoided with https://doc.rust-lang.org/stable/std/vec/struct.Vec.html#method.drain_filter
-                    .cloned(),
-            );
-
-            stack.drain(..).for_each(|kill| Self::remove(input, &kill));
+            input.retain(|expression| output.contains(expression));
         }
     }
 }
