@@ -1,3 +1,5 @@
+use std::path::Path;
+
 use xic::analyze::analyze;
 use xic::analyze::LiveVariables;
 use xic::optimize;
@@ -93,6 +95,22 @@ pub fn eliminate_partial_redundancy_lir(path: &str) {
         .map(xic::api::destruct_cfg);
 
     let optimized = super::interpret_lir(&lir);
+
+    pretty_assertions::assert_eq!(unoptimized, optimized)
+}
+
+#[test_generator::test_resources("tests/execute/*.xi")]
+pub fn invert_loops_ast(path: &str) {
+    let mut program = super::parse(path);
+
+    let context = xic::api::check(Path::new(path).parent().unwrap(), &program).unwrap();
+    let unoptimized =
+        super::interpret_hir(&xic::api::emit_hir(Path::new(path), &program, &context));
+
+    optimize::invert_loops_ast(&mut program);
+
+    let context = xic::api::check(Path::new(path).parent().unwrap(), &program).unwrap();
+    let optimized = super::interpret_hir(&xic::api::emit_hir(Path::new(path), &program, &context));
 
     pretty_assertions::assert_eq!(unoptimized, optimized)
 }

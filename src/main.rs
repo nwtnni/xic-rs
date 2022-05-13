@@ -299,6 +299,7 @@ impl str::FromStr for DebugOpt {
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
 enum Opt {
+    LoopInversion,
     ConstantFold,
     CleanCfg,
     PartialRedundancyElimination,
@@ -312,7 +313,8 @@ enum Opt {
 // Need something like https://doc.rust-lang.org/std/mem/fn.variant_count.html
 // to make sure array matches up with enum definition. Procedural macro options
 // seem too heavyweight for something like this.
-const OPTIMIZATIONS: [&str; 8] = [
+const OPTIMIZATIONS: [&str; 9] = [
+    Opt::LoopInversion.to_static_str(),
     Opt::ConstantFold.to_static_str(),
     Opt::CleanCfg.to_static_str(),
     Opt::PartialRedundancyElimination.to_static_str(),
@@ -326,6 +328,7 @@ const OPTIMIZATIONS: [&str; 8] = [
 impl Opt {
     const fn to_static_str(self) -> &'static str {
         match self {
+            Opt::LoopInversion => "li",
             Opt::ConstantFold => "cf",
             Opt::CleanCfg => "clean",
             Opt::PartialRedundancyElimination => "pre",
@@ -342,6 +345,7 @@ impl str::FromStr for Opt {
     type Err = anyhow::Error;
     fn from_str(string: &str) -> Result<Self, Self::Err> {
         match string {
+            "li" => Ok(Opt::LoopInversion),
             "cf" => Ok(Opt::ConstantFold),
             "clean" => Ok(Opt::CleanCfg),
             "pre" => Ok(Opt::PartialRedundancyElimination),
@@ -376,7 +380,7 @@ fn main() -> anyhow::Result<()> {
             command.debug(&path, "lexed", &tokens)?;
         }
 
-        let program = api::parse(tokens)?;
+        let mut program = api::parse(tokens)?;
 
         if command.debug_parse {
             command.debug(&path, "parsed", &program)?;
@@ -400,6 +404,10 @@ fn main() -> anyhow::Result<()> {
                     Err(error) => error.to_string(),
                 },
             )?;
+        }
+
+        if command.optimize(Opt::LoopInversion) {
+            optimize::invert_loops_ast(&mut program);
         }
 
         let mut hir = api::emit_hir(&path, &program, &context?);

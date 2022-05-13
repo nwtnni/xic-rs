@@ -1,4 +1,5 @@
 use crate::data::ast;
+use crate::data::symbol;
 
 pub fn invert_ast(program: &mut ast::Program) {
     for function in &mut program.functions {
@@ -57,13 +58,25 @@ fn effectful(expression: &ast::Expression) -> bool {
         | ast::Expression::Character(_, _)
         | ast::Expression::Integer(_, _)
         | ast::Expression::Variable(_, _) => false,
-        ast::Expression::String(_, _)
-        | ast::Expression::Array(_, _)
-        | ast::Expression::Index(_, _, _)
-        | ast::Expression::Call(_) => true,
+
+        // Recomputing these shouldn't be observable, but it _is_ inefficient.
+        ast::Expression::String(_, _) | ast::Expression::Array(_, _) => true,
+
+        // Note: it's safe to hoist an index even if it may
+        // crash, since it's evaluated at least once whether
+        // or not we invert the loop. There can be no other
+        // effects other than crashing.
+        ast::Expression::Index(array, index, _) => effectful(array) || effectful(index),
+        ast::Expression::Call(call) => symbol::resolve(call.name) != "length",
         ast::Expression::Binary(binary, left, right, _) => match binary.get() {
-            ast::Binary::Div | ast::Binary::Mod | ast::Binary::Cat => true,
-            ast::Binary::Mul
+            // Avoid recomputing array concatenation, which is expensive.
+            ast::Binary::Cat => true,
+
+            // Note: division and modulo are safe for the same
+            // reason as indexing is safe.
+            ast::Binary::Div
+            | ast::Binary::Mod
+            | ast::Binary::Mul
             | ast::Binary::Hul
             | ast::Binary::Add
             | ast::Binary::Sub

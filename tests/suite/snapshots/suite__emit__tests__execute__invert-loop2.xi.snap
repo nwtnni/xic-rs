@@ -1,0 +1,8 @@
+---
+source: tests/suite/emit.rs
+assertion_line: 10
+expression: lir_stdout
+---
+foo is only called twice
+foo is only called twice
+
