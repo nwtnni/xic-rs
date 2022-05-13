@@ -66,32 +66,21 @@ struct Linear {
     active: Vec<cmp::Reverse<(usize, Temporary)>>,
     allocated: BTreeMap<Temporary, Register>,
     spilled: BTreeMap<Temporary, usize>,
-    caller_saved: Vec<Register>,
-    callee_saved: Vec<Register>,
+    registers: Vec<Register>,
 }
 
 impl Linear {
     fn new() -> Self {
-        let callee_saved = abi::CALLEE_SAVED
-            .iter()
-            .rev()
-            .copied()
-            .filter(|register| !SHUTTLE.contains(register))
-            .collect();
-
-        let caller_saved = abi::CALLER_SAVED
-            .iter()
-            .rev()
-            .copied()
-            .filter(|register| !SHUTTLE.contains(register))
-            .collect();
-
         Linear {
             active: Vec::new(),
             allocated: BTreeMap::new(),
             spilled: BTreeMap::new(),
-            caller_saved,
-            callee_saved,
+            registers: abi::CALLEE_SAVED
+                .iter()
+                .chain(abi::CALLER_SAVED)
+                .filter(|register| !SHUTTLE.contains(register))
+                .copied()
+                .collect(),
         }
     }
 
@@ -117,11 +106,10 @@ impl Linear {
         }
 
         let register = self
-            .caller_saved
+            .registers
             .iter()
             .rposition(|register| !range.clobbered.as_slice().contains(register))
-            .map(|index| self.caller_saved.remove(index))
-            .or_else(|| self.callee_saved.pop());
+            .map(|index| self.registers.remove(index));
 
         if let Some(register) = register {
             self.allocated.insert(temporary, register);
@@ -158,7 +146,7 @@ impl Linear {
     }
 
     fn allocate_register(&mut self, register: Register, range: Range) {
-        if !self.caller_saved.contains(&register) && !self.callee_saved.contains(&register) {
+        if !self.registers.contains(&register) {
             // Find active temporary using the register: there must be exactly one!
             let (index, &cmp::Reverse((_, temporary))) = self
                 .active
@@ -171,8 +159,7 @@ impl Linear {
             self.active.remove(index);
         }
 
-        self.caller_saved.retain(|available| *available != register);
-        self.callee_saved.retain(|available| *available != register);
+        self.registers.retain(|available| *available != register);
         self.allocated
             .insert(Temporary::Register(register), register);
         self.active
@@ -207,12 +194,7 @@ impl Linear {
             let register = self.allocated[temporary];
 
             // Return to the free pool
-            if register.is_caller_saved() {
-                self.caller_saved.push(register);
-            } else {
-                self.callee_saved.push(register);
-            }
-
+            self.registers.push(register);
             self.active.pop();
         }
     }
