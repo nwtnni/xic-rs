@@ -1,8 +1,9 @@
+pub mod analyze;
 pub mod data;
+pub mod optimize;
 
 mod abi;
 mod allocate;
-mod analyze;
 mod assemble;
 mod cfg;
 mod check;
@@ -10,7 +11,6 @@ mod emit;
 mod error;
 mod interpret;
 mod lex;
-mod optimize;
 mod parse;
 mod util;
 
@@ -30,31 +30,4 @@ pub mod api {
     pub use crate::interpret::interpret_lir;
     pub use crate::lex::lex;
     pub use crate::parse::parse;
-
-    pub mod optimize {
-        pub use crate::optimize::constant_fold;
-        pub use crate::optimize::constant_propagate;
-        pub use crate::optimize::copy_propagate;
-        pub use crate::optimize::eliminate_dead_code;
-        pub use crate::optimize::eliminate_partial_redundancy;
-        pub use crate::optimize::inline;
-        pub use crate::optimize::invert_loops;
-    }
-
-    pub mod analyze {
-        pub use crate::analyze::analyze;
-        pub use crate::analyze::display;
-        pub use crate::analyze::Analysis;
-        pub use crate::analyze::AnticipatedExpressions;
-        pub use crate::analyze::AvailableExpressions;
-        pub use crate::analyze::ConstantPropagation;
-        pub use crate::analyze::CopyPropagation;
-        pub use crate::analyze::Earliest;
-        pub use crate::analyze::Latest;
-        pub use crate::analyze::LiveRanges;
-        pub use crate::analyze::LiveVariables;
-        pub use crate::analyze::PostponableExpressions;
-        pub use crate::analyze::Solution;
-        pub use crate::analyze::UsedExpressions;
-    }
 }

@@ -13,7 +13,7 @@ use crate::data::operand::Temporary;
 use crate::data::symbol;
 use crate::util::Or;
 
-pub fn inline(lir: &mut lir::Unit<lir::Fallthrough>) {
+pub fn inline_lir(lir: &mut lir::Unit<lir::Fallthrough>) {
     let call_graph = CallGraph::new(lir);
 
     let start = if lir

@@ -8,7 +8,7 @@ use crate::data::operand::Register;
 use crate::data::operand::Temporary;
 use crate::util::Or;
 
-pub fn eliminate(
+pub fn eliminate_assembly(
     live_variables: &Solution<LiveVariables<asm::Function<Temporary>>, asm::Function<Temporary>>,
     cfg: &mut Cfg<asm::Function<Temporary>>,
 ) {

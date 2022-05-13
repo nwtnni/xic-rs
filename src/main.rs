@@ -11,9 +11,9 @@ use anyhow::anyhow;
 use anyhow::Context as _;
 use clap::Parser;
 use clap::ValueHint;
+use xic::analyze;
 use xic::api;
-use xic::api::analyze;
-use xic::api::optimize;
+use xic::optimize;
 
 #[derive(Debug, Parser)]
 #[clap(name = "xic", about = "Compiler for the Xi programming language.")]
@@ -405,7 +405,7 @@ fn main() -> anyhow::Result<()> {
         let mut hir = api::emit_hir(&path, &program, &context?);
 
         if command.optimize(Opt::ConstantFold) {
-            hir = hir.map(optimize::constant_fold);
+            hir = hir.map(optimize::fold_constants);
         }
 
         if command.debug_hir {
@@ -415,7 +415,7 @@ fn main() -> anyhow::Result<()> {
         let mut lir = hir.map_ref(api::emit_lir);
 
         if command.optimize(Opt::ConstantFold) {
-            lir = lir.map(optimize::constant_fold);
+            lir = lir.map(optimize::fold_constants);
         }
 
         let mut cfg = lir.map(api::construct_cfg);
@@ -430,7 +430,7 @@ fn main() -> anyhow::Result<()> {
         let mut lir = cfg.map(api::destruct_cfg);
 
         if command.optimize(Opt::Inline) {
-            api::optimize::inline(&mut lir);
+            optimize::inline_functions_lir(&mut lir);
         }
 
         let mut cfg = lir.map(api::construct_cfg);
@@ -440,7 +440,7 @@ fn main() -> anyhow::Result<()> {
         }
 
         if command.optimize(Opt::PartialRedundancyElimination) {
-            cfg = cfg.map_mut(api::optimize::eliminate_partial_redundancy);
+            cfg = cfg.map_mut(optimize::eliminate_partial_redundancy_lir);
             command.debug_optimize_lir(
                 &path,
                 DebugOpt::Opt(Opt::PartialRedundancyElimination),
@@ -480,12 +480,12 @@ fn main() -> anyhow::Result<()> {
         }
 
         if command.optimize(Opt::ConstantPropagation) {
-            cfg = cfg.map_mut(optimize::constant_propagate);
+            cfg = cfg.map_mut(optimize::propagate_constants_assembly);
             command.debug_optimize_assembly(&path, Opt::ConstantPropagation, &cfg)?;
         }
 
         if command.optimize(Opt::CopyPropagation) {
-            cfg = cfg.map_mut(optimize::copy_propagate);
+            cfg = cfg.map_mut(optimize::propagate_copies_assembly);
             command.debug_optimize_assembly(&path, Opt::CopyPropagation, &cfg)?;
         }
 
@@ -499,7 +499,7 @@ fn main() -> anyhow::Result<()> {
         {
             cfg = cfg.map_mut(|function| {
                 let live_variables = analyze::analyze(function);
-                optimize::eliminate_dead_code(&live_variables, function);
+                optimize::eliminate_dead_code_assembly(&live_variables, function);
             });
 
             command.debug_optimize_assembly(&path, Opt::DeadCodeElimination, &cfg)?;

@@ -22,7 +22,7 @@ pub fn allocate(
     BTreeMap<Temporary, usize>,
 ) {
     let live_variables = analyze::<LiveVariables<_>, _>(&function);
-    optimize::eliminate_dead_code(&live_variables, &mut function);
+    optimize::eliminate_dead_code_assembly(&live_variables, &mut function);
     let ranges = analyze::LiveRanges::new(&live_variables, function);
     let mut linear = Linear::new();
     linear.allocate(&ranges);

@@ -1,7 +1,7 @@
 use std::collections::BTreeMap;
 
 use crate::abi;
-use crate::api::analyze::Analysis;
+use crate::analyze::Analysis;
 use crate::data::asm;
 use crate::data::operand;
 use crate::data::operand::Immediate;

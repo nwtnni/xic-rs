@@ -1,15 +1,14 @@
-mod constant_fold;
-mod constant_propagate;
+mod constant;
 mod copy;
 mod dead_code;
-mod inline;
-mod loop_invert;
+mod function;
+mod r#loop;
 mod partial_redundancy;
 
-pub use constant_fold::fold as constant_fold;
-pub use constant_propagate::propagate as constant_propagate;
-pub use copy::propagate as copy_propagate;
-pub use dead_code::eliminate as eliminate_dead_code;
-pub use inline::inline;
-pub use loop_invert::invert_loops;
-pub use partial_redundancy::eliminate as eliminate_partial_redundancy;
+pub use constant::fold as fold_constants;
+pub use constant::propagate_assembly as propagate_constants_assembly;
+pub use copy::propagate_assembly as propagate_copies_assembly;
+pub use dead_code::eliminate_assembly as eliminate_dead_code_assembly;
+pub use function::inline_lir as inline_functions_lir;
+pub use partial_redundancy::eliminate_lir as eliminate_partial_redundancy_lir;
+pub use r#loop::invert_ast as invert_loops_ast;

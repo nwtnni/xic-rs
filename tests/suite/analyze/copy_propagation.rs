@@ -1,6 +1,6 @@
-use xic::api::analyze::analyze;
-use xic::api::analyze::display;
-use xic::api::analyze::CopyPropagation;
+use xic::analyze::analyze;
+use xic::analyze::display;
+use xic::analyze::CopyPropagation;
 use xic::data::asm::Function;
 use xic::data::operand::Temporary;
 

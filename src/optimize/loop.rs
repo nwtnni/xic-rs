@@ -1,12 +1,12 @@
 use crate::data::ast;
 
-pub fn invert_loops(program: &mut ast::Program) {
+pub fn invert_ast(program: &mut ast::Program) {
     for function in &mut program.functions {
-        invert(&mut function.statements);
+        invert_statement(&mut function.statements);
     }
 }
 
-fn invert(statement: &mut ast::Statement) {
+fn invert_statement(statement: &mut ast::Statement) {
     let (condition, r#while, span) = match statement {
         ast::Statement::Assignment(_, _, _)
         | ast::Statement::Call(_)
@@ -15,22 +15,22 @@ fn invert(statement: &mut ast::Statement) {
         | ast::Statement::Return(_, _) => return,
         ast::Statement::Sequence(statements, _) => {
             for statement in statements {
-                invert(statement);
+                invert_statement(statement);
             }
             return;
         }
-        ast::Statement::If(_, r#if, None, _) => return invert(r#if),
+        ast::Statement::If(_, r#if, None, _) => return invert_statement(r#if),
         ast::Statement::If(_, r#if, Some(r#else), _) => {
-            invert(r#if);
-            invert(r#else);
+            invert_statement(r#if);
+            invert_statement(r#else);
             return;
         }
         ast::Statement::While(ast::Do::Yes, _, statement, _) => {
-            invert(statement);
+            invert_statement(statement);
             return;
         }
         ast::Statement::While(ast::Do::No, condition, statement, _) if effectful(condition) => {
-            invert(statement);
+            invert_statement(statement);
             return;
         }
         ast::Statement::While(ast::Do::No, condition, statement, span) => {

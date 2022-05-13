@@ -5,7 +5,7 @@ use std::mem;
 
 use crate::analyze::analyze;
 use crate::analyze::UsedExpressions;
-use crate::api::analyze::Analysis as _;
+use crate::analyze::Analysis as _;
 use crate::cfg::split_cfg;
 use crate::cfg::Cfg;
 use crate::data::lir;
@@ -13,7 +13,7 @@ use crate::data::operand::Label;
 use crate::data::operand::Temporary;
 use crate::lir;
 
-pub fn eliminate<T: lir::Target>(cfg: &mut Cfg<lir::Function<T>>) {
+pub fn eliminate_lir<T: lir::Target>(cfg: &mut Cfg<lir::Function<T>>) {
     split_cfg(cfg);
 
     let mut transformer = Transformer::new(cfg);

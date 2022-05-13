@@ -9,7 +9,7 @@ use crate::data::asm::Statement;
 use crate::data::operand;
 use crate::data::operand::Temporary;
 
-pub fn propagate(cfg: &mut Cfg<asm::Function<Temporary>>) {
+pub fn propagate_assembly(cfg: &mut Cfg<asm::Function<Temporary>>) {
     let mut solution = analyze::<ConstantPropagation, _>(cfg);
 
     for (label, statements) in cfg.blocks_mut() {

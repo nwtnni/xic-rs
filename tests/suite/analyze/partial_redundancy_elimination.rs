@@ -1,11 +1,11 @@
-use xic::api::analyze::analyze;
-use xic::api::analyze::display;
-use xic::api::analyze::AnticipatedExpressions;
-use xic::api::analyze::AvailableExpressions;
-use xic::api::analyze::Earliest;
-use xic::api::analyze::Latest;
-use xic::api::analyze::PostponableExpressions;
-use xic::api::analyze::UsedExpressions;
+use xic::analyze::analyze;
+use xic::analyze::display;
+use xic::analyze::AnticipatedExpressions;
+use xic::analyze::AvailableExpressions;
+use xic::analyze::Earliest;
+use xic::analyze::Latest;
+use xic::analyze::PostponableExpressions;
+use xic::analyze::UsedExpressions;
 use xic::data::lir::Fallthrough;
 use xic::data::lir::Function;
 

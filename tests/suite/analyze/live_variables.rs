@@ -1,7 +1,7 @@
-use xic::api::analyze::analyze;
-use xic::api::analyze::display;
-use xic::api::analyze::LiveRanges;
-use xic::api::analyze::LiveVariables;
+use xic::analyze::analyze;
+use xic::analyze::display;
+use xic::analyze::LiveRanges;
+use xic::analyze::LiveVariables;
 use xic::data::asm::Function;
 use xic::data::operand::Scale::_8;
 use xic::data::operand::Temporary;
