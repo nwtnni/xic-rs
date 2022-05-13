@@ -133,9 +133,9 @@ impl<'env> Emitter<'env> {
                 let left = self.emit_expression(left, variables);
                 let right = self.emit_expression(right, variables);
 
-                let address_left = Temporary::fresh("array");
-                let address_right = Temporary::fresh("array");
-                let address = Temporary::fresh("array");
+                let array_left = Temporary::fresh("array");
+                let array_right = Temporary::fresh("array");
+                let array = Temporary::fresh("array");
 
                 let length_left = Temporary::fresh("length");
                 let length_right = Temporary::fresh("length");
@@ -144,56 +144,54 @@ impl<'env> Emitter<'env> {
                 let alloc = Label::Fixed(symbol::intern_static(abi::XI_ALLOC));
 
                 let while_left = Label::fresh("while");
-                let true_left = Label::fresh("true");
-                let false_left = Label::fresh("false");
+                let done_left = Label::fresh("true");
+                let bound_left = Temporary::fresh("bound");
 
                 let while_right = Label::fresh("while");
-                let true_right = Label::fresh("true");
-                let false_right = Label::fresh("false");
+                let done_right = Label::fresh("true");
+                let bound_right = Temporary::fresh("bound");
 
-                let index = Temporary::fresh("index");
+                let address = Temporary::fresh("address");
 
                 hir!(
                     (ESEQ
                         (SEQ
-                            (MOVE (TEMP address_left) (left.into()))
-                            (MOVE (TEMP length_left) (MEM (SUB (TEMP address_left) (CONST abi::WORD))))
+                            (MOVE (TEMP array_left) (left.into()))
+                            (MOVE (TEMP length_left) (MEM (SUB (TEMP array_left) (CONST abi::WORD))))
 
-                            (MOVE (TEMP address_right) (right.into()))
-                            (MOVE (TEMP length_right) (MEM (SUB (TEMP address_right) (CONST abi::WORD))))
+                            (MOVE (TEMP array_right) (right.into()))
+                            (MOVE (TEMP length_right) (MEM (SUB (TEMP array_right) (CONST abi::WORD))))
 
                             // Allocate destination with correct length (+1 for length metadata)
                             (MOVE (TEMP length) (ADD (TEMP length_left) (TEMP length_right)))
                             (MOVE
-                                (TEMP address)
-                                (CALL (NAME alloc) 1 (MUL (ADD (TEMP length) (CONST 1)) (CONST abi::WORD))))
-                            (MOVE (MEM (TEMP address)) (TEMP length))
-                            (MOVE (TEMP index) (CONST 1))
+                                (TEMP array)
+                                (CALL (NAME alloc) 1 (ADD (MUL (TEMP length) (CONST abi::WORD)) (CONST abi::WORD))))
+                            (MOVE (MEM (TEMP array)) (TEMP length))
+                            (MOVE (TEMP address) (ADD (TEMP array) (CONST abi::WORD)))
 
                             // Copy left array into final destination, starting at
-                            // `address + WORD`
+                            // `array + WORD`
+                            (MOVE (TEMP bound_left) (ADD (TEMP array_left) (MUL (TEMP length_left) (CONST abi::WORD))))
+                            (CJUMP (AE (TEMP array_left) (TEMP bound_left)) done_left while_left)
                             (LABEL while_left)
-                            (CJUMP (GE (TEMP index) (ADD (TEMP length_left) (CONST 1))) true_left false_left)
-                            (LABEL false_left)
-                            (MOVE
-                                (MEM (ADD (TEMP address) (MUL (TEMP index) (CONST abi::WORD))))
-                                (MEM (ADD (TEMP address_left) (MUL (SUB (TEMP index) (CONST 1)) (CONST abi::WORD)))))
-                            (MOVE (TEMP index) (ADD (TEMP index) (CONST 1)))
-                            (JUMP while_left)
-                            (LABEL true_left)
+                            (MOVE (MEM (TEMP address)) (MEM (TEMP array_left)))
+                            (MOVE (TEMP array_left) (ADD (TEMP array_left) (CONST abi::WORD)))
+                            (MOVE (TEMP address) (ADD (TEMP address) (CONST abi::WORD)))
+                            (CJUMP (AE (TEMP array_left) (TEMP bound_left)) done_left while_left)
+                            (LABEL done_left)
 
                             // Copy right array into final destination, starting at
-                            // `address + WORD + length_left * WORD`
+                            // `array + WORD + length_left * WORD`
+                            (MOVE (TEMP bound_right) (ADD (TEMP array_right) (MUL (TEMP length_right) (CONST abi::WORD))))
+                            (CJUMP (AE (TEMP array_right) (TEMP bound_right)) done_right while_right)
                             (LABEL while_right)
-                            (CJUMP (GE (TEMP index) (ADD (TEMP length) (CONST 1))) true_right false_right)
-                            (LABEL false_right)
-                            (MOVE
-                                (MEM (ADD (TEMP address) (MUL (TEMP index) (CONST abi::WORD))))
-                                (MEM (ADD (TEMP address_right) (MUL (SUB (SUB (TEMP index) (TEMP length_left)) (CONST 1)) (CONST abi::WORD)))))
-                            (MOVE (TEMP index) (ADD (TEMP index) (CONST 1)))
-                            (JUMP while_right)
-                            (LABEL true_right))
-                        (ADD (TEMP address) (CONST abi::WORD)))
+                            (MOVE (MEM (TEMP address)) (MEM (TEMP array_right)))
+                            (MOVE (TEMP array_right) (ADD (TEMP array_right) (CONST abi::WORD)))
+                            (MOVE (TEMP address) (ADD (TEMP address) (CONST abi::WORD)))
+                            (CJUMP (AE (TEMP array_right) (TEMP bound_right)) done_right while_right)
+                            (LABEL done_right))
+                        (ADD (TEMP array) (CONST abi::WORD)))
                 )
                 .into()
             }
@@ -362,22 +360,22 @@ impl<'env> Emitter<'env> {
             ast::Type::Bool(_) | ast::Type::Int(_) | ast::Type::Array(_, None, _) => (),
             ast::Type::Array(r#type, Some(len), _) => {
                 let r#while = Label::fresh("while");
-                let r#true = Label::fresh("true");
-                let r#false = Label::fresh("false");
-                let index = Temporary::fresh("index");
+                let done = Label::fresh("done");
+                let address = Temporary::fresh("address");
+                let bound = Temporary::fresh("bound");
 
                 statements.extend([
-                    hir!((MOVE (TEMP index) (CONST 0))),
+                    hir!((MOVE (TEMP address) (ADD (TEMP array) (CONST abi::WORD)))),
+                    hir!((MOVE (TEMP bound) (ADD (TEMP address) (MUL (TEMP length) (CONST abi::WORD))))),
+                    hir!((CJUMP (AE (TEMP address) (TEMP bound)) done r#while)),
                     hir!((LABEL r#while)),
-                    hir!((CJUMP (GE (TEMP index) (TEMP length)) r#true r#false)),
-                    hir!((LABEL r#false)),
                     hir!(
                         (MOVE
-                            (MEM (ADD (TEMP array) (MUL (ADD (TEMP index) (CONST 1)) (CONST abi::WORD))))
+                            (MEM (TEMP address))
                             (self.emit_array_declaration(r#type, len, variables, lengths)))),
-                    hir!((MOVE (TEMP index) (ADD (TEMP index) (CONST 1)))),
-                    hir!((JUMP r#while)),
-                    hir!((LABEL r#true)),
+                    hir!((MOVE (TEMP address) (ADD (TEMP address) (CONST abi::WORD)))),
+                    hir!((CJUMP (AE (TEMP address) (TEMP bound)) done r#while)),
+                    hir!((LABEL done)),
                 ]);
             }
         }

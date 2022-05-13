@@ -92,6 +92,11 @@ impl<'a, T: 'a> Local<'a, T> {
 
         let (left, right) = match (left, right) {
             (Value::Integer(left), Value::Integer(right)) => (left, right),
+            (Value::Label(left, left_offset), Value::Label(right, right_offset))
+                if left == right =>
+            {
+                (left_offset, right_offset)
+            }
             (_, _) => unreachable!(),
         };
 
