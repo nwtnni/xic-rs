@@ -38,18 +38,14 @@ pub fn conditional_propagate_lir<T: lir::Target>(cfg: &mut Cfg<lir::Function<T>>
                     r#true,
                     r#false,
                 } => {
-                    let r#false = r#false
-                        .target()
-                        .copied()
-                        .or_else(|| {
-                            cfg.graph
-                                .edges_directed(label, Direction::Outgoing)
-                                .find_map(|(_, successor, edge)| match edge {
-                                    Edge::Conditional(false) => Some(successor),
-                                    Edge::Unconditional | Edge::Conditional(true) => None,
-                                })
-                        })
-                        .unwrap();
+                    let r#false = r#false.target().copied().or_else(|| {
+                        cfg.graph
+                            .edges_directed(label, Direction::Outgoing)
+                            .find_map(|(_, successor, edge)| match edge {
+                                Edge::Conditional(false) => Some(successor),
+                                Edge::Unconditional | Edge::Conditional(true) => None,
+                            })
+                    });
 
                     match output.evaluate_condition(condition, left, right) {
                         None => {
@@ -58,12 +54,15 @@ pub fn conditional_propagate_lir<T: lir::Target>(cfg: &mut Cfg<lir::Function<T>>
                             None
                         }
                         Some(true) => {
-                            cfg.graph.remove_edge(label, r#false);
+                            // Note: may already be removed if unreachable.
+                            if let Some(r#false) = r#false {
+                                cfg.graph.remove_edge(label, r#false);
+                            }
                             Some(lir::Statement::<T>::Jump(*r#true))
                         }
                         Some(false) => {
                             cfg.graph.remove_edge(label, *r#true);
-                            Some(lir::Statement::<T>::Jump(r#false))
+                            Some(lir::Statement::<T>::Jump(r#false.unwrap()))
                         }
                     }
                 }

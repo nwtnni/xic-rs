@@ -1,14 +1,18 @@
 use std::collections::BTreeMap;
 
 use crate::analyze::Analysis;
+use crate::cfg::Cfg;
 use crate::cfg::Edge;
 use crate::data::ir;
 use crate::data::lir;
 use crate::data::operand::Immediate;
+use crate::data::operand::Label;
 use crate::data::operand::Temporary;
 use crate::optimize;
 
-pub struct ConditionalConstantPropagation;
+pub struct ConditionalConstantPropagation {
+    enter: Label,
+}
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Data {
@@ -34,20 +38,54 @@ impl<T: lir::Target> Analysis<lir::Function<T>> for ConditionalConstantPropagati
     type Data = Data;
 
     fn new() -> Self {
-        ConditionalConstantPropagation
+        unreachable!()
+    }
+
+    fn new_with_metadata(cfg: &Cfg<lir::Function<T>>) -> Self {
+        ConditionalConstantPropagation {
+            enter: *cfg.enter(),
+        }
     }
 
     fn default(&self) -> Self::Data {
+        unreachable!()
+    }
+
+    fn default_with_metadata(&self, label: &Label) -> Self::Data {
         Data {
-            reachable: Reachable::Linear(true),
+            reachable: Reachable::Linear(*label == self.enter),
             constants: BTreeMap::new(),
         }
     }
 
     fn transfer(&self, statement: &lir::Statement<T>, output: &mut Self::Data) {
+        match output.reachable {
+            Reachable::Branch(_, _) => unreachable!(),
+            Reachable::Linear(true) => (),
+            Reachable::Linear(false) => {
+                output.reachable = match statement {
+                    lir::Statement::CJump { .. } => Reachable::Branch(false, false),
+                    lir::Statement::Jump(_)
+                    | lir::Statement::Call(_, _, _)
+                    | lir::Statement::Label(_)
+                    | lir::Statement::Move { .. }
+                    | lir::Statement::Return(_) => Reachable::Linear(false),
+                };
+                return;
+            }
+        }
+
         match statement {
-            lir::Statement::Jump(_) => (),
-            lir::Statement::Label(_) => (),
+            lir::Statement::Jump(_)
+            | lir::Statement::Label(_)
+            | lir::Statement::Call(_, _, _)
+            | lir::Statement::Move {
+                destination: lir::Expression::Memory(_),
+                source: _,
+            }
+            // Note: normally, we would mark anything after a return as unreachable,
+            // but we desugar returns into move + jump statements when we tile assembly.
+            | lir::Statement::Return(_) => {}
             lir::Statement::CJump {
                 condition,
                 left,
@@ -62,7 +100,6 @@ impl<T: lir::Target> Analysis<lir::Function<T>> for ConditionalConstantPropagati
                     Some(false) => Reachable::Branch(false, true),
                 }
             }
-            lir::Statement::Call(_, _, _) => todo!(),
             lir::Statement::Move {
                 destination: lir::Expression::Temporary(temporary),
                 source,
@@ -73,17 +110,12 @@ impl<T: lir::Target> Analysis<lir::Function<T>> for ConditionalConstantPropagati
                         .entry(*temporary)
                         .and_modify(|constant| match constant {
                             Constant::Overdefined => (),
-                            Constant::Defined(constant) if *constant == immediate => (),
-                            Constant::Defined(_) => *constant = Constant::Overdefined,
+                            Constant::Defined(_) => *constant = Constant::Defined(immediate),
                         })
                         .or_insert(Constant::Defined(immediate));
                 }
             }
-            lir::Statement::Move { .. } => (),
-
-            // Note: normally, we would mark anything after a return as unreachable,
-            // but we desugar returns into move + jump statements when we tile assembly.
-            lir::Statement::Return(_) => (),
+            lir::Statement::Move { .. } => unreachable!(),
         }
     }
 
@@ -95,62 +127,48 @@ impl<T: lir::Target> Analysis<lir::Function<T>> for ConditionalConstantPropagati
         unreachable!()
     }
 
-    fn merge_with_metadata<'a, I>(&self, mut outputs: I, input: &mut Self::Data)
+    fn merge_with_metadata<'a, I>(&self, outputs: I, input: &mut Self::Data)
     where
         I: Iterator<Item = (&'a Edge, Option<&'a Self::Data>)>,
         Self::Data: 'a,
     {
-        match outputs.next() {
-            None | Some((_, None)) => return,
-            Some((edge, Some(output))) => {
-                input.reachable = match (edge, output.reachable) {
-                    (Edge::Unconditional, Reachable::Linear(reachable))
-                    | (Edge::Conditional(true), Reachable::Branch(reachable, _))
-                    | (Edge::Conditional(false), Reachable::Branch(_, reachable)) => {
-                        Reachable::Linear(reachable)
-                    }
-                    _ => unreachable!(),
-                };
+        input.constants.clear();
 
-                input.constants.clear();
-                input.constants.extend(
-                    output
-                        .constants
-                        .iter()
-                        .map(|(temporary, constant)| (*temporary, *constant)),
-                );
-            }
-        }
+        let reachable = match &mut input.reachable {
+            Reachable::Linear(reachable) => reachable,
+            Reachable::Branch(_, _) => unreachable!(),
+        };
 
-        for (edge, output) in
-            outputs.filter_map(|(edge, output)| output.map(move |output| (edge, output)))
+        for (_, output) in outputs
+            .filter_map(|(edge, output)| output.map(move |output| (edge, output)))
+            // Ignore merge information from unreachable predecessors
+            .filter(|(edge, output)| {
+                matches!(
+                    (edge, output.reachable),
+                    (Edge::Unconditional, Reachable::Linear(true))
+                        | (Edge::Conditional(true), Reachable::Branch(true, _))
+                        | (Edge::Conditional(false), Reachable::Branch(_, true))
+                )
+            })
         {
-            match (edge, output.reachable, &mut input.reachable) {
-                (Edge::Unconditional, Reachable::Linear(from), Reachable::Linear(to))
-                | (Edge::Conditional(true), Reachable::Branch(from, _), Reachable::Linear(to))
-                | (Edge::Conditional(false), Reachable::Branch(_, from), Reachable::Linear(to)) => {
-                    *to |= from;
-                }
-                _ => unreachable!(),
-            }
+            *reachable = true;
 
+            // Defined in `input` and `output`
             input.constants.retain(
                 |temporary, old| match (old, output.constants.get(temporary)) {
                     (Constant::Defined(_), None) => true,
                     (Constant::Defined(old), Some(Constant::Defined(new))) if old == new => true,
-                    (
-                        old @ Constant::Defined(_),
-                        Some(Constant::Defined(_) | Constant::Overdefined),
-                    ) => {
+                    (old, _) => {
                         *old = Constant::Overdefined;
                         true
                     }
-                    (
-                        Constant::Overdefined,
-                        Some(Constant::Defined(_) | Constant::Overdefined) | None,
-                    ) => true,
                 },
             );
+
+            // Defined in `output`
+            for (temporary, constant) in &output.constants {
+                input.constants.entry(*temporary).or_insert(*constant);
+            }
         }
     }
 }
