@@ -28,7 +28,7 @@ pub fn conditional_propagate_lir(cfg: &mut Cfg<lir::Function<Label>>) {
             let transfer = statement.clone();
 
             let rewrite = match statement {
-                lir::Statement::Jump(_) => None,
+                lir::Statement::Jump(_) | lir::Statement::Label(_) => None,
                 lir::Statement::CJump {
                     condition,
                     left,
@@ -57,7 +57,6 @@ pub fn conditional_propagate_lir(cfg: &mut Cfg<lir::Function<Label>>) {
                     }
                     None
                 }
-                lir::Statement::Label(_) => None,
                 lir::Statement::Move {
                     destination: _,
                     source,
@@ -82,12 +81,26 @@ pub fn conditional_propagate_lir(cfg: &mut Cfg<lir::Function<Label>>) {
     }
 }
 
-// FIXME: propagate constants recursively
 fn propagate(
     expression: &mut lir::Expression,
     output: &<ConditionalConstantPropagation as Analysis<lir::Function<Label>>>::Data,
 ) {
     if let Some(immediate) = output.evaluate_expression(expression) {
         *expression = lir::Expression::Immediate(immediate);
+        return;
+    }
+
+    match expression {
+        lir::Expression::Argument(_)
+        | lir::Expression::Return(_)
+        | lir::Expression::Immediate(_)
+        | lir::Expression::Temporary(_) => (),
+        lir::Expression::Memory(address) => {
+            propagate(address, output);
+        }
+        lir::Expression::Binary(_, left, right) => {
+            propagate(left, output);
+            propagate(right, output);
+        }
     }
 }
