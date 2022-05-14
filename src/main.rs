@@ -122,6 +122,8 @@ struct Command {
         possible_values = [
             DebugOpt::Initial.to_static_str(),
             Opt::CleanCfg.to_static_str(),
+            Opt::Inline.to_static_str(),
+            Opt::ConditionalConstantPropagation.to_static_str(),
             Opt::PartialRedundancyElimination.to_static_str(),
             DebugOpt::Final.to_static_str(),
         ],
@@ -302,8 +304,9 @@ enum Opt {
     LoopInversion,
     ConstantFold,
     CleanCfg,
-    PartialRedundancyElimination,
     Inline,
+    ConditionalConstantPropagation,
+    PartialRedundancyElimination,
     ConstantPropagation,
     CopyPropagation,
     DeadCodeElimination,
@@ -313,12 +316,13 @@ enum Opt {
 // Need something like https://doc.rust-lang.org/std/mem/fn.variant_count.html
 // to make sure array matches up with enum definition. Procedural macro options
 // seem too heavyweight for something like this.
-const OPTIMIZATIONS: [&str; 9] = [
+const OPTIMIZATIONS: [&str; 10] = [
     Opt::LoopInversion.to_static_str(),
     Opt::ConstantFold.to_static_str(),
     Opt::CleanCfg.to_static_str(),
-    Opt::PartialRedundancyElimination.to_static_str(),
     Opt::Inline.to_static_str(),
+    Opt::ConditionalConstantPropagation.to_static_str(),
+    Opt::PartialRedundancyElimination.to_static_str(),
     Opt::ConstantPropagation.to_static_str(),
     Opt::CopyPropagation.to_static_str(),
     Opt::DeadCodeElimination.to_static_str(),
@@ -331,8 +335,9 @@ impl Opt {
             Opt::LoopInversion => "li",
             Opt::ConstantFold => "cf",
             Opt::CleanCfg => "clean",
-            Opt::PartialRedundancyElimination => "pre",
             Opt::Inline => "inl",
+            Opt::ConditionalConstantPropagation => "ccp",
+            Opt::PartialRedundancyElimination => "pre",
             Opt::ConstantPropagation => "cp",
             Opt::CopyPropagation => "copy",
             Opt::DeadCodeElimination => "dce",
@@ -348,8 +353,9 @@ impl str::FromStr for Opt {
             "li" => Ok(Opt::LoopInversion),
             "cf" => Ok(Opt::ConstantFold),
             "clean" => Ok(Opt::CleanCfg),
-            "pre" => Ok(Opt::PartialRedundancyElimination),
             "inl" => Ok(Opt::Inline),
+            "ccp" => Ok(Opt::ConditionalConstantPropagation),
+            "pre" => Ok(Opt::PartialRedundancyElimination),
             "cp" => Ok(Opt::ConstantPropagation),
             "copy" => Ok(Opt::CopyPropagation),
             "dce" => Ok(Opt::DeadCodeElimination),
@@ -445,6 +451,15 @@ fn main() -> anyhow::Result<()> {
 
         if command.optimize(Opt::Inline) {
             command.debug_optimize_lir(&path, DebugOpt::Opt(Opt::Inline), &cfg)?;
+        }
+
+        if command.optimize(Opt::ConditionalConstantPropagation) {
+            cfg = cfg.map_mut(optimize::propagate_conditional_constants_lir);
+            command.debug_optimize_lir(
+                &path,
+                DebugOpt::Opt(Opt::ConditionalConstantPropagation),
+                &cfg,
+            )?;
         }
 
         if command.optimize(Opt::PartialRedundancyElimination) {
