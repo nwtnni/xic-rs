@@ -14,7 +14,7 @@ expression: live_variables
    | mov rdi, _x    |
    | {rsp, rdi}     |
    | call black_box |
-   | {rax, rsp}     |
+   | {rsp, rax}     |
    | mov _x, rax    |
    | {rsp, _x}      |
    | mov rax, _x    |

@@ -1,11 +1,10 @@
-use std::collections::BTreeMap;
-
 use crate::data::asm;
 use crate::data::operand;
 use crate::data::operand::Memory;
 use crate::data::operand::Temporary;
+use crate::Map;
 
-pub fn allocate(function: &asm::Function<Temporary>) -> BTreeMap<Temporary, usize> {
+pub fn allocate(function: &asm::Function<Temporary>) -> Map<Temporary, usize> {
     let mut trivial = Trivial::default();
     for statement in &function.statements {
         trivial.allocate_statement(statement);
@@ -15,7 +14,7 @@ pub fn allocate(function: &asm::Function<Temporary>) -> BTreeMap<Temporary, usiz
 
 #[derive(Default)]
 struct Trivial {
-    spilled: BTreeMap<Temporary, usize>,
+    spilled: Map<Temporary, usize>,
 }
 
 impl Trivial {

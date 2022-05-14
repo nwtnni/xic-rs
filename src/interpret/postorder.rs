@@ -35,15 +35,14 @@
 //!   10: (TEMP t0)
 //! ```
 
-use std::collections::BTreeMap;
-
 use crate::data::hir;
 use crate::data::lir;
 use crate::data::operand::Label;
+use crate::Map;
 
 pub struct Postorder<T> {
     statements: Vec<T>,
-    labels: BTreeMap<Label, usize>,
+    labels: Map<Label, usize>,
 }
 
 impl<T> Postorder<T> {
@@ -60,7 +59,7 @@ impl<T> Default for Postorder<T> {
     fn default() -> Self {
         Self {
             statements: Vec::new(),
-            labels: BTreeMap::new(),
+            labels: Map::default(),
         }
     }
 }

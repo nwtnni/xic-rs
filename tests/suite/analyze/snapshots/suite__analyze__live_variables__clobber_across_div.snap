@@ -1,6 +1,6 @@
 ---
 source: tests/suite/analyze/live_variables.rs
-assertion_line: 71
+assertion_line: 61
 expression: live_variables
 ---
 
@@ -10,13 +10,13 @@ expression: live_variables
 |       enter:        |
 | {rsp}               |
 | mov _x, 1           |
-| {rsp, _x}           |
+| {_x, rsp}           |
 | mov _y, 2           |
-| {rsp, _x, _y}       |
+| {_y, rsp, _x}       |
 | mov rax, _x         |
 | {rax, rsp, _y}      |
 | cqo                 |
-| {rax, rdx, rsp, _y} |
+| {rax, rsp, _y, rdx} |
 | idiv 5              |
 | {rax, rsp, _y}      |
 | mov rdx, _y         |

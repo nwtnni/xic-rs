@@ -1,5 +1,4 @@
 use std::cmp;
-use std::collections::BTreeMap;
 
 use crate::abi;
 use crate::allocate::SHUTTLE;
@@ -13,13 +12,14 @@ use crate::data::asm;
 use crate::data::operand::Register;
 use crate::data::operand::Temporary;
 use crate::optimize;
+use crate::Map;
 
 pub fn allocate(
     mut function: Cfg<asm::Function<Temporary>>,
 ) -> (
     asm::Function<Temporary>,
-    BTreeMap<Temporary, Register>,
-    BTreeMap<Temporary, usize>,
+    Map<Temporary, Register>,
+    Map<Temporary, usize>,
 ) {
     let live_variables = analyze::<LiveVariables<_>, _>(&function);
     optimize::eliminate_dead_code_assembly(&live_variables, &mut function);
@@ -64,8 +64,8 @@ pub fn allocate(
 /// two dedicated spill registers.
 struct Linear {
     active: Vec<cmp::Reverse<(usize, Temporary)>>,
-    allocated: BTreeMap<Temporary, Register>,
-    spilled: BTreeMap<Temporary, usize>,
+    allocated: Map<Temporary, Register>,
+    spilled: Map<Temporary, usize>,
     registers: Vec<Register>,
 }
 
@@ -73,8 +73,8 @@ impl Linear {
     fn new() -> Self {
         Linear {
             active: Vec::new(),
-            allocated: BTreeMap::new(),
-            spilled: BTreeMap::new(),
+            allocated: Map::default(),
+            spilled: Map::default(),
             registers: abi::CALLEE_SAVED
                 .iter()
                 .chain(abi::CALLER_SAVED)

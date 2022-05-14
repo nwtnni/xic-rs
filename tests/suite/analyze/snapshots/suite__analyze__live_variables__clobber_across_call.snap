@@ -10,11 +10,11 @@ clobber_across_call
 |     enter:      |
 | {rsp}           |
 | mov _x, 0       |
-| {rsp, _x}       |
+| {_x, rsp}       |
 | mov _y, 1       |
-| {rsp, _x, _y}   |
+| {_y, rsp, _x}   |
 | call clobber    |
-| {rsp, _x, _y}   |
+| {_y, rsp, _x}   |
 | mov rax, _x     |
 | {rax, rsp, _y}  |
 | mov rdx, _y     |

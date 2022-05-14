@@ -1,5 +1,3 @@
-use std::collections::BTreeMap;
-
 use crate::abi;
 use crate::analyze::Analysis;
 use crate::data::asm;
@@ -7,20 +5,21 @@ use crate::data::operand;
 use crate::data::operand::Register;
 use crate::data::operand::Temporary;
 use crate::util;
+use crate::Map;
 
 pub struct CopyPropagation;
 
 impl Analysis<asm::Function<Temporary>> for CopyPropagation {
     const BACKWARD: bool = false;
 
-    type Data = BTreeMap<Temporary, Temporary>;
+    type Data = Map<Temporary, Temporary>;
 
     fn new() -> Self {
         Self
     }
 
     fn default(&self) -> Self::Data {
-        BTreeMap::new()
+        Map::default()
     }
 
     fn transfer(&self, statement: &asm::Statement<Temporary>, output: &mut Self::Data) {
@@ -123,7 +122,7 @@ impl Analysis<asm::Function<Temporary>> for CopyPropagation {
 /// mov b, 1
 /// {}
 /// ```
-fn remove(output: &mut BTreeMap<Temporary, Temporary>, kill: &Temporary) {
+fn remove(output: &mut Map<Temporary, Temporary>, kill: &Temporary) {
     output.remove(kill);
 
     let mut stack = vec![*kill];

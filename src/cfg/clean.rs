@@ -1,4 +1,3 @@
-use std::collections::BTreeSet;
 use std::mem;
 
 use petgraph::Direction;
@@ -9,11 +8,12 @@ use crate::cfg::Function;
 use crate::cfg::Terminator;
 use crate::cfg::TerminatorMut;
 use crate::data::operand::Label;
+use crate::Set;
 
 pub fn clean_cfg<T: Function>(cfg: &mut Cfg<T>) {
     let mut stack = Vec::new();
     let mut order = Vec::new();
-    let mut visited = BTreeSet::new();
+    let mut visited = Set::default();
     let mut dirty = true;
 
     let mut buffer = Vec::new();
@@ -102,7 +102,7 @@ enum Event {
 
 fn postorder<T: Function>(
     cfg: &Cfg<T>,
-    visited: &mut BTreeSet<Label>,
+    visited: &mut Set<Label>,
     order: &mut Vec<Label>,
     stack: &mut Vec<Event>,
 ) {

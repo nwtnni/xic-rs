@@ -1,7 +1,7 @@
 ---
 source: tests/suite/analyze/constant_propagation.rs
-assertion_line: 69
-expression: copy_propagation
+assertion_line: 60
+expression: constant_propagation(function)
 ---
 
       propagate_mod
@@ -12,21 +12,21 @@ expression: copy_propagation
 | mov _a, 5               |
 | {_a: 5}                 |
 | mov rax, 3              |
-| {rax: 3, _a: 5}         |
+| {_a: 5, rax: 3}         |
 | cqo                     |
-| {rax: 3, rdx: 0, _a: 5} |
+| {_a: 5, rax: 3, rdx: 0} |
 | idiv _a                 |
-| {rax: 0, rdx: 3, _a: 5} |
+| {_a: 5, rax: 0, rdx: 3} |
 | jmp exit                |
-| {rax: 0, rdx: 3, _a: 5} |
+| {_a: 5, rax: 0, rdx: 3} |
 +-------------------------+
   |
   |
   v
 +-------------------------+
 |          exit:          |
-| {rax: 0, rdx: 3, _a: 5} |
+| {_a: 5, rax: 0, rdx: 3} |
 | ret                     |
-| {rax: 0, rdx: 3, _a: 5} |
+| {_a: 5, rax: 0, rdx: 3} |
 +-------------------------+
 

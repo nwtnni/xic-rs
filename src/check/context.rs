@@ -1,6 +1,6 @@
-use std::collections::HashMap;
-
 use crate::data::r#type;
+use crate::Map;
+
 use crate::data::symbol::Symbol;
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -12,7 +12,7 @@ pub enum Entry {
 
 #[derive(Clone, Debug)]
 pub struct Context {
-    stack: Vec<HashMap<Symbol, Entry>>,
+    stack: Vec<Map<Symbol, Entry>>,
     r#return: Option<Vec<r#type::Expression>>,
 }
 
@@ -25,7 +25,7 @@ impl Default for Context {
 impl Context {
     pub fn new() -> Self {
         Context {
-            stack: vec![HashMap::default()],
+            stack: vec![Map::default()],
             r#return: None,
         }
     }
@@ -56,7 +56,7 @@ impl Context {
     }
 
     pub fn push(&mut self) {
-        self.stack.push(HashMap::default());
+        self.stack.push(Map::default());
     }
 
     pub fn pop(&mut self) {

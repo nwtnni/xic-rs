@@ -1,6 +1,7 @@
 use std::borrow::Cow;
 use std::cell::RefCell;
-use std::collections::HashMap as Map;
+
+use crate::Set;
 
 thread_local! {
     /// Global cache of interned strings
@@ -15,10 +16,7 @@ thread_local! {
 /// Does not garbage collect interned strings: the memory
 /// is intentionally leaked for the duration of the program.
 #[derive(Debug, Default)]
-pub struct Interner {
-    index: Map<&'static str, usize>,
-    store: Vec<&'static str>,
-}
+pub struct Interner(Set<&'static str>);
 
 /// Represents a unique string.
 ///
@@ -34,34 +32,26 @@ impl Interner {
         S: Into<Cow<'a, str>>,
     {
         let cow = string.into();
-        if let Some(&index) = self.index.get(cow.as_ref()) {
+        if let Some(index) = self.0.get_index_of(cow.as_ref()) {
             Symbol(index)
         } else {
             let owned = cow.into_owned().into_boxed_str();
             let leaked = Box::leak(owned);
-            let index = self.store.len();
-            self.store.push(leaked);
-            self.index.insert(leaked, index);
+            let (index, _) = self.0.insert_full(leaked);
             Symbol(index)
         }
     }
 
     /// Store static `string` in this interner if not already cached.
     fn intern_static(&mut self, string: &'static str) -> Symbol {
-        if let Some(&index) = self.index.get(string) {
-            Symbol(index)
-        } else {
-            let index = self.store.len();
-            self.store.push(string);
-            self.index.insert(string, index);
-            Symbol(index)
-        }
+        let (index, _) = self.0.insert_full(string);
+        Symbol(index)
     }
 
     /// Resolve `symbol` in this interner.
     /// Requires that `symbol` was produced by this interner.
     fn resolve(&self, symbol: Symbol) -> &'static str {
-        self.store[symbol.0]
+        self.0[symbol.0]
     }
 }
 

@@ -1,14 +1,13 @@
-use std::collections::BTreeMap;
-
 use crate::data::ast;
 use crate::data::operand::Label;
 use crate::data::symbol::Symbol;
+use crate::Map;
 
 #[derive(Clone, Debug)]
 pub struct Unit<T> {
     pub name: Symbol,
-    pub functions: BTreeMap<Symbol, T>,
-    pub data: BTreeMap<Symbol, Label>,
+    pub functions: Map<Symbol, T>,
+    pub data: Map<Symbol, Label>,
 }
 
 impl<T> Unit<T> {
@@ -44,7 +43,7 @@ impl<T> Unit<T> {
     }
 }
 
-#[derive(Copy, Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq, Hash)]
 pub enum Binary {
     Add,
     Sub,
@@ -76,7 +75,7 @@ impl From<ast::Binary> for Binary {
     }
 }
 
-#[derive(Copy, Clone, Debug, PartialEq, Eq)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq, Hash)]
 pub enum Condition {
     Lt,
     Le,

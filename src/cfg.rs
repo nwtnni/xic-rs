@@ -10,7 +10,6 @@ pub use destruct::destruct_cfg;
 pub(crate) use dot::Dot;
 pub use split::split_cfg;
 
-use std::collections::BTreeMap;
 use std::fmt;
 use std::fmt::Write as _;
 use std::mem;
@@ -27,6 +26,7 @@ use crate::data::lir;
 use crate::data::operand::Label;
 use crate::data::operand::Temporary;
 use crate::data::symbol::Symbol;
+use crate::Map;
 
 #[derive(Clone)]
 pub struct Cfg<T: Function> {
@@ -40,7 +40,7 @@ pub struct Cfg<T: Function> {
     // Otherwise using methods tie together the lifetime of these two
     // fields, and the compiler can't tell the uses are disjoint.
     pub(crate) graph: DiGraphMap<Label, Edge>,
-    pub(crate) blocks: BTreeMap<Label, Vec<T::Statement>>,
+    pub(crate) blocks: Map<Label, Vec<T::Statement>>,
 }
 
 impl<T: Function> Cfg<T> {

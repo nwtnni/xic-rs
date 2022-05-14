@@ -1,5 +1,3 @@
-use std::collections::BTreeMap;
-
 use crate::analyze::Analysis;
 use crate::cfg::Cfg;
 use crate::cfg::Edge;
@@ -9,6 +7,7 @@ use crate::data::operand::Immediate;
 use crate::data::operand::Label;
 use crate::data::operand::Temporary;
 use crate::optimize;
+use crate::Map;
 
 pub struct ConditionalConstantPropagation {
     enter: Label,
@@ -17,7 +16,7 @@ pub struct ConditionalConstantPropagation {
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Data {
     pub(crate) reachable: Reachable,
-    pub(crate) constants: BTreeMap<Temporary, Constant>,
+    pub(crate) constants: Map<Temporary, Constant>,
 }
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
@@ -54,7 +53,7 @@ impl<T: lir::Target> Analysis<lir::Function<T>> for ConditionalConstantPropagati
     fn default_with_metadata(&self, label: &Label) -> Self::Data {
         Data {
             reachable: Reachable::Linear(*label == self.enter),
-            constants: BTreeMap::new(),
+            constants: Map::default(),
         }
     }
 

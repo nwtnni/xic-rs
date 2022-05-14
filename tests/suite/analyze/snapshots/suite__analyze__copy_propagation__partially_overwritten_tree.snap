@@ -1,7 +1,7 @@
 ---
 source: tests/suite/analyze/copy_propagation.rs
-assertion_line: 43
-expression: copy_propagation
+assertion_line: 90
+expression: copy_propagation(function)
 ---
 
     partially_overwritten_tree
@@ -14,21 +14,21 @@ expression: copy_propagation
 | mov _d, _a                       |
 | {_a: _b, _d: _a}                 |
 | mov _c, _b                       |
-| {_a: _b, _c: _b, _d: _a}         |
+| {_a: _b, _d: _a, _c: _b}         |
 | mov _e, _c                       |
-| {_a: _b, _c: _b, _d: _a, _e: _c} |
+| {_a: _b, _d: _a, _c: _b, _e: _c} |
 | mov _a, 1                        |
-| {_c: _b, _e: _c}                 |
+| {_e: _c, _c: _b}                 |
 | jmp exit                         |
-| {_c: _b, _e: _c}                 |
+| {_e: _c, _c: _b}                 |
 +----------------------------------+
   |
   |
   v
 +----------------------------------+
 |              exit:               |
-| {_c: _b, _e: _c}                 |
+| {_e: _c, _c: _b}                 |
 | ret                              |
-| {_c: _b, _e: _c}                 |
+| {_e: _c, _c: _b}                 |
 +----------------------------------+
 

@@ -28,8 +28,6 @@ pub use live_variables::LiveVariables;
 pub use postponable_expressions::PostponableExpressions;
 pub use used_expressions::UsedExpressions;
 
-use std::collections::BTreeMap;
-use std::collections::BTreeSet;
 use std::collections::VecDeque;
 
 use petgraph::Direction;
@@ -38,6 +36,8 @@ use crate::cfg;
 use crate::cfg::Cfg;
 use crate::cfg::Function;
 use crate::data::operand::Label;
+use crate::Map;
+use crate::Set;
 
 pub trait Analysis<T: Function>: Sized {
     const BACKWARD: bool;
@@ -84,8 +84,8 @@ pub trait Analysis<T: Function>: Sized {
 
 pub struct Solution<A: Analysis<T>, T: Function> {
     pub analysis: A,
-    pub inputs: BTreeMap<Label, A::Data>,
-    pub outputs: BTreeMap<Label, A::Data>,
+    pub inputs: Map<Label, A::Data>,
+    pub outputs: Map<Label, A::Data>,
 }
 
 pub fn analyze<A: Analysis<T>, T: Function>(cfg: &Cfg<T>) -> Solution<A, T> {
@@ -97,10 +97,10 @@ pub fn analyze<A: Analysis<T>, T: Function>(cfg: &Cfg<T>) -> Solution<A, T> {
         false => (Direction::Incoming, Direction::Outgoing),
     };
 
-    let mut inputs = BTreeMap::<Label, A::Data>::new();
-    let mut outputs = BTreeMap::<Label, A::Data>::new();
+    let mut inputs = Map::<Label, A::Data>::default();
+    let mut outputs = Map::<Label, A::Data>::default();
     let mut worklist = VecDeque::new();
-    let mut workset = BTreeSet::new();
+    let mut workset = Set::default();
 
     // Topological order
     for component in strongly_connected_components.into_iter().rev() {
@@ -108,7 +108,7 @@ pub fn analyze<A: Analysis<T>, T: Function>(cfg: &Cfg<T>) -> Solution<A, T> {
         worklist.extend(component.iter().copied().rev());
         workset.extend(component.iter().copied().rev());
 
-        let component = component.into_iter().collect::<BTreeSet<_>>();
+        let component = component.into_iter().collect::<Set<_>>();
 
         while let Some(label) = worklist.pop_front() {
             workset.remove(&label);

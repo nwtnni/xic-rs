@@ -22,6 +22,7 @@ impl<T: Target> fmt::Display for Unit<T> {
     }
 }
 
+#[derive(Clone, Debug)]
 pub struct Function<T: Target> {
     pub name: Symbol,
     pub statements: Vec<Statement<T>>,
@@ -49,7 +50,7 @@ impl<T: Target> fmt::Display for Function<T> {
     }
 }
 
-#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub enum Expression {
     Argument(usize),
     Return(usize),
@@ -89,7 +90,7 @@ impl From<Register> for Expression {
     }
 }
 
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub enum Statement<T> {
     Jump(Label),
     CJump {
@@ -114,7 +115,7 @@ impl<T: Serialize> fmt::Display for Statement<T> {
     }
 }
 
-#[derive(Copy, Clone, Debug, PartialEq, Eq)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct Fallthrough;
 
 pub trait Target: sexp::Serialize + Copy + Clone + Eq + fmt::Debug {

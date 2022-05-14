@@ -1,5 +1,3 @@
-use std::collections::BTreeMap;
-
 use crate::analyze::analyze;
 use crate::analyze::Analysis as _;
 use crate::analyze::CopyPropagation;
@@ -8,6 +6,7 @@ use crate::data::asm;
 use crate::data::asm::Statement;
 use crate::data::operand;
 use crate::data::operand::Temporary;
+use crate::Map;
 
 pub fn propagate_assembly(cfg: &mut Cfg<asm::Function<Temporary>>) {
     let mut solution = analyze::<CopyPropagation, _>(cfg);
@@ -78,7 +77,7 @@ pub fn propagate_assembly(cfg: &mut Cfg<asm::Function<Temporary>>) {
     }
 }
 
-fn traverse(output: &BTreeMap<Temporary, Temporary>, temporary: &Temporary) -> Temporary {
+fn traverse(output: &Map<Temporary, Temporary>, temporary: &Temporary) -> Temporary {
     match output.get(temporary) {
         None => *temporary,
         Some(temporary) => traverse(output, temporary),

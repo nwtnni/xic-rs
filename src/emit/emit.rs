@@ -1,8 +1,5 @@
 #![allow(unused_parens)]
 
-use std::collections::BTreeMap;
-use std::collections::HashMap;
-
 use crate::abi;
 use crate::check;
 use crate::data::ast;
@@ -13,12 +10,13 @@ use crate::data::operand::Temporary;
 use crate::data::symbol;
 use crate::data::symbol::Symbol;
 use crate::hir;
+use crate::Map;
 
 #[derive(Debug)]
 struct Emitter<'env> {
     context: &'env check::Context,
-    data: BTreeMap<Symbol, Label>,
-    mangled: BTreeMap<Symbol, Symbol>,
+    data: Map<Symbol, Label>,
+    mangled: Map<Symbol, Symbol>,
     returns: usize,
 }
 
@@ -29,12 +27,12 @@ pub fn emit_unit(
 ) -> ir::Unit<hir::Function> {
     let mut emitter = Emitter {
         context,
-        data: BTreeMap::new(),
-        mangled: BTreeMap::new(),
+        data: Map::default(),
+        mangled: Map::default(),
         returns: 0,
     };
 
-    let mut functions = BTreeMap::new();
+    let mut functions = Map::default();
 
     for fun in &ast.functions {
         emitter.returns = emitter.get_returns(fun.name);
@@ -52,7 +50,7 @@ pub fn emit_unit(
 
 impl<'env> Emitter<'env> {
     fn emit_function(&mut self, function: &ast::Function) -> hir::Function {
-        let mut variables = HashMap::default();
+        let mut variables = Map::default();
         let mut statements = Vec::new();
 
         for (index, parameter) in function.parameters.iter().enumerate() {
@@ -80,7 +78,7 @@ impl<'env> Emitter<'env> {
     fn emit_expression(
         &mut self,
         expression: &ast::Expression,
-        variables: &HashMap<Symbol, Temporary>,
+        variables: &Map<Symbol, Temporary>,
     ) -> hir::Tree {
         use ast::Expression::*;
         match expression {
@@ -295,7 +293,7 @@ impl<'env> Emitter<'env> {
     fn emit_call(
         &mut self,
         call: &ast::Call,
-        variables: &HashMap<Symbol, Temporary>,
+        variables: &Map<Symbol, Temporary>,
     ) -> hir::Expression {
         hir::Expression::Call(
             Box::new(hir::Expression::from(Label::Fixed(
@@ -312,7 +310,7 @@ impl<'env> Emitter<'env> {
     fn emit_declaration(
         &mut self,
         declaration: &ast::Declaration,
-        variables: &mut HashMap<Symbol, Temporary>,
+        variables: &mut Map<Symbol, Temporary>,
     ) -> hir::Expression {
         let fresh = Temporary::fresh("t");
         variables.insert(declaration.name, fresh);
@@ -338,7 +336,7 @@ impl<'env> Emitter<'env> {
         &mut self,
         r#type: &ast::Type,
         len: &ast::Expression,
-        variables: &mut HashMap<Symbol, Temporary>,
+        variables: &mut Map<Symbol, Temporary>,
         lengths: &mut Vec<hir::Statement>,
     ) -> hir::Expression {
         let length = Temporary::fresh("length");
@@ -390,7 +388,7 @@ impl<'env> Emitter<'env> {
     fn emit_statement(
         &mut self,
         statement: &ast::Statement,
-        variables: &mut HashMap<Symbol, Temporary>,
+        variables: &mut Map<Symbol, Temporary>,
     ) -> hir::Statement {
         use ast::Statement::*;
         match statement {

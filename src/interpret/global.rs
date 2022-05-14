@@ -1,4 +1,3 @@
-use std::collections::BTreeMap;
 use std::io::BufRead;
 use std::io::Read;
 use std::io::Write;
@@ -12,11 +11,12 @@ use crate::data::operand::Label;
 use crate::data::symbol;
 use crate::data::symbol::Symbol;
 use crate::interpret::Value;
+use crate::Map;
 
 const HEAP_SIZE: usize = 64 * 1024;
 
 pub struct Global<'io> {
-    data: BTreeMap<Label, Vec<Value>>,
+    data: Map<Label, Vec<Value>>,
     heap: Vec<Value>,
     rng: ThreadRng,
     stdin: Box<dyn BufRead + 'io>,
@@ -25,7 +25,7 @@ pub struct Global<'io> {
 
 impl<'io> Global<'io> {
     pub fn new<R: BufRead + 'io, W: Write + 'io>(
-        data: &BTreeMap<Symbol, Label>,
+        data: &Map<Symbol, Label>,
         stdin: R,
         stdout: W,
     ) -> Self {

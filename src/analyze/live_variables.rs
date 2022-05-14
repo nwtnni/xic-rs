@@ -1,5 +1,4 @@
 use core::fmt;
-use std::collections::BTreeSet;
 use std::marker::PhantomData;
 
 use crate::abi;
@@ -14,6 +13,7 @@ use crate::data::operand::Register;
 use crate::data::operand::Temporary;
 use crate::data::symbol;
 use crate::util::Or;
+use crate::Set;
 
 /// This module technically implements a stronger version of live variable analysis,
 /// which seems to be referred to as truly or strongly live variable analysis (or its
@@ -37,14 +37,14 @@ where
 {
     const BACKWARD: bool = true;
 
-    type Data = BTreeSet<Temporary>;
+    type Data = Set<Temporary>;
 
     fn new() -> Self {
         LiveVariables(PhantomData)
     }
 
     fn default(&self) -> Self::Data {
-        BTreeSet::new()
+        Set::default()
     }
 
     fn transfer(&self, statement: &T::Statement, output: &mut Self::Data) {
@@ -64,11 +64,11 @@ where
 }
 
 trait Function: cfg::Function {
-    fn transfer(statement: &Self::Statement, output: &mut BTreeSet<Temporary>);
+    fn transfer(statement: &Self::Statement, output: &mut Set<Temporary>);
 }
 
 impl Function for asm::Function<Temporary> {
-    fn transfer(statement: &Self::Statement, output: &mut BTreeSet<Temporary>) {
+    fn transfer(statement: &Self::Statement, output: &mut Set<Temporary>) {
         match statement {
             asm::Statement::Label(_) | asm::Statement::Jmp(_) | asm::Statement::Jcc(_, _) => {}
             asm::Statement::Nullary(asm::Nullary::Nop) => {}
@@ -181,7 +181,7 @@ impl Function for asm::Function<Temporary> {
 
 fn dead_assembly<I: Into<operand::Unary<Temporary>>>(
     destination: I,
-    live: &BTreeSet<Temporary>,
+    live: &Set<Temporary>,
 ) -> bool {
     match destination.into() {
         // Special case: another option is to mark all callee-saved registers live at
@@ -202,7 +202,7 @@ fn dead_assembly<I: Into<operand::Unary<Temporary>>>(
 }
 
 impl<T: lir::Target> Function for lir::Function<T> {
-    fn transfer(statement: &Self::Statement, output: &mut BTreeSet<Temporary>) {
+    fn transfer(statement: &Self::Statement, output: &mut Set<Temporary>) {
         match statement {
             lir::Statement::Jump(_) | lir::Statement::Label(_) => (),
             lir::Statement::CJump {
@@ -250,7 +250,7 @@ impl<T: lir::Target> Function for lir::Function<T> {
     }
 }
 
-fn transfer_expression(expression: &lir::Expression, output: &mut BTreeSet<Temporary>) {
+fn transfer_expression(expression: &lir::Expression, output: &mut Set<Temporary>) {
     match expression {
         lir::Expression::Argument(_)
         | lir::Expression::Return(_)
@@ -266,7 +266,7 @@ fn transfer_expression(expression: &lir::Expression, output: &mut BTreeSet<Tempo
     }
 }
 
-fn dead_lir(expression: &lir::Expression, live: &BTreeSet<Temporary>) -> bool {
+fn dead_lir(expression: &lir::Expression, live: &Set<Temporary>) -> bool {
     match expression {
         lir::Expression::Argument(_)
         | lir::Expression::Immediate(_)

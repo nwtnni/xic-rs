@@ -1,5 +1,3 @@
-use std::collections::BTreeMap;
-
 use crate::data::ir;
 use crate::data::operand::Label;
 use crate::data::operand::Temporary;
@@ -8,11 +6,12 @@ use crate::interpret::Global;
 use crate::interpret::Operand;
 use crate::interpret::Postorder;
 use crate::interpret::Value;
+use crate::Map;
 
 pub struct Local<'a, T: 'a> {
     postorder: &'a Postorder<T>,
     index: usize,
-    temporaries: BTreeMap<Temporary, Value>,
+    temporaries: Map<Temporary, Value>,
     arguments: Vec<Value>,
     returns: Vec<Value>,
     stack: Vec<Operand>,
@@ -23,7 +22,7 @@ impl<'a, T: 'a> Local<'a, T> {
         Local {
             postorder: unit.functions.get(name).unwrap(),
             index: 0,
-            temporaries: BTreeMap::new(),
+            temporaries: Map::default(),
             arguments: arguments.to_vec(),
             returns: Vec::new(),
             stack: Vec::new(),

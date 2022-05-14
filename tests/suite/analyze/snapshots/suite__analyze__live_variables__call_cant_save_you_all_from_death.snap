@@ -14,17 +14,17 @@ expression: live_variables
         | mov _x, 1       |
         | {rsp, _x}       |
         | mov _y, 2       |
-        | {rsp, _x, _y}   |
+        | {rsp, _y, _x}   |
         | add _x, _y      |
-        | {rsp, _x, _y}   |
+        | {rsp, _y, _x}   |
         | add _y, _x      |
-        | {rsp, _x, _y}   |
+        | {rsp, _y, _x}   |
         | add _useless, 5 |
-        | {rsp, _x, _y}   |
+        | {rsp, _y, _x}   |
         | mov rdi, _x     |
         | {rsp, rdi, _y}  |
         | mov rsi, _y     |
-        | {rsp, rsi, rdi} |
+        | {rsp, rdi, rsi} |
         | call black_box  |
         | {rsp}           |
         | add _x, _y      |

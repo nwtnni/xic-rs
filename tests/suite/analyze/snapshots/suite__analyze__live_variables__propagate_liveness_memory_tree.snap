@@ -1,6 +1,6 @@
 ---
 source: tests/suite/analyze/live_variables.rs
-assertion_line: 174
+assertion_line: 153
 expression: live_variables
 ---
 
@@ -14,19 +14,19 @@ propagate_liveness_memory_tree
 | mov _b, 1                   |
 | {rsp, _a, _b}               |
 | mov _c, 2                   |
-| {rsp, _a, _b, _c}           |
+| {rsp, _c, _b, _a}           |
 | mov _d, 3                   |
-| {rsp, _a, _b, _c, _d}       |
+| {rsp, _c, _b, _d, _a}       |
 | mov _a, [_a + 8]            |
-| {rsp, _a, _b, _c, _d}       |
+| {rsp, _c, _a, _d, _b}       |
 | mov _b, [_b + _c]           |
-| {rsp, _a, _b, _c, _d}       |
+| {rsp, _b, _a, _d, _c}       |
 | mov _c, [_c * 8 + 8]        |
-| {rsp, _a, _b, _c, _d}       |
+| {rsp, _b, _a, _c, _d}       |
 | mov _d, [_d]                |
-| {rsp, _a, _b, _c, _d}       |
+| {rsp, _b, _a, _c, _d}       |
 | mov _l, [_c + _d + 8]       |
-| {rsp, _a, _b, _l}           |
+| {rsp, _l, _a, _b}           |
 | mov _r, [_a + _b * 8]       |
 | {rsp, _l, _r}               |
 | mov rax, [_l + _r * 8 + 16] |

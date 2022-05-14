@@ -1,5 +1,3 @@
-use std::collections::BTreeMap;
-use std::collections::BTreeSet;
 use std::fmt;
 use std::fmt::Write as _;
 
@@ -8,6 +6,8 @@ use crate::analyze::Solution;
 use crate::cfg::Cfg;
 use crate::cfg::Dot;
 use crate::cfg::Function;
+use crate::Map;
+use crate::Set;
 
 pub fn display<'cfg, A, T>(solution: &'cfg Solution<A, T>, cfg: &'cfg Cfg<T>) -> Dot<'cfg, T>
 where
@@ -52,7 +52,7 @@ pub trait Display {
     fn format(&self, fmt: &mut fmt::Formatter) -> fmt::Result;
 }
 
-impl<T: fmt::Display> Display for BTreeSet<T> {
+impl<T: fmt::Display> Display for Set<T> {
     fn format(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
         write!(fmt, "{{")?;
 
@@ -70,7 +70,7 @@ impl<T: fmt::Display> Display for BTreeSet<T> {
     }
 }
 
-impl<K: fmt::Display, V: fmt::Display> Display for BTreeMap<K, V> {
+impl<K: fmt::Display, V: fmt::Display> Display for Map<K, V> {
     fn format(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
         write!(fmt, "{{")?;
 

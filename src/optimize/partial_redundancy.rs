@@ -1,17 +1,17 @@
-use std::collections::BTreeMap;
-use std::collections::BTreeSet;
 use std::marker::PhantomData;
 use std::mem;
 
 use crate::analyze::analyze;
-use crate::analyze::UsedExpressions;
 use crate::analyze::Analysis as _;
+use crate::analyze::UsedExpressions;
 use crate::cfg::split_cfg;
 use crate::cfg::Cfg;
 use crate::data::lir;
 use crate::data::operand::Label;
 use crate::data::operand::Temporary;
 use crate::lir;
+use crate::Map;
+use crate::Set;
 
 pub fn eliminate_lir<T: lir::Target>(cfg: &mut Cfg<lir::Function<T>>) {
     split_cfg(cfg);
@@ -49,9 +49,9 @@ pub fn eliminate_lir<T: lir::Target>(cfg: &mut Cfg<lir::Function<T>>) {
 /// - http://www.cs.toronto.edu/~pekhimenko/courses/cscd70-w18/docs/Tutorial%205%20-%20Lazy%20Code%20Motion.pdf
 /// - https://www.cs.utexas.edu/~pingali/CS380C/2020/lectures/LazyCodeMotion.pdf
 struct Transformer<T> {
-    latest: BTreeMap<Label, Vec<BTreeSet<lir::Expression>>>,
-    used: BTreeMap<Label, Vec<BTreeSet<lir::Expression>>>,
-    redundant: BTreeMap<lir::Expression, Temporary>,
+    latest: Map<Label, Vec<Set<lir::Expression>>>,
+    used: Map<Label, Vec<Set<lir::Expression>>>,
+    redundant: Map<lir::Expression, Temporary>,
     marker: PhantomData<T>,
 }
 
@@ -59,7 +59,7 @@ impl<T: lir::Target> Transformer<T> {
     fn new(cfg: &Cfg<lir::Function<T>>) -> Self {
         let mut solution = analyze::<UsedExpressions<_>, _>(cfg);
 
-        let mut used = BTreeMap::new();
+        let mut used = Map::default();
 
         for (label, statements) in cfg.blocks() {
             let mut output = solution.inputs.remove(label).unwrap();
@@ -79,7 +79,7 @@ impl<T: lir::Target> Transformer<T> {
         Self {
             latest: solution.analysis.latest,
             used,
-            redundant: BTreeMap::new(),
+            redundant: Map::default(),
             marker: PhantomData,
         }
     }
@@ -137,7 +137,7 @@ impl<T: lir::Target> Transformer<T> {
         // asserted that it was either a terminator or used a subexpression.
         for expression in self.latest[label][index]
             .iter()
-            .filter(|expression| self.used[label][index + 1].contains(expression))
+            .filter(|expression| self.used[label][index + 1].contains(*expression))
             .cloned()
             .collect::<Vec<_>>()
         {

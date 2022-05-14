@@ -1,6 +1,6 @@
 ---
 source: tests/suite/analyze/live_variables.rs
-assertion_line: 114
+assertion_line: 93
 expression: live_variables
 ---
 
@@ -12,17 +12,17 @@ clobber_across_div_mod
 | mov _x, 1           |
 | {rsp, _x}           |
 | mov _y, 2           |
-| {rsp, _x, _y}       |
+| {rsp, _y, _x}       |
 | mov rax, _x         |
-| {rax, rsp, _y}      |
+| {rsp, _y, rax}      |
 | cqo                 |
-| {rax, rdx, rsp, _y} |
+| {rsp, _y, rax, rdx} |
 | idiv 1              |
-| {rax, rsp, _y}      |
+| {rsp, _y, rax}      |
 | cqo                 |
-| {rax, rdx, rsp, _y} |
+| {rsp, _y, rax, rdx} |
 | idiv 10             |
-| {rdx, rsp, _y}      |
+| {rsp, rdx, _y}      |
 | mov rax, _y         |
 | {rax, rdx, rsp}     |
 | jmp exit            |

@@ -1,5 +1,3 @@
-use std::collections::BTreeMap;
-
 use crate::abi;
 use crate::analyze::Analysis;
 use crate::data::asm;
@@ -8,20 +6,21 @@ use crate::data::operand::Immediate;
 use crate::data::operand::Register;
 use crate::data::operand::Temporary;
 use crate::util;
+use crate::Map;
 
 pub struct ConstantPropagation;
 
 impl Analysis<asm::Function<Temporary>> for ConstantPropagation {
     const BACKWARD: bool = false;
 
-    type Data = BTreeMap<Temporary, Immediate>;
+    type Data = Map<Temporary, Immediate>;
 
     fn new() -> Self {
         ConstantPropagation
     }
 
     fn default(&self) -> Self::Data {
-        BTreeMap::new()
+        Map::default()
     }
 
     fn transfer(&self, statement: &asm::Statement<Temporary>, output: &mut Self::Data) {

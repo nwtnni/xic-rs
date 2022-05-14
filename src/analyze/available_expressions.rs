@@ -1,5 +1,3 @@
-use std::collections::BTreeMap;
-use std::collections::BTreeSet;
 use std::marker::PhantomData;
 
 use crate::analyze::analyze;
@@ -7,16 +5,18 @@ use crate::analyze::Analysis;
 use crate::analyze::AnticipatedExpressions;
 use crate::data::lir;
 use crate::data::operand::Label;
+use crate::Map;
+use crate::Set;
 
 pub struct AvailableExpressions<T: lir::Target> {
-    pub(super) anticipated: BTreeMap<Label, Vec<BTreeSet<lir::Expression>>>,
+    pub(super) anticipated: Map<Label, Vec<Set<lir::Expression>>>,
     marker: PhantomData<T>,
 }
 
 impl<T: lir::Target> Analysis<lir::Function<T>> for AvailableExpressions<T> {
     const BACKWARD: bool = false;
 
-    type Data = BTreeSet<lir::Expression>;
+    type Data = Set<lir::Expression>;
 
     fn new() -> Self {
         unreachable!()
@@ -24,7 +24,7 @@ impl<T: lir::Target> Analysis<lir::Function<T>> for AvailableExpressions<T> {
 
     fn new_with_metadata(cfg: &crate::cfg::Cfg<lir::Function<T>>) -> Self {
         let mut solution = analyze::<AnticipatedExpressions, _>(cfg);
-        let mut anticipated = BTreeMap::new();
+        let mut anticipated = Map::default();
 
         for (label, statements) in cfg.blocks() {
             let mut output = solution.inputs.remove(label).unwrap();
@@ -48,7 +48,7 @@ impl<T: lir::Target> Analysis<lir::Function<T>> for AvailableExpressions<T> {
     }
 
     fn default(&self) -> Self::Data {
-        BTreeSet::new()
+        Set::default()
     }
 
     fn transfer(&self, _: &lir::Statement<T>, _: &mut Self::Data) {

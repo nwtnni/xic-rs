@@ -2,7 +2,6 @@ mod linear;
 mod trivial;
 
 use std::array;
-use std::collections::BTreeMap;
 
 use crate::abi;
 use crate::asm;
@@ -15,9 +14,10 @@ use crate::data::operand::Register;
 use crate::data::operand::Scale;
 use crate::data::operand::Temporary;
 use crate::util::Or;
+use crate::Map;
 
 pub fn allocate_trivial(function: &asm::Function<Temporary>) -> asm::Function<Register> {
-    let allocated = BTreeMap::new();
+    let allocated = Map::default();
     let spilled = trivial::allocate(function);
     allocate(function, allocated, spilled)
 }
@@ -30,8 +30,8 @@ pub fn allocate_linear(function: Cfg<asm::Function<Temporary>>) -> asm::Function
 struct Allocator {
     callee_arguments: usize,
     callee_returns: usize,
-    allocated: BTreeMap<Temporary, Register>,
-    spilled: BTreeMap<Temporary, usize>,
+    allocated: Map<Temporary, Register>,
+    spilled: Map<Temporary, usize>,
     statements: Vec<asm::Statement<Register>>,
     shuttle: array::IntoIter<Register, 2>,
 }
@@ -60,8 +60,8 @@ const SHUTTLE: [Register; 2] = [Register::R10, Register::R11];
 
 fn allocate(
     function: &asm::Function<Temporary>,
-    allocated: BTreeMap<Temporary, Register>,
-    spilled: BTreeMap<Temporary, usize>,
+    allocated: Map<Temporary, Register>,
+    spilled: Map<Temporary, usize>,
 ) -> asm::Function<Register> {
     let mut allocator = Allocator {
         callee_arguments: function.callee_arguments().unwrap_or(0),

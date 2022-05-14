@@ -1,21 +1,20 @@
-use std::collections::BTreeSet;
-
 use crate::analyze::Analysis;
 use crate::data::lir;
+use crate::Set;
 
 pub struct AnticipatedExpressions;
 
 impl<T: lir::Target> Analysis<lir::Function<T>> for AnticipatedExpressions {
     const BACKWARD: bool = true;
 
-    type Data = BTreeSet<lir::Expression>;
+    type Data = Set<lir::Expression>;
 
     fn new() -> Self {
         Self
     }
 
     fn default(&self) -> Self::Data {
-        BTreeSet::new()
+        Set::default()
     }
 
     fn transfer(&self, statement: &lir::Statement<T>, output: &mut Self::Data) {
@@ -76,7 +75,7 @@ impl<T: lir::Target> Analysis<lir::Function<T>> for AnticipatedExpressions {
 }
 
 impl AnticipatedExpressions {
-    pub(super) fn insert(output: &mut BTreeSet<lir::Expression>, r#use: &lir::Expression) {
+    pub(super) fn insert(output: &mut Set<lir::Expression>, r#use: &lir::Expression) {
         match r#use {
             lir::Expression::Argument(_)
             | lir::Expression::Return(_)
@@ -96,7 +95,7 @@ impl AnticipatedExpressions {
 
     // FIXME: conservatively handle memory aliasing (i.e. writing to any memory location
     // could prevent reading from any other memory location)
-    pub(super) fn remove(output: &mut BTreeSet<lir::Expression>, kill: &lir::Expression) {
+    pub(super) fn remove(output: &mut Set<lir::Expression>, kill: &lir::Expression) {
         output.remove(kill);
 
         let mut stack = vec![kill.clone()];

@@ -1,6 +1,4 @@
 use std::cell::RefCell;
-use std::collections::BTreeMap;
-use std::collections::BTreeSet;
 use std::iter;
 use std::mem;
 
@@ -12,6 +10,8 @@ use crate::data::operand::Label;
 use crate::data::operand::Temporary;
 use crate::data::symbol;
 use crate::util::Or;
+use crate::Map;
+use crate::Set;
 
 pub fn inline_lir(lir: &mut lir::Unit<lir::Fallthrough>) {
     let call_graph = CallGraph::new(lir);
@@ -46,7 +46,7 @@ pub fn inline_lir(lir: &mut lir::Unit<lir::Fallthrough>) {
                 .map(symbol::intern_static)
                 .map(Label::Fixed),
         )
-        .collect::<BTreeSet<_>>();
+        .collect::<Set<_>>();
 
     for name in &postorder {
         let mut function = lir.functions.remove(name).unwrap();
@@ -117,7 +117,7 @@ pub fn inline_lir(lir: &mut lir::Unit<lir::Fallthrough>) {
     }
 }
 
-fn rewrite(global: &BTreeSet<Label>, function: &lir::Function<lir::Fallthrough>) -> Rewritten {
+fn rewrite(global: &Set<Label>, function: &lir::Function<lir::Fallthrough>) -> Rewritten {
     let mut rewriter = Rewriter {
         global,
         arguments: (0..function.arguments)
@@ -148,11 +148,11 @@ struct Rewritten {
 
 struct Rewriter<'a> {
     // Globally accessible labels should not be rewritten.
-    global: &'a BTreeSet<Label>,
+    global: &'a Set<Label>,
     arguments: Vec<Temporary>,
     returns: Vec<Temporary>,
-    rename_temporary: RefCell<BTreeMap<Temporary, Temporary>>,
-    rename_label: RefCell<BTreeMap<Label, Label>>,
+    rename_temporary: RefCell<Map<Temporary, Temporary>>,
+    rename_label: RefCell<Map<Label, Label>>,
     rewritten: Vec<lir::Statement<lir::Fallthrough>>,
 }
 

@@ -1,4 +1,3 @@
-use std::collections::BTreeMap;
 use std::mem;
 
 use petgraph::graphmap::DiGraphMap;
@@ -8,6 +7,7 @@ use crate::cfg::Edge;
 use crate::cfg::Function;
 use crate::cfg::Terminator;
 use crate::data::operand::Label;
+use crate::Map;
 
 pub fn construct_cfg<T: Function>(function: T) -> Cfg<T> {
     Walker::new(&function).walk(function)
@@ -17,7 +17,7 @@ struct Walker<T: Function> {
     enter: Label,
     exit: Label,
     graph: DiGraphMap<Label, Edge>,
-    blocks: BTreeMap<Label, Vec<T::Statement>>,
+    blocks: Map<Label, Vec<T::Statement>>,
     block: Block<T::Statement>,
 }
 
@@ -32,10 +32,10 @@ impl<T: Function> Walker<T> {
         };
 
         let (exit, blocks) = match function.exit() {
-            Some(exit) => (*exit, BTreeMap::new()),
+            Some(exit) => (*exit, Map::default()),
             None => {
                 let exit = Label::fresh("exit");
-                let mut blocks = BTreeMap::new();
+                let mut blocks = Map::default();
                 blocks.insert(exit, Vec::new());
                 (exit, blocks)
             }
@@ -44,7 +44,7 @@ impl<T: Function> Walker<T> {
         Walker {
             enter,
             exit,
-            graph: DiGraphMap::new(),
+            graph: DiGraphMap::default(),
             blocks,
             block,
         }

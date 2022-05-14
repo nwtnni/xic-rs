@@ -1,5 +1,4 @@
 use std::cmp;
-use std::collections::BTreeMap;
 use std::fmt;
 use std::fmt::Write as _;
 
@@ -16,9 +15,10 @@ use crate::data::operand::Label;
 use crate::data::operand::Register;
 use crate::data::operand::Temporary;
 use crate::data::symbol;
+use crate::Map;
 
 pub struct LiveRanges {
-    pub ranges: BTreeMap<Temporary, Range>,
+    pub ranges: Map<Temporary, Range>,
     pub function: asm::Function<Temporary>,
 }
 
@@ -96,7 +96,7 @@ impl LiveRanges {
                     _ => None,
                 });
 
-        let mut ranges = BTreeMap::<Temporary, Range>::new();
+        let mut ranges = Map::<Temporary, Range>::default();
 
         // Index of the statement we're transfering over.
         //

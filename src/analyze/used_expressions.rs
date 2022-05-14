@@ -1,5 +1,3 @@
-use std::collections::BTreeMap;
-use std::collections::BTreeSet;
 use std::marker::PhantomData;
 
 use crate::analyze::Analysis;
@@ -8,16 +6,18 @@ use crate::analyze::Latest;
 use crate::cfg::Cfg;
 use crate::data::lir;
 use crate::data::operand::Label;
+use crate::Map;
+use crate::Set;
 
 pub struct UsedExpressions<T: lir::Target> {
-    pub(crate) latest: BTreeMap<Label, Vec<BTreeSet<lir::Expression>>>,
+    pub(crate) latest: Map<Label, Vec<Set<lir::Expression>>>,
     marker: PhantomData<T>,
 }
 
 impl<T: lir::Target> Analysis<lir::Function<T>> for UsedExpressions<T> {
     const BACKWARD: bool = true;
 
-    type Data = BTreeSet<lir::Expression>;
+    type Data = Set<lir::Expression>;
 
     fn new() -> Self {
         todo!()
@@ -31,7 +31,7 @@ impl<T: lir::Target> Analysis<lir::Function<T>> for UsedExpressions<T> {
     }
 
     fn default(&self) -> Self::Data {
-        BTreeSet::new()
+        Set::default()
     }
 
     fn transfer(&self, _: &lir::Statement<T>, _: &mut Self::Data) {

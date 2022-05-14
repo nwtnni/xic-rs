@@ -1,5 +1,3 @@
-use std::collections::BTreeMap;
-use std::collections::BTreeSet;
 use std::marker::PhantomData;
 
 use crate::analyze::analyze;
@@ -8,14 +6,16 @@ use crate::analyze::AvailableExpressions;
 use crate::cfg::Cfg;
 use crate::data::lir;
 use crate::data::operand::Label;
+use crate::Map;
+use crate::Set;
 
 pub struct Earliest<T> {
-    inner: BTreeMap<Label, Vec<BTreeSet<lir::Expression>>>,
+    inner: Map<Label, Vec<Set<lir::Expression>>>,
     marker: PhantomData<T>,
 }
 
 impl<T> Earliest<T> {
-    pub(super) fn into_inner(self) -> BTreeMap<Label, Vec<BTreeSet<lir::Expression>>> {
+    pub(super) fn into_inner(self) -> Map<Label, Vec<Set<lir::Expression>>> {
         self.inner
     }
 }
@@ -23,7 +23,7 @@ impl<T> Earliest<T> {
 impl<T: lir::Target> Analysis<lir::Function<T>> for Earliest<T> {
     const BACKWARD: bool = false;
 
-    type Data = BTreeSet<lir::Expression>;
+    type Data = Set<lir::Expression>;
 
     fn new() -> Self {
         unreachable!()
