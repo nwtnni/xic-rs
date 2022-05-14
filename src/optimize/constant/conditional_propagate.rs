@@ -1,12 +1,14 @@
+use petgraph::Direction;
+
 use crate::analyze::analyze;
 use crate::analyze::Analysis;
 use crate::analyze::ConditionalConstantPropagation;
 use crate::analyze::Reachable;
 use crate::cfg::Cfg;
+use crate::cfg::Edge;
 use crate::data::lir;
-use crate::data::operand::Label;
 
-pub fn conditional_propagate_lir(cfg: &mut Cfg<lir::Function<Label>>) {
+pub fn conditional_propagate_lir<T: lir::Target>(cfg: &mut Cfg<lir::Function<T>>) {
     let mut solution = analyze::<ConditionalConstantPropagation, _>(cfg);
 
     for label in cfg.blocks.keys().copied().collect::<Vec<_>>() {
@@ -35,38 +37,62 @@ pub fn conditional_propagate_lir(cfg: &mut Cfg<lir::Function<Label>>) {
                     right,
                     r#true,
                     r#false,
-                } => match output.evaluate_condition(condition, left, right) {
-                    None => {
-                        propagate(left, &output);
-                        propagate(right, &output);
-                        None
+                } => {
+                    let r#false = r#false
+                        .target()
+                        .copied()
+                        .or_else(|| {
+                            cfg.graph
+                                .edges_directed(label, Direction::Outgoing)
+                                .find_map(|(_, successor, edge)| match edge {
+                                    Edge::Conditional(false) => Some(successor),
+                                    Edge::Unconditional | Edge::Conditional(true) => None,
+                                })
+                        })
+                        .unwrap();
+
+                    match output.evaluate_condition(condition, left, right) {
+                        None => {
+                            propagate::<T>(left, &output);
+                            propagate::<T>(right, &output);
+                            None
+                        }
+                        Some(true) => {
+                            cfg.graph.remove_edge(label, r#false);
+                            Some(lir::Statement::<T>::Jump(*r#true))
+                        }
+                        Some(false) => {
+                            cfg.graph.remove_edge(label, *r#true);
+                            Some(lir::Statement::<T>::Jump(r#false))
+                        }
                     }
-                    Some(true) => {
-                        cfg.graph.remove_edge(label, *r#false);
-                        Some(lir::Statement::<Label>::Jump(*r#true))
-                    }
-                    Some(false) => {
-                        cfg.graph.remove_edge(label, *r#true);
-                        Some(lir::Statement::<Label>::Jump(*r#false))
-                    }
-                },
+                }
                 lir::Statement::Call(function, arguments, _) => {
-                    propagate(function, &output);
+                    propagate::<T>(function, &output);
                     for argument in arguments {
-                        propagate(argument, &output);
+                        propagate::<T>(argument, &output);
                     }
                     None
                 }
                 lir::Statement::Move {
-                    destination: _,
+                    destination: lir::Expression::Temporary(_),
                     source,
                 } => {
-                    propagate(source, &output);
+                    propagate::<T>(source, &output);
                     None
                 }
+                lir::Statement::Move {
+                    destination: lir::Expression::Memory(address),
+                    source,
+                } => {
+                    propagate::<T>(address, &output);
+                    propagate::<T>(source, &output);
+                    None
+                }
+                lir::Statement::Move { .. } => unreachable!(),
                 lir::Statement::Return(returns) => {
                     for r#return in returns {
-                        propagate(r#return, &output);
+                        propagate::<T>(r#return, &output);
                     }
                     None
                 }
@@ -81,9 +107,9 @@ pub fn conditional_propagate_lir(cfg: &mut Cfg<lir::Function<Label>>) {
     }
 }
 
-fn propagate(
+fn propagate<T: lir::Target>(
     expression: &mut lir::Expression,
-    output: &<ConditionalConstantPropagation as Analysis<lir::Function<Label>>>::Data,
+    output: &<ConditionalConstantPropagation as Analysis<lir::Function<T>>>::Data,
 ) {
     if let Some(immediate) = output.evaluate_expression(expression) {
         *expression = lir::Expression::Immediate(immediate);
@@ -96,11 +122,11 @@ fn propagate(
         | lir::Expression::Immediate(_)
         | lir::Expression::Temporary(_) => (),
         lir::Expression::Memory(address) => {
-            propagate(address, output);
+            propagate::<T>(address, output);
         }
         lir::Expression::Binary(_, left, right) => {
-            propagate(left, output);
-            propagate(right, output);
+            propagate::<T>(left, output);
+            propagate::<T>(right, output);
         }
     }
 }
