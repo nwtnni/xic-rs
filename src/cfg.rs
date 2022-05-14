@@ -106,6 +106,19 @@ impl<T: Function> Cfg<T> {
         self.graph.neighbors_directed(*label, direction)
     }
 
+    pub fn edges_directed(
+        &self,
+        direction: petgraph::Direction,
+        label: &Label,
+    ) -> impl Iterator<Item = (Label, &'_ Edge)> + '_ {
+        self.graph
+            .edges_directed(*label, direction)
+            .map(move |(predecessor, successor, edge)| match direction {
+                petgraph::Direction::Outgoing => (successor, edge),
+                petgraph::Direction::Incoming => (predecessor, edge),
+            })
+    }
+
     pub fn get(&self, label: &Label) -> Option<&[T::Statement]> {
         self.blocks.get(label).map(|block| block.as_slice())
     }

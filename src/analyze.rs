@@ -1,6 +1,7 @@
 mod anticipated_expressions;
 mod available_expressions;
 mod call_graph;
+mod conditional_constant_propagation;
 mod constant_propagation;
 mod copy_propagation;
 mod dot;
@@ -14,6 +15,7 @@ mod used_expressions;
 pub use anticipated_expressions::AnticipatedExpressions;
 pub use available_expressions::AvailableExpressions;
 pub use call_graph::CallGraph;
+pub use conditional_constant_propagation::ConditionalConstantPropagation;
 pub use constant_propagation::ConstantPropagation;
 pub use copy_propagation::CopyPropagation;
 pub use dot::display;
@@ -31,6 +33,7 @@ use std::collections::VecDeque;
 
 use petgraph::Direction;
 
+use crate::cfg;
 use crate::cfg::Cfg;
 use crate::cfg::Function;
 use crate::data::operand::Label;
@@ -71,7 +74,7 @@ pub trait Analysis<T: Function>: Sized {
 
     fn merge_with_metadata<'a, I>(&self, outputs: I, input: &mut Self::Data)
     where
-        I: Iterator<Item = (Label, Option<&'a Self::Data>)>,
+        I: Iterator<Item = (&'a cfg::Edge, Option<&'a Self::Data>)>,
         Self::Data: 'a,
     {
         self.merge(outputs.map(|(_, data)| data), input)
@@ -114,8 +117,8 @@ pub fn analyze<A: Analysis<T>, T: Function>(cfg: &Cfg<T>) -> Solution<A, T> {
                 .or_insert_with(|| analysis.default_with_metadata(&label));
 
             analysis.merge_with_metadata(
-                cfg.neighbors(predecessors, &label)
-                    .map(|predecessor| (predecessor, outputs.get(&predecessor))),
+                cfg.edges_directed(predecessors, &label)
+                    .map(|(predecessor, edge)| (edge, outputs.get(&predecessor))),
                 input,
             );
 

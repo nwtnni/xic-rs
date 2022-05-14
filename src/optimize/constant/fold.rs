@@ -257,7 +257,7 @@ impl<T: Foldable> Foldable for Vec<T> {
     }
 }
 
-fn fold_binary(binary: ir::Binary, left: i64, right: i64) -> i64 {
+pub fn fold_binary(binary: ir::Binary, left: i64, right: i64) -> i64 {
     match binary {
         ir::Binary::Add => left.wrapping_add(right),
         ir::Binary::Sub => left.wrapping_sub(right),
@@ -273,7 +273,7 @@ fn fold_binary(binary: ir::Binary, left: i64, right: i64) -> i64 {
     }
 }
 
-fn fold_condition(condition: ir::Condition, left: i64, right: i64) -> bool {
+pub fn fold_condition(condition: ir::Condition, left: i64, right: i64) -> bool {
     match condition {
         ir::Condition::Lt => left < right,
         ir::Condition::Le => left <= right,
