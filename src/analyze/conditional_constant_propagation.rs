@@ -156,7 +156,7 @@ impl<T: lir::Target> Analysis<lir::Function<T>> for ConditionalConstantPropagati
 }
 
 impl Data {
-    fn evaluate_condition(
+    pub fn evaluate_condition(
         &self,
         condition: &ir::Condition,
         left: &lir::Expression,
@@ -173,7 +173,7 @@ impl Data {
         Some(optimize::fold_condition(*condition, left, right))
     }
 
-    fn evaluate_expression(&self, expression: &lir::Expression) -> Option<Immediate> {
+    pub fn evaluate_expression(&self, expression: &lir::Expression) -> Option<Immediate> {
         match expression {
             lir::Expression::Argument(_)
             | lir::Expression::Return(_)

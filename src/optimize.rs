@@ -5,6 +5,7 @@ mod function;
 mod r#loop;
 mod partial_redundancy;
 
+pub use constant::conditional_propagate_lir as propagate_conditional_constants_lir;
 pub use constant::fold as fold_constants;
 pub(crate) use constant::fold_binary;
 pub(crate) use constant::fold_condition;

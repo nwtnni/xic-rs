@@ -16,6 +16,7 @@ pub use anticipated_expressions::AnticipatedExpressions;
 pub use available_expressions::AvailableExpressions;
 pub use call_graph::CallGraph;
 pub use conditional_constant_propagation::ConditionalConstantPropagation;
+pub use conditional_constant_propagation::Reachable;
 pub use constant_propagation::ConstantPropagation;
 pub use copy_propagation::CopyPropagation;
 pub use dot::display;

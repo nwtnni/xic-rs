@@ -34,8 +34,13 @@ pub struct Cfg<T: Function> {
     metadata: T::Metadata,
     enter: Label,
     exit: Label,
-    graph: DiGraphMap<Label, Edge>,
-    blocks: BTreeMap<Label, Vec<T::Statement>>,
+
+    // Note: we have to expose these for optimizations that modify
+    // the control flow graph at the same time as block statements.
+    // Otherwise using methods tie together the lifetime of these two
+    // fields, and the compiler can't tell the uses are disjoint.
+    pub(crate) graph: DiGraphMap<Label, Edge>,
+    pub(crate) blocks: BTreeMap<Label, Vec<T::Statement>>,
 }
 
 impl<T: Function> Cfg<T> {
