@@ -9,7 +9,6 @@ rsp          enter:
 ┊   |   rdi    call black_box
 ┊   |   rax    mov _x, rax
 ┊   ●   |      mov rax, _x
-┊       |      jmp exit
 ┊       |    exit:
 C       ●      ret
 

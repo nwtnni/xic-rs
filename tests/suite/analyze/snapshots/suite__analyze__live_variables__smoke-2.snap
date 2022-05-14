@@ -4,7 +4,6 @@ assertion_line: 29
 expression: live_ranges
 ---
 rsp  enter:
-|      jmp exit
 |    exit:
 ●      ret
 

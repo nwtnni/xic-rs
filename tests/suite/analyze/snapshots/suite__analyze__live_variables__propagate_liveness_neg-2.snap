@@ -1,6 +1,6 @@
 ---
 source: tests/suite/analyze/live_variables.rs
-assertion_line: 147
+assertion_line: 126
 expression: live_ranges
 ---
 rsp      enter:
@@ -9,7 +9,6 @@ rsp      enter:
 |   |      neg _x
 |   |      neg _x
 |   ●      mov rax, _x
-|   rax    jmp exit
-|   |    exit:
+|   rax  exit:
 ●   ●      ret
 

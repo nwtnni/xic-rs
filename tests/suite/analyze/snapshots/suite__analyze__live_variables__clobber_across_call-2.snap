@@ -9,7 +9,6 @@ rsp          enter:
 ┊   ┊   _y     call clobber
 ┊   C   ┊      mov rax, _x
 ┊   rax C      mov rdx, _y
-┊   |   rdx    jmp exit
-┊   |   |    exit:
+┊   |   rdx  exit:
 C   ●   ●      ret
 

@@ -16,7 +16,6 @@ rsp          enter:
 ┊              add _x, _y
 ┊              add _y, _x
 ┊              neg _useless
-┊              jmp exit
 ┊            exit:
 C              ret
 

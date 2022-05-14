@@ -1,6 +1,6 @@
 ---
 source: tests/suite/analyze/live_variables.rs
-assertion_line: 252
+assertion_line: 227
 expression: live_ranges
 ---
 rsp          enter:
@@ -9,7 +9,6 @@ rsp          enter:
 |   ●   _y     mov qword ptr [_x + _y], 5
 |              add _x, 1
 |              add _y, 1
-|              jmp exit
 |            exit:
 ●              ret
 

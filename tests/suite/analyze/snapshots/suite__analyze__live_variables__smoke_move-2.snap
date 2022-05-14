@@ -5,7 +5,6 @@ expression: live_ranges
 ---
 _x  rsp  enter:
 ●   |      mov rax, _x
-rax |      jmp exit
-|   |    exit:
+rax |    exit:
 ●   ●      ret
 

@@ -14,7 +14,6 @@ rsp  enter:
 ┊      neg rax
 ┊      nop
 ┊      mov _z, rdx
-┊      jmp exit
 ┊    exit:
 A      ret
 

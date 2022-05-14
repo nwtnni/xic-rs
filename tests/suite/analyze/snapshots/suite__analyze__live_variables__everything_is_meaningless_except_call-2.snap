@@ -13,7 +13,6 @@ rsp          enter:
 ┊   ●   rsi    call black_box
 ┊              add _x, _y
 ┊              add _y, _x
-┊              jmp exit
 ┊            exit:
 C              ret
 
