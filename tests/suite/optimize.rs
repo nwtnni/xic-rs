@@ -45,6 +45,22 @@ pub fn eliminate_dead_code_assembly(path: &str) {
 }
 
 #[test_generator::test_resources("tests/execute/*.xi")]
+pub fn eliminate_dead_code_lir(path: &str) {
+    let lir = super::emit_lir(path);
+
+    let unoptimized = super::interpret_lir(&lir);
+
+    let lir = lir
+        .map(xic::api::construct_cfg)
+        .map_mut(optimize::eliminate_dead_code_lir)
+        .map(xic::api::destruct_cfg);
+
+    let optimized = super::interpret_lir(&lir);
+
+    pretty_assertions::assert_eq!(unoptimized, optimized)
+}
+
+#[test_generator::test_resources("tests/execute/*.xi")]
 pub fn propagate_copies_assembly(path: &str) {
     let abstract_assembly = super::tile(path);
 
