@@ -1,8 +1,10 @@
+use crate::analyze::analyze;
 use crate::analyze::Analysis as _;
 use crate::analyze::LiveVariables;
 use crate::analyze::Solution;
 use crate::cfg::Cfg;
 use crate::data::asm;
+use crate::data::lir;
 use crate::data::operand;
 use crate::data::operand::Register;
 use crate::data::operand::Temporary;
@@ -61,5 +63,45 @@ pub fn eliminate_assembly(
                 *statement = asm::Statement::Nullary(asm::Nullary::Nop);
             }
         }
+    }
+}
+
+pub fn eliminate_lir<T: lir::Target>(cfg: &mut Cfg<lir::Function<T>>) {
+    let mut live_variables = analyze::<LiveVariables<_>, _>(cfg);
+    let mut buffer = Vec::new();
+
+    for (label, statements) in cfg.blocks_mut() {
+        let mut output = live_variables.inputs.remove(label).unwrap();
+
+        buffer.append(statements);
+
+        for statement in buffer.drain(..).rev() {
+            let destination = match &statement {
+                lir::Statement::Jump(_)
+                | lir::Statement::CJump { .. }
+                | lir::Statement::Call(_, _, _)
+                | lir::Statement::Label(_)
+                | lir::Statement::Return(_) => None,
+                lir::Statement::Move {
+                    destination: lir::Expression::Memory(_),
+                    source: _,
+                } => None,
+                lir::Statement::Move {
+                    destination: lir::Expression::Temporary(temporary),
+                    source: _,
+                } => Some(temporary),
+                lir::Statement::Move { .. } => unreachable!(),
+            };
+
+            let live = destination.map_or(true, |destination| output.contains(destination));
+
+            live_variables.analysis.transfer(&statement, &mut output);
+
+            if live {
+                statements.push(statement);
+            }
+        }
+
+        statements.reverse();
     }
 }
