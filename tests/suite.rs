@@ -20,6 +20,7 @@ mod analyze;
 mod optimize;
 
 use std::fmt::Display;
+use std::fs;
 use std::io::Cursor;
 use std::io::Write as _;
 use std::path::Path;
@@ -77,6 +78,22 @@ pub fn interpret_lir<T: lir::Target>(lir: &lir::Unit<T>) -> String {
     let mut stdout = Cursor::new(Vec::new());
     xic::api::interpret_lir(lir, &mut stdin, &mut stdout).unwrap();
     String::from_utf8(stdout.into_inner()).unwrap()
+}
+
+pub fn execute_expected(path: &str) -> String {
+    let path = format!(
+        "{}/tests/suite/snapshots/suite__emit__tests__execute__{}.snap",
+        env!("CARGO_MANIFEST_DIR"),
+        Path::new(path).file_name().unwrap().to_str().unwrap(),
+    );
+
+    let snap = fs::read_to_string(&path).unwrap();
+    let (_, stdout) = snap
+        .trim_start_matches("---\n")
+        .split_once("---\n")
+        .unwrap();
+
+    String::from(stdout.strip_suffix('\n').unwrap())
 }
 
 pub fn execute(assembly: &asm::Unit<Register>) -> String {

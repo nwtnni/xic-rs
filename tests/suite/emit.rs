@@ -12,18 +12,17 @@ pub fn interpret(path: &str) {
 
 #[test_generator::test_resources("tests/execute/*.xi")]
 pub fn reorder(path: &str) {
-    let lir = super::emit_lir(path);
-    let lir_stdout = super::interpret_lir(&lir);
+    let expected_stdout = super::execute_expected(path);
 
-    let cfg = lir.map(xic::api::construct_cfg).map(xic::api::destruct_cfg);
-    let cfg_stdout = super::interpret_lir(&cfg);
+    let reordered = super::reorder(path);
+    let reordered_stdout = super::interpret_lir(&reordered);
 
-    let cfg_cleaned = cfg
+    let cleaned = reordered
         .map(xic::api::construct_cfg)
         .map_mut(xic::api::clean_cfg)
         .map(xic::api::destruct_cfg);
-    let cfg_cleaned_stdout = super::interpret_lir(&cfg_cleaned);
+    let cleaned_stdout = super::interpret_lir(&cleaned);
 
-    pretty_assertions::assert_eq!(lir_stdout, cfg_stdout);
-    pretty_assertions::assert_eq!(cfg_stdout, cfg_cleaned_stdout);
+    pretty_assertions::assert_eq!(expected_stdout, reordered_stdout);
+    pretty_assertions::assert_eq!(expected_stdout, cleaned_stdout);
 }
