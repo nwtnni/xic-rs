@@ -7,6 +7,7 @@ use crate::abi;
 use crate::data::hir;
 use crate::data::ir;
 use crate::data::operand::Immediate;
+use crate::data::operand::Temporary;
 use crate::data::symbol;
 use crate::interpret::postorder;
 use crate::interpret::Global;
@@ -75,14 +76,6 @@ impl<'a> Local<'a, postorder::Hir<'a>> {
                 self.push(Operand::Label(*label, 8))
             }
             hir::Expression::Temporary(temporary) => self.push(Operand::Temporary(*temporary)),
-            hir::Expression::Argument(index) => {
-                let argument = self.get_argument(*index).into_operand();
-                self.push(argument);
-            }
-            hir::Expression::Return(index) => {
-                let r#return = self.get_return(*index).into_operand();
-                self.push(r#return);
-            }
             hir::Expression::Memory(_) => {
                 let address = self.pop(global);
                 self.push(Operand::Memory(address));
@@ -105,7 +98,9 @@ impl<'a> Local<'a, postorder::Hir<'a>> {
                     self.push(r#return.into_operand());
                 }
 
-                self.insert_returns(&returns);
+                for (index, r#return) in returns.into_iter().enumerate() {
+                    self.insert(Temporary::Return(index), r#return);
+                }
             }
         }
 

@@ -224,10 +224,7 @@ impl<T: lir::Target> Transformer<T> {
             // we may be able to find a subexpression that has already been computed, and
             // rewrite this expression in terms of that.
             (true, false) => match expression {
-                lir::Expression::Temporary(_)
-                | lir::Expression::Immediate(_)
-                | lir::Expression::Argument(_)
-                | lir::Expression::Return(_) => None,
+                lir::Expression::Temporary(_) | lir::Expression::Immediate(_) => None,
                 lir::Expression::Memory(address) => {
                     let address = self.eliminate_subexpression(label, index, *address)?;
                     Some(lir::Expression::Memory(Box::new(address)))
@@ -251,10 +248,7 @@ impl<T: lir::Target> Transformer<T> {
 
             // Expression must have been computed before, so rewrite.
             (false, _) => match expression {
-                lir::Expression::Temporary(_)
-                | lir::Expression::Immediate(_)
-                | lir::Expression::Argument(_)
-                | lir::Expression::Return(_) => None,
+                lir::Expression::Temporary(_) | lir::Expression::Immediate(_) => None,
                 expression @ (lir::Expression::Memory(_) | lir::Expression::Binary(_, _, _)) => {
                     Some(lir::Expression::Temporary(self.rewrite(expression)))
                 }

@@ -1,5 +1,6 @@
 use crate::analyze::Analysis;
 use crate::data::lir;
+use crate::data::operand::Temporary;
 use crate::Set;
 
 pub struct AnticipatedExpressions;
@@ -32,7 +33,10 @@ impl<T: lir::Target> Analysis<lir::Function<T>> for AnticipatedExpressions {
             }
             lir::Statement::Call(function, arguments, returns) => {
                 for r#return in 0..*returns {
-                    Self::remove(output, &lir::Expression::Return(r#return));
+                    Self::remove(
+                        output,
+                        &lir::Expression::Temporary(Temporary::Return(r#return)),
+                    );
                 }
 
                 Self::insert(output, function);
@@ -77,10 +81,7 @@ impl<T: lir::Target> Analysis<lir::Function<T>> for AnticipatedExpressions {
 impl AnticipatedExpressions {
     pub(super) fn insert(output: &mut Set<lir::Expression>, r#use: &lir::Expression) {
         match r#use {
-            lir::Expression::Argument(_)
-            | lir::Expression::Return(_)
-            | lir::Expression::Immediate(_)
-            | lir::Expression::Temporary(_) => (),
+            lir::Expression::Immediate(_) | lir::Expression::Temporary(_) => (),
             lir::Expression::Memory(address) => {
                 Self::insert(output, &*address);
                 output.insert(r#use.clone());
@@ -114,10 +115,7 @@ impl AnticipatedExpressions {
 
     pub(super) fn contains(expression: &lir::Expression, killed: &lir::Expression) -> bool {
         match expression {
-            lir::Expression::Argument(_)
-            | lir::Expression::Return(_)
-            | lir::Expression::Immediate(_)
-            | lir::Expression::Temporary(_) => expression == killed,
+            lir::Expression::Immediate(_) | lir::Expression::Temporary(_) => expression == killed,
             lir::Expression::Memory(address) => Self::contains(&*address, killed),
             lir::Expression::Binary(_, left, right) => {
                 Self::contains(&*left, killed) || Self::contains(&*right, killed)

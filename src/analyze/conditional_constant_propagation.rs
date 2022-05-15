@@ -192,10 +192,8 @@ impl Data {
 
     pub fn evaluate_expression(&self, expression: &lir::Expression) -> Option<Immediate> {
         match expression {
-            lir::Expression::Argument(_)
-            | lir::Expression::Return(_)
             // Conservatively mark all memory as unknown for now.
-            | lir::Expression::Memory(_) => None,
+            lir::Expression::Memory(_) => None,
             lir::Expression::Immediate(immediate) => Some(*immediate),
             lir::Expression::Temporary(temporary) => match self.constants.get(temporary)? {
                 Constant::Defined(immediate) => Some(*immediate),

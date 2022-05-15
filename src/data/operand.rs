@@ -79,6 +79,8 @@ pub enum Temporary {
     // Used for deterministic test output.
     Fixed(Symbol),
     Fresh(Symbol, usize),
+    Argument(usize),
+    Return(usize),
 }
 
 impl Temporary {
@@ -95,6 +97,8 @@ impl fmt::Display for Temporary {
             Temporary::Register(register) => write!(fmt, "{}", register),
             Temporary::Fresh(temporary, index) => write!(fmt, "_{}{}", temporary, index),
             Temporary::Fixed(temporary) => write!(fmt, "_{}", temporary),
+            Temporary::Argument(index) => write!(fmt, "_ARG{}", index),
+            Temporary::Return(index) => write!(fmt, "_RET{}", index),
         }
     }
 }

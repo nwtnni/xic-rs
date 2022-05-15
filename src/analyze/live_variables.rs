@@ -230,10 +230,9 @@ impl<T: lir::Target> Function for lir::Function<T> {
                 source,
             } => {
                 match destination {
-                    lir::Expression::Argument(_)
-                    | lir::Expression::Return(_)
-                    | lir::Expression::Immediate(_)
-                    | lir::Expression::Binary(_, _, _) => unreachable!(),
+                    lir::Expression::Immediate(_) | lir::Expression::Binary(_, _, _) => {
+                        unreachable!()
+                    }
                     lir::Expression::Memory(address) => transfer_expression(address, output),
                     lir::Expression::Temporary(temporary) => {
                         output.remove(temporary);
@@ -252,9 +251,7 @@ impl<T: lir::Target> Function for lir::Function<T> {
 
 fn transfer_expression(expression: &lir::Expression, output: &mut Set<Temporary>) {
     match expression {
-        lir::Expression::Argument(_)
-        | lir::Expression::Return(_)
-        | lir::Expression::Immediate(_) => (),
+        lir::Expression::Immediate(_) => (),
         lir::Expression::Temporary(temporary) => {
             output.insert(*temporary);
         }
@@ -268,10 +265,7 @@ fn transfer_expression(expression: &lir::Expression, output: &mut Set<Temporary>
 
 fn dead_lir(expression: &lir::Expression, live: &Set<Temporary>) -> bool {
     match expression {
-        lir::Expression::Argument(_)
-        | lir::Expression::Immediate(_)
-        | lir::Expression::Return(_)
-        | lir::Expression::Binary(_, _, _) => unreachable!(),
+        lir::Expression::Immediate(_) | lir::Expression::Binary(_, _, _) => unreachable!(),
         lir::Expression::Temporary(temporary) => !live.contains(temporary),
         lir::Expression::Memory(_) => false,
     }

@@ -31,8 +31,6 @@ impl Serialize for hir::Expression {
         use hir::Expression::*;
         match self {
             Immediate(immediate) => immediate.sexp(),
-            Argument(index) => ["TEMP".sexp(), format!("_ARG{}", index).sexp_move()].sexp_move(),
-            Return(index) => ["TEMP".sexp(), format!("_RET{}", index).sexp_move()].sexp_move(),
             Memory(expression) => ["MEM".sexp(), expression.sexp()].sexp_move(),
             Binary(binary, left, right) => [binary.sexp(), left.sexp(), right.sexp()].sexp_move(),
             Call(name, arguments, _) => iter::once("CALL".sexp())
@@ -103,8 +101,6 @@ impl Serialize for lir::Expression {
         use lir::Expression::*;
         match self {
             Immediate(immediate) => immediate.sexp(),
-            Argument(index) => ["TEMP".sexp(), format!("_ARG{}", index).sexp_move()].sexp_move(),
-            Return(index) => ["TEMP".sexp(), format!("_RET{}", index).sexp_move()].sexp_move(),
             Memory(expression) => ["MEM".sexp(), expression.sexp()].sexp_move(),
             Binary(binary, left, right) => [binary.sexp(), left.sexp(), right.sexp()].sexp_move(),
             Temporary(temporary) => ["TEMP".sexp(), temporary.sexp()].sexp_move(),

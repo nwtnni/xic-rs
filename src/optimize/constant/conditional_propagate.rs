@@ -116,9 +116,7 @@ fn propagate<T: lir::Target>(
     }
 
     match expression {
-        lir::Expression::Argument(_)
-        | lir::Expression::Return(_)
-        | lir::Expression::Immediate(_)
+        lir::Expression::Immediate(_)
         | lir::Expression::Temporary(_) => (),
         lir::Expression::Memory(address) => {
             propagate::<T>(address, output);

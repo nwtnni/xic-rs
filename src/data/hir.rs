@@ -62,8 +62,6 @@ impl From<Tree> for Condition {
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Expression {
-    Argument(usize),
-    Return(usize),
     Immediate(Immediate),
     Temporary(Temporary),
     Memory(Box<Expression>),
@@ -159,12 +157,6 @@ impl fmt::Display for Statement {
 
 #[macro_export]
 macro_rules! hir {
-    ((_ARG $integer:expr)) => {
-        $crate::data::hir::Expression::Argument($integer)
-    };
-    ((_RET $integer:expr)) => {
-        $crate::data::hir::Expression::Return($integer)
-    };
     ((CONST $($integer:tt)+)) => {
         $crate::data::hir::Expression::from(
             $crate::data::hir::hir!($($integer)+)

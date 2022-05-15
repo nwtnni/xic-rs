@@ -8,6 +8,7 @@ use xic::analyze::PostponableExpressions;
 use xic::analyze::UsedExpressions;
 use xic::data::lir::Fallthrough;
 use xic::data::lir::Function;
+use xic::data::operand::Temporary;
 
 macro_rules! partial_redundancy_elimination {
     ($function:ident $($tt:tt)*) => {
@@ -156,14 +157,14 @@ partial_redundancy_elimination! {
     induction_variable_regression: 0 -> 0;
     temporaries: a, b, c;
     labels: r#while, r#true, r#false, black_box, exit;
-        (MOVE (TEMP a) (_ARG 0))
+        (MOVE (TEMP a) (TEMP (Temporary::Argument(0))))
         (MOVE (TEMP b) (CONST 0))
         (JUMP r#while)
     (LABEL r#while)
         (CJUMP (GE (TEMP b) (CONST 3)) r#true)
     (LABEL r#false)
         (CALL (NAME black_box) 1 (TEMP b))
-        (MOVE (TEMP c) (_RET 0))
+        (MOVE (TEMP c) (TEMP (Temporary::Return(0))))
         (CALL (NAME black_box) 0 (TEMP c))
         (MOVE (TEMP b) (ADD (TEMP b) (CONST 1)))
         (JUMP r#while)

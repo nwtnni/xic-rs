@@ -5,6 +5,7 @@ use crate::analyze::Analysis;
 use crate::analyze::AnticipatedExpressions;
 use crate::data::lir;
 use crate::data::operand::Label;
+use crate::data::operand::Temporary;
 use crate::Map;
 use crate::Set;
 
@@ -71,7 +72,10 @@ impl<T: lir::Target> Analysis<lir::Function<T>> for AvailableExpressions<T> {
             | lir::Statement::Return(_) => (),
             lir::Statement::Call(_, _, returns) => {
                 for r#return in 0..*returns {
-                    AnticipatedExpressions::remove(output, &lir::Expression::Return(r#return));
+                    AnticipatedExpressions::remove(
+                        output,
+                        &lir::Expression::Temporary(Temporary::Return(r#return)),
+                    );
                 }
             }
             lir::Statement::Move {

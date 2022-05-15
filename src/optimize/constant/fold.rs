@@ -43,8 +43,6 @@ impl Foldable for hir::Expression {
             Immediate(immediate) => Immediate(immediate),
             Temporary(temporary) => Temporary(temporary),
             Memory(memory) => Memory(Box::new(memory.fold())),
-            Argument(index) => Argument(index),
-            Return(index) => Return(index),
             Sequence(statements, expression) => {
                 Sequence(Box::new(statements.fold()), Box::new(expression.fold()))
             }
@@ -158,8 +156,6 @@ impl Foldable for lir::Expression {
             Immediate(immediate) => Immediate(immediate),
             Memory(memory) => Memory(Box::new(memory.fold())),
             Temporary(temporary) => Temporary(temporary),
-            Argument(index) => Argument(index),
-            Return(index) => Return(index),
             Binary(binary, left, right) => match (binary, left.fold(), right.fold()) {
                 (
                     _,

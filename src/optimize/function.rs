@@ -9,6 +9,7 @@ use crate::data::operand::Immediate;
 use crate::data::operand::Label;
 use crate::data::operand::Temporary;
 use crate::data::symbol;
+use crate::lir;
 use crate::util::Or;
 use crate::Map;
 use crate::Set;
@@ -50,7 +51,6 @@ pub fn inline_lir(lir: &mut lir::Unit<lir::Fallthrough>) {
 
     for name in &postorder {
         let mut function = lir.functions.remove(name).unwrap();
-        let mut returns = None;
 
         function.statements = mem::take(&mut function.statements)
             .into_iter()
@@ -81,35 +81,20 @@ pub fn inline_lir(lir: &mut lir::Unit<lir::Fallthrough>) {
                         statements,
                     } = rewrite(&global, &lir.functions[&label]);
 
-                    assert_eq!(caller_returns, callee_returns.len());
+                    let arguments = callee_arguments
+                        .into_iter()
+                        .zip(caller_arguments)
+                        .map(|(destination, source)| lir!((MOVE (TEMP destination) (TEMP source))));
 
-                    // Note: we rely on IR emission to place `mov TEMPORARY, _RET<INDEX>`
-                    // instructions immediately after a `call`. Then these will be read
-                    // after inlining and then set back to `None` after processing these moves.
-                    returns = Some(callee_returns);
+                    let returns = (0..caller_returns)
+                        .map(Temporary::Return)
+                        .into_iter()
+                        .zip(callee_returns)
+                        .map(|(destination, source)| lir!((MOVE (TEMP destination) (TEMP source))));
 
-                    Or::L(
-                        callee_arguments
-                            .into_iter()
-                            .zip(caller_arguments)
-                            .map(|(destination, source)| lir::Statement::Move {
-                                destination: lir::Expression::Temporary(destination),
-                                source,
-                            })
-                            .chain(statements),
-                    )
+                    Or::L(arguments.chain(statements).chain(returns))
                 }
-                lir::Statement::Move {
-                    destination,
-                    source: lir::Expression::Return(index),
-                } if returns.is_some() => Or::R(iter::once(lir::Statement::Move {
-                    destination,
-                    source: lir::Expression::Temporary(returns.as_ref().unwrap()[index]),
-                })),
-                statement => {
-                    returns = None;
-                    Or::R(iter::once(statement))
-                }
+                statement => Or::R(iter::once(statement)),
             })
             .collect();
 
@@ -165,17 +150,6 @@ impl<'a> Rewriter<'a> {
 
     fn rewrite_statement(&mut self, statement: &lir::Statement<lir::Fallthrough>) {
         let statement = match statement {
-            // Special case: argument passing. IR construction guarantees that these
-            // will only be used as a source expression at the beginning of the function
-            // to receive arguments.
-            lir::Statement::Move {
-                destination,
-                source: lir::Expression::Argument(index),
-            } => lir::Statement::Move {
-                destination: self.rewrite_expression(destination),
-                source: lir::Expression::Temporary(self.arguments[*index]),
-            },
-
             // Special case: return passing. Note that CFG construction guarantees this will
             // be followed by a `jmp exit`, so we don't need to push a return statement--just
             // move the return values into the expected temporaries.
@@ -229,8 +203,6 @@ impl<'a> Rewriter<'a> {
 
     fn rewrite_expression(&self, expression: &lir::Expression) -> lir::Expression {
         match expression {
-            lir::Expression::Argument(index) => lir::Expression::Argument(*index),
-            lir::Expression::Return(index) => lir::Expression::Return(*index),
             lir::Expression::Immediate(immediate) => {
                 lir::Expression::Immediate(self.rewrite_immediate(immediate))
             }
@@ -258,6 +230,13 @@ impl<'a> Rewriter<'a> {
     fn rewrite_temporary(&self, temporary: &Temporary) -> Temporary {
         match temporary {
             Temporary::Register(register) => Temporary::Register(*register),
+
+            // Note: the argument and return cases are not symmetric because
+            // arguments are passed from the caller and need to be rewritten,
+            // while returns are received from callees and should be preserved.
+            Temporary::Argument(index) => self.arguments[*index],
+            Temporary::Return(index) => Temporary::Return(*index),
+
             // Note: fixed temporaries should only be generated in test cases, in which
             // case we _should_ provision a fresh name.
             Temporary::Fixed(symbol) => Temporary::fresh(symbol::resolve(*symbol)),

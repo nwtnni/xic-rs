@@ -52,8 +52,6 @@ impl<T: Target> fmt::Display for Function<T> {
 
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub enum Expression {
-    Argument(usize),
-    Return(usize),
     Immediate(Immediate),
     Temporary(Temporary),
     Memory(Box<Expression>),
@@ -159,12 +157,6 @@ impl Target for Label {
 
 #[macro_export]
 macro_rules! lir {
-    ((_ARG $integer:expr)) => {
-        $crate::data::lir::Expression::Argument($integer)
-    };
-    ((_RET $integer:expr)) => {
-        $crate::data::lir::Expression::Return($integer)
-    };
     ((CONST $($integer:tt)+)) => {
         $crate::data::lir::Expression::from(
             $crate::data::lir::lir!($($integer)+)

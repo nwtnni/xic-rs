@@ -53,7 +53,7 @@ pub fn tile(function: &lir::Function<lir::Fallthrough>) -> asm::Function<Tempora
         })
         .collect::<Vec<_>>();
 
-    tiler.inject_multiple_return_argument();
+    tiler.tile_arguments(function.arguments);
 
     function
         .statements
@@ -78,9 +78,23 @@ pub fn tile(function: &lir::Function<lir::Fallthrough>) -> asm::Function<Tempora
 }
 
 impl Tiler {
-    fn inject_multiple_return_argument(&mut self) {
-        if let Some(temporary) = self.caller_returns {
-            self.tile_binary(asm::Binary::Mov, temporary, abi::read_argument(0));
+    fn tile_arguments(&mut self, arguments: usize) {
+        let offset = match self.caller_returns {
+            None => 0,
+            Some(temporary) => {
+                self.tile_binary(asm::Binary::Mov, temporary, abi::read_argument(0));
+                1
+            }
+        };
+
+        for index in 0..arguments {
+            self.tile_binary(
+                asm::Binary::Mov,
+                Temporary::Argument(index),
+                // Note: we add this offset here and not above to keep the extra argument
+                // abstracted away from the IR level.
+                abi::read_argument(index + offset),
+            );
         }
     }
 
@@ -189,21 +203,23 @@ impl Tiler {
                 let function = self.tile_expression(function);
                 let arguments = arguments.len() + offset;
                 let returns = *returns;
+
                 #[rustfmt::skip]
                 self.push(asm!((call<arguments, returns> function)));
+
+                for index in 0..returns {
+                    self.tile_binary(
+                        asm::Binary::Mov,
+                        Temporary::Return(index),
+                        abi::read_return(self.callee_arguments, index),
+                    );
+                }
             }
         }
     }
 
     fn tile_expression(&mut self, expression: &lir::Expression) -> operand::Unary<Temporary> {
         let (binary, destination, source) = match expression {
-            lir::Expression::Argument(index) => {
-                // Adjust for implicit 0th argument (multiple return temporary)
-                return abi::read_argument(*index + self.caller_returns.map(|_| 1).unwrap_or(0));
-            }
-            lir::Expression::Return(index) => {
-                return abi::read_return(self.callee_arguments, *index)
-            }
             lir::Expression::Immediate(immediate) => {
                 // Only `mov r64, i64` statements can use 64-bit immediates (handled above).
                 return match immediate.is_64_bit() {
@@ -362,12 +378,6 @@ impl Tiler {
 
     fn tile_memory(&mut self, address: &lir::Expression) -> operand::Unary<Temporary> {
         let memory = match address {
-            lir::Expression::Argument(index) => Memory::B {
-                base: self.shuttle(abi::read_argument(*index)),
-            },
-            lir::Expression::Return(index) => Memory::B {
-                base: self.shuttle(abi::read_return(self.callee_arguments, *index)),
-            },
             lir::Expression::Immediate(offset) => Memory::O { offset: *offset },
             lir::Expression::Temporary(temporary) => Memory::B { base: *temporary },
             lir::Expression::Memory(address) => Memory::B {

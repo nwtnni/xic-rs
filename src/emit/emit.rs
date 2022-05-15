@@ -58,7 +58,7 @@ impl<'env> Emitter<'env> {
             statements.push(hir!(
                 (MOVE
                     (self.emit_declaration(parameter, &mut variables))
-                    (_ARG index))
+                    (TEMP (Temporary::Argument(index))))
             ));
         }
 
@@ -420,7 +420,7 @@ impl<'env> Emitter<'env> {
                         statements.push(hir!(
                             (MOVE
                                 (self.emit_declaration(declaration, variables))
-                                (_RET index))
+                                (TEMP (Temporary::Return(index))))
                         ));
                     }
                 }

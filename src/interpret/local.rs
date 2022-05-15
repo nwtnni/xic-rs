@@ -12,8 +12,6 @@ pub struct Local<'a, T: 'a> {
     postorder: &'a Postorder<T>,
     index: usize,
     temporaries: Map<Temporary, Value>,
-    arguments: Vec<Value>,
-    returns: Vec<Value>,
     stack: Vec<Operand>,
 }
 
@@ -22,9 +20,12 @@ impl<'a, T: 'a> Local<'a, T> {
         Local {
             postorder: unit.functions.get(name).unwrap(),
             index: 0,
-            temporaries: Map::default(),
-            arguments: arguments.to_vec(),
-            returns: Vec::new(),
+            temporaries: arguments
+                .iter()
+                .copied()
+                .enumerate()
+                .map(|(index, argument)| (Temporary::Argument(index), argument))
+                .collect(),
             stack: Vec::new(),
         }
     }
@@ -37,19 +38,6 @@ impl<'a, T: 'a> Local<'a, T> {
 
     pub fn insert(&mut self, temporary: Temporary, value: Value) {
         self.temporaries.insert(temporary, value);
-    }
-
-    pub fn insert_returns(&mut self, returns: &[Value]) {
-        self.returns.clear();
-        self.returns.extend_from_slice(returns);
-    }
-
-    pub fn get_return(&self, r#return: usize) -> &Value {
-        self.returns.get(r#return).unwrap()
-    }
-
-    pub fn get_argument(&self, argument: usize) -> &Value {
-        self.arguments.get(argument).unwrap()
     }
 
     pub fn push(&mut self, value: Operand) {

@@ -44,8 +44,6 @@ impl Canonizer {
     fn canonize_expression(&mut self, exp: &hir::Expression) -> lir::Expression {
         match exp {
             hir::Expression::Immediate(immediate) => lir::Expression::Immediate(*immediate),
-            hir::Expression::Argument(index) => lir::Expression::Argument(*index),
-            hir::Expression::Return(index) => lir::Expression::Return(*index),
             hir::Expression::Memory(memory) => {
                 lir::Expression::Memory(Box::new(self.canonize_expression(memory)))
             }
@@ -74,7 +72,7 @@ impl Canonizer {
 
                 self.canonized.push(lir::Statement::Move {
                     destination: save.clone(),
-                    source: lir::Expression::Return(0),
+                    source: lir::Expression::Temporary(Temporary::Return(0)),
                 });
 
                 save
@@ -220,11 +218,10 @@ impl Canonizer {
 
 fn commute(before: &hir::Expression, after: &hir::Expression) -> bool {
     match before {
-        hir::Expression::Immediate(Immediate::Integer(_)) | hir::Expression::Argument(_) => true,
+        hir::Expression::Immediate(Immediate::Integer(_)) => true,
         hir::Expression::Binary(_, left, right) => commute(left, after) && commute(right, after),
         hir::Expression::Immediate(Immediate::Label(_))
         | hir::Expression::Temporary(_)
-        | hir::Expression::Return(_)
         | hir::Expression::Memory(_)
         | hir::Expression::Call(_, _, _)
         | hir::Expression::Sequence(_, _) => pure_expression(after),
@@ -233,10 +230,7 @@ fn commute(before: &hir::Expression, after: &hir::Expression) -> bool {
 
 fn pure_expression(expression: &hir::Expression) -> bool {
     match expression {
-        hir::Expression::Immediate(Immediate::Integer(_))
-        | hir::Expression::Temporary(_)
-        | hir::Expression::Argument(_)
-        | hir::Expression::Return(_) => true,
+        hir::Expression::Immediate(Immediate::Integer(_)) | hir::Expression::Temporary(_) => true,
         hir::Expression::Immediate(Immediate::Label(_)) => false,
         hir::Expression::Memory(expression) => pure_expression(expression),
         hir::Expression::Binary(_, left, right) => pure_expression(left) && pure_expression(right),

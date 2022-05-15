@@ -97,9 +97,7 @@ impl<T: lir::Target> PostponableExpressions<T> {
         output.remove(kill);
 
         match kill {
-            lir::Expression::Argument(_)
-            | lir::Expression::Return(_)
-            | lir::Expression::Immediate(_)
+            lir::Expression::Immediate(_)
             | lir::Expression::Temporary(_) => (),
             lir::Expression::Memory(address) => Self::remove(output, address),
             lir::Expression::Binary(_, left, right) => {

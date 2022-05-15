@@ -7,6 +7,7 @@ use crate::abi;
 use crate::data::ir;
 use crate::data::lir;
 use crate::data::operand::Immediate;
+use crate::data::operand::Temporary;
 use crate::data::symbol;
 use crate::interpret::postorder;
 use crate::interpret::postorder::Postorder;
@@ -74,14 +75,6 @@ impl<'a, T: lir::Target> Local<'a, postorder::Lir<'a, T>> {
                 self.push(Operand::Label(*label, 8))
             }
             lir::Expression::Temporary(temporary) => self.push(Operand::Temporary(*temporary)),
-            lir::Expression::Argument(index) => {
-                let argument = self.get_argument(*index).into_operand();
-                self.push(argument);
-            }
-            lir::Expression::Return(index) => {
-                let r#return = self.get_return(*index).into_operand();
-                self.push(r#return);
-            }
             lir::Expression::Memory(_) => {
                 let address = self.pop(global);
                 self.push(Operand::Memory(address));
@@ -134,7 +127,9 @@ impl<'a, T: lir::Target> Local<'a, postorder::Lir<'a, T>> {
                     self.push(r#return.into_operand());
                 }
 
-                self.insert_returns(&returns);
+                for (index, r#return) in returns.into_iter().enumerate() {
+                    self.insert(Temporary::Return(index), r#return);
+                }
             }
             lir::Statement::Move {
                 destination: _,
