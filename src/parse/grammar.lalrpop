@@ -11,22 +11,28 @@ use crate::data::span::Span;
 
 grammar;
 
-pub Program: Program = {
-    <uses: Use*> <functions: Function*> => Program { uses, functions },
+pub Interface: Interface = {
+    <functions: FunctionSignature*> => Interface {
+        uses: Vec::new(),
+        items: functions.into_iter().map(ItemSignature::Function).collect(),
+    },
 }
 
-pub Interface: Interface = {
-    <signatures: Signature*> => Interface { signatures },
+pub Program: Program = {
+    <uses: Use*> <functions: Function*> => Program {
+        uses,
+        items: functions.into_iter().map(Item::Function).collect(),
+    },
 }
 
 Use: Use = {
     <l: @L> "use" <name: ID> ";"? <r: @R> => Use { name, span: Span::new(l, r) },
 }
 
-Signature: Signature = {
+FunctionSignature: FunctionSignature = {
     <l: @L> <name: ID> "(" <parameters: Comma<ArgDeclaration>> ")" <returns: (":" <CommaPlus<ArgType>>)?> <r: @R> => {
         let returns = if let Some(returns) = returns { returns } else { Vec::new() };
-        Signature { name, parameters, returns, span: Span::new(l, r) }
+        FunctionSignature { name, parameters, returns, span: Span::new(l, r) }
     }
 }
 

@@ -2,8 +2,14 @@ use crate::data::ast;
 use crate::data::symbol;
 
 pub fn invert_ast(program: &mut ast::Program) {
-    for function in &mut program.functions {
-        invert_statement(&mut function.statements);
+    for item in &mut program.items {
+        match item {
+            ast::Item::Global(_) => (),
+            ast::Item::Class(_) => todo!(),
+            ast::Item::Function(function) => {
+                invert_statement(&mut function.statements);
+            }
+        }
     }
 }
 

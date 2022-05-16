@@ -8,7 +8,8 @@ use crate::data::symbol::Symbol;
 /// Represents a Xi interface file.
 #[derive(Clone, Debug)]
 pub struct Interface {
-    pub signatures: Vec<Signature>,
+    pub uses: Vec<Use>,
+    pub items: Vec<ItemSignature>,
 }
 
 impl fmt::Display for Interface {
@@ -21,7 +22,7 @@ impl fmt::Display for Interface {
 #[derive(Clone, Debug)]
 pub struct Program {
     pub uses: Vec<Use>,
-    pub functions: Vec<Function>,
+    pub items: Vec<Item>,
 }
 
 impl fmt::Display for Program {
@@ -38,6 +39,84 @@ pub struct Use {
 }
 
 impl fmt::Display for Use {
+    fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
+        write!(fmt, "{}", self.sexp())
+    }
+}
+
+#[derive(Clone, Debug)]
+pub enum ItemSignature {
+    Class(ClassSignature),
+    Function(FunctionSignature),
+}
+
+impl fmt::Display for ItemSignature {
+    fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
+        write!(fmt, "{}", self.sexp())
+    }
+}
+
+#[derive(Clone, Debug)]
+pub enum Item {
+    Global(Global),
+    Class(Class),
+    Function(Function),
+}
+
+impl fmt::Display for Item {
+    fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
+        write!(fmt, "{}", self.sexp())
+    }
+}
+
+#[derive(Clone, Debug)]
+pub struct Global {
+    pub declaration: Declaration,
+    pub value: Option<Expression>,
+    pub span: Span,
+}
+
+impl fmt::Display for Global {
+    fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
+        write!(fmt, "{}", self.sexp())
+    }
+}
+
+#[derive(Clone, Debug)]
+pub struct ClassSignature {
+    pub name: Symbol,
+    pub extends: Option<Symbol>,
+    pub methods: Vec<FunctionSignature>,
+    pub span: Span,
+}
+
+impl fmt::Display for ClassSignature {
+    fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
+        write!(fmt, "{}", self.sexp())
+    }
+}
+
+#[derive(Clone, Debug)]
+pub struct Class {
+    pub name: Symbol,
+    pub extends: Option<Symbol>,
+    pub items: Vec<ClassItem>,
+    pub span: Span,
+}
+
+impl fmt::Display for Class {
+    fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
+        write!(fmt, "{}", self.sexp())
+    }
+}
+
+#[derive(Clone, Debug)]
+pub enum ClassItem {
+    Field(Declaration),
+    Method(Function),
+}
+
+impl fmt::Display for ClassItem {
     fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
         write!(fmt, "{}", self.sexp())
     }
@@ -69,16 +148,16 @@ macro_rules! impl_callable {
 
 /// Represents a function signature (i.e. without implementation).
 #[derive(Clone, Debug)]
-pub struct Signature {
+pub struct FunctionSignature {
     pub name: Symbol,
     pub parameters: Vec<Declaration>,
     pub returns: Vec<Type>,
     pub span: Span,
 }
 
-impl_callable!(Signature);
+impl_callable!(FunctionSignature);
 
-impl fmt::Display for Signature {
+impl fmt::Display for FunctionSignature {
     fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
         write!(fmt, "{}", self.sexp())
     }

@@ -6,13 +6,13 @@ use crate::util::Tap;
 
 impl Serialize for ast::Interface {
     fn sexp(&self) -> Sexp {
-        self.signatures.sexp()
+        [self.uses.sexp(), self.items.sexp()].sexp_move()
     }
 }
 
 impl Serialize for ast::Program {
     fn sexp(&self) -> Sexp {
-        [self.uses.sexp(), self.functions.sexp()].sexp_move()
+        [self.uses.sexp(), self.items.sexp()].sexp_move()
     }
 }
 
@@ -22,7 +22,75 @@ impl Serialize for ast::Use {
     }
 }
 
-impl Serialize for ast::Signature {
+impl Serialize for ast::ItemSignature {
+    fn sexp(&self) -> Sexp {
+        match self {
+            ast::ItemSignature::Class(class) => class.sexp(),
+            ast::ItemSignature::Function(function) => function.sexp(),
+        }
+    }
+}
+
+impl Serialize for ast::Item {
+    fn sexp(&self) -> Sexp {
+        match self {
+            ast::Item::Global(global) => global.sexp(),
+            ast::Item::Class(class) => class.sexp(),
+            ast::Item::Function(function) => function.sexp(),
+        }
+    }
+}
+
+impl Serialize for ast::Global {
+    fn sexp(&self) -> Sexp {
+        match &self.value {
+            None => self.declaration.sexp(),
+            Some(expression) => {
+                ["=".sexp(), self.declaration.sexp(), expression.sexp()].sexp_move()
+            }
+        }
+    }
+}
+
+impl Serialize for ast::ClassSignature {
+    fn sexp(&self) -> Sexp {
+        [
+            self.name.sexp(),
+            match &self.extends {
+                None => ["extends".sexp()].sexp_move(),
+                Some(extends) => ["extends".sexp(), extends.sexp()].sexp_move(),
+            },
+            self.methods.sexp(),
+        ]
+        .sexp_move()
+    }
+}
+
+impl Serialize for ast::Class {
+    fn sexp(&self) -> Sexp {
+        [
+            self.name.sexp(),
+            if let Some(extends) = &self.extends {
+                ["extends".sexp(), extends.sexp()].sexp_move()
+            } else {
+                Vec::<&'static str>::new().sexp_move()
+            },
+            self.items.sexp(),
+        ]
+        .sexp_move()
+    }
+}
+
+impl Serialize for ast::ClassItem {
+    fn sexp(&self) -> Sexp {
+        match self {
+            ast::ClassItem::Field(field) => field.sexp(),
+            ast::ClassItem::Method(method) => method.sexp(),
+        }
+    }
+}
+
+impl Serialize for ast::FunctionSignature {
     fn sexp(&self) -> Sexp {
         [
             self.name.sexp(),

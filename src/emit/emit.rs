@@ -34,10 +34,16 @@ pub fn emit_unit(
 
     let mut functions = Map::default();
 
-    for fun in &ast.functions {
-        emitter.returns = emitter.get_returns(fun.name);
-        let name = emitter.mangle_function(fun.name);
-        let hir = emitter.emit_function(fun);
+    for item in &ast.items {
+        let function = match item {
+            ast::Item::Global(_) => todo!(),
+            ast::Item::Class(_) => todo!(),
+            ast::Item::Function(function) => function,
+        };
+
+        emitter.returns = emitter.get_returns(function.name);
+        let name = emitter.mangle_function(function.name);
+        let hir = emitter.emit_function(function);
         functions.insert(name, hir);
     }
 

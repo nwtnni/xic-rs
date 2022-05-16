@@ -50,19 +50,32 @@ impl Checker {
             self.load_interface(&interface)?;
         }
 
-        for function in &program.functions {
-            self.load_function(function)?;
+        for item in &program.items {
+            match item {
+                ast::Item::Global(_) => todo!(),
+                ast::Item::Class(_) => todo!(),
+                ast::Item::Function(function) => self.load_function(function)?,
+            }
         }
 
-        for function in &program.functions {
-            self.check_function(function)?;
+        for item in &program.items {
+            match item {
+                ast::Item::Global(_) => todo!(),
+                ast::Item::Class(_) => todo!(),
+                ast::Item::Function(function) => self.check_function(function)?,
+            }
         }
 
         Ok(self.context)
     }
 
     fn load_interface(&mut self, interface: &ast::Interface) -> Result<(), error::Error> {
-        for signature in &interface.signatures {
+        for item in &interface.items {
+            let signature = match item {
+                ast::ItemSignature::Class(_) => todo!(),
+                ast::ItemSignature::Function(function) => function,
+            };
+
             let (name, new_parameters, new_returns) = self.check_signature(signature)?;
 
             match self.context.get(name) {
