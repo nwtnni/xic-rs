@@ -77,7 +77,6 @@ impl<T: lir::Target> Analysis<lir::Function<T>> for ConditionalConstantPropagati
         match statement {
             lir::Statement::Jump(_)
             | lir::Statement::Label(_)
-            | lir::Statement::Call(_, _, _)
             | lir::Statement::Move {
                 destination: lir::Expression::Memory(_),
                 source: _,
@@ -85,6 +84,11 @@ impl<T: lir::Target> Analysis<lir::Function<T>> for ConditionalConstantPropagati
             // Note: normally, we would mark anything after a return as unreachable,
             // but we desugar returns into move + jump statements when we tile assembly.
             | lir::Statement::Return(_) => {}
+            lir::Statement::Call(_, _, returns) => {
+                for r#return in 0..*returns {
+                    output.constants.insert(Temporary::Return(r#return), Constant::Overdefined);
+                }
+            }
             lir::Statement::CJump {
                 condition,
                 left,
@@ -103,15 +107,27 @@ impl<T: lir::Target> Analysis<lir::Function<T>> for ConditionalConstantPropagati
                 destination: lir::Expression::Temporary(temporary),
                 source,
             } => {
-                if let Some(immediate) = output.evaluate_expression(source) {
+                if let Some(new) = output.evaluate_expression(source) {
                     output
                         .constants
                         .entry(*temporary)
-                        .and_modify(|constant| match constant {
-                            Constant::Overdefined => (),
-                            Constant::Defined(_) => *constant = Constant::Defined(immediate),
+                        .and_modify(|old| match (old, new) {
+                            (Constant::Overdefined, _) => (),
+                            (old, Constant::Overdefined) => *old = Constant::Overdefined,
+                            (Constant::Defined(old), Constant::Defined(new)) if *old == new => (),
+
+                            // FIXME: allow overwriting a constant in straight-line code, as
+                            // something like:
+                            //
+                            // ```
+                            // (MOVE (TEMP a) (CONST 1))
+                            // (MOVE (TEMP a) (CONST 2))
+                            // ```
+                            //
+                            // Should have `a = 2` unless there's a loop or something involved.
+                            (old @ Constant::Defined(_), Constant::Defined(_)) => *old = Constant::Overdefined,
                         })
-                        .or_insert(Constant::Defined(immediate));
+                        .or_insert(new);
                 }
             }
             lir::Statement::Move { .. } => unreachable!(),
@@ -183,31 +199,49 @@ impl Data {
             self.evaluate_expression(left)?,
             self.evaluate_expression(right)?,
         ) {
-            (Immediate::Integer(left), Immediate::Integer(right)) => (left, right),
+            (
+                Constant::Defined(Immediate::Integer(left)),
+                Constant::Defined(Immediate::Integer(right)),
+            ) => (left, right),
             _ => return None,
         };
 
         Some(optimize::fold_condition(*condition, left, right))
     }
 
-    pub fn evaluate_expression(&self, expression: &lir::Expression) -> Option<Immediate> {
+    pub fn evaluate_expression(&self, expression: &lir::Expression) -> Option<Constant> {
         match expression {
             // Conservatively mark all memory as unknown for now.
-            lir::Expression::Memory(_) => None,
-            lir::Expression::Immediate(immediate) => Some(*immediate),
-            lir::Expression::Temporary(temporary) => match self.constants.get(temporary)? {
-                Constant::Defined(immediate) => Some(*immediate),
-                Constant::Overdefined => None,
-            },
+            lir::Expression::Memory(_) => Some(Constant::Overdefined),
+            lir::Expression::Immediate(immediate) => Some(Constant::Defined(*immediate)),
+            lir::Expression::Temporary(temporary) => self.constants.get(temporary).copied(),
             lir::Expression::Binary(binary, left, right) => {
-                // FIXME: handle labels with offsets at some point
-                let (left, right) = match (self.evaluate_expression(left)?, self.evaluate_expression(right)?) {
-                    (Immediate::Integer(left), Immediate::Integer(right)) => (left, right),
-                    _ => return None,
+                let (left, right) = match (
+                    self.evaluate_expression(left),
+                    self.evaluate_expression(right),
+                ) {
+                    (None, None) => return None,
+                    (Some(Constant::Overdefined), _) | (_, Some(Constant::Overdefined)) => {
+                        return Some(Constant::Overdefined);
+                    }
+                    (
+                        Some(Constant::Defined(Immediate::Integer(left))),
+                        Some(Constant::Defined(Immediate::Integer(right))),
+                    ) => (left, right),
+
+                    // FIXME: handle labels with offsets at some point
+                    (None, Some(Constant::Defined(_)))
+                    | (Some(Constant::Defined(_)), None)
+                    | (Some(Constant::Defined(Immediate::Label(_))), _)
+                    | (_, Some(Constant::Defined(Immediate::Label(_)))) => {
+                        return Some(Constant::Overdefined)
+                    }
                 };
 
                 // FIXME: handle division by 0, algebraic identities
-                Some(Immediate::Integer(optimize::fold_binary(*binary, left, right)))
+                Some(Constant::Defined(Immediate::Integer(
+                    optimize::fold_binary(*binary, left, right),
+                )))
             }
         }
     }

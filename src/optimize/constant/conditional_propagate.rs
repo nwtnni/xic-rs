@@ -3,6 +3,7 @@ use petgraph::Direction;
 use crate::analyze::analyze;
 use crate::analyze::Analysis;
 use crate::analyze::ConditionalConstantPropagation;
+use crate::analyze::Constant;
 use crate::analyze::Reachable;
 use crate::cfg::Cfg;
 use crate::cfg::Edge;
@@ -110,14 +111,13 @@ fn propagate<T: lir::Target>(
     expression: &mut lir::Expression,
     output: &<ConditionalConstantPropagation as Analysis<lir::Function<T>>>::Data,
 ) {
-    if let Some(immediate) = output.evaluate_expression(expression) {
+    if let Some(Constant::Defined(immediate)) = output.evaluate_expression(expression) {
         *expression = lir::Expression::Immediate(immediate);
         return;
     }
 
     match expression {
-        lir::Expression::Immediate(_)
-        | lir::Expression::Temporary(_) => (),
+        lir::Expression::Immediate(_) | lir::Expression::Temporary(_) => (),
         lir::Expression::Memory(address) => {
             propagate::<T>(address, output);
         }
