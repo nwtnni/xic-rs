@@ -136,18 +136,18 @@ impl<'source> Lexer<'source> {
         use token::Token::*;
         let end = self.take_while(is_ident);
         let token = match &self.source[start.idx..end.idx] {
-            "use" => USE,
-            "if" => IF,
-            "do" => DO,
-            "while" => WHILE,
-            "else" => ELSE,
-            "return" => RETURN,
-            "length" => LENGTH,
-            "int" => INT,
-            "bool" => BOOL,
-            "true" => TRUE,
-            "false" => FALSE,
-            ident => IDENT(symbol::intern(ident)),
+            "use" => Use,
+            "if" => If,
+            "do" => Do,
+            "while" => While,
+            "else" => Else,
+            "return" => Return,
+            "length" => Length,
+            "int" => Int,
+            "bool" => Bool,
+            "true" => True,
+            "false" => False,
+            ident => Identifier(symbol::intern(ident)),
         };
         Ok((start, token, end))
     }
@@ -157,7 +157,7 @@ impl<'source> Lexer<'source> {
         let end = self.take_while(is_digit);
         let int = self.source[start.idx..end.idx]
             .to_string()
-            .tap(token::Token::INTEGER);
+            .tap(token::Token::Integer);
         Ok((start, int, end))
     }
 
@@ -217,7 +217,7 @@ impl<'source> Lexer<'source> {
 
     /// Lex a single character literal
     fn lex_character(&mut self, start: span::Point) -> token::Spanned {
-        let ch = self.lex_char(start, false).map(token::Token::CHARACTER)?;
+        let ch = self.lex_char(start, false).map(token::Token::Character)?;
         if let Some('\'') = self.advance() {
             Ok((start, ch, self.point()))
         } else {
@@ -233,7 +233,7 @@ impl<'source> Lexer<'source> {
         while let Some(ch) = self.peek() {
             if ch == '\"' {
                 self.skip();
-                return Ok((start, token::Token::STRING(buffer), self.point()));
+                return Ok((start, token::Token::String(buffer), self.point()));
             } else {
                 buffer.push(self.lex_char(start, true)?);
             }
@@ -272,37 +272,37 @@ impl<'source> Iterator for Lexer<'source> {
             '\'' => return Some(self.lex_character(start)),
             '"' => return Some(self.lex_string(start)),
             '0'..='9' => return Some(self.lex_integer(start)),
-            '_' => UNDERSCORE,
-            ',' => COMMA,
-            ';' => SEMICOLON,
-            ':' => COLON,
-            '{' => LBRACE,
-            '}' => RBRACE,
-            '[' => LBRACK,
-            ']' => RBRACK,
-            '(' => LPAREN,
-            ')' => RPAREN,
-            '&' => AND,
-            '|' => OR,
-            '+' => ADD,
-            '-' => SUB,
-            '%' => MOD,
-            '/' => DIV,
-            '!' if self.peek() == Some('=') => eat!(NE),
-            '!' => NOT,
-            '<' if self.peek() == Some('=') => eat!(LE),
-            '<' => LT,
-            '>' if self.peek() == Some('=') => eat!(GE),
-            '>' => GT,
-            '=' if self.peek() == Some('=') => eat!(EQ),
-            '=' => ASSIGN,
+            '_' => Underscore,
+            ',' => Comma,
+            ';' => Semicolon,
+            ':' => Colon,
+            '{' => LBrace,
+            '}' => RBrace,
+            '[' => LBrack,
+            ']' => RBrack,
+            '(' => LParen,
+            ')' => RParen,
+            '&' => And,
+            '|' => Or,
+            '+' => Add,
+            '-' => Sub,
+            '%' => Mod,
+            '/' => Div,
+            '!' if self.peek() == Some('=') => eat!(Ne),
+            '!' => Not,
+            '<' if self.peek() == Some('=') => eat!(Le),
+            '<' => Lt,
+            '>' if self.peek() == Some('=') => eat!(Ge),
+            '>' => Gt,
+            '=' if self.peek() == Some('=') => eat!(Eq),
+            '=' => Assign,
             '*' if self.peek() == Some('>') && self.peeeek() == Some('>') => {
                 self.skip();
                 self.skip();
                 end = self.point();
-                HUL
+                Hul
             }
-            '*' => MUL,
+            '*' => Mul,
             _ => {
                 let span = span::Span::new(start, end);
                 let kind = ErrorKind::UnknownCharacter;

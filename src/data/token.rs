@@ -40,176 +40,176 @@ impl fmt::Display for Tokens {
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Token {
     /// Identifier
-    IDENT(Symbol),
+    Identifier(Symbol),
 
     /// Character literal
-    CHARACTER(char),
+    Character(char),
 
     /// Integer literal
-    INTEGER(String),
+    Integer(String),
 
     /// String literal
-    STRING(String),
+    String(String),
 
     /// `use` keyword
-    USE,
+    Use,
 
     /// `if` keyword
-    IF,
+    If,
 
     /// `do` keyword
-    DO,
+    Do,
 
     /// `while` keyword
-    WHILE,
+    While,
 
     /// `else` keyword
-    ELSE,
+    Else,
 
     /// `return` keyword
-    RETURN,
+    Return,
 
     /// `length` keyword
-    LENGTH,
+    Length,
 
     /// `int` keyword
-    INT,
+    Int,
 
     /// `bool` keyword
-    BOOL,
+    Bool,
 
     /// `true` keyword
-    TRUE,
+    True,
 
     /// `false` keyword
-    FALSE,
+    False,
 
     /// `=` symbol
-    ASSIGN,
+    Assign,
 
     /// `!` symbol
-    NOT,
+    Not,
 
     /// `*` symbol
-    MUL,
+    Mul,
 
     /// `*>>` symbol
-    HUL,
+    Hul,
 
     /// `/` symbol
-    DIV,
+    Div,
 
     /// `%` symbol
-    MOD,
+    Mod,
 
     /// `+` symbol
-    ADD,
+    Add,
 
     /// `-` symbol
-    SUB,
+    Sub,
 
     /// `<` symbol
-    LT,
+    Lt,
 
     /// `<=` symbol
-    LE,
+    Le,
 
     /// `>=` symbol
-    GE,
+    Ge,
 
     /// `>` symbol
-    GT,
+    Gt,
 
     /// `==` symbol
-    EQ,
+    Eq,
 
     /// `!=` symbol
-    NE,
+    Ne,
 
     /// `&` symbol
-    AND,
+    And,
 
     /// `|` symbol
-    OR,
+    Or,
 
     /// `(` symbol
-    LPAREN,
+    LParen,
 
     /// `)` symbol
-    RPAREN,
+    RParen,
 
     /// `[` symbol
-    LBRACK,
+    LBrack,
 
     /// `]` symbol
-    RBRACK,
+    RBrack,
 
     /// `{` symbol
-    LBRACE,
+    LBrace,
 
     /// `}` symbol
-    RBRACE,
+    RBrace,
 
     /// `:` symbol
-    COLON,
+    Colon,
 
     /// `;` symbol
-    SEMICOLON,
+    Semicolon,
 
     /// `,` symbol
-    COMMA,
+    Comma,
 
     /// `_` symbol
-    UNDERSCORE,
+    Underscore,
 }
 
 impl std::fmt::Display for Token {
     fn fmt(&self, fmt: &mut std::fmt::Formatter) -> std::fmt::Result {
         match self {
-            Token::CHARACTER(c) => match unescape_char(*c) {
+            Token::Character(c) => match unescape_char(*c) {
                 Some(s) => write!(fmt, "character {}", s),
                 None => write!(fmt, "character {}", c),
             },
-            Token::STRING(s) => write!(fmt, "string {}", unescape_str(s)),
-            Token::IDENT(i) => write!(fmt, "id {}", symbol::resolve(*i)),
-            Token::INTEGER(i) => write!(fmt, "integer {}", i),
-            Token::USE => write!(fmt, "use"),
-            Token::IF => write!(fmt, "if"),
-            Token::DO => write!(fmt, "do"),
-            Token::WHILE => write!(fmt, "while"),
-            Token::ELSE => write!(fmt, "else"),
-            Token::RETURN => write!(fmt, "return"),
-            Token::LENGTH => write!(fmt, "length"),
-            Token::INT => write!(fmt, "int"),
-            Token::BOOL => write!(fmt, "bool"),
-            Token::TRUE => write!(fmt, "true"),
-            Token::FALSE => write!(fmt, "false"),
-            Token::ASSIGN => write!(fmt, "="),
-            Token::NOT => write!(fmt, "!"),
-            Token::MUL => write!(fmt, "*"),
-            Token::HUL => write!(fmt, "*>>"),
-            Token::DIV => write!(fmt, "/"),
-            Token::MOD => write!(fmt, "%"),
-            Token::ADD => write!(fmt, "+"),
-            Token::SUB => write!(fmt, "-"),
-            Token::LE => write!(fmt, "<="),
-            Token::LT => write!(fmt, "<"),
-            Token::GE => write!(fmt, ">="),
-            Token::GT => write!(fmt, ">"),
-            Token::EQ => write!(fmt, "=="),
-            Token::NE => write!(fmt, "!="),
-            Token::AND => write!(fmt, "&"),
-            Token::OR => write!(fmt, "|"),
-            Token::LPAREN => write!(fmt, "("),
-            Token::RPAREN => write!(fmt, ")"),
-            Token::LBRACK => write!(fmt, "["),
-            Token::RBRACK => write!(fmt, "]"),
-            Token::LBRACE => write!(fmt, "{{"),
-            Token::RBRACE => write!(fmt, "}}"),
-            Token::COLON => write!(fmt, ":"),
-            Token::SEMICOLON => write!(fmt, ";"),
-            Token::COMMA => write!(fmt, ","),
-            Token::UNDERSCORE => write!(fmt, "_"),
+            Token::String(s) => write!(fmt, "string {}", unescape_str(s)),
+            Token::Identifier(i) => write!(fmt, "id {}", symbol::resolve(*i)),
+            Token::Integer(i) => write!(fmt, "integer {}", i),
+            Token::Use => write!(fmt, "use"),
+            Token::If => write!(fmt, "if"),
+            Token::Do => write!(fmt, "do"),
+            Token::While => write!(fmt, "while"),
+            Token::Else => write!(fmt, "else"),
+            Token::Return => write!(fmt, "return"),
+            Token::Length => write!(fmt, "length"),
+            Token::Int => write!(fmt, "int"),
+            Token::Bool => write!(fmt, "bool"),
+            Token::True => write!(fmt, "true"),
+            Token::False => write!(fmt, "false"),
+            Token::Assign => write!(fmt, "="),
+            Token::Not => write!(fmt, "!"),
+            Token::Mul => write!(fmt, "*"),
+            Token::Hul => write!(fmt, "*>>"),
+            Token::Div => write!(fmt, "/"),
+            Token::Mod => write!(fmt, "%"),
+            Token::Add => write!(fmt, "+"),
+            Token::Sub => write!(fmt, "-"),
+            Token::Le => write!(fmt, "<="),
+            Token::Lt => write!(fmt, "<"),
+            Token::Ge => write!(fmt, ">="),
+            Token::Gt => write!(fmt, ">"),
+            Token::Eq => write!(fmt, "=="),
+            Token::Ne => write!(fmt, "!="),
+            Token::And => write!(fmt, "&"),
+            Token::Or => write!(fmt, "|"),
+            Token::LParen => write!(fmt, "("),
+            Token::RParen => write!(fmt, ")"),
+            Token::LBrack => write!(fmt, "["),
+            Token::RBrack => write!(fmt, "]"),
+            Token::LBrace => write!(fmt, "{{"),
+            Token::RBrace => write!(fmt, "}}"),
+            Token::Colon => write!(fmt, ":"),
+            Token::Semicolon => write!(fmt, ";"),
+            Token::Comma => write!(fmt, ","),
+            Token::Underscore => write!(fmt, "_"),
         }
     }
 }
