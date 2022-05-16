@@ -19,6 +19,9 @@ mod analyze;
 #[path = "suite/optimize.rs"]
 mod optimize;
 
+#[path = "suite/end_to_end.rs"]
+mod end_to_end;
+
 use std::fmt::Display;
 use std::fs;
 use std::io::Cursor;
@@ -34,7 +37,6 @@ use xic::data::ast;
 use xic::data::hir;
 use xic::data::lir;
 use xic::data::operand::Label;
-use xic::data::operand::Register;
 use xic::data::operand::Temporary;
 use xic::data::token::Tokens;
 
@@ -96,7 +98,7 @@ pub fn execute_expected(path: &str) -> String {
     String::from(stdout.strip_suffix('\n').unwrap())
 }
 
-pub fn execute(assembly: &asm::Unit<Register>) -> String {
+pub fn execute<T: Display>(assembly: T) -> String {
     let path = NamedTempFile::new().unwrap().into_temp_path();
 
     let mut cc = Command::new("cc")
