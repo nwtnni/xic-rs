@@ -137,6 +137,12 @@ impl<'source> Lexer<'source> {
         let end = self.take_while(is_ident);
         let token = match &self.source[start.idx..end.idx] {
             "use" => Use,
+            "class" => Class,
+            "this" => This,
+            "new" => New,
+            "extends" => Extends,
+            "null" => Null,
+            "break" => Break,
             "if" => If,
             "do" => Do,
             "while" => While,
@@ -273,6 +279,7 @@ impl<'source> Iterator for Lexer<'source> {
             '"' => return Some(self.lex_string(start)),
             '0'..='9' => return Some(self.lex_integer(start)),
             '_' => Underscore,
+            '.' => Period,
             ',' => Comma,
             ';' => Semicolon,
             ':' => Colon,

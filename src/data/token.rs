@@ -54,6 +54,24 @@ pub enum Token {
     /// `use` keyword
     Use,
 
+    /// `class` keyword
+    Class,
+
+    /// `this` keyword
+    This,
+
+    /// `new` keyword
+    New,
+
+    /// `extends` keyword
+    Extends,
+
+    /// `null` keyword
+    Null,
+
+    /// `break` keyword
+    Break,
+
     /// `if` keyword
     If,
 
@@ -161,6 +179,9 @@ pub enum Token {
 
     /// `_` symbol
     Underscore,
+
+    /// `.` symbol
+    Period,
 }
 
 impl std::fmt::Display for Token {
@@ -174,6 +195,12 @@ impl std::fmt::Display for Token {
             Token::Identifier(i) => write!(fmt, "id {}", symbol::resolve(*i)),
             Token::Integer(i) => write!(fmt, "integer {}", i),
             Token::Use => write!(fmt, "use"),
+            Token::Class => write!(fmt, "class"),
+            Token::This => write!(fmt, "this"),
+            Token::New => write!(fmt, "new"),
+            Token::Extends => write!(fmt, "extends"),
+            Token::Null => write!(fmt, "null"),
+            Token::Break => write!(fmt, "break"),
             Token::If => write!(fmt, "if"),
             Token::Do => write!(fmt, "do"),
             Token::While => write!(fmt, "while"),
@@ -210,6 +237,7 @@ impl std::fmt::Display for Token {
             Token::Semicolon => write!(fmt, ";"),
             Token::Comma => write!(fmt, ","),
             Token::Underscore => write!(fmt, "_"),
+            Token::Period => write!(fmt, "."),
         }
     }
 }
