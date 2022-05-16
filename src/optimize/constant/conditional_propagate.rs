@@ -59,11 +59,18 @@ pub fn conditional_propagate_lir<T: lir::Target>(cfg: &mut Cfg<lir::Function<T>>
                             if let Some(r#false) = r#false {
                                 cfg.graph.remove_edge(label, r#false);
                             }
+                            cfg.graph
+                                .add_edge(label, *r#true, Edge::Unconditional)
+                                .unwrap();
                             Some(lir::Statement::<T>::Jump(*r#true))
                         }
                         Some(false) => {
+                            let r#false = r#false.unwrap();
                             cfg.graph.remove_edge(label, *r#true);
-                            Some(lir::Statement::<T>::Jump(r#false.unwrap()))
+                            cfg.graph
+                                .add_edge(label, r#false, Edge::Unconditional)
+                                .unwrap();
+                            Some(lir::Statement::<T>::Jump(r#false))
                         }
                     }
                 }
