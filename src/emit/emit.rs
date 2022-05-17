@@ -91,7 +91,6 @@ impl<'env> Emitter<'env> {
             Boolean(false, _) => hir!((CONST 0)).into(),
             Boolean(true, _) => hir!((CONST 1)).into(),
             &Integer(integer, _) => hir!((CONST integer)).into(),
-
             &Character(character, _) => hir!((CONST character as i64)).into(),
             String(string, _) => {
                 let symbol = symbol::intern(string);
@@ -102,6 +101,8 @@ impl<'env> Emitter<'env> {
 
                 hir!((NAME label)).into()
             }
+            Null(_) => todo!(),
+            This(_) => todo!(),
             Variable(variable, _) => hir!((TEMP variables[variable])).into(),
             Array(expressions, _) => {
                 let array = hir!((TEMP Temporary::fresh("array")));
@@ -288,6 +289,8 @@ impl<'env> Emitter<'env> {
                         (MEM (ADD (TEMP base) (MUL (TEMP index) (CONST abi::WORD)))))
                 ).into()
             }
+            Dot(_, _, _) => todo!(),
+            New(_, _) => todo!(),
             Call(call) if symbol::resolve(call.name) == "length" => {
                 let address = self.emit_expression(&call.arguments[0], variables).into();
                 hir!((MEM (SUB address (CONST abi::WORD)))).into()
@@ -530,6 +533,7 @@ impl<'env> Emitter<'env> {
                     }
                 }
             }
+            Break(_) => todo!(),
         }
     }
 

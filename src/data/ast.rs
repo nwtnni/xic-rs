@@ -271,6 +271,12 @@ pub enum Expression {
     /// Integer literal
     Integer(i64, Span),
 
+    /// Null literal
+    Null(Span),
+
+    /// Class reference
+    This(Span),
+
     /// Variable
     Variable(Symbol, Span),
 
@@ -288,6 +294,12 @@ pub enum Expression {
 
     /// Function call
     Call(Call),
+
+    /// Dot operator
+    Dot(Box<Expression>, Symbol, Span),
+
+    /// Class constructor
+    New(Symbol, Span),
 }
 
 impl Expression {
@@ -297,11 +309,15 @@ impl Expression {
             | Expression::Character(_, span)
             | Expression::String(_, span)
             | Expression::Integer(_, span)
+            | Expression::Null(span)
+            | Expression::This(span)
             | Expression::Variable(_, span)
             | Expression::Array(_, span)
             | Expression::Binary(_, _, _, span)
             | Expression::Unary(_, _, span)
-            | Expression::Index(_, _, span) => *span,
+            | Expression::Index(_, _, span)
+            | Expression::Dot(_, _, span)
+            | Expression::New(_, span) => *span,
             Expression::Call(call) => call.span,
         }
     }
@@ -312,11 +328,15 @@ impl Expression {
             | Expression::Character(_, span)
             | Expression::String(_, span)
             | Expression::Integer(_, span)
+            | Expression::Null(span)
+            | Expression::This(span)
             | Expression::Variable(_, span)
             | Expression::Array(_, span)
             | Expression::Binary(_, _, _, span)
             | Expression::Unary(_, _, span)
-            | Expression::Index(_, _, span) => span,
+            | Expression::Index(_, _, span)
+            | Expression::Dot(_, _, span)
+            | Expression::New(_, span) => span,
             Expression::Call(call) => &mut call.span,
         }
     }
@@ -392,6 +412,9 @@ pub enum Statement {
 
     /// While block
     While(Do, Expression, Box<Statement>, Span),
+
+    /// Break statement
+    Break(Span),
 }
 
 #[derive(Clone, Debug)]
@@ -410,7 +433,8 @@ impl Statement {
             | Statement::Return(_, span)
             | Statement::Sequence(_, span)
             | Statement::If(_, _, _, span)
-            | Statement::While(_, _, _, span) => *span,
+            | Statement::While(_, _, _, span)
+            | Statement::Break(span) => *span,
         }
     }
 }

@@ -227,6 +227,8 @@ impl Checker {
                 r#type::Expression::Integer,
             ))),
             ast::Expression::Integer(_, _) => Ok(r#type::Expression::Integer),
+            ast::Expression::This(_) => todo!(),
+            ast::Expression::Null(_) => todo!(),
             ast::Expression::Variable(name, span) => match self.context.get(*name) {
                 Some(context::Entry::Variable(typ)) => Ok(typ.clone()),
                 Some(_) => bail!(*span, ErrorKind::NotVariable(*name)),
@@ -345,6 +347,9 @@ impl Checker {
                     }
                 }
             }
+
+            ast::Expression::Dot(_, _, _) => todo!(),
+            ast::Expression::New(_, _) => todo!(),
 
             ast::Expression::Call(call) if symbol::resolve(call.name) == "length" => {
                 if call.arguments.len() != 1 {
@@ -512,6 +517,7 @@ impl Checker {
 
                 Ok(r#type::Stm::Unit)
             }
+            ast::Statement::Break(_) => todo!(),
         }
     }
 }

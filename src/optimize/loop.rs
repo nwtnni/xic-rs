@@ -19,7 +19,8 @@ fn invert_statement(statement: &mut ast::Statement) {
         | ast::Statement::Call(_)
         | ast::Statement::Initialization(_, _, _)
         | ast::Statement::Declaration(_, _)
-        | ast::Statement::Return(_, _) => return,
+        | ast::Statement::Return(_, _)
+        | ast::Statement::Break(_) => return,
         ast::Statement::Sequence(statements, _) => {
             for statement in statements {
                 invert_statement(statement);
@@ -63,16 +64,22 @@ fn effectful(expression: &ast::Expression) -> bool {
         ast::Expression::Boolean(_, _)
         | ast::Expression::Character(_, _)
         | ast::Expression::Integer(_, _)
-        | ast::Expression::Variable(_, _) => false,
+        | ast::Expression::Variable(_, _)
+        | ast::Expression::This(_)
+        | ast::Expression::Null(_) => false,
 
         // Recomputing these shouldn't be observable, but it _is_ inefficient.
-        ast::Expression::String(_, _) | ast::Expression::Array(_, _) => true,
+        ast::Expression::String(_, _)
+        | ast::Expression::Array(_, _)
+        | ast::Expression::New(_, _) => true,
 
         // Note: it's safe to hoist an index even if it may
         // crash, since it's evaluated at least once whether
         // or not we invert the loop. There can be no other
         // effects other than crashing.
         ast::Expression::Index(array, index, _) => effectful(array) || effectful(index),
+        ast::Expression::Dot(expression, _, _) => effectful(expression),
+
         ast::Expression::Call(call) => symbol::resolve(call.name) != "length",
         ast::Expression::Binary(binary, left, right, _) => match binary.get() {
             // Avoid recomputing array concatenation, which is expensive.

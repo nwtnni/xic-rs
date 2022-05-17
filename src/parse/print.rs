@@ -119,8 +119,10 @@ impl Serialize for ast::Type {
         match self {
             Bool(_) => "bool".sexp(),
             Int(_) => "int".sexp(),
-            Array(typ, None, _) => ["[]".sexp(), typ.sexp()].sexp_move(),
-            Array(typ, Some(exp), _) => ["[]".sexp(), typ.sexp(), exp.sexp()].sexp_move(),
+            Array(r#type, None, _) => ["[]".sexp(), r#type.sexp()].sexp_move(),
+            Array(r#type, Some(length), _) => {
+                ["[]".sexp(), r#type.sexp(), length.sexp()].sexp_move()
+            }
         }
     }
 }
@@ -165,20 +167,28 @@ impl Serialize for ast::Expression {
         match self {
             Boolean(false, _) => "false".sexp(),
             Boolean(true, _) => "true".sexp(),
-            Character(c, _) => match token::unescape_char(*c) {
-                Some(s) => format!("\'{}\'", s).sexp_move(),
-                None => format!("\'{}\'", c).sexp_move(),
+            Character(char, _) => match token::unescape_char(*char) {
+                Some(string) => format!("\'{}\'", string).sexp_move(),
+                None => format!("\'{}\'", char).sexp_move(),
             },
-            String(s, _) => format!("\"{}\"", token::unescape_str(s)).sexp_move(),
-            Integer(i, _) if *i < 0 => {
-                ["-".sexp(), (-(*i as i128)).to_string().sexp_move()].sexp_move()
+            String(string, _) => format!("\"{}\"", token::unescape_str(string)).sexp_move(),
+            Integer(integer, _) if *integer < 0 => {
+                ["-".sexp(), (-(*integer as i128)).to_string().sexp_move()].sexp_move()
             }
-            Integer(i, _) => i.to_string().sexp_move(),
-            Variable(v, _) => v.sexp(),
-            Array(exps, _) => exps.sexp(),
-            Binary(bin, lhs, rhs, _) => [bin.get().sexp(), lhs.sexp(), rhs.sexp()].sexp_move(),
-            Unary(uno, exp, _) => [uno.sexp(), exp.sexp()].sexp_move(),
-            Index(arr, idx, _) => ["[]".sexp(), arr.sexp(), idx.sexp()].sexp_move(),
+            Integer(integer, _) => integer.to_string().sexp_move(),
+            Null(_) => "null".sexp(),
+            This(_) => "this".sexp(),
+            Variable(variable, _) => variable.sexp(),
+            Array(expressions, _) => expressions.sexp(),
+            Binary(binary, left, right, _) => {
+                [binary.get().sexp(), left.sexp(), right.sexp()].sexp_move()
+            }
+            Unary(unary, expression, _) => [unary.sexp(), expression.sexp()].sexp_move(),
+            Index(array, index, _) => ["[]".sexp(), array.sexp(), index.sexp()].sexp_move(),
+            Dot(expression, symbol, _) => {
+                [".".sexp(), expression.sexp(), symbol.sexp()].sexp_move()
+            }
+            New(symbol, _) => ["new".sexp(), symbol.sexp()].sexp_move(),
             Call(call) => call.sexp(),
         }
     }
@@ -206,40 +216,44 @@ impl Serialize for ast::Statement {
     fn sexp(&self) -> Sexp {
         use ast::Statement::*;
         match self {
-            Assignment(lhs, rhs, _) => ["=".sexp(), lhs.sexp(), rhs.sexp()].sexp_move(),
+            Assignment(left, right, _) => ["=".sexp(), left.sexp(), right.sexp()].sexp_move(),
             Call(call) => call.sexp(),
-            Initialization(decs, call, _) => {
-                let mut decs = decs
+            Initialization(declarations, call, _) => {
+                let mut declarations = declarations
                     .iter()
-                    .map(|dec| {
-                        dec.as_ref()
+                    .map(|declaration| {
+                        declaration
+                            .as_ref()
                             .map(Serialize::sexp)
                             .unwrap_or_else(|| "_".sexp())
                     })
                     .collect::<Vec<_>>();
-                let decs = if decs.len() == 1 {
-                    decs.remove(0)
+                let declarations = if declarations.len() == 1 {
+                    declarations.remove(0)
                 } else {
-                    Sexp::List(decs)
+                    Sexp::List(declarations)
                 };
-                ["=".sexp(), decs.sexp(), call.sexp()].sexp_move()
+                ["=".sexp(), declarations.sexp(), call.sexp()].sexp_move()
             }
-            Declaration(dec, _) => dec.sexp(),
-            Return(exps, _) => std::iter::once("return".sexp())
-                .chain(exps.iter().map(Serialize::sexp))
+            Declaration(declaration, _) => declaration.sexp(),
+            Return(expressions, _) => std::iter::once("return".sexp())
+                .chain(expressions.iter().map(Serialize::sexp))
                 .collect::<Vec<_>>()
                 .tap(Sexp::List),
-            Sequence(stms, _) => stms.sexp(),
-            If(cond, pass, Some(fail), _) => {
-                ["if".sexp(), cond.sexp(), pass.sexp(), fail.sexp()].sexp_move()
+            Sequence(statements, _) => statements.sexp(),
+            If(condition, r#if, Some(r#else), _) => {
+                ["if".sexp(), condition.sexp(), r#if.sexp(), r#else.sexp()].sexp_move()
             }
-            If(cond, pass, None, _) => ["if".sexp(), cond.sexp(), pass.sexp()].sexp_move(),
-            While(ast::Do::Yes, cond, body, _) => {
-                ["do".sexp(), body.sexp(), "while".sexp(), cond.sexp()].sexp_move()
+            If(condition, r#if, None, _) => {
+                ["if".sexp(), condition.sexp(), r#if.sexp()].sexp_move()
             }
-            While(ast::Do::No, cond, body, _) => {
-                ["while".sexp(), cond.sexp(), body.sexp()].sexp_move()
+            While(ast::Do::Yes, condition, body, _) => {
+                ["do".sexp(), body.sexp(), "while".sexp(), condition.sexp()].sexp_move()
             }
+            While(ast::Do::No, condition, body, _) => {
+                ["while".sexp(), condition.sexp(), body.sexp()].sexp_move()
+            }
+            Break(_) => "break".sexp(),
         }
     }
 }
