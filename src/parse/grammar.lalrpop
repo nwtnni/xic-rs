@@ -12,16 +12,9 @@ use crate::data::span::Span;
 grammar;
 
 pub Interface: Interface = {
-    <functions: FunctionSignature*> => Interface {
-        uses: Vec::new(),
-        items: functions.into_iter().map(ItemSignature::Function).collect(),
-    },
-}
-
-pub Program: Program = {
-    <uses: Use*> <functions: Function*> => Program {
+    <uses: Use*> <items: ItemSignature*> => Interface {
         uses,
-        items: functions.into_iter().map(Item::Function).collect(),
+        items,
     },
 }
 
@@ -29,17 +22,81 @@ Use: Use = {
     <l: @L> "use" <name: ID> ";"? <r: @R> => Use { name, span: Span::new(l, r) },
 }
 
+ItemSignature: ItemSignature = {
+    <class: ClassSignature> => ItemSignature::Class(class),
+    <function: FunctionSignature> => ItemSignature::Function(function),
+}
+
+ClassSignature: ClassSignature = {
+    <l: @L> "class" <name: ID> <extends: ("extends" <ID>)?> "{" <methods: FunctionSignature*> "}" <r: @R> => {
+        ClassSignature {
+            name,
+            extends,
+            methods,
+            span: Span::new(l, r),
+        }
+    },
+}
+
 FunctionSignature: FunctionSignature = {
-    <l: @L> <name: ID> "(" <parameters: Comma<ArgDeclaration>> ")" <returns: (":" <CommaPlus<ArgType>>)?> <r: @R> => {
-        let returns = if let Some(returns) = returns { returns } else { Vec::new() };
-        FunctionSignature { name, parameters, returns, span: Span::new(l, r) }
+    <l: @L> <name: ID> "(" <parameters: Comma<NoLengthDeclaration>> ")" <returns: (":" <CommaPlus<NoLengthType>>)?> <r: @R> => {
+        FunctionSignature {
+            name,
+            parameters,
+            returns: returns.unwrap_or_else(Vec::new),
+            span: Span::new(l, r)
+        }
     }
 }
 
+pub Program: Program = {
+    <uses: Use*> <items: Item*> => Program {
+        uses,
+        items,
+    },
+}
+
+Item: Item = {
+    <global: Global> => Item::Global(global),
+    <class: Class> => Item::Class(class),
+    <function: Function> => Item::Function(function),
+}
+
+Global: Global = {
+    <l: @L> <declaration: Declaration> <value: ("=" <Expression>)?> <r: @R> => {
+        Global {
+            declaration,
+            value,
+            span: Span::new(l, r),
+        }
+    },
+}
+
+Class: Class = {
+    <l: @L> "class" <name: ID> <extends: ("extends" <ID>)?> "{" <items: ClassItem*> "}" <r: @R> => {
+        Class {
+            name,
+            extends,
+            items,
+            span: Span::new(l, r),
+        }
+    }
+}
+
+ClassItem: ClassItem = {
+    <declaration: NoLengthDeclaration> => ClassItem::Field(declaration),
+    <method: Function> => ClassItem::Method(method),
+}
+
 Function: Function = {
-    <l: @L> <name: ID> "(" <parameters: Comma<ArgDeclaration>> ")" <returns: (":" <CommaPlus<ArgType>>)?> <statements: Block> <r: @R> => {
-        let returns = if let Some(returns) = returns { returns } else { Vec::new() };
-        Function { name, parameters, returns, statements, span: Span::new(l, r) }
+    <l: @L> <name: ID> "(" <parameters: Comma<NoLengthDeclaration>> ")" <returns: (":" <CommaPlus<NoLengthType>>)?> <statements: Block> <r: @R> => {
+        Function {
+            name,
+            parameters,
+            returns: returns.unwrap_or_else(Vec::new),
+            statements,
+            span: Span::new(l, r),
+        }
     }
 }
 
@@ -77,10 +134,10 @@ ClosedStatement: Statement = {
     <call: Call> ";"? => Statement::Call(call),
 
     // Single declaration
-    <l: @L> <declaration: StatementDeclaration> ";"? <r: @R> => Statement::Declaration(declaration, Span::new(l, r)),
+    <l: @L> <declaration: Declaration> ";"? <r: @R> => Statement::Declaration(declaration, Span::new(l, r)),
 
     // Single initialization
-    <l: @L> <declaration: StatementDeclaration> <la: @L> "=" <lr: @R> <expression: Expression> ";"? <r: @R> =>? {
+    <l: @L> <declaration: Declaration> <la: @L> "=" <lr: @R> <expression: Expression> ";"? <r: @R> =>? {
         if declaration.has_len() { Err(parse::Error::Array(Span::new(la, lr)))? }
         Ok(Statement::Initialization(vec![Some(declaration)], expression, Span::new(l, r)))
     },
@@ -111,7 +168,7 @@ ClosedStatement: Statement = {
 // Either single wildcard or multiple declarations
 Initialization: Vec<Option<Declaration>> = {
     "_" => vec![None],
-    <head: OptDeclaration> <tail: ("," <OptDeclaration>)+> => {
+    <head: OptionalDeclaration> <tail: ("," <OptionalDeclaration>)+> => {
         let mut tail = tail;
         tail.insert(0, head);
         tail
@@ -143,38 +200,33 @@ LValue: Expression = {
     },
 }
 
-OptDeclaration: Option<Declaration> = {
+OptionalDeclaration: Option<Declaration> = {
     "_" => None,
-    <declaration: StatementDeclaration> => Some(declaration),
+    <declaration: Declaration> => Some(declaration),
 }
 
-ArgDeclaration: Declaration = {
-    <l: @L> <name: ID> ":" <type_: ArgType> <r: @R> => {
+NoLengthDeclaration: Declaration = {
+    <l: @L> <name: ID> ":" <type_: NoLengthType> <r: @R> => {
         Declaration::new(name, type_, Span::new(l, r))
     }
 }
 
-StatementDeclaration: Declaration = {
+Declaration: Declaration = {
     <l: @L> <name: ID> ":" <type_: DeclarationType> <r: @R> => {
         Declaration::new(name, type_, Span::new(l, r))
     }
 }
 
-PrimType: Type = {
-    <l: @L> "bool" <r: @R> => Type::Bool(Span::new(l, r)),
-    <l: @L> "int"  <r: @R> => Type::Int(Span::new(l, r)),
-}
-
-ArgType: Type = {
-    <PrimType>,
-    <l: @L> <type_: ArgType> "[" "]" <r: @R> => {
+NoLengthType: Type = {
+    <PrimitiveType>,
+    <l: @L> <type_: NoLengthType> "[" "]" <r: @R> => {
         Type::Array(Box::new(type_), None, Span::new(l, r))
     },
 }
 
 DeclarationType: Type = {
-    <PrimType>,
-    <l: @L> <type_: PrimType> <arrays: ArrayType+> =>? {
+    <PrimitiveType>,
+    <l: @L> <type_: PrimitiveType> <arrays: ArrayType+> =>? {
         let mut type_ = type_;
         let mut seen = None;
         for (len, r) in arrays.into_iter().rev() {
@@ -189,8 +241,13 @@ DeclarationType: Type = {
     },
 }
 
+PrimitiveType: Type = {
+    <l: @L> "bool" <r: @R> => Type::Bool(Span::new(l, r)),
+    <l: @L> "int"  <r: @R> => Type::Int(Span::new(l, r)),
+}
+
 ArrayType: (Option<Expression>, Point) = {
-    "[" <len: Expression?> "]" <r: @R> => (len, r),
+    "[" <length: Expression?> "]" <r: @R> => (length, r),
 }
 
 Expression: Expression = Or;
@@ -369,46 +426,53 @@ extern {
     type Error = Error;
 
     enum Token {
-        ID       => Token::Identifier(<Symbol>),
-        CHR      => Token::Character(<char>),
-        INT      => Token::Integer(<String>),
-        STR      => Token::String(<String>),
-        "use"    => Token::Use,
-        "if"     => Token::If,
-        "do"     => Token::Do,
-        "while"  => Token::While,
-        "else"   => Token::Else,
+        ID => Token::Identifier(<Symbol>),
+        CHR => Token::Character(<char>),
+        INT => Token::Integer(<String>),
+        STR => Token::String(<String>),
+        "use" => Token::Use,
+        "class" => Token::Class,
+        "this" => Token::This,
+        "new" => Token::New,
+        "extends" => Token::Extends,
+        "null" => Token::Null,
+        "break" => Token::Break,
+        "if" => Token::If,
+        "do" => Token::Do,
+        "while" => Token::While,
+        "else" => Token::Else,
         "length" => Token::Length,
         "return" => Token::Return,
-        "int"    => Token::Int,
-        "bool"   => Token::Bool,
-        "true"   => Token::True,
-        "false"  => Token::False,
-        "="      => Token::Assign,
-        "!"      => Token::Not,
-        "*"      => Token::Mul,
-        "*>>"    => Token::Hul,
-        "/"      => Token::Div,
-        "%"      => Token::Mod,
-        "+"      => Token::Add,
-        "-"      => Token::Sub,
-        "<"      => Token::Lt,
-        "<="     => Token::Le,
-        ">="     => Token::Ge,
-        ">"      => Token::Gt,
-        "=="     => Token::Eq,
-        "!="     => Token::Ne,
-        "&"      => Token::And,
-        "|"      => Token::Or,
-        "("      => Token::LParen,
-        ")"      => Token::RParen,
-        "["      => Token::LBrack,
-        "]"      => Token::RBrack,
-        "{"      => Token::LBrace,
-        "}"      => Token::RBrace,
-        ":"      => Token::Colon,
-        ";"      => Token::Semicolon,
-        ","      => Token::Comma,
-        "_"      => Token::Underscore,
+        "int" => Token::Int,
+        "bool" => Token::Bool,
+        "true" => Token::True,
+        "false" => Token::False,
+        "=" => Token::Assign,
+        "!" => Token::Not,
+        "*" => Token::Mul,
+        "*>>" => Token::Hul,
+        "/" => Token::Div,
+        "%" => Token::Mod,
+        "+" => Token::Add,
+        "-" => Token::Sub,
+        "<" => Token::Lt,
+        "<=" => Token::Le,
+        ">=" => Token::Ge,
+        ">" => Token::Gt,
+        "==" => Token::Eq,
+        "!=" => Token::Ne,
+        "&" => Token::And,
+        "|" => Token::Or,
+        "(" => Token::LParen,
+        ")" => Token::RParen,
+        "[" => Token::LBrack,
+        "]" => Token::RBrack,
+        "{" => Token::LBrace,
+        "}" => Token::RBrace,
+        ":" => Token::Colon,
+        ";" => Token::Semicolon,
+        "," => Token::Comma,
+        "_" => Token::Underscore,
+        "." => Token::Period,
     }
 }
