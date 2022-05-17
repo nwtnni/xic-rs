@@ -43,12 +43,33 @@ impl Serialize for ast::Item {
 
 impl Serialize for ast::Global {
     fn sexp(&self) -> Sexp {
-        match &self.value {
-            None => self.declaration.sexp(),
-            Some(expression) => {
-                ["=".sexp(), self.declaration.sexp(), expression.sexp()].sexp_move()
-            }
+        match self {
+            ast::Global::Declaration(declaration) => declaration.sexp(),
+            ast::Global::Initialization(initialization) => initialization.sexp(),
         }
+    }
+}
+
+impl Serialize for ast::Initialization {
+    fn sexp(&self) -> Sexp {
+        let mut declarations = self
+            .declarations
+            .iter()
+            .map(|declaration| {
+                declaration
+                    .as_ref()
+                    .map(Serialize::sexp)
+                    .unwrap_or_else(|| "_".sexp())
+            })
+            .collect::<Vec<_>>();
+
+        let declarations = if declarations.len() == 1 {
+            declarations.remove(0)
+        } else {
+            Sexp::List(declarations)
+        };
+
+        ["=".sexp(), declarations.sexp(), self.expression.sexp()].sexp_move()
     }
 }
 
@@ -119,6 +140,7 @@ impl Serialize for ast::Type {
         match self {
             Bool(_) => "bool".sexp(),
             Int(_) => "int".sexp(),
+            Class(class, _) => class.sexp(),
             Array(r#type, None, _) => ["[]".sexp(), r#type.sexp()].sexp_move(),
             Array(r#type, Some(length), _) => {
                 ["[]".sexp(), r#type.sexp(), length.sexp()].sexp_move()
@@ -185,6 +207,7 @@ impl Serialize for ast::Expression {
             }
             Unary(unary, expression, _) => [unary.sexp(), expression.sexp()].sexp_move(),
             Index(array, index, _) => ["[]".sexp(), array.sexp(), index.sexp()].sexp_move(),
+            Length(array, _) => ["length".sexp(), array.sexp()].sexp_move(),
             Dot(expression, symbol, _) => {
                 [".".sexp(), expression.sexp(), symbol.sexp()].sexp_move()
             }
@@ -195,6 +218,21 @@ impl Serialize for ast::Expression {
 }
 
 impl Serialize for ast::Declaration {
+    fn sexp(&self) -> Sexp {
+        match self {
+            ast::Declaration::Multiple(multiple) => multiple.sexp(),
+            ast::Declaration::Single(single) => single.sexp(),
+        }
+    }
+}
+
+impl Serialize for ast::MultipleDeclaration {
+    fn sexp(&self) -> Sexp {
+        [self.names.sexp(), self.r#type.sexp()].sexp_move()
+    }
+}
+
+impl Serialize for ast::SingleDeclaration {
     fn sexp(&self) -> Sexp {
         [self.name.sexp(), self.r#type.sexp()].sexp_move()
     }
@@ -207,7 +245,7 @@ impl Serialize for ast::Call {
             .iter()
             .map(Serialize::sexp)
             .collect::<Vec<_>>();
-        args.insert(0, self.name.sexp());
+        args.insert(0, self.function.sexp());
         args.sexp_move()
     }
 }
@@ -218,23 +256,7 @@ impl Serialize for ast::Statement {
         match self {
             Assignment(left, right, _) => ["=".sexp(), left.sexp(), right.sexp()].sexp_move(),
             Call(call) => call.sexp(),
-            Initialization(declarations, call, _) => {
-                let mut declarations = declarations
-                    .iter()
-                    .map(|declaration| {
-                        declaration
-                            .as_ref()
-                            .map(Serialize::sexp)
-                            .unwrap_or_else(|| "_".sexp())
-                    })
-                    .collect::<Vec<_>>();
-                let declarations = if declarations.len() == 1 {
-                    declarations.remove(0)
-                } else {
-                    Sexp::List(declarations)
-                };
-                ["=".sexp(), declarations.sexp(), call.sexp()].sexp_move()
-            }
+            Initialization(initialization) => initialization.sexp(),
             Declaration(declaration, _) => declaration.sexp(),
             Return(expressions, _) => std::iter::once("return".sexp())
                 .chain(expressions.iter().map(Serialize::sexp))

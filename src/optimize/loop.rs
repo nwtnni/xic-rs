@@ -1,5 +1,4 @@
 use crate::data::ast;
-use crate::data::symbol;
 
 pub fn invert_ast(program: &mut ast::Program) {
     for item in &mut program.items {
@@ -17,7 +16,7 @@ fn invert_statement(statement: &mut ast::Statement) {
     let (condition, r#while, span) = match statement {
         ast::Statement::Assignment(_, _, _)
         | ast::Statement::Call(_)
-        | ast::Statement::Initialization(_, _, _)
+        | ast::Statement::Initialization(_)
         | ast::Statement::Declaration(_, _)
         | ast::Statement::Return(_, _)
         | ast::Statement::Break(_) => return,
@@ -78,9 +77,10 @@ fn effectful(expression: &ast::Expression) -> bool {
         // or not we invert the loop. There can be no other
         // effects other than crashing.
         ast::Expression::Index(array, index, _) => effectful(array) || effectful(index),
+        ast::Expression::Length(array, _) => effectful(array),
         ast::Expression::Dot(expression, _, _) => effectful(expression),
 
-        ast::Expression::Call(call) => symbol::resolve(call.name) != "length",
+        ast::Expression::Call(_) => true,
         ast::Expression::Binary(binary, left, right, _) => match binary.get() {
             // Avoid recomputing array concatenation, which is expensive.
             ast::Binary::Cat => true,

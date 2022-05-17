@@ -289,12 +289,12 @@ impl<'env> Emitter<'env> {
                         (MEM (ADD (TEMP base) (MUL (TEMP index) (CONST abi::WORD)))))
                 ).into()
             }
-            Dot(_, _, _) => todo!(),
-            New(_, _) => todo!(),
-            Call(call) if symbol::resolve(call.name) == "length" => {
-                let address = self.emit_expression(&call.arguments[0], variables).into();
+            Length(array, _) => {
+                let address = self.emit_expression(array, variables).into();
                 hir!((MEM (SUB address (CONST abi::WORD)))).into()
             }
+            Dot(_, _, _) => todo!(),
+            New(_, _) => todo!(),
             Call(call) => self.emit_call(call, variables).into(),
         }
     }
@@ -304,21 +304,26 @@ impl<'env> Emitter<'env> {
         call: &ast::Call,
         variables: &Map<Symbol, Temporary>,
     ) -> hir::Expression {
+        let name = match &*call.function {
+            ast::Expression::Variable(name, _) => *name,
+            _ => todo!(),
+        };
+
         hir::Expression::Call(
             Box::new(hir::Expression::from(Label::Fixed(
-                self.mangle_function(call.name),
+                self.mangle_function(name),
             ))),
             call.arguments
                 .iter()
                 .map(|argument| self.emit_expression(argument, variables).into())
                 .collect(),
-            self.get_returns(call.name),
+            self.get_returns(name),
         )
     }
 
     fn emit_declaration(
         &mut self,
-        declaration: &ast::Declaration,
+        declaration: &ast::SingleDeclaration,
         variables: &mut Map<Symbol, Temporary>,
     ) -> hir::Expression {
         let fresh = Temporary::fresh("t");
@@ -327,6 +332,7 @@ impl<'env> Emitter<'env> {
             ast::Type::Bool(_) | ast::Type::Int(_) | ast::Type::Array(_, None, _) => {
                 hir!((TEMP fresh))
             }
+            ast::Type::Class(_, _) => todo!(),
             ast::Type::Array(r#type, Some(length), _) => {
                 let mut lengths = Vec::new();
                 let declaration =
@@ -365,6 +371,7 @@ impl<'env> Emitter<'env> {
 
         match r#type {
             ast::Type::Bool(_) | ast::Type::Int(_) | ast::Type::Array(_, None, _) => (),
+            ast::Type::Class(_, _) => todo!(),
             ast::Type::Array(r#type, Some(len), _) => {
                 let r#while = Label::fresh("while");
                 let done = Label::fresh("done");
@@ -411,7 +418,7 @@ impl<'env> Emitter<'env> {
             }
             Call(call) => hir::Statement::Expression(self.emit_call(call, variables)),
             #[rustfmt::skip]
-            Initialization(declarations, expression, _) if declarations.len() == 1 => {
+            Initialization(ast::Initialization { declarations, expression, span: _ }) if declarations.len() == 1 => {
                 let declaration = declarations[0].as_ref().unwrap();
                 hir!(
                     (MOVE
@@ -419,7 +426,11 @@ impl<'env> Emitter<'env> {
                         (self.emit_expression(expression, variables).into()))
                 )
             }
-            Initialization(declarations, ast::Expression::Call(call), _) => {
+            Initialization(ast::Initialization {
+                declarations,
+                expression: ast::Expression::Call(call),
+                span: _,
+            }) => {
                 let mut statements =
                     vec![hir::Statement::Expression(self.emit_call(call, variables))];
 
@@ -436,11 +447,16 @@ impl<'env> Emitter<'env> {
 
                 hir::Statement::Sequence(statements)
             }
-            Initialization(_, _, _) => {
+            Initialization(_) => {
                 unreachable!("[TYPE ERROR]: multiple non-function initialization")
             }
 
             Declaration(declaration, _) => {
+                let declaration = match declaration {
+                    ast::Declaration::Multiple(_) => todo!(),
+                    ast::Declaration::Single(declaration) => declaration,
+                };
+
                 hir::Statement::Expression(self.emit_declaration(declaration, variables))
             }
             Return(expressions, _) => hir::Statement::Return(

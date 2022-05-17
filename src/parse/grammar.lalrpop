@@ -5,7 +5,6 @@ use crate::data::token::Token;
 use crate::error::Error;
 use crate::parse;
 use crate::data::symbol::Symbol;
-use crate::data::symbol::intern_static;
 use crate::data::span::Point;
 use crate::data::span::Span;
 
@@ -39,7 +38,13 @@ ClassSignature: ClassSignature = {
 }
 
 FunctionSignature: FunctionSignature = {
-    <l: @L> <name: ID> "(" <parameters: Comma<NoLengthDeclaration>> ")" <returns: (":" <CommaPlus<NoLengthType>>)?> <r: @R> => {
+    <l: @L>
+        <name: ID>
+        "("
+        <parameters: Comma<NoLength<SingleDeclaration>>>
+        ")"
+        <returns: (":" <CommaPlus<NoLength<Type>>>)?>
+    <r: @R> => {
         FunctionSignature {
             name,
             parameters,
@@ -63,17 +68,34 @@ Item: Item = {
 }
 
 Global: Global = {
-    <l: @L> <declaration: Declaration> <value: ("=" <Expression>)?> <r: @R> => {
-        Global {
-            declaration,
-            value,
+    <declaration: Declaration> ";"? => Global::Declaration(declaration),
+    <initialization: Initialization> => Global::Initialization(initialization),
+}
+
+Initialization: Initialization = {
+    <l: @L>
+        <declarations: CommaPlus<Optional<NoLength<SingleDeclaration>>>>
+        "="
+        <expression: Expression>
+        ";"?
+    <r: @R> => {
+        Initialization {
+            declarations,
+            expression,
             span: Span::new(l, r),
         }
     },
 }
 
 Class: Class = {
-    <l: @L> "class" <name: ID> <extends: ("extends" <ID>)?> "{" <items: ClassItem*> "}" <r: @R> => {
+    <l: @L>
+        "class"
+        <name: ID>
+        <extends: ("extends" <ID>)?>
+        "{"
+        <items: ClassItem*>
+        "}"
+    <r: @R> => {
         Class {
             name,
             extends,
@@ -84,12 +106,19 @@ Class: Class = {
 }
 
 ClassItem: ClassItem = {
-    <declaration: NoLengthDeclaration> => ClassItem::Field(declaration),
+    <declaration: NoLength<Declaration>> => ClassItem::Field(declaration),
     <method: Function> => ClassItem::Method(method),
 }
 
 Function: Function = {
-    <l: @L> <name: ID> "(" <parameters: Comma<NoLengthDeclaration>> ")" <returns: (":" <CommaPlus<NoLengthType>>)?> <statements: Block> <r: @R> => {
+    <l: @L>
+        <name: ID>
+        "("
+        <parameters: Comma<NoLength<SingleDeclaration>>>
+        ")"
+        <returns: (":" <CommaPlus<NoLength<Type>>>)?>
+        <statements: Block>
+    <r: @R> => {
         Function {
             name,
             parameters,
@@ -114,43 +143,34 @@ NoReturnStatement: Statement = {
 
 OpenStatement: Statement = {
     // If statement
-    <l: @L> "if" <condition: Expression> <pass: NoReturnStatement> <r: @R> => {
-        Statement::If(condition, Box::new(pass), None, Span::new(l, r))
+    <l: @L> "if" <condition: Expression> <if_: NoReturnStatement> <r: @R> => {
+        Statement::If(condition, Box::new(if_), None, Span::new(l, r))
     },
 
     // If-else statement
-    <l: @L> "if" <condition: Expression> <pass: ClosedStatement> "else" <fail: OpenStatement> <r: @R> => {
-        Statement::If(condition, Box::new(pass), Some(Box::new(fail)), Span::new(l, r))
+    <l: @L> "if" <condition: Expression> <if_: ClosedStatement> "else" <else_: OpenStatement> <r: @R> => {
+        Statement::If(condition, Box::new(if_), Some(Box::new(else_)), Span::new(l, r))
     },
 }
 
 ClosedStatement: Statement = {
     // If-else statement
-    <l: @L> "if" <condition: Expression> <pass: ClosedStatement> "else" <fail: ClosedStatement> <r: @R> => {
-        Statement::If(condition, Box::new(pass), Some(Box::new(fail)), Span::new(l, r))
+    <l: @L> "if" <condition: Expression> <if_: ClosedStatement> "else" <else_: ClosedStatement> <r: @R> => {
+        Statement::If(condition, Box::new(if_), Some(Box::new(else_)), Span::new(l, r))
     },
 
     // Procedure call
     <call: Call> ";"? => Statement::Call(call),
 
-    // Single declaration
+    // Declarations
     <l: @L> <declaration: Declaration> ";"? <r: @R> => Statement::Declaration(declaration, Span::new(l, r)),
-
-    // Single initialization
-    <l: @L> <declaration: Declaration> <la: @L> "=" <lr: @R> <expression: Expression> ";"? <r: @R> =>? {
-        if declaration.has_len() { Err(parse::Error::Array(Span::new(la, lr)))? }
-        Ok(Statement::Initialization(vec![Some(declaration)], expression, Span::new(l, r)))
-    },
 
     // Single assignment
     <l: @L> <lhs: LValue> "=" <expression: Expression> ";"? <r: @R> => {
         Statement::Assignment(lhs, expression, Span::new(l, r))
     },
 
-    // Multiple initialization
-    <l: @L> <declarations: Initialization> "=" <call: Call> ";"? <r: @R> => {
-        Statement::Initialization(declarations, Expression::Call(call), Span::new(l, r))
-    },
+    <initialization: Initialization> => Statement::Initialization(initialization),
 
     // While statement
     <l: @L> "while" <condition: Expression> <statements: ClosedStatement> <r: @R> => {
@@ -162,88 +182,118 @@ ClosedStatement: Statement = {
         Statement::While(Do::Yes, condition, Box::new(statements), Span::new(l, r))
     },
 
-    <Block> ";"?,
-}
+    // Break statement
+    <l: @L> "break" ";"? <r: @R> => {
+        Statement::Break(Span::new(l, r))
+    },
 
-// Either single wildcard or multiple declarations
-Initialization: Vec<Option<Declaration>> = {
-    "_" => vec![None],
-    <head: OptionalDeclaration> <tail: ("," <OptionalDeclaration>)+> => {
-        let mut tail = tail;
-        tail.insert(0, head);
-        tail
-    }
+    <Block> ";"?,
 }
 
 Block: Statement = {
     <l: @L> "{" <statements: NoReturnStatement*> <_return: ReturnStatement?> "}" <r: @R> => {
         let mut statements = statements;
-        if let Some(_return) = _return { statements.push(_return); }
+
+        if let Some(_return) = _return {
+            statements.push(_return);
+        }
+
         Statement::Sequence(statements, Span::new(l, r))
     },
 }
 
 Call: Call = {
-    <l: @L> <name: ID> "(" <arguments: Comma<Expression>> ")" <r: @R> => {
-        Call { name, arguments, span: Span::new(l, r) }
+    <l: @L> <function: NoCallLValue> "(" <arguments: Comma<Expression>> ")" <r: @R> => {
+        Call { function: Box::new(function), arguments, span: Span::new(l, r) }
     },
 }
 
 LValue: Expression = {
-    <l: @L> <name: ID> <r: @R> => Expression::Variable(name, Span::new(l, r)),
-    <l: @L> <call: Call> "[" <index: Expression> "]" <r: @R> => {
-        let call = Expression::Call(call);
-        Expression::Index(Box::new(call), Box::new(index), Span::new(l, r))
+    <l: @L> <function: NoCallLValue> "(" <arguments: Comma<Expression>> ")" <r: @R> => {
+        Expression::Call(Call { function: Box::new(function), arguments, span: Span::new(l, r) })
     },
+    <NoCallLValue>,
+}
+
+NoCallLValue: Expression = {
+    <l: @L> "null" <r: @R> => Expression::Null(Span::new(l, r)),
+    <l: @L> "this" <r: @R> => Expression::This(Span::new(l, r)),
+    <l: @L> "new" <class: ID> <r: @R> => Expression::New(class, Span::new(l, r)),
+    <l: @L> <name: ID> <r: @R> => Expression::Variable(name, Span::new(l, r)),
     <l: @L> <array: LValue> "[" <index: Expression> "]" <r: @R> => {
         Expression::Index(Box::new(array), Box::new(index), Span::new(l, r))
     },
+    <l: @L> <expression: LValue> "." <field: ID> <r: @R> => {
+        Expression::Dot(Box::new(expression), field, Span::new(l, r))
+    },
 }
 
-OptionalDeclaration: Option<Declaration> = {
+Optional<T>: Option<T> = {
     "_" => None,
-    <declaration: Declaration> => Some(declaration),
+    <node: T> => Some(node),
 }
 
-NoLengthDeclaration: Declaration = {
-    <l: @L> <name: ID> ":" <type_: NoLengthType> <r: @R> => {
-        Declaration::new(name, type_, Span::new(l, r))
+// Note: this relies on duck typing to be generic over `Type` and `SingleDeclaration`.
+//
+// We need this runtime workaround because it's otherwise difficult to distinguish
+// the single initialization and declaration cases purely in the grammar. Consider
+// the following sequence of tokens:
+//
+// ```text
+// x: int
+// ```
+//
+// Were we to keep a separate nonterminal for types without array lengths, it would
+// conflict with the type with array lengths.
+NoLength<T>: T = {
+    <node: T> =>? {
+        match node.has_length() {
+            false => Ok(node),
+            true => Err(parse::Error::Array(node.span()).into()),
+        }
     }
 }
 
 Declaration: Declaration = {
-    <l: @L> <name: ID> ":" <type_: DeclarationType> <r: @R> => {
-        Declaration::new(name, type_, Span::new(l, r))
+    <multiple: MultipleDeclaration> => Declaration::Multiple(multiple),
+    <single: SingleDeclaration> => Declaration::Single(single),
+}
+
+MultipleDeclaration: MultipleDeclaration = {
+    <l: @L> <head: ID> "," <tail: CommaPlus<ID>> ":" <type_: Type> <r: @R> => {
+        let mut names = tail;
+        names.insert(0, head);
+        MultipleDeclaration::new(names, type_, Span::new(l, r))
     }
 }
 
-NoLengthType: Type = {
-    <PrimitiveType>,
-    <l: @L> <type_: NoLengthType> "[" "]" <r: @R> => {
-        Type::Array(Box::new(type_), None, Span::new(l, r))
-    },
+SingleDeclaration: SingleDeclaration = {
+    <l: @L> <name: ID> ":" <type_: Type> <r: @R> => {
+        SingleDeclaration::new(name, type_, Span::new(l, r))
+    }
 }
 
-DeclarationType: Type = {
-    <PrimitiveType>,
-    <l: @L> <type_: PrimitiveType> <arrays: ArrayType+> =>? {
+Type: Type = {
+    <BaseType>,
+    <l: @L> <type_: BaseType> <arrays: ArrayType+> =>? {
         let mut type_ = type_;
         let mut seen = None;
-        for (len, r) in arrays.into_iter().rev() {
-            match (&len, &mut seen) {
+        for (length, r) in arrays.into_iter().rev() {
+            match (&length, &mut seen) {
             | (None, Some(span)) => return Err(parse::Error::Length(*span).into()),
-            | (Some(len), seen) => *seen = Some(len.span()),
+            | (Some(length), seen) => *seen = Some(length.span()),
             | _ => (),
             }
-            type_ = Type::Array(Box::new(type_), len, Span::new(l, r));
+            type_ = Type::Array(Box::new(type_), length, Span::new(l, r));
         }
         Ok(type_)
     },
 }
 
-PrimitiveType: Type = {
+BaseType: Type = {
     <l: @L> "bool" <r: @R> => Type::Bool(Span::new(l, r)),
-    <l: @L> "int"  <r: @R> => Type::Int(Span::new(l, r)),
+    <l: @L> "int" <r: @R> => Type::Int(Span::new(l, r)),
+    <l: @L> <class: ID> <r: @R> => Type::Class(class, Span::new(l, r)),
 }
 
 ArrayType: (Option<Expression>, Point) = {
@@ -328,7 +378,7 @@ Prefix: Expression = {
     <l: @L> "!" <expression: Prefix> <r: @R> => {
         Expression::Unary(Unary::Not, Box::new(expression), Span::new(l, r))
     },
-    <Postfix>
+    <Value>
 }
 
 NoIntPrefix: Expression = {
@@ -347,20 +397,6 @@ NoIntPrefix: Expression = {
     <l: @L> "!" <expression: Prefix> <r: @R> => {
         Expression::Unary(Unary::Not, Box::new(expression), Span::new(l, r))
     },
-    <NoIntPostfix>
-}
-
-Postfix: Expression = {
-    <l: @L> <array: Postfix> "[" <index: Expression> "]" <r: @R> => {
-        Expression::Index(Box::new(array), Box::new(index), Span::new(l, r))
-    },
-    <Value>
-}
-
-NoIntPostfix: Expression = {
-    <l: @L> <array: Postfix> "[" <index: Expression> "]" <r: @R> => {
-        Expression::Index(Box::new(array), Box::new(index), Span::new(l, r))
-    },
     <NoIntValue>
 }
 
@@ -376,26 +412,34 @@ Value: Expression = {
 }
 
 NoIntValue: Expression = {
-    <call: Call> => Expression::Call(call),
+    <LValue>,
+    <RValue>,
+}
+
+RValue: Expression = {
     <l: @L> "true" <r: @R> => Expression::Boolean(true, Span::new(l, r)),
     <l: @L> "false" <r: @R> => Expression::Boolean(false, Span::new(l, r)),
     <l: @L> <char: CHR> <r: @R> => Expression::Character(char, Span::new(l, r)),
+    <l: @L> "length" "(" <argument: Expression> ")" <r: @R> => {
+        Expression::Length(Box::new(argument), Span::new(l, r))
+    },
     <l: @L> <string: STR> <r: @R> => Expression::String(string, Span::new(l, r)),
-    <l: @L> <var: ID>  <r: @R> => Expression::Variable(var, Span::new(l, r)),
     <l: @L> "{" <expressions: Comma<Expression>> ","? "}" <r: @R> => {
         Expression::Array(expressions, Span::new(l, r))
+    },
+    <l: @L> <expression: RValue> "." <field: ID> <r: @R> => {
+        Expression::Dot(Box::new(expression), field, Span::new(l, r))
+    },
+    <l: @L> <function: RValue> "(" <arguments: Comma<Expression>> ")" <r: @R> => {
+        Expression::Call(Call { function: Box::new(function), arguments, span: Span::new(l, r) })
+    },
+    <l: @L> <array: RValue> "[" <index: Expression> "]" <r: @R> => {
+        Expression::Index(Box::new(array), Box::new(index), Span::new(l, r))
     },
     <l: @L> "(" <expression: Expression> ")" <r: @R> => {
         let mut expression = expression;
         *expression.span_mut() = Span::new(l, r);
         expression
-    },
-    <l: @L> "length" "(" <argument: Expression> ")" <r: @R> => {
-        Expression::Call(Call {
-            name: intern_static("length"),
-            arguments: vec![argument],
-            span: Span::new(l, r)
-        })
     },
 }
 

@@ -3,4 +3,4 @@ source: tests/suite/parse.rs
 assertion_line: 22
 expression: Snapshot(program)
 ---
-2:12 error:Invalid array initialization
+2:3 error:Illegal length in array type

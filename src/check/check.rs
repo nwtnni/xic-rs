@@ -145,6 +145,7 @@ impl Checker {
         match r#type {
             ast::Type::Bool(_) => Ok(r#type::Expression::Boolean),
             ast::Type::Int(_) => Ok(r#type::Expression::Integer),
+            ast::Type::Class(_, _) => todo!(),
             ast::Type::Array(r#type, None, _) => self
                 .check_type(r#type)
                 .map(Box::new)
@@ -181,11 +182,16 @@ impl Checker {
     }
 
     fn check_call(&self, call: &ast::Call) -> Result<Vec<r#type::Expression>, error::Error> {
-        let (parameters, returns) = match self.context.get(call.name) {
+        let name = match &*call.function {
+            ast::Expression::Variable(name, _) => *name,
+            _ => todo!(),
+        };
+
+        let (parameters, returns) = match self.context.get(name) {
             Some(context::Entry::Signature(parameters, returns))
             | Some(context::Entry::Function(parameters, returns)) => (parameters, returns),
-            Some(_) => bail!(call.span, ErrorKind::NotFun(call.name)),
-            None => bail!(call.span, ErrorKind::UnboundFun(call.name)),
+            Some(_) => bail!(call.span, ErrorKind::NotFun(name)),
+            None => bail!(call.span, ErrorKind::UnboundFun(name)),
         };
 
         if call.arguments.len() != parameters.len() {
@@ -205,7 +211,7 @@ impl Checker {
 
     fn check_declaration(
         &mut self,
-        declaration: &ast::Declaration,
+        declaration: &ast::SingleDeclaration,
     ) -> Result<r#type::Expression, error::Error> {
         if self.context.get(declaration.name).is_some() {
             bail!(declaration.span, ErrorKind::NameClash)
@@ -219,8 +225,11 @@ impl Checker {
         Ok(r#type)
     }
 
-    fn check_expression(&self, exp: &ast::Expression) -> Result<r#type::Expression, error::Error> {
-        match exp {
+    fn check_expression(
+        &self,
+        expression: &ast::Expression,
+    ) -> Result<r#type::Expression, error::Error> {
+        match expression {
             ast::Expression::Boolean(_, _) => Ok(r#type::Expression::Boolean),
             ast::Expression::Character(_, _) => Ok(r#type::Expression::Integer),
             ast::Expression::String(_, _) => Ok(r#type::Expression::Array(Box::new(
@@ -347,24 +356,18 @@ impl Checker {
                     }
                 }
             }
+            ast::Expression::Length(array, span) => match self.check_expression(array)? {
+                r#type::Expression::Array(_) => Ok(r#type::Expression::Integer),
+                typ => expected!(
+                    *span,
+                    r#type::Expression::Array(Box::new(r#type::Expression::Any)),
+                    typ
+                ),
+            },
 
             ast::Expression::Dot(_, _, _) => todo!(),
             ast::Expression::New(_, _) => todo!(),
 
-            ast::Expression::Call(call) if symbol::resolve(call.name) == "length" => {
-                if call.arguments.len() != 1 {
-                    bail!(call.span, ErrorKind::CallLength)
-                }
-
-                match self.check_expression(&call.arguments[0])? {
-                    r#type::Expression::Array(_) => Ok(r#type::Expression::Integer),
-                    typ => expected!(
-                        call.span,
-                        r#type::Expression::Array(Box::new(r#type::Expression::Any)),
-                        typ
-                    ),
-                }
-            }
             ast::Expression::Call(call) => {
                 let mut returns = self.check_call(call)?;
                 match returns.len() {
@@ -380,9 +383,7 @@ impl Checker {
         expression: &ast::Expression,
     ) -> Result<Vec<r#type::Expression>, error::Error> {
         match expression {
-            ast::Expression::Call(call) if symbol::resolve(call.name) != "length" => {
-                self.check_call(call)
-            }
+            ast::Expression::Call(call) => self.check_call(call),
             expression => Ok(vec![self.check_expression(expression)?]),
         }
     }
@@ -422,10 +423,19 @@ impl Checker {
                 _ => bail!(call.span, ErrorKind::NotProcedure),
             },
             ast::Statement::Declaration(declaration, _) => {
+                let declaration = match declaration {
+                    ast::Declaration::Multiple(_) => todo!(),
+                    ast::Declaration::Single(declaration) => declaration,
+                };
+
                 self.check_declaration(declaration)?;
                 Ok(r#type::Stm::Unit)
             }
-            ast::Statement::Initialization(declarations, expression, span) => {
+            ast::Statement::Initialization(ast::Initialization {
+                declarations,
+                expression,
+                span,
+            }) => {
                 let initializations = self.check_call_or_expression(expression)?;
 
                 if initializations.is_empty() {

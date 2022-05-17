@@ -70,13 +70,25 @@ impl fmt::Display for Item {
 }
 
 #[derive(Clone, Debug)]
-pub struct Global {
-    pub declaration: Declaration,
-    pub value: Option<Expression>,
-    pub span: Span,
+pub enum Global {
+    Declaration(Declaration),
+    Initialization(Initialization),
 }
 
 impl fmt::Display for Global {
+    fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
+        write!(fmt, "{}", self.sexp())
+    }
+}
+
+#[derive(Clone, Debug)]
+pub struct Initialization {
+    pub declarations: Vec<Option<SingleDeclaration>>,
+    pub expression: Expression,
+    pub span: Span,
+}
+
+impl fmt::Display for Initialization {
     fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
         write!(fmt, "{}", self.sexp())
     }
@@ -124,7 +136,7 @@ impl fmt::Display for ClassItem {
 
 pub trait Callable {
     fn name(&self) -> Symbol;
-    fn parameters(&self) -> &[Declaration];
+    fn parameters(&self) -> &[SingleDeclaration];
     fn returns(&self) -> &[Type];
 }
 
@@ -135,7 +147,7 @@ macro_rules! impl_callable {
                 self.name
             }
 
-            fn parameters(&self) -> &[Declaration] {
+            fn parameters(&self) -> &[SingleDeclaration] {
                 &self.parameters
             }
 
@@ -150,7 +162,7 @@ macro_rules! impl_callable {
 #[derive(Clone, Debug)]
 pub struct FunctionSignature {
     pub name: Symbol,
-    pub parameters: Vec<Declaration>,
+    pub parameters: Vec<SingleDeclaration>,
     pub returns: Vec<Type>,
     pub span: Span,
 }
@@ -167,7 +179,7 @@ impl fmt::Display for FunctionSignature {
 #[derive(Clone, Debug)]
 pub struct Function {
     pub name: Symbol,
-    pub parameters: Vec<Declaration>,
+    pub parameters: Vec<SingleDeclaration>,
     pub returns: Vec<Type>,
     pub statements: Statement,
     pub span: Span,
@@ -186,15 +198,23 @@ impl fmt::Display for Function {
 pub enum Type {
     Bool(Span),
     Int(Span),
+    Class(Symbol, Span),
     Array(Box<Type>, Option<Expression>, Span),
 }
 
 impl Type {
-    pub fn has_len(&self) -> bool {
+    pub fn has_length(&self) -> bool {
         match self {
-            Type::Bool(_) | Type::Int(_) => false,
-            Type::Array(_, Some(_), _) => true,
-            Type::Array(typ, _, _) => typ.has_len(),
+            Type::Bool(_) | Type::Int(_) | Type::Class(_, _) => false,
+            Type::Array(r#type, length, _) => length.is_some() || r#type.has_length(),
+        }
+    }
+
+    pub fn span(&self) -> Span {
+        match self {
+            Type::Bool(span) | Type::Int(span) | Type::Class(_, span) | Type::Array(_, _, span) => {
+                *span
+            }
         }
     }
 }
@@ -292,6 +312,9 @@ pub enum Expression {
     /// Array index
     Index(Box<Expression>, Box<Expression>, Span),
 
+    /// Array length
+    Length(Box<Expression>, Span),
+
     /// Function call
     Call(Call),
 
@@ -316,6 +339,7 @@ impl Expression {
             | Expression::Binary(_, _, _, span)
             | Expression::Unary(_, _, span)
             | Expression::Index(_, _, span)
+            | Expression::Length(_, span)
             | Expression::Dot(_, _, span)
             | Expression::New(_, span) => *span,
             Expression::Call(call) => call.span,
@@ -335,6 +359,7 @@ impl Expression {
             | Expression::Binary(_, _, _, span)
             | Expression::Unary(_, _, span)
             | Expression::Index(_, _, span)
+            | Expression::Length(_, span)
             | Expression::Dot(_, _, span)
             | Expression::New(_, span) => span,
             Expression::Call(call) => &mut call.span,
@@ -348,21 +373,25 @@ impl fmt::Display for Expression {
     }
 }
 
-/// Represents a variable declaration.
 #[derive(Clone, Debug)]
-pub struct Declaration {
-    pub name: Symbol,
-    pub r#type: Type,
-    pub span: Span,
+pub enum Declaration {
+    Multiple(MultipleDeclaration),
+    Single(SingleDeclaration),
 }
 
 impl Declaration {
-    pub fn new(name: Symbol, r#type: Type, span: Span) -> Self {
-        Self { name, r#type, span }
+    pub fn has_length(&self) -> bool {
+        match self {
+            Declaration::Multiple(multiple) => multiple.has_length(),
+            Declaration::Single(single) => single.has_length(),
+        }
     }
 
-    pub fn has_len(&self) -> bool {
-        self.r#type.has_len()
+    pub fn span(&self) -> Span {
+        match self {
+            Declaration::Multiple(multiple) => multiple.span(),
+            Declaration::Single(single) => single.span(),
+        }
     }
 }
 
@@ -372,10 +401,68 @@ impl fmt::Display for Declaration {
     }
 }
 
+#[derive(Clone, Debug)]
+pub struct MultipleDeclaration {
+    pub names: Vec<Symbol>,
+    pub r#type: Type,
+    pub span: Span,
+}
+
+impl MultipleDeclaration {
+    pub fn new(names: Vec<Symbol>, r#type: Type, span: Span) -> Self {
+        Self {
+            names,
+            r#type,
+            span,
+        }
+    }
+
+    pub fn has_length(&self) -> bool {
+        self.r#type.has_length()
+    }
+
+    pub fn span(&self) -> Span {
+        self.span
+    }
+}
+
+impl fmt::Display for MultipleDeclaration {
+    fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
+        write!(fmt, "{}", self.sexp())
+    }
+}
+
+#[derive(Clone, Debug)]
+pub struct SingleDeclaration {
+    pub name: Symbol,
+    pub r#type: Type,
+    pub span: Span,
+}
+
+impl SingleDeclaration {
+    pub fn new(name: Symbol, r#type: Type, span: Span) -> Self {
+        Self { name, r#type, span }
+    }
+
+    pub fn has_length(&self) -> bool {
+        self.r#type.has_length()
+    }
+
+    pub fn span(&self) -> Span {
+        self.span
+    }
+}
+
+impl fmt::Display for SingleDeclaration {
+    fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
+        write!(fmt, "{}", self.sexp())
+    }
+}
+
 /// Represents a function call.
 #[derive(Clone, Debug)]
 pub struct Call {
-    pub name: Symbol,
+    pub function: Box<Expression>,
     pub arguments: Vec<Expression>,
     pub span: Span,
 }
@@ -396,7 +483,7 @@ pub enum Statement {
     Call(Call),
 
     /// Initialization
-    Initialization(Vec<Option<Declaration>>, Expression, Span),
+    Initialization(Initialization),
 
     /// Variable declaration
     Declaration(Declaration, Span),
@@ -427,8 +514,8 @@ impl Statement {
     pub fn span(&self) -> Span {
         match self {
             Statement::Call(call) => call.span,
+            Statement::Initialization(initialization) => initialization.span,
             Statement::Assignment(_, _, span)
-            | Statement::Initialization(_, _, span)
             | Statement::Declaration(_, span)
             | Statement::Return(_, span)
             | Statement::Sequence(_, span)

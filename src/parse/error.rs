@@ -18,7 +18,7 @@ impl std::fmt::Display for Error {
         match &self {
             Error::Eof(point) => write!(fmt, "{} error:Unexpected eof", point),
             Error::Integer(span) => write!(fmt, "{} error:Invalid integer literal", span),
-            Error::Array(span) => write!(fmt, "{} error:Invalid array initialization", span),
+            Error::Array(span) => write!(fmt, "{} error:Illegal length in array type", span),
             Error::Length(span) => write!(
                 fmt,
                 "{} error:Undeclared length before declared length",
