@@ -399,6 +399,7 @@ fn main() -> anyhow::Result<()> {
                 .as_deref()
                 .or_else(|| path.parent())
                 .unwrap(),
+            &path,
             &program,
         );
 

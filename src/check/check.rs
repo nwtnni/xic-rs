@@ -1,3 +1,5 @@
+use std::path::Path;
+
 use crate::check::context;
 use crate::check::Context;
 use crate::check::Error;
@@ -26,7 +28,11 @@ macro_rules! expected {
     }};
 }
 
-pub struct Checker {
+pub fn check(library: &Path, path: &Path, program: &ast::Program) -> Result<Context, crate::Error> {
+    Checker::new().check_program(library, path, program)
+}
+
+struct Checker {
     context: Context,
 }
 
@@ -39,7 +45,8 @@ impl Checker {
 
     pub fn check_program(
         mut self,
-        directory_library: &std::path::Path,
+        directory_library: &Path,
+        _path: &Path,
         program: &ast::Program,
     ) -> Result<Context, error::Error> {
         for path in &program.uses {
