@@ -1,0 +1,13 @@
+#!/bin/sh
+
+WEBSEMESTER=2019sp
+XIRT=QtXi.zip
+
+cd $(dirname $0)/..
+wget -nv -N http://www.cs.cornell.edu/courses/cs4120/$WEBSEMESTER/project/$XIRT
+unzip -q $XIRT -d QtXi
+rm $XIRT
+cd QtXi
+cp -frp release/* .
+rm -rf release
+make
