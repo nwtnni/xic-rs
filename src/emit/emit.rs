@@ -41,8 +41,8 @@ pub fn emit_unit(
             ast::Item::Function(function) => function,
         };
 
-        emitter.returns = emitter.get_returns(function.name);
-        let name = emitter.mangle_function(function.name);
+        emitter.returns = emitter.get_returns(&function.name);
+        let name = emitter.mangle_function(&function.name);
         let hir = emitter.emit_function(function);
         functions.insert(name, hir);
     }
@@ -68,7 +68,7 @@ impl<'env> Emitter<'env> {
             ));
         }
 
-        let name = self.mangle_function(function.name);
+        let name = self.mangle_function(&function.name);
         let statement = self.emit_statement(&function.statements, &mut variables);
 
         statements.push(statement);
@@ -311,13 +311,13 @@ impl<'env> Emitter<'env> {
 
         hir::Expression::Call(
             Box::new(hir::Expression::from(Label::Fixed(
-                self.mangle_function(name),
+                self.mangle_function(&name),
             ))),
             call.arguments
                 .iter()
                 .map(|argument| self.emit_expression(argument, variables).into())
                 .collect(),
-            self.get_returns(name),
+            self.get_returns(&name),
         )
     }
 
@@ -553,7 +553,7 @@ impl<'env> Emitter<'env> {
         }
     }
 
-    fn get_returns(&self, name: Symbol) -> usize {
+    fn get_returns(&self, name: &Symbol) -> usize {
         match self.context.get(name) {
             Some(check::Entry::Function(_, returns))
             | Some(check::Entry::Signature(_, returns)) => returns.len(),
@@ -561,8 +561,8 @@ impl<'env> Emitter<'env> {
         }
     }
 
-    fn mangle_function(&mut self, name: Symbol) -> Symbol {
-        if let Some(mangled) = self.mangled.get(&name) {
+    fn mangle_function(&mut self, name: &Symbol) -> Symbol {
+        if let Some(mangled) = self.mangled.get(name) {
             return *mangled;
         }
 
@@ -573,12 +573,12 @@ impl<'env> Emitter<'env> {
         };
 
         let mangled = symbol::intern(abi::mangle_function(
-            symbol::resolve(name),
+            symbol::resolve(*name),
             parameters,
             returns,
         ));
 
-        self.mangled.insert(name, mangled);
+        self.mangled.insert(*name, mangled);
         mangled
     }
 }

@@ -4,6 +4,7 @@ use crate::check::context;
 use crate::check::Context;
 use crate::check::Error;
 use crate::check::ErrorKind;
+use crate::check::Scope;
 use crate::data::ast;
 use crate::data::r#type;
 use crate::data::symbol;
@@ -85,7 +86,7 @@ impl Checker {
 
             let (name, new_parameters, new_returns) = self.check_signature(signature)?;
 
-            match self.context.get(name) {
+            match self.context.get(&name) {
                 Some(context::Entry::Signature(old_parameters, _))
                     if new_parameters != *old_parameters =>
                 {
@@ -107,7 +108,7 @@ impl Checker {
     fn load_function(&mut self, function: &ast::Function) -> Result<(), error::Error> {
         let (name, new_parameters, new_returns) = self.check_signature(function)?;
 
-        match self.context.remove(name) {
+        match self.context.remove(&name) {
             Some(context::Entry::Signature(old_parameters, _))
                 if !r#type::subtypes(&old_parameters, &new_parameters) =>
             {
@@ -168,13 +169,14 @@ impl Checker {
     }
 
     fn check_function(&mut self, function: &ast::Function) -> Result<(), error::Error> {
-        let returns = match self.context.get(function.name) {
+        let returns = match self.context.get(&function.name) {
             Some(context::Entry::Function(_, returns)) => returns.clone(),
             _ => panic!("[INTERNAL ERROR]: function should be bound in first pass"),
         };
 
-        self.context.push();
-        self.context.set_return(returns.clone());
+        self.context.push(Scope::Function {
+            returns: returns.clone(),
+        });
 
         for parameter in &function.parameters {
             self.check_declaration(parameter)?;
@@ -196,7 +198,7 @@ impl Checker {
             _ => todo!(),
         };
 
-        let (parameters, returns) = match self.context.get(name) {
+        let (parameters, returns) = match self.context.get(&name) {
             Some(context::Entry::Signature(parameters, returns))
             | Some(context::Entry::Function(parameters, returns)) => (parameters, returns),
             Some(_) => bail!(call.span, ErrorKind::NotFun(name)),
@@ -222,7 +224,7 @@ impl Checker {
         &mut self,
         declaration: &ast::SingleDeclaration,
     ) -> Result<r#type::Expression, error::Error> {
-        if self.context.get(declaration.name).is_some() {
+        if self.context.get(&declaration.name).is_some() {
             bail!(declaration.span, ErrorKind::NameClash)
         }
 
@@ -247,7 +249,7 @@ impl Checker {
             ast::Expression::Integer(_, _) => Ok(r#type::Expression::Integer),
             ast::Expression::This(_) => todo!(),
             ast::Expression::Null(_) => todo!(),
-            ast::Expression::Variable(name, span) => match self.context.get(*name) {
+            ast::Expression::Variable(name, span) => match self.context.get(name) {
                 Some(context::Entry::Variable(typ)) => Ok(typ.clone()),
                 Some(_) => bail!(*span, ErrorKind::NotVariable(*name)),
                 None => bail!(*span, ErrorKind::UnboundVariable(*name)),
@@ -475,7 +477,10 @@ impl Checker {
                     .map(|r#return| self.check_expression(r#return))
                     .collect::<Result<Vec<_>, _>>()?;
 
-                let expected = self.context.get_returns();
+                let expected = self
+                    .context
+                    .get_returns()
+                    .expect("[INTERNAL PARSER ERROR]: return outside function scope");
 
                 if r#type::subtypes(&returns, expected) {
                     Ok(r#type::Statement::Void)
@@ -484,7 +489,7 @@ impl Checker {
                 }
             }
             ast::Statement::Sequence(statements, _) => {
-                self.context.push();
+                self.context.push(Scope::Block);
 
                 let mut r#type = r#type::Statement::Unit;
 
@@ -505,7 +510,7 @@ impl Checker {
                     typ => expected!(condition.span(), r#type::Expression::Boolean, typ),
                 };
 
-                self.context.push();
+                self.context.push(Scope::If);
                 self.check_statement(r#if)?;
                 self.context.pop();
 
@@ -517,11 +522,11 @@ impl Checker {
                     typ => expected!(condition.span(), r#type::Expression::Boolean, typ),
                 };
 
-                self.context.push();
+                self.context.push(Scope::If);
                 let r#if = self.check_statement(r#if)?;
                 self.context.pop();
 
-                self.context.push();
+                self.context.push(Scope::Else);
                 let r#else = self.check_statement(r#else)?;
                 self.context.pop();
 
@@ -533,7 +538,7 @@ impl Checker {
                     typ => expected!(cond.span(), r#type::Expression::Boolean, typ),
                 };
 
-                self.context.push();
+                self.context.push(Scope::While);
                 self.check_statement(body)?;
                 self.context.pop();
 
