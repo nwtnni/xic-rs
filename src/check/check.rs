@@ -180,7 +180,9 @@ impl Checker {
             self.check_declaration(parameter)?;
         }
 
-        if self.check_statement(&function.statements)? != r#type::Stm::Void && !returns.is_empty() {
+        if self.check_statement(&function.statements)? != r#type::Statement::Void
+            && !returns.is_empty()
+        {
             bail!(function.span, ErrorKind::MissingReturn);
         }
 
@@ -413,20 +415,23 @@ impl Checker {
         }
     }
 
-    fn check_statement(&mut self, statement: &ast::Statement) -> Result<r#type::Stm, error::Error> {
+    fn check_statement(
+        &mut self,
+        statement: &ast::Statement,
+    ) -> Result<r#type::Statement, error::Error> {
         match statement {
             ast::Statement::Assignment(left, right, _) => {
                 let span = right.span();
                 let left = self.check_expression(left)?;
                 let right = self.check_expression(right)?;
                 if right.subtypes(&left) {
-                    Ok(r#type::Stm::Unit)
+                    Ok(r#type::Statement::Unit)
                 } else {
                     expected!(span, left, right)
                 }
             }
             ast::Statement::Call(call) => match &*self.check_call(call)? {
-                [] => Ok(r#type::Stm::Unit),
+                [] => Ok(r#type::Statement::Unit),
                 _ => bail!(call.span, ErrorKind::NotProcedure),
             },
             ast::Statement::Declaration(declaration, _) => {
@@ -436,7 +441,7 @@ impl Checker {
                 };
 
                 self.check_declaration(declaration)?;
-                Ok(r#type::Stm::Unit)
+                Ok(r#type::Statement::Unit)
             }
             ast::Statement::Initialization(ast::Initialization {
                 declarations,
@@ -462,7 +467,7 @@ impl Checker {
                     }
                 }
 
-                Ok(r#type::Stm::Unit)
+                Ok(r#type::Statement::Unit)
             }
             ast::Statement::Return(returns, span) => {
                 let returns = returns
@@ -473,7 +478,7 @@ impl Checker {
                 let expected = self.context.get_returns();
 
                 if r#type::subtypes(&returns, expected) {
-                    Ok(r#type::Stm::Void)
+                    Ok(r#type::Statement::Void)
                 } else {
                     bail!(*span, ErrorKind::ReturnMismatch);
                 }
@@ -481,13 +486,13 @@ impl Checker {
             ast::Statement::Sequence(statements, _) => {
                 self.context.push();
 
-                let mut r#type = r#type::Stm::Unit;
+                let mut r#type = r#type::Statement::Unit;
 
                 for statement in statements {
-                    if r#type == r#type::Stm::Void {
+                    if r#type == r#type::Statement::Void {
                         bail!(statement.span(), ErrorKind::Unreachable)
-                    } else if self.check_statement(statement)? == r#type::Stm::Void {
-                        r#type = r#type::Stm::Void;
+                    } else if self.check_statement(statement)? == r#type::Statement::Void {
+                        r#type = r#type::Statement::Void;
                     }
                 }
 
@@ -504,7 +509,7 @@ impl Checker {
                 self.check_statement(r#if)?;
                 self.context.pop();
 
-                Ok(r#type::Stm::Unit)
+                Ok(r#type::Statement::Unit)
             }
             ast::Statement::If(condition, r#if, Some(r#else), _) => {
                 match self.check_expression(condition)? {
@@ -532,7 +537,7 @@ impl Checker {
                 self.check_statement(body)?;
                 self.context.pop();
 
-                Ok(r#type::Stm::Unit)
+                Ok(r#type::Statement::Unit)
             }
             ast::Statement::Break(_) => todo!(),
         }

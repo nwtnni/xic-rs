@@ -61,16 +61,16 @@ where
 }
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq, Hash)]
-pub enum Stm {
+pub enum Statement {
     Unit,
     Void,
 }
 
-impl Stm {
-    pub fn least_upper_bound(&self, other: &Stm) -> Stm {
+impl Statement {
+    pub fn least_upper_bound(&self, other: &Statement) -> Statement {
         match (self, other) {
-            (Stm::Void, Stm::Void) => Stm::Void,
-            _ => Stm::Unit,
+            (Statement::Void, Statement::Void) => Statement::Void,
+            _ => Statement::Unit,
         }
     }
 }
