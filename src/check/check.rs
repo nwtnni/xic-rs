@@ -10,11 +10,11 @@ use crate::check::ErrorKind;
 use crate::check::Scope;
 use crate::data::ast;
 use crate::data::r#type;
-use crate::data::symbol;
 use crate::data::symbol::Symbol;
 use crate::error;
 use crate::lex;
 use crate::parse;
+use crate::Set;
 
 macro_rules! bail {
     ($span:expr, $kind:expr) => {
@@ -39,6 +39,7 @@ pub fn check(library: &Path, path: &Path, program: &ast::Program) -> Result<Cont
 struct Checker {
     context: Context,
     phase: Phase,
+    used: Set<Symbol>,
 }
 
 // Because Xi allows functions, methods, and globals to reference symbols defined later
@@ -58,6 +59,7 @@ impl Checker {
         Checker {
             phase: Phase::Load,
             context: Context::new(),
+            used: Set::default(),
         }
     }
 
@@ -67,12 +69,8 @@ impl Checker {
         _path: &Path,
         program: &ast::Program,
     ) -> Result<Context, error::Error> {
-        for path in &program.uses {
-            let path = directory_library.join(symbol::resolve(path.name).to_string() + ".ixi");
-            let source = fs::read_to_string(path)?;
-            let lexer = lex::Lexer::new(&source);
-            let interface = parse::InterfaceParser::new().parse(lexer)?;
-            self.load_interface(&interface)?;
+        for r#use in &program.uses {
+            self.load_use(directory_library, r#use)?;
         }
 
         for _ in 0..2 {
@@ -90,7 +88,27 @@ impl Checker {
         Ok(self.context)
     }
 
-    fn load_interface(&mut self, interface: &ast::Interface) -> Result<(), error::Error> {
+    fn load_use(&mut self, directory_library: &Path, r#use: &ast::Use) -> Result<(), error::Error> {
+        if !self.used.insert(r#use.name) {
+            return Ok(());
+        }
+
+        let path = directory_library.join(format!("{}.ixi", r#use.name));
+        let source = fs::read_to_string(path)?;
+        let lexer = lex::Lexer::new(&source);
+        let interface = parse::InterfaceParser::new().parse(lexer)?;
+        self.load_interface(directory_library, &interface)
+    }
+
+    fn load_interface(
+        &mut self,
+        directory_library: &Path,
+        interface: &ast::Interface,
+    ) -> Result<(), error::Error> {
+        for r#use in &interface.uses {
+            self.load_use(directory_library, r#use)?;
+        }
+
         for item in &interface.items {
             match item {
                 ast::ItemSignature::Class(class) => self.load_class_signature(class)?,
@@ -99,6 +117,7 @@ impl Checker {
                 }
             };
         }
+
         Ok(())
     }
 
