@@ -57,6 +57,14 @@ impl<'io> Global<'io> {
         let r#returns = match symbol::resolve(name) {
             abi::XI_PRINT => {
                 debug_assert_eq!(arguments.len(), 1);
+
+                // Note: this is a false positive, as `self.ready_array(...)` borrows
+                // all of `self` immutably, and then we try to write to `&mut self.stdout`.
+                //
+                // This actually wouldn't be a problem if the code were inlined, since
+                // we only borrow `self.heap` or `self.data`, but Rust can't reason about
+                // partial borrows across function boundaries right now.
+                #[allow(clippy::unnecessary_to_owned)]
                 for byte in self.read_array(arguments[0]).to_vec() {
                     write!(
                         &mut self.stdout,
@@ -70,6 +78,7 @@ impl<'io> Global<'io> {
             }
             abi::XI_PRINTLN => {
                 debug_assert_eq!(arguments.len(), 1);
+                #[allow(clippy::unnecessary_to_owned)]
                 for byte in self.read_array(arguments[0]).to_vec() {
                     write!(
                         &mut self.stdout,

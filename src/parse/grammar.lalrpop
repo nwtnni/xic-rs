@@ -48,7 +48,7 @@ FunctionSignature: FunctionSignature = {
         FunctionSignature {
             name,
             parameters,
-            returns: returns.unwrap_or_else(Vec::new),
+            returns: returns.unwrap_or_default(),
             span: Span::new(l, r)
         }
     }
@@ -122,7 +122,7 @@ Function: Function = {
         Function {
             name,
             parameters,
-            returns: returns.unwrap_or_else(Vec::new),
+            returns: returns.unwrap_or_default(),
             statements,
             span: Span::new(l, r),
         }
