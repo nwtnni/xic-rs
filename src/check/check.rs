@@ -652,46 +652,46 @@ impl Checker {
         scope: S,
         declaration: &ast::Declaration,
     ) -> Result<(), error::Error> {
-        match declaration {
-            ast::Declaration::Multiple(multiple) => {
-                let scope = scope.into();
-                for name in &multiple.names {
-                    self.check_single_declaration(
-                        scope,
-                        &ast::SingleDeclaration {
-                            name: *name,
-                            r#type: multiple.r#type.clone(),
-                            span: multiple.span,
-                        },
-                    )?;
-                }
-            }
+        let multiple = match declaration {
+            ast::Declaration::Multiple(multiple) => multiple,
             ast::Declaration::Single(single) => {
-                self.check_single_declaration(scope, single)?;
+                return self.check_single_declaration(scope, single).map(drop);
             }
+        };
+
+        let scope = scope.into();
+        for name in &multiple.names {
+            self.check_single_declaration(
+                scope,
+                &ast::SingleDeclaration {
+                    name: *name,
+                    r#type: multiple.r#type.clone(),
+                    span: multiple.span,
+                },
+            )?;
         }
+
         Ok(())
     }
 
     fn check_single_declaration<S: Into<Scope>>(
         &mut self,
         scope: S,
-        declaration: &ast::SingleDeclaration,
+        ast::SingleDeclaration { name, r#type, span }: &ast::SingleDeclaration,
     ) -> Result<r#type::Expression, error::Error> {
-        let r#type = self.check_type(&declaration.r#type)?;
         let scope = scope.into();
-        let existing =
-            match self
-                .context
-                .insert(scope, declaration.name, Entry::Variable(r#type.clone()))
-            {
-                None => return Ok(r#type),
-                Some(existing) => existing,
-            };
+        let r#type = self.check_type(r#type)?;
+        let existing = match self
+            .context
+            .insert(scope, *name, Entry::Variable(r#type.clone()))
+        {
+            None => return Ok(r#type),
+            Some(existing) => existing,
+        };
 
         match (self.phase, scope) {
             (_, Scope::Local) | (Phase::Load, Scope::Global(_)) => {
-                bail!(declaration.span, ErrorKind::NameClash)
+                bail!(*span, ErrorKind::NameClash)
             }
             (Phase::Check, Scope::Global(_)) => {
                 assert_eq!(Entry::Variable(r#type.clone()), existing)
