@@ -237,43 +237,63 @@ impl fmt::Display for Type {
     }
 }
 
-/// Represents a binary operator.
-#[derive(Copy, Clone, Debug, PartialEq, Eq)]
-pub enum Binary {
-    Mul,
-    Hul,
-    Div,
-    Mod,
-    Add,
-    Cat,
-    Sub,
-    Lt,
-    Le,
-    Ge,
-    Gt,
-    Eq,
-    Ne,
-    And,
-    Or,
+/// Represents an imperative statement.
+#[derive(Clone, Debug)]
+pub enum Statement {
+    /// Assignment
+    Assignment(Expression, Expression, Span),
+
+    /// Procedure call
+    Call(Call),
+
+    /// Initialization
+    Initialization(Initialization),
+
+    /// Variable declaration
+    Declaration(Declaration, Span),
+
+    /// Return statement
+    Return(Vec<Expression>, Span),
+
+    /// Statement block
+    Sequence(Vec<Statement>, Span),
+
+    /// If-else block
+    If(Expression, Box<Statement>, Option<Box<Statement>>, Span),
+
+    /// While block
+    While(Do, Expression, Box<Statement>, Span),
+
+    /// Break statement
+    Break(Span),
 }
 
-impl fmt::Display for Binary {
+impl Statement {
+    pub fn span(&self) -> Span {
+        match self {
+            Statement::Call(call) => call.span,
+            Statement::Initialization(initialization) => initialization.span,
+            Statement::Assignment(_, _, span)
+            | Statement::Declaration(_, span)
+            | Statement::Return(_, span)
+            | Statement::Sequence(_, span)
+            | Statement::If(_, _, _, span)
+            | Statement::While(_, _, _, span)
+            | Statement::Break(span) => *span,
+        }
+    }
+}
+
+impl fmt::Display for Statement {
     fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
         write!(fmt, "{}", self.sexp())
     }
 }
 
-/// Represents a unary operator.
-#[derive(Copy, Clone, Debug, PartialEq, Eq)]
-pub enum Unary {
-    Neg,
-    Not,
-}
-
-impl fmt::Display for Unary {
-    fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
-        write!(fmt, "{}", self.sexp())
-    }
+#[derive(Clone, Debug)]
+pub enum Do {
+    Yes,
+    No,
 }
 
 /// Represents an expression (i.e. a term that can be evaluated).
@@ -373,6 +393,20 @@ impl fmt::Display for Expression {
     }
 }
 
+/// Represents a function call.
+#[derive(Clone, Debug)]
+pub struct Call {
+    pub function: Box<Expression>,
+    pub arguments: Vec<Expression>,
+    pub span: Span,
+}
+
+impl fmt::Display for Call {
+    fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
+        write!(fmt, "{}", self.sexp())
+    }
+}
+
 #[derive(Clone, Debug)]
 pub enum Declaration {
     Multiple(MultipleDeclaration),
@@ -459,74 +493,40 @@ impl fmt::Display for SingleDeclaration {
     }
 }
 
-/// Represents a function call.
-#[derive(Clone, Debug)]
-pub struct Call {
-    pub function: Box<Expression>,
-    pub arguments: Vec<Expression>,
-    pub span: Span,
+/// Represents a binary operator.
+#[derive(Copy, Clone, Debug, PartialEq, Eq)]
+pub enum Binary {
+    Mul,
+    Hul,
+    Div,
+    Mod,
+    Add,
+    Cat,
+    Sub,
+    Lt,
+    Le,
+    Ge,
+    Gt,
+    Eq,
+    Ne,
+    And,
+    Or,
 }
 
-impl fmt::Display for Call {
+impl fmt::Display for Binary {
     fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
         write!(fmt, "{}", self.sexp())
     }
 }
 
-/// Represents an imperative statement.
-#[derive(Clone, Debug)]
-pub enum Statement {
-    /// Assignment
-    Assignment(Expression, Expression, Span),
-
-    /// Procedure call
-    Call(Call),
-
-    /// Initialization
-    Initialization(Initialization),
-
-    /// Variable declaration
-    Declaration(Declaration, Span),
-
-    /// Return statement
-    Return(Vec<Expression>, Span),
-
-    /// Statement block
-    Sequence(Vec<Statement>, Span),
-
-    /// If-else block
-    If(Expression, Box<Statement>, Option<Box<Statement>>, Span),
-
-    /// While block
-    While(Do, Expression, Box<Statement>, Span),
-
-    /// Break statement
-    Break(Span),
+/// Represents a unary operator.
+#[derive(Copy, Clone, Debug, PartialEq, Eq)]
+pub enum Unary {
+    Neg,
+    Not,
 }
 
-#[derive(Clone, Debug)]
-pub enum Do {
-    Yes,
-    No,
-}
-
-impl Statement {
-    pub fn span(&self) -> Span {
-        match self {
-            Statement::Call(call) => call.span,
-            Statement::Initialization(initialization) => initialization.span,
-            Statement::Assignment(_, _, span)
-            | Statement::Declaration(_, span)
-            | Statement::Return(_, span)
-            | Statement::Sequence(_, span)
-            | Statement::If(_, _, _, span)
-            | Statement::While(_, _, _, span)
-            | Statement::Break(span) => *span,
-        }
-    }
-}
-
-impl fmt::Display for Statement {
+impl fmt::Display for Unary {
     fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
         write!(fmt, "{}", self.sexp())
     }

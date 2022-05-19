@@ -282,86 +282,108 @@ impl Checker {
         Ok(())
     }
 
-    fn check_call(&self, call: &ast::Call) -> Result<Vec<r#type::Expression>, error::Error> {
-        let name = match &*call.function {
-            ast::Expression::Variable(name, _) => *name,
-            _ => todo!(),
-        };
-
-        let (parameters, returns) = match self.context.get(Scope::Local, &name) {
-            Some(Entry::Signature(parameters, returns))
-            | Some(Entry::Function(parameters, returns)) => (parameters, returns),
-            Some(_) => bail!(call.span, ErrorKind::NotFun(name)),
-            None => bail!(call.span, ErrorKind::UnboundFun(name)),
-        };
-
-        if call.arguments.len() != parameters.len() {
-            bail!(call.span, ErrorKind::CallLength);
-        }
-
-        for (argument, parameter) in call.arguments.iter().zip(parameters) {
-            let r#type = self.check_expression(argument)?;
-
-            if !self.context.is_subtype(&r#type, parameter) {
-                expected!(argument.span(), parameter.clone(), r#type)
-            }
-        }
-
-        Ok(returns.clone())
-    }
-
-    fn check_declaration<S: Into<Scope>>(
+    fn check_statement(
         &mut self,
-        scope: S,
-        declaration: &ast::Declaration,
-    ) -> Result<(), error::Error> {
-        match declaration {
-            ast::Declaration::Multiple(multiple) => {
-                let scope = scope.into();
-                for name in &multiple.names {
-                    self.check_single_declaration(
-                        scope,
-                        &ast::SingleDeclaration {
-                            name: *name,
-                            r#type: multiple.r#type.clone(),
-                            span: multiple.span,
-                        },
-                    )?;
+        statement: &ast::Statement,
+    ) -> Result<r#type::Statement, error::Error> {
+        match statement {
+            ast::Statement::Assignment(left, right, _) => {
+                let span = right.span();
+                let left = self.check_expression(left)?;
+                let right = self.check_expression(right)?;
+                if self.context.is_subtype(&right, &left) {
+                    Ok(r#type::Statement::Unit)
+                } else {
+                    expected!(span, left, right)
                 }
             }
-            ast::Declaration::Single(single) => {
-                self.check_single_declaration(scope, single)?;
+            ast::Statement::Call(call) => match &*self.check_call(call)? {
+                [] => Ok(r#type::Statement::Unit),
+                _ => bail!(call.span, ErrorKind::NotProcedure),
+            },
+            ast::Statement::Declaration(declaration, _) => {
+                self.check_declaration(Scope::Local, declaration)?;
+                Ok(r#type::Statement::Unit)
             }
+            ast::Statement::Initialization(initialization) => {
+                self.check_initialization(Scope::Local, initialization)?;
+                Ok(r#type::Statement::Unit)
+            }
+            ast::Statement::Return(returns, span) => {
+                let returns = returns
+                    .iter()
+                    .map(|r#return| self.check_expression(r#return))
+                    .collect::<Result<Vec<_>, _>>()?;
+
+                let expected = self
+                    .context
+                    .get_returns()
+                    .expect("[INTERNAL PARSER ERROR]: return outside function scope");
+
+                if self.context.all_subtype(&returns, expected) {
+                    Ok(r#type::Statement::Void)
+                } else {
+                    bail!(*span, ErrorKind::ReturnMismatch);
+                }
+            }
+            ast::Statement::Sequence(statements, _) => {
+                self.context.push(LocalScope::Block);
+
+                let mut r#type = r#type::Statement::Unit;
+
+                for statement in statements {
+                    if r#type == r#type::Statement::Void {
+                        bail!(statement.span(), ErrorKind::Unreachable)
+                    } else if self.check_statement(statement)? == r#type::Statement::Void {
+                        r#type = r#type::Statement::Void;
+                    }
+                }
+
+                self.context.pop();
+                Ok(r#type)
+            }
+            ast::Statement::If(condition, r#if, None, _) => {
+                match self.check_expression(condition)? {
+                    r#type::Expression::Boolean => (),
+                    typ => expected!(condition.span(), r#type::Expression::Boolean, typ),
+                };
+
+                self.context.push(LocalScope::If);
+                self.check_statement(r#if)?;
+                self.context.pop();
+
+                Ok(r#type::Statement::Unit)
+            }
+            ast::Statement::If(condition, r#if, Some(r#else), _) => {
+                match self.check_expression(condition)? {
+                    r#type::Expression::Boolean => (),
+                    typ => expected!(condition.span(), r#type::Expression::Boolean, typ),
+                };
+
+                self.context.push(LocalScope::If);
+                let r#if = self.check_statement(r#if)?;
+                self.context.pop();
+
+                self.context.push(LocalScope::Else);
+                let r#else = self.check_statement(r#else)?;
+                self.context.pop();
+
+                Ok(r#if.least_upper_bound(&r#else))
+            }
+            ast::Statement::While(_, cond, body, _) => {
+                match self.check_expression(cond)? {
+                    r#type::Expression::Boolean => (),
+                    typ => expected!(cond.span(), r#type::Expression::Boolean, typ),
+                };
+
+                self.context.push(LocalScope::While);
+                self.check_statement(body)?;
+                self.context.pop();
+
+                Ok(r#type::Statement::Unit)
+            }
+            ast::Statement::Break(_) => todo!(),
         }
-        Ok(())
-    }
-
-    fn check_single_declaration<S: Into<Scope>>(
-        &mut self,
-        scope: S,
-        declaration: &ast::SingleDeclaration,
-    ) -> Result<r#type::Expression, error::Error> {
-        let r#type = self.check_type(&declaration.r#type)?;
-        let scope = scope.into();
-        let existing =
-            match self
-                .context
-                .insert(scope, declaration.name, Entry::Variable(r#type.clone()))
-            {
-                None => return Ok(r#type),
-                Some(existing) => existing,
-            };
-
-        match (self.phase, scope) {
-            (_, Scope::Local) | (Phase::Load, Scope::Global(_)) => {
-                bail!(declaration.span, ErrorKind::NameClash)
-            }
-            (Phase::Check, Scope::Global(_)) => {
-                assert_eq!(Entry::Variable(r#type.clone()), existing)
-            }
-        }
-
-        Ok(r#type)
     }
 
     fn check_expression(
@@ -550,129 +572,32 @@ impl Checker {
         }
     }
 
-    fn check_binary(
-        &self,
-        left: &ast::Expression,
-        right: &ast::Expression,
-        parameter: r#type::Expression,
-        r#return: r#type::Expression,
-    ) -> Result<r#type::Expression, error::Error> {
-        match (self.check_expression(left)?, self.check_expression(right)?) {
-            (left, right)
-                if self.context.is_subtype(&left, &parameter)
-                    && self.context.is_subtype(&right, &parameter) =>
-            {
-                Ok(r#return)
-            }
-            (left, mismatch) if self.context.is_subtype(&left, &parameter) => {
-                expected!(right.span(), parameter, mismatch)
-            }
-            (mismatch, _) => expected!(left.span(), parameter, mismatch),
+    fn check_call(&self, call: &ast::Call) -> Result<Vec<r#type::Expression>, error::Error> {
+        let name = match &*call.function {
+            ast::Expression::Variable(name, _) => *name,
+            _ => todo!(),
+        };
+
+        let (parameters, returns) = match self.context.get(Scope::Local, &name) {
+            Some(Entry::Signature(parameters, returns))
+            | Some(Entry::Function(parameters, returns)) => (parameters, returns),
+            Some(_) => bail!(call.span, ErrorKind::NotFun(name)),
+            None => bail!(call.span, ErrorKind::UnboundFun(name)),
+        };
+
+        if call.arguments.len() != parameters.len() {
+            bail!(call.span, ErrorKind::CallLength);
         }
-    }
 
-    fn check_statement(
-        &mut self,
-        statement: &ast::Statement,
-    ) -> Result<r#type::Statement, error::Error> {
-        match statement {
-            ast::Statement::Assignment(left, right, _) => {
-                let span = right.span();
-                let left = self.check_expression(left)?;
-                let right = self.check_expression(right)?;
-                if self.context.is_subtype(&right, &left) {
-                    Ok(r#type::Statement::Unit)
-                } else {
-                    expected!(span, left, right)
-                }
+        for (argument, parameter) in call.arguments.iter().zip(parameters) {
+            let r#type = self.check_expression(argument)?;
+
+            if !self.context.is_subtype(&r#type, parameter) {
+                expected!(argument.span(), parameter.clone(), r#type)
             }
-            ast::Statement::Call(call) => match &*self.check_call(call)? {
-                [] => Ok(r#type::Statement::Unit),
-                _ => bail!(call.span, ErrorKind::NotProcedure),
-            },
-            ast::Statement::Declaration(declaration, _) => {
-                self.check_declaration(Scope::Local, declaration)?;
-                Ok(r#type::Statement::Unit)
-            }
-            ast::Statement::Initialization(initialization) => {
-                self.check_initialization(Scope::Local, initialization)?;
-                Ok(r#type::Statement::Unit)
-            }
-            ast::Statement::Return(returns, span) => {
-                let returns = returns
-                    .iter()
-                    .map(|r#return| self.check_expression(r#return))
-                    .collect::<Result<Vec<_>, _>>()?;
-
-                let expected = self
-                    .context
-                    .get_returns()
-                    .expect("[INTERNAL PARSER ERROR]: return outside function scope");
-
-                if self.context.all_subtype(&returns, expected) {
-                    Ok(r#type::Statement::Void)
-                } else {
-                    bail!(*span, ErrorKind::ReturnMismatch);
-                }
-            }
-            ast::Statement::Sequence(statements, _) => {
-                self.context.push(LocalScope::Block);
-
-                let mut r#type = r#type::Statement::Unit;
-
-                for statement in statements {
-                    if r#type == r#type::Statement::Void {
-                        bail!(statement.span(), ErrorKind::Unreachable)
-                    } else if self.check_statement(statement)? == r#type::Statement::Void {
-                        r#type = r#type::Statement::Void;
-                    }
-                }
-
-                self.context.pop();
-                Ok(r#type)
-            }
-            ast::Statement::If(condition, r#if, None, _) => {
-                match self.check_expression(condition)? {
-                    r#type::Expression::Boolean => (),
-                    typ => expected!(condition.span(), r#type::Expression::Boolean, typ),
-                };
-
-                self.context.push(LocalScope::If);
-                self.check_statement(r#if)?;
-                self.context.pop();
-
-                Ok(r#type::Statement::Unit)
-            }
-            ast::Statement::If(condition, r#if, Some(r#else), _) => {
-                match self.check_expression(condition)? {
-                    r#type::Expression::Boolean => (),
-                    typ => expected!(condition.span(), r#type::Expression::Boolean, typ),
-                };
-
-                self.context.push(LocalScope::If);
-                let r#if = self.check_statement(r#if)?;
-                self.context.pop();
-
-                self.context.push(LocalScope::Else);
-                let r#else = self.check_statement(r#else)?;
-                self.context.pop();
-
-                Ok(r#if.least_upper_bound(&r#else))
-            }
-            ast::Statement::While(_, cond, body, _) => {
-                match self.check_expression(cond)? {
-                    r#type::Expression::Boolean => (),
-                    typ => expected!(cond.span(), r#type::Expression::Boolean, typ),
-                };
-
-                self.context.push(LocalScope::While);
-                self.check_statement(body)?;
-                self.context.pop();
-
-                Ok(r#type::Statement::Unit)
-            }
-            ast::Statement::Break(_) => todo!(),
         }
+
+        Ok(returns.clone())
     }
 
     fn check_initialization<S: Into<Scope>>(
@@ -720,5 +645,80 @@ impl Checker {
         }
 
         Ok(())
+    }
+
+    fn check_declaration<S: Into<Scope>>(
+        &mut self,
+        scope: S,
+        declaration: &ast::Declaration,
+    ) -> Result<(), error::Error> {
+        match declaration {
+            ast::Declaration::Multiple(multiple) => {
+                let scope = scope.into();
+                for name in &multiple.names {
+                    self.check_single_declaration(
+                        scope,
+                        &ast::SingleDeclaration {
+                            name: *name,
+                            r#type: multiple.r#type.clone(),
+                            span: multiple.span,
+                        },
+                    )?;
+                }
+            }
+            ast::Declaration::Single(single) => {
+                self.check_single_declaration(scope, single)?;
+            }
+        }
+        Ok(())
+    }
+
+    fn check_single_declaration<S: Into<Scope>>(
+        &mut self,
+        scope: S,
+        declaration: &ast::SingleDeclaration,
+    ) -> Result<r#type::Expression, error::Error> {
+        let r#type = self.check_type(&declaration.r#type)?;
+        let scope = scope.into();
+        let existing =
+            match self
+                .context
+                .insert(scope, declaration.name, Entry::Variable(r#type.clone()))
+            {
+                None => return Ok(r#type),
+                Some(existing) => existing,
+            };
+
+        match (self.phase, scope) {
+            (_, Scope::Local) | (Phase::Load, Scope::Global(_)) => {
+                bail!(declaration.span, ErrorKind::NameClash)
+            }
+            (Phase::Check, Scope::Global(_)) => {
+                assert_eq!(Entry::Variable(r#type.clone()), existing)
+            }
+        }
+
+        Ok(r#type)
+    }
+
+    fn check_binary(
+        &self,
+        left: &ast::Expression,
+        right: &ast::Expression,
+        parameter: r#type::Expression,
+        r#return: r#type::Expression,
+    ) -> Result<r#type::Expression, error::Error> {
+        match (self.check_expression(left)?, self.check_expression(right)?) {
+            (left, right)
+                if self.context.is_subtype(&left, &parameter)
+                    && self.context.is_subtype(&right, &parameter) =>
+            {
+                Ok(r#return)
+            }
+            (left, mismatch) if self.context.is_subtype(&left, &parameter) => {
+                expected!(right.span(), parameter, mismatch)
+            }
+            (mismatch, _) => expected!(left.span(), parameter, mismatch),
+        }
     }
 }
