@@ -11,7 +11,6 @@ use crate::check::Scope;
 use crate::data::ast;
 use crate::data::r#type;
 use crate::data::symbol;
-use crate::data::symbol::Symbol;
 use crate::error;
 use crate::lex;
 use crate::parse;
@@ -82,37 +81,57 @@ impl Checker {
 
     fn load_interface(&mut self, interface: &ast::Interface) -> Result<(), error::Error> {
         for item in &interface.items {
-            let signature = match item {
-                ast::ItemSignature::Class(_) => todo!(),
-                ast::ItemSignature::Function(function) => function,
+            match item {
+                ast::ItemSignature::Class(class) => self.load_class_signature(class)?,
+                ast::ItemSignature::Function(function) => {
+                    self.load_function_signature(GlobalScope::Global, function)?;
+                }
             };
-
-            let (name, new_parameters, new_returns) = self.check_signature(signature)?;
-
-            match self.context.get(GlobalScope::Global, &name) {
-                Some(Entry::Signature(old_parameters, _)) if new_parameters != *old_parameters => {
-                    bail!(signature.span, ErrorKind::NameClash)
-                }
-                Some(Entry::Signature(_, old_returns)) if new_returns != *old_returns => {
-                    bail!(signature.span, ErrorKind::NameClash)
-                }
-                Some(Entry::Signature(_, _)) | None => {
-                    self.context.insert(
-                        GlobalScope::Global,
-                        name,
-                        Entry::Signature(new_parameters, new_returns),
-                    );
-                }
-                Some(_) => bail!(signature.span, ErrorKind::NameClash),
-            }
         }
         Ok(())
     }
 
-    fn load_function(&mut self, function: &ast::Function) -> Result<(), error::Error> {
-        let (name, new_parameters, new_returns) = self.check_signature(function)?;
+    fn load_class_signature(&mut self, class: &ast::ClassSignature) -> Result<(), error::Error> {
+        if let Some(supertype) = class.extends {
+            if let Some(existing) = self.context.insert_subtype(class.name, supertype) {
+                expected!(
+                    class.span,
+                    r#type::Expression::Class(existing),
+                    r#type::Expression::Class(supertype)
+                );
+            }
+        }
 
-        match self.context.get(GlobalScope::Global, &name) {
+        for method in &class.methods {
+            self.load_function_signature(GlobalScope::Class(class.name), method)?;
+        }
+
+        Ok(())
+    }
+
+    fn load_function_signature(
+        &mut self,
+        scope: GlobalScope,
+        function: &ast::FunctionSignature,
+    ) -> Result<(), error::Error> {
+        let (parameters, returns) = self.check_signature(function)?;
+        let signature = Entry::Signature(parameters, returns);
+
+        match self.context.get(scope, &function.name) {
+            Some(existing) if *existing == signature => (),
+            Some(_) => bail!(function.span, ErrorKind::NameClash),
+            None => {
+                self.context.insert(scope, function.name, signature);
+            }
+        }
+
+        Ok(())
+    }
+
+    fn load_function(&mut self, function: &ast::Function) -> Result<(), error::Error> {
+        let (new_parameters, new_returns) = self.check_signature(function)?;
+
+        match self.context.get(GlobalScope::Global, &function.name) {
             Some(Entry::Signature(old_parameters, _))
                 if !self.context.all_subtype(old_parameters, &new_parameters) =>
             {
@@ -126,7 +145,7 @@ impl Checker {
             Some(Entry::Signature(_, _)) | None => {
                 self.context.insert(
                     GlobalScope::Global,
-                    name,
+                    function.name,
                     Entry::Function(new_parameters, new_returns),
                 );
             }
@@ -139,7 +158,7 @@ impl Checker {
     fn check_signature<C: ast::Callable>(
         &self,
         signature: &C,
-    ) -> Result<(Symbol, Vec<r#type::Expression>, Vec<r#type::Expression>), error::Error> {
+    ) -> Result<(Vec<r#type::Expression>, Vec<r#type::Expression>), error::Error> {
         let parameters = signature
             .parameters()
             .iter()
@@ -153,7 +172,7 @@ impl Checker {
             .map(|r#type| self.check_type(r#type))
             .collect::<Result<Vec<_>, _>>()?;
 
-        Ok((signature.name(), parameters, returns))
+        Ok((parameters, returns))
     }
 
     fn check_type(&self, r#type: &ast::Type) -> Result<r#type::Expression, error::Error> {

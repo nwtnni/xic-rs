@@ -145,6 +145,12 @@ impl Context {
         }
     }
 
+    pub fn insert_subtype(&mut self, subtype: Symbol, supertype: Symbol) -> Option<Symbol> {
+        self.hierarchy
+            .insert(subtype, supertype)
+            .filter(|existing| *existing != supertype)
+    }
+
     pub fn push(&mut self, scope: LocalScope) {
         self.locals.push((scope, Map::default()));
     }
