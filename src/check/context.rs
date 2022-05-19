@@ -58,17 +58,6 @@ pub enum LocalScope {
     While,
 }
 
-impl LocalScope {
-    pub(super) fn returns(&self) -> Option<&[r#type::Expression]> {
-        match self {
-            LocalScope::Block | LocalScope::If | LocalScope::Else | LocalScope::While => None,
-            LocalScope::Method { class: _, returns } | LocalScope::Function { returns } => {
-                Some(returns.as_slice())
-            }
-        }
-    }
-}
-
 impl Default for Context {
     fn default() -> Self {
         Self::new()
@@ -88,7 +77,7 @@ impl Context {
     pub fn get<S: Into<Scope>>(&self, scope: S, symbol: &Symbol) -> Option<&Entry> {
         match scope.into() {
             Scope::Global(GlobalScope::Global) => self.globals.get(symbol),
-            Scope::Global(GlobalScope::Class(class)) => self.get_class(class, symbol),
+            Scope::Global(GlobalScope::Class(class)) => self.search_class_hierarchy(class, symbol),
             Scope::Local => self
                 .locals
                 .iter()
@@ -96,18 +85,13 @@ impl Context {
                 .find_map(|(_, r#types)| r#types.get(symbol))
                 .or_else(|| self.globals.get(symbol))
                 .or_else(|| {
-                    let class = match self.locals.first()? {
-                        (LocalScope::Method { class, returns: _ }, _) => *class,
-                        (LocalScope::Function { returns: _ }, _) => return None,
-                        _ => unreachable!("[INTERNAL ERROR]: only methods and functions allowed at top of local scope"),
-                    };
-
-                    self.get_class(class, symbol)
+                    let class = self.get_class()?;
+                    self.search_class_hierarchy(class, symbol)
                 }),
         }
     }
 
-    fn get_class(&self, mut class: Symbol, symbol: &Symbol) -> Option<&Entry> {
+    fn search_class_hierarchy(&self, mut class: Symbol, symbol: &Symbol) -> Option<&Entry> {
         loop {
             if let Some(entry) = self.classes.get(&class)?.get(symbol) {
                 return Some(entry);
@@ -164,11 +148,21 @@ impl Context {
         self.locals.pop();
     }
 
+    pub fn get_class(&self) -> Option<Symbol> {
+        match self.locals.first().unwrap() {
+            (LocalScope::Method { class, returns: _ }, _) => Some(*class),
+            (LocalScope::Function { returns: _ }, _) => None,
+            _ => unreachable!(),
+        }
+    }
+
     pub fn get_returns(&self) -> Option<&[r#type::Expression]> {
-        self.locals
-            .iter()
-            .rev()
-            .find_map(|(scope, _)| scope.returns())
+        match self.locals.first().unwrap() {
+            (LocalScope::Method { class: _, returns } | LocalScope::Function { returns }, _) => {
+                Some(returns.as_slice())
+            }
+            _ => unreachable!(),
+        }
     }
 
     pub fn is_subtype(&self, subtype: &r#type::Expression, supertype: &r#type::Expression) -> bool {
