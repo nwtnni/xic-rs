@@ -175,7 +175,7 @@ impl Context {
         use r#type::Expression::*;
         match (subtype, supertype) {
             (Any, _) | (Integer, Integer) | (Boolean, Boolean) => true,
-            (Array(subtype), Array(supertype)) => self.is_subtype(subtype, supertype),
+            (Array(subtype), Array(supertype)) => self.is_subtype_array(subtype, supertype),
             (Class(subtype), Class(supertype)) if subtype == supertype => true,
             (Class(mut subtype), Class(supertype)) => loop {
                 match self.hierarchy.get(&subtype) {
@@ -185,6 +185,19 @@ impl Context {
                 }
             },
             (_, _) => false,
+        }
+    }
+
+    fn is_subtype_array(
+        &self,
+        subtype: &r#type::Expression,
+        supertype: &r#type::Expression,
+    ) -> bool {
+        use r#type::Expression::*;
+        match (subtype, supertype) {
+            (Any, _) => true,
+            (Array(subtype), Array(supertype)) => self.is_subtype_array(subtype, supertype),
+            (_, _) => subtype == supertype,
         }
     }
 
@@ -215,9 +228,10 @@ impl Context {
             (Any, r#type) | (r#type, Any) => Some(r#type.clone()),
             (Integer, Integer) => Some(Integer),
             (Boolean, Boolean) => Some(Boolean),
-            (Array(left), Array(right)) => {
-                self.least_upper_bound(left, right).map(Box::new).map(Array)
-            }
+            (Array(left), Array(right)) => self
+                .least_upper_bound_array(left, right)
+                .map(Box::new)
+                .map(Array),
             (Class(_), Class(_)) => {
                 if self.is_subtype(left, right) {
                     Some(right.clone())
@@ -227,6 +241,22 @@ impl Context {
                     None
                 }
             }
+            (_, _) => None,
+        }
+    }
+
+    pub fn least_upper_bound_array(
+        &self,
+        left: &r#type::Expression,
+        right: &r#type::Expression,
+    ) -> Option<r#type::Expression> {
+        use r#type::Expression::*;
+        match (left, right) {
+            (Any, r#type) | (r#type, Any) => Some(r#type.clone()),
+            (Array(left), Array(right)) => {
+                self.least_upper_bound(left, right).map(Box::new).map(Array)
+            }
+            (_, _) if left == right => Some(left.clone()),
             (_, _) => None,
         }
     }
