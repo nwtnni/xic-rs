@@ -11,6 +11,7 @@ use crate::check::Scope;
 use crate::data::ast;
 use crate::data::r#type;
 use crate::data::symbol;
+use crate::data::symbol::Symbol;
 use crate::error;
 use crate::lex;
 use crate::parse;
@@ -37,11 +38,25 @@ pub fn check(library: &Path, path: &Path, program: &ast::Program) -> Result<Cont
 
 struct Checker {
     context: Context,
+    phase: Phase,
+}
+
+// Because Xi allows functions, methods, and globals to reference symbols defined later
+// in the program, we need to perform two passes: `Load`, to bind all globally visible
+// names to their explicitly annotated types, and `Check`, to validate the entire program.
+//
+// This state variable is a bit dirty, but it allows us to inspect the phase only in methods
+// that depend on it, rather than threading it through multiple layers of recursion.
+#[derive(Copy, Clone, Debug)]
+enum Phase {
+    Load,
+    Check,
 }
 
 impl Checker {
-    pub fn new() -> Self {
+    fn new() -> Self {
         Checker {
+            phase: Phase::Load,
             context: Context::new(),
         }
     }
@@ -60,37 +75,16 @@ impl Checker {
             self.load_interface(&interface)?;
         }
 
-        for item in &program.items {
-            match item {
-                ast::Item::Global(_) => todo!(),
-                ast::Item::Class(_) => todo!(),
-                ast::Item::Function(function) => self.load_function(function)?,
-            }
-        }
-
-        for item in &program.items {
-            match item {
-                ast::Item::Global(ast::Global::Declaration(declaration)) => {
-                    self.check_declaration(GlobalScope::Global, declaration)?;
-                }
-                ast::Item::Global(ast::Global::Initialization(initialization)) => {
-                    self.check_initialization(GlobalScope::Global, initialization)?;
-                }
-                ast::Item::Class(class) => self.check_class(class)?,
-                ast::Item::Function(function) => {
-                    let returns = match self.context.get(GlobalScope::Global, &function.name) {
-                        Some(Entry::Function(_, returns)) => returns.clone(),
-                        _ => panic!("[INTERNAL ERROR]: function should be bound in first pass"),
-                    };
-
-                    self.check_function(
-                        LocalScope::Function {
-                            returns: returns.clone(),
-                        },
-                        function,
-                    )?;
+        for _ in 0..2 {
+            for item in &program.items {
+                match item {
+                    ast::Item::Global(global) => self.check_global(global)?,
+                    ast::Item::Class(class) => self.check_class(class)?,
+                    ast::Item::Function(function) => self.check_function(None, function)?,
                 }
             }
+
+            self.phase = Phase::Check;
         }
 
         Ok(self.context)
@@ -145,35 +139,6 @@ impl Checker {
         Ok(())
     }
 
-    fn load_function(&mut self, function: &ast::Function) -> Result<(), error::Error> {
-        let (new_parameters, new_returns) = self.check_signature(function)?;
-
-        match self.context.get(GlobalScope::Global, &function.name) {
-            Some(Entry::Signature(old_parameters, _))
-                if !self.context.all_subtype(old_parameters, &new_parameters) =>
-            {
-                bail!(function.span, ErrorKind::SignatureMismatch)
-            }
-            Some(Entry::Signature(_, old_returns))
-                if !self.context.all_subtype(&new_returns, old_returns) =>
-            {
-                bail!(function.span, ErrorKind::SignatureMismatch)
-            }
-            Some(Entry::Signature(_, _)) | None => {
-                self.context.insert(
-                    GlobalScope::Global,
-                    function.name,
-                    Entry::Function(new_parameters, new_returns),
-                );
-            }
-            Some(Entry::Function(_, _)) | Some(Entry::Variable(_)) => {
-                bail!(function.span, ErrorKind::NameClash)
-            }
-        }
-
-        Ok(())
-    }
-
     fn check_signature<C: ast::Callable>(
         &self,
         signature: &C,
@@ -195,20 +160,35 @@ impl Checker {
     }
 
     fn check_type(&self, r#type: &ast::Type) -> Result<r#type::Expression, error::Error> {
-        match r#type {
-            ast::Type::Bool(_) => Ok(r#type::Expression::Boolean),
-            ast::Type::Int(_) => Ok(r#type::Expression::Integer),
-            ast::Type::Class(class, _) => Ok(r#type::Expression::Class(*class)),
-            ast::Type::Array(r#type, None, _) => self
+        match (self.phase, r#type) {
+            (_, ast::Type::Bool(_)) => Ok(r#type::Expression::Boolean),
+            (_, ast::Type::Int(_)) => Ok(r#type::Expression::Integer),
+            (_, ast::Type::Class(class, _)) => Ok(r#type::Expression::Class(*class)),
+            (_, ast::Type::Array(r#type, None, _))
+
+            // When loading, delay type-checking of the length expression
+            | (Phase::Load, ast::Type::Array(r#type, Some(_), _)) => self
                 .check_type(r#type)
                 .map(Box::new)
                 .map(r#type::Expression::Array),
-            ast::Type::Array(r#type, Some(length), _) => {
+
+            (Phase::Check, ast::Type::Array(r#type, Some(length), _)) => {
                 let r#type = self.check_type(r#type)?;
                 match self.check_expression(length)? {
                     r#type::Expression::Integer => Ok(r#type::Expression::Array(Box::new(r#type))),
                     r#type => expected!(length.span(), r#type::Expression::Integer, r#type),
                 }
+            }
+        }
+    }
+
+    fn check_global(&mut self, global: &ast::Global) -> Result<(), error::Error> {
+        match global {
+            ast::Global::Declaration(declaration) => {
+                self.check_declaration(GlobalScope::Global, declaration)
+            }
+            ast::Global::Initialization(initialization) => {
+                self.check_initialization(GlobalScope::Global, initialization)
             }
         }
     }
@@ -229,23 +209,7 @@ impl Checker {
                 ast::ClassItem::Field(declaration) => {
                     self.check_declaration(GlobalScope::Class(class.name), declaration)?;
                 }
-                ast::ClassItem::Method(method) => {
-                    let returns = match self
-                        .context
-                        .get(GlobalScope::Class(class.name), &method.name)
-                    {
-                        Some(Entry::Function(_, returns)) => returns.clone(),
-                        _ => panic!("[INTERNAL ERROR]: function should be bound in first pass"),
-                    };
-
-                    self.check_function(
-                        LocalScope::Method {
-                            class: class.name,
-                            returns: returns.clone(),
-                        },
-                        method,
-                    )?;
-                }
+                ast::ClassItem::Method(method) => self.check_function(Some(class.name), method)?,
             }
         }
 
@@ -254,22 +218,67 @@ impl Checker {
 
     fn check_function(
         &mut self,
-        scope: LocalScope,
+        class: Option<Symbol>,
         function: &ast::Function,
     ) -> Result<(), error::Error> {
-        self.context.push(scope.clone());
+        let scope = class.map(GlobalScope::Class).unwrap_or(GlobalScope::Global);
 
-        for parameter in &function.parameters {
-            self.check_single_declaration(Scope::Local, parameter)?;
+        match self.phase {
+            Phase::Load => {
+                let (new_parameters, new_returns) = self.check_signature(function)?;
+
+                match self.context.get(scope, &function.name) {
+                    Some(Entry::Signature(old_parameters, _))
+                        if !self.context.all_subtype(old_parameters, &new_parameters) =>
+                    {
+                        bail!(function.span, ErrorKind::SignatureMismatch)
+                    }
+                    Some(Entry::Signature(_, old_returns))
+                        if !self.context.all_subtype(&new_returns, old_returns) =>
+                    {
+                        bail!(function.span, ErrorKind::SignatureMismatch)
+                    }
+                    Some(Entry::Signature(_, _)) | None => {
+                        self.context.insert(
+                            GlobalScope::Global,
+                            function.name,
+                            Entry::Function(new_parameters, new_returns),
+                        );
+                    }
+                    Some(Entry::Function(_, _)) | Some(Entry::Variable(_)) => {
+                        bail!(function.span, ErrorKind::NameClash)
+                    }
+                }
+            }
+            Phase::Check => {
+                let returns = match self.context.get(scope, &function.name) {
+                    Some(Entry::Function(_, returns)) => returns.clone(),
+                    _ => panic!(
+                        "[INTERNAL ERROR]: functions and methods should be bound in first pass"
+                    ),
+                };
+
+                let procedure = returns.is_empty();
+                let scope = match class {
+                    Some(class) => LocalScope::Method { class, returns },
+                    None => LocalScope::Function { returns },
+                };
+
+                self.context.push(scope);
+
+                for parameter in &function.parameters {
+                    self.check_single_declaration(Scope::Local, parameter)?;
+                }
+
+                let r#type = self.check_statement(&function.statements)?;
+
+                if r#type != r#type::Statement::Void && !procedure {
+                    bail!(function.span, ErrorKind::MissingReturn);
+                }
+
+                self.context.pop();
+            }
         }
-
-        if self.check_statement(&function.statements)? != r#type::Statement::Void
-            && !scope.returns().unwrap().is_empty()
-        {
-            bail!(function.span, ErrorKind::MissingReturn);
-        }
-
-        self.context.pop();
         Ok(())
     }
 
@@ -333,13 +342,23 @@ impl Checker {
         declaration: &ast::SingleDeclaration,
     ) -> Result<r#type::Expression, error::Error> {
         let r#type = self.check_type(&declaration.r#type)?;
+        let scope = scope.into();
+        let existing =
+            match self
+                .context
+                .insert(scope, declaration.name, Entry::Variable(r#type.clone()))
+            {
+                None => return Ok(r#type),
+                Some(existing) => existing,
+            };
 
-        if self
-            .context
-            .insert(scope, declaration.name, Entry::Variable(r#type.clone()))
-            .is_some()
-        {
-            bail!(declaration.span, ErrorKind::NameClash);
+        match (self.phase, scope) {
+            (_, Scope::Local) | (Phase::Load, Scope::Global(_)) => {
+                bail!(declaration.span, ErrorKind::NameClash)
+            }
+            (Phase::Check, Scope::Global(_)) => {
+                assert_eq!(Entry::Variable(r#type.clone()), existing)
+            }
         }
 
         Ok(r#type)
@@ -644,6 +663,19 @@ impl Checker {
             span,
         }: &ast::Initialization,
     ) -> Result<(), error::Error> {
+        match self.phase {
+            Phase::Check => (),
+
+            // When loading, delay type-checking of the initializer expression
+            Phase::Load => {
+                let scope = scope.into();
+                for declaration in declarations.iter().flatten() {
+                    self.check_single_declaration(scope, declaration)?;
+                }
+                return Ok(());
+            }
+        }
+
         let r#types = self.check_call_or_expression(expression)?;
 
         if r#types.is_empty() {
