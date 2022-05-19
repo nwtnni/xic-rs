@@ -2,6 +2,7 @@
 
 use crate::abi;
 use crate::check;
+use crate::check::GlobalScope;
 use crate::data::ast;
 use crate::data::hir;
 use crate::data::ir;
@@ -554,7 +555,7 @@ impl<'env> Emitter<'env> {
     }
 
     fn get_returns(&self, name: &Symbol) -> usize {
-        match self.context.get(name) {
+        match self.context.get(GlobalScope::Global, name) {
             Some(check::Entry::Function(_, returns))
             | Some(check::Entry::Signature(_, returns)) => returns.len(),
             _ => panic!("[INTERNAL ERROR]: type checking failed"),
@@ -566,7 +567,7 @@ impl<'env> Emitter<'env> {
             return *mangled;
         }
 
-        let (parameters, returns) = match self.context.get(name) {
+        let (parameters, returns) = match self.context.get(GlobalScope::Global, name) {
             Some(check::Entry::Function(parameters, returns))
             | Some(check::Entry::Signature(parameters, returns)) => (parameters, returns),
             _ => panic!("[INTERNAL ERROR]: type checking failed"),
