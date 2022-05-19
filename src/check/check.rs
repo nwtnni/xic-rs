@@ -573,15 +573,22 @@ impl Checker {
     }
 
     fn check_call(&self, call: &ast::Call) -> Result<Vec<r#type::Expression>, error::Error> {
-        let name = match &*call.function {
-            ast::Expression::Variable(name, _) => *name,
-            _ => todo!(),
+        let (scope, name) = match &*call.function {
+            ast::Expression::Variable(name, _) => (Scope::Local, *name),
+            ast::Expression::Dot(receiver, name, span) => {
+                let class = match self.check_expression(receiver)? {
+                    r#type::Expression::Class(class) => class,
+                    _ => bail!(*span, ErrorKind::NotClass),
+                };
+                (Scope::Global(GlobalScope::Class(class)), *name)
+            }
+            expression => bail!(expression.span(), ErrorKind::NotFun(None)),
         };
 
-        let (parameters, returns) = match self.context.get(Scope::Local, &name) {
+        let (parameters, returns) = match self.context.get(scope, &name) {
             Some(Entry::Signature(parameters, returns))
             | Some(Entry::Function(parameters, returns)) => (parameters, returns),
-            Some(_) => bail!(call.span, ErrorKind::NotFun(name)),
+            Some(_) => bail!(call.span, ErrorKind::NotFun(Some(name))),
             None => bail!(call.span, ErrorKind::UnboundFun(name)),
         };
 
