@@ -510,8 +510,25 @@ impl Checker {
                 ),
             },
 
-            ast::Expression::Dot(_, _, _) => todo!(),
-            ast::Expression::New(_, _) => todo!(),
+            ast::Expression::Dot(receiver, field, span) => {
+                let class = match self.check_expression(receiver)? {
+                    r#type::Expression::Class(class) => class,
+                    _ => bail!(*span, ErrorKind::NotClass),
+                };
+
+                match self.context.get(GlobalScope::Class(class), field) {
+                    None => bail!(*span, ErrorKind::UnboundVariable(*field)),
+                    Some(Entry::Variable(r#type)) => Ok(r#type.clone()),
+                    Some(_) => bail!(*span, ErrorKind::NotVariable(*field)),
+                }
+            }
+            ast::Expression::New(class, span) => match self.context.get_class() {
+                None => bail!(*span, ErrorKind::NotInClass(None)),
+                Some(expected) if *class != expected => {
+                    bail!(*span, ErrorKind::NotInClass(Some(*class)))
+                }
+                Some(_) => Ok(r#type::Expression::Class(*class)),
+            },
 
             ast::Expression::Call(call) => {
                 let mut returns = self.check_call(call)?;
