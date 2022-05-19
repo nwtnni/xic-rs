@@ -166,7 +166,9 @@ impl Checker {
                     Entry::Function(new_parameters, new_returns),
                 );
             }
-            Some(_) => bail!(function.span, ErrorKind::NameClash),
+            Some(Entry::Function(_, _)) | Some(Entry::Variable(_)) => {
+                bail!(function.span, ErrorKind::NameClash)
+            }
         }
 
         Ok(())
