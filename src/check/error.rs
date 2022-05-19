@@ -23,6 +23,7 @@ pub enum ErrorKind {
     NotFun(Symbol),
     NotExp,
     NotProcedure,
+    NotInClass(Option<Symbol>),
     IndexEmpty,
     CallLength,
     InitLength,
@@ -47,6 +48,8 @@ impl std::fmt::Display for Error {
             ErrorKind::NotFun(f) => format!("{} is not a function", symbol::resolve(*f)),
             ErrorKind::NotExp => String::from("Not a single expression type"),
             ErrorKind::NotProcedure => String::from("Not a procedure"),
+            ErrorKind::NotInClass(None) => String::from("Not inside a class implementation"),
+            ErrorKind::NotInClass(Some(class)) => format!("Not inside class {}", class),
             ErrorKind::IndexEmpty => String::from("Cannot index empty array"),
             ErrorKind::CallLength => {
                 String::from("Incorrect number of arguments for function call")

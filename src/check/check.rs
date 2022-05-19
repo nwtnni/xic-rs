@@ -375,8 +375,12 @@ impl Checker {
                 r#type::Expression::Integer,
             ))),
             ast::Expression::Integer(_, _) => Ok(r#type::Expression::Integer),
-            ast::Expression::This(_) => todo!(),
-            ast::Expression::Null(_) => todo!(),
+            ast::Expression::This(span) | ast::Expression::Null(span) => {
+                match self.context.get_class() {
+                    None => bail!(*span, ErrorKind::NotInClass(None)),
+                    Some(class) => Ok(r#type::Expression::Class(class)),
+                }
+            }
             ast::Expression::Variable(name, span) => match self.context.get(Scope::Local, name) {
                 Some(Entry::Variable(typ)) => Ok(typ.clone()),
                 Some(_) => bail!(*span, ErrorKind::NotVariable(*name)),
