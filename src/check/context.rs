@@ -59,7 +59,7 @@ pub enum LocalScope {
 }
 
 impl LocalScope {
-    fn returns(&self) -> Option<&[r#type::Expression]> {
+    pub(super) fn returns(&self) -> Option<&[r#type::Expression]> {
         match self {
             LocalScope::Block | LocalScope::If | LocalScope::Else | LocalScope::While => None,
             LocalScope::Method { class: _, returns } | LocalScope::Function { returns } => {

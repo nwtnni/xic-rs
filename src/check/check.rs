@@ -70,9 +70,26 @@ impl Checker {
 
         for item in &program.items {
             match item {
-                ast::Item::Global(_) => todo!(),
-                ast::Item::Class(_) => todo!(),
-                ast::Item::Function(function) => self.check_function(function)?,
+                ast::Item::Global(ast::Global::Declaration(declaration)) => {
+                    self.check_declaration(GlobalScope::Global, declaration)?;
+                }
+                ast::Item::Global(ast::Global::Initialization(initialization)) => {
+                    self.check_initialization(GlobalScope::Global, initialization)?;
+                }
+                ast::Item::Class(class) => self.check_class(class)?,
+                ast::Item::Function(function) => {
+                    let returns = match self.context.get(GlobalScope::Global, &function.name) {
+                        Some(Entry::Function(_, returns)) => returns.clone(),
+                        _ => panic!("[INTERNAL ERROR]: function should be bound in first pass"),
+                    };
+
+                    self.check_function(
+                        LocalScope::Function {
+                            returns: returns.clone(),
+                        },
+                        function,
+                    )?;
+                }
             }
         }
 
@@ -184,32 +201,68 @@ impl Checker {
                 .check_type(r#type)
                 .map(Box::new)
                 .map(r#type::Expression::Array),
-            ast::Type::Array(r#type, Some(len), _) => {
+            ast::Type::Array(r#type, Some(length), _) => {
                 let r#type = self.check_type(r#type)?;
-                match self.check_expression(len)? {
+                match self.check_expression(length)? {
                     r#type::Expression::Integer => Ok(r#type::Expression::Array(Box::new(r#type))),
-                    r#type => expected!(len.span(), r#type::Expression::Integer, r#type),
+                    r#type => expected!(length.span(), r#type::Expression::Integer, r#type),
                 }
             }
         }
     }
 
-    fn check_function(&mut self, function: &ast::Function) -> Result<(), error::Error> {
-        let returns = match self.context.get(GlobalScope::Global, &function.name) {
-            Some(Entry::Function(_, returns)) => returns.clone(),
-            _ => panic!("[INTERNAL ERROR]: function should be bound in first pass"),
-        };
+    fn check_class(&mut self, class: &ast::Class) -> Result<(), error::Error> {
+        if let Some(supertype) = class.extends {
+            if let Some(existing) = self.context.insert_subtype(class.name, supertype) {
+                expected!(
+                    class.span,
+                    r#type::Expression::Class(existing),
+                    r#type::Expression::Class(supertype)
+                );
+            }
+        }
 
-        self.context.push(LocalScope::Function {
-            returns: returns.clone(),
-        });
+        for item in &class.items {
+            match item {
+                ast::ClassItem::Field(declaration) => {
+                    self.check_declaration(GlobalScope::Class(class.name), declaration)?;
+                }
+                ast::ClassItem::Method(method) => {
+                    let returns = match self
+                        .context
+                        .get(GlobalScope::Class(class.name), &method.name)
+                    {
+                        Some(Entry::Function(_, returns)) => returns.clone(),
+                        _ => panic!("[INTERNAL ERROR]: function should be bound in first pass"),
+                    };
+
+                    self.check_function(
+                        LocalScope::Method {
+                            class: class.name,
+                            returns: returns.clone(),
+                        },
+                        method,
+                    )?;
+                }
+            }
+        }
+
+        Ok(())
+    }
+
+    fn check_function(
+        &mut self,
+        scope: LocalScope,
+        function: &ast::Function,
+    ) -> Result<(), error::Error> {
+        self.context.push(scope.clone());
 
         for parameter in &function.parameters {
-            self.check_declaration(parameter)?;
+            self.check_single_declaration(Scope::Local, parameter)?;
         }
 
         if self.check_statement(&function.statements)? != r#type::Statement::Void
-            && !returns.is_empty()
+            && !scope.returns().unwrap().is_empty()
         {
             bail!(function.span, ErrorKind::MissingReturn);
         }
@@ -246,21 +299,46 @@ impl Checker {
         Ok(returns.clone())
     }
 
-    fn check_declaration(
+    fn check_declaration<S: Into<Scope>>(
         &mut self,
+        scope: S,
+        declaration: &ast::Declaration,
+    ) -> Result<(), error::Error> {
+        match declaration {
+            ast::Declaration::Multiple(multiple) => {
+                let scope = scope.into();
+                for name in &multiple.names {
+                    self.check_single_declaration(
+                        scope,
+                        &ast::SingleDeclaration {
+                            name: *name,
+                            r#type: multiple.r#type.clone(),
+                            span: multiple.span,
+                        },
+                    )?;
+                }
+            }
+            ast::Declaration::Single(single) => {
+                self.check_single_declaration(scope, single)?;
+            }
+        }
+        Ok(())
+    }
+
+    fn check_single_declaration<S: Into<Scope>>(
+        &mut self,
+        scope: S,
         declaration: &ast::SingleDeclaration,
     ) -> Result<r#type::Expression, error::Error> {
-        if self.context.get(Scope::Local, &declaration.name).is_some() {
-            bail!(declaration.span, ErrorKind::NameClash)
-        }
-
         let r#type = self.check_type(&declaration.r#type)?;
 
-        self.context.insert(
-            Scope::Local,
-            declaration.name,
-            Entry::Variable(r#type.clone()),
-        );
+        if self
+            .context
+            .insert(scope, declaration.name, Entry::Variable(r#type.clone()))
+            .is_some()
+        {
+            bail!(declaration.span, ErrorKind::NameClash);
+        }
 
         Ok(r#type)
     }
@@ -471,38 +549,11 @@ impl Checker {
                 _ => bail!(call.span, ErrorKind::NotProcedure),
             },
             ast::Statement::Declaration(declaration, _) => {
-                let declaration = match declaration {
-                    ast::Declaration::Multiple(_) => todo!(),
-                    ast::Declaration::Single(declaration) => declaration,
-                };
-
-                self.check_declaration(declaration)?;
+                self.check_declaration(Scope::Local, declaration)?;
                 Ok(r#type::Statement::Unit)
             }
-            ast::Statement::Initialization(ast::Initialization {
-                declarations,
-                expression,
-                span,
-            }) => {
-                let initializations = self.check_call_or_expression(expression)?;
-
-                if initializations.is_empty() {
-                    bail!(*span, ErrorKind::InitProcedure);
-                }
-
-                if initializations.len() != declarations.len() {
-                    bail!(*span, ErrorKind::InitLength);
-                }
-
-                for (declaration, initialization) in declarations.iter().zip(initializations) {
-                    if let Some(declaration) = declaration {
-                        let r#type = self.check_declaration(declaration)?;
-                        if !self.context.is_subtype(&initialization, &r#type) {
-                            expected!(declaration.span, initialization, r#type);
-                        }
-                    }
-                }
-
+            ast::Statement::Initialization(initialization) => {
+                self.check_initialization(Scope::Local, initialization)?;
                 Ok(r#type::Statement::Unit)
             }
             ast::Statement::Return(returns, span) => {
@@ -580,5 +631,39 @@ impl Checker {
             }
             ast::Statement::Break(_) => todo!(),
         }
+    }
+
+    fn check_initialization<S: Into<Scope>>(
+        &mut self,
+        scope: S,
+        ast::Initialization {
+            declarations,
+            expression,
+            span,
+        }: &ast::Initialization,
+    ) -> Result<(), error::Error> {
+        let r#types = self.check_call_or_expression(expression)?;
+
+        if r#types.is_empty() {
+            bail!(*span, ErrorKind::InitProcedure);
+        }
+
+        if r#types.len() != declarations.len() {
+            bail!(*span, ErrorKind::InitLength);
+        }
+
+        let scope = scope.into();
+        for (declaration, subtype) in declarations
+            .iter()
+            .zip(r#types)
+            .filter_map(|(declaration, r#type)| Some((declaration.as_ref()?, r#type)))
+        {
+            let supertype = self.check_single_declaration(scope, declaration)?;
+            if !self.context.is_subtype(&subtype, &supertype) {
+                expected!(declaration.span, subtype, supertype);
+            }
+        }
+
+        Ok(())
     }
 }
