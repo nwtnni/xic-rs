@@ -1,0 +1,13 @@
+---
+source: tests/suite/check.rs
+assertion_line: 35
+expression: Snapshot(context)
+---
+Error: Semantic error
+   ╭─[tests/check/bad-class-shadowing1.xi:2:1]
+   │
+ 2 │ class A {}
+   · ─────┬────  
+   ·      ╰────── Name already bound in environment
+───╯
+
