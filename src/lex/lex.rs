@@ -1,3 +1,5 @@
+use std::path::Path;
+
 use crate::data::span;
 use crate::data::symbol;
 use crate::data::token;
@@ -7,9 +9,15 @@ use crate::lex::ErrorKind;
 use crate::util::TakeUntil as _;
 use crate::util::Tap as _;
 
+pub fn lex(path: &Path) -> Result<token::Tokens, crate::Error> {
+    let source = std::fs::read_to_string(path)?;
+    let tokens = Lexer::new(&source).lex();
+    Ok(tokens)
+}
+
 /// Stateful Xi lexer.
 /// Converts a stream of source characters into a stream of `Token`s.
-pub struct Lexer<'source> {
+struct Lexer<'source> {
     /// View into original source
     source: &'source str,
 

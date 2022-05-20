@@ -1,4 +1,3 @@
-use std::fs;
 use std::io;
 use std::path::Path;
 
@@ -119,16 +118,15 @@ impl Checker {
         }
 
         let path = directory_library.join(format!("{}.ixi", r#use.name));
-        let source = match fs::read_to_string(&path) {
-            Ok(source) => source,
-            Err(error) if error.kind() == io::ErrorKind::NotFound => {
+        let tokens = match lex::lex(&path) {
+            Ok(tokens) => tokens,
+            Err(error::Error::Io(error)) if error.kind() == io::ErrorKind::NotFound => {
                 bail!(r#use.span, ErrorKind::NotFound(r#use.name))
             }
-            Err(error) => return Err(error::Error::Io(error)),
+            Err(error) => return Err(error),
         };
 
-        let lexer = lex::Lexer::new(&source);
-        let interface = parse::InterfaceParser::new().parse(lexer)?;
+        let interface = parse::InterfaceParser::new().parse(tokens)?;
         self.load_interface(directory_library, &interface)
     }
 
