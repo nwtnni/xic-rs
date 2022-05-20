@@ -758,20 +758,32 @@ impl Checker {
     ) -> Result<r#type::Expression, error::Error> {
         let scope = scope.into();
         let r#type = self.check_type(r#type)?;
-        let existing = match self
-            .context
-            .insert(scope, *name, Entry::Variable(r#type.clone()))
-        {
-            None => return Ok(r#type),
-            Some(existing) => existing,
-        };
 
         match (self.phase, scope) {
-            (_, Scope::Local) | (Phase::Load, Scope::Global(_)) => {
-                bail!(*span, ErrorKind::NameClash)
+            // Should only be loading globally visible symbols
+            (Phase::Load, Scope::Local) => unreachable!(),
+
+            // Globals should only be mutually recursive with classes and functions,
+            // but not other globals, because their initializers run in text order.
+            (Phase::Load, Scope::Global(GlobalScope::Global)) => (),
+
+            (Phase::Check, Scope::Local)
+            | (Phase::Load, Scope::Global(GlobalScope::Class(_)))
+            | (Phase::Check, Scope::Global(GlobalScope::Global)) => {
+                if self
+                    .context
+                    .insert(scope, *name, Entry::Variable(r#type.clone()))
+                    .is_some()
+                {
+                    bail!(*span, ErrorKind::NameClash)
+                }
             }
-            (Phase::Check, Scope::Global(_)) => {
-                assert_eq!(Entry::Variable(r#type.clone()), existing)
+
+            (Phase::Check, Scope::Global(GlobalScope::Class(_))) => {
+                assert_eq!(
+                    self.context.get(scope, name),
+                    Some(&Entry::Variable(r#type.clone()))
+                );
             }
         }
 

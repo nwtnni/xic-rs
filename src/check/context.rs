@@ -149,7 +149,7 @@ impl Context {
     }
 
     pub fn get_class(&self) -> Option<Symbol> {
-        match self.locals.first().unwrap() {
+        match self.locals.first()? {
             (LocalScope::Method { class, returns: _ }, _) => Some(*class),
             (LocalScope::Function { returns: _ }, _) => None,
             _ => unreachable!(),
@@ -157,7 +157,7 @@ impl Context {
     }
 
     pub fn get_returns(&self) -> Option<&[r#type::Expression]> {
-        match self.locals.first().unwrap() {
+        match self.locals.first()? {
             (LocalScope::Method { class: _, returns } | LocalScope::Function { returns }, _) => {
                 Some(returns.as_slice())
             }
