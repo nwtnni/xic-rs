@@ -35,7 +35,7 @@ impl std::fmt::Display for Point {
 }
 
 /// Represents a span of text in a source file.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct Span {
     pub lo: Point,
     pub hi: Point,

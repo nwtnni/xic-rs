@@ -1,4 +1,5 @@
 use std::fs;
+use std::io;
 use std::path::Path;
 
 use crate::check::context::Entry;
@@ -10,6 +11,8 @@ use crate::check::ErrorKind;
 use crate::check::Scope;
 use crate::data::ast;
 use crate::data::r#type;
+use crate::data::span::Span;
+use crate::data::symbol;
 use crate::data::symbol::Symbol;
 use crate::error;
 use crate::lex;
@@ -32,8 +35,12 @@ macro_rules! expected {
     }};
 }
 
-pub fn check(library: &Path, path: &Path, program: &ast::Program) -> Result<Context, crate::Error> {
-    Checker::new().check_program(library, path, program)
+pub fn check(
+    directory_library: Option<&Path>,
+    path: &Path,
+    program: &ast::Program,
+) -> Result<Context, crate::Error> {
+    Checker::new().check_program(directory_library, path, program)
 }
 
 struct Checker {
@@ -65,12 +72,30 @@ impl Checker {
 
     pub fn check_program(
         mut self,
-        directory_library: &Path,
-        _path: &Path,
+        directory_library: Option<&Path>,
+        path: &Path,
         program: &ast::Program,
     ) -> Result<Context, error::Error> {
+        let directory_library = directory_library.unwrap_or_else(|| path.parent().unwrap());
+
         for r#use in &program.uses {
             self.load_use(directory_library, r#use)?;
+        }
+
+        let implicit = path
+            .file_name()
+            .map(Path::new)
+            .map(|path| ast::Use {
+                name: symbol::intern(path.to_str().unwrap()),
+                span: Span::default(),
+            })
+            .unwrap();
+
+        match self.load_use(directory_library, &implicit) {
+            Ok(()) => (),
+            Err(error::Error::Semantic(error))
+                if *error.kind() == ErrorKind::NotFound(implicit.name) => {}
+            Err(error) => return Err(error),
         }
 
         for _ in 0..2 {
@@ -94,7 +119,14 @@ impl Checker {
         }
 
         let path = directory_library.join(format!("{}.ixi", r#use.name));
-        let source = fs::read_to_string(path)?;
+        let source = match fs::read_to_string(&path) {
+            Ok(source) => source,
+            Err(error) if error.kind() == io::ErrorKind::NotFound => {
+                bail!(r#use.span, ErrorKind::NotFound(r#use.name))
+            }
+            Err(error) => return Err(error::Error::Io(error)),
+        };
+
         let lexer = lex::Lexer::new(&source);
         let interface = parse::InterfaceParser::new().parse(lexer)?;
         self.load_interface(directory_library, &interface)

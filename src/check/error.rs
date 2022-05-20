@@ -13,10 +13,15 @@ impl Error {
     pub fn new(span: span::Span, kind: ErrorKind) -> Self {
         Error { span, kind }
     }
+
+    pub(super) fn kind(&self) -> &ErrorKind {
+        &self.kind
+    }
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub enum ErrorKind {
+    NotFound(Symbol),
     UnboundVariable(Symbol),
     UnboundFun(Symbol),
     NotVariable(Symbol),
@@ -43,6 +48,9 @@ pub enum ErrorKind {
 impl std::fmt::Display for Error {
     fn fmt(&self, fmt: &mut std::fmt::Formatter) -> std::fmt::Result {
         let error = match &self.kind {
+            ErrorKind::NotFound(i) => {
+                format!("Interface file not found in library directory: {}.ixi", i)
+            }
             ErrorKind::UnboundVariable(v) => format!("Unbound variable {}", symbol::resolve(*v)),
             ErrorKind::UnboundFun(f) => format!("Unbound function {}", symbol::resolve(*f)),
             ErrorKind::NotVariable(v) => format!("{} is not a variable type", symbol::resolve(*v)),

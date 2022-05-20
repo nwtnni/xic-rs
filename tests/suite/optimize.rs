@@ -113,7 +113,7 @@ pub fn invert_loops_ast(path: &str) {
     let mut program = super::parse(path);
     optimize::invert_loops_ast(&mut program);
     let context =
-        xic::api::check(Path::new(path).parent().unwrap(), Path::new(path), &program).unwrap();
+        xic::api::check(None, Path::new(path), &program).unwrap();
     let optimized = xic::api::emit_hir(Path::new(path), &program, &context);
     let optimized_stdout = super::interpret_hir(&optimized);
 
