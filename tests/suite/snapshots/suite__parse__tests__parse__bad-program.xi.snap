@@ -1,6 +1,13 @@
 ---
 source: tests/suite/parse.rs
-assertion_line: 22
+assertion_line: 36
 expression: Snapshot(program)
 ---
-1:5 error:Unexpected EOF
+Error: Syntactic error
+   ╭─[tests/parse/bad-program.xi:1:5]
+   │
+ 1 │ What
+   ·     ┬  
+   ·     ╰── Unexpected EOF
+───╯
+

@@ -1,6 +1,13 @@
 ---
 source: tests/suite/check.rs
-assertion_line: 21
+assertion_line: 35
 expression: Snapshot(context)
 ---
-2:17 error:Expected int but found int[]
+Error: Semantic error
+   ╭─[tests/check/bad-subtract2.xi:2:17]
+   │
+ 2 │     x:int = 1 - {1,2}
+   ·                 ──┬──  
+   ·                   ╰──── Expected int but found int[]
+───╯
+

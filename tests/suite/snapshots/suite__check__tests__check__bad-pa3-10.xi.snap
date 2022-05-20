@@ -1,6 +1,13 @@
 ---
 source: tests/suite/check.rs
-assertion_line: 21
+assertion_line: 35
 expression: Snapshot(context)
 ---
-2:9 error:Initialization mismatch
+Error: Semantic error
+   ╭─[tests/check/bad-pa3-10.xi:2:9]
+   │
+ 2 │ bar() { x:int, _ = foo() }
+   ·         ────────┬───────  
+   ·                 ╰───────── Initialization mismatch
+───╯
+

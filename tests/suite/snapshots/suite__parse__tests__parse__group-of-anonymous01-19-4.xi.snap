@@ -1,6 +1,13 @@
 ---
 source: tests/suite/parse.rs
-assertion_line: 22
+assertion_line: 36
 expression: Snapshot(program)
 ---
-2:3 error:Unexpected token return
+Error: Syntactic error
+   ╭─[tests/parse/group-of-anonymous01-19-4.xi:2:3]
+   │
+ 2 │   return(a);
+   ·   ───┬──  
+   ·      ╰──── Unexpected token
+───╯
+

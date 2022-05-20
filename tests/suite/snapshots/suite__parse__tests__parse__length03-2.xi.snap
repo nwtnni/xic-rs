@@ -1,6 +1,13 @@
 ---
 source: tests/suite/parse.rs
-assertion_line: 22
+assertion_line: 36
 expression: Snapshot(program)
 ---
-2:3 error:Unexpected token length
+Error: Syntactic error
+   ╭─[tests/parse/length03-2.xi:2:3]
+   │
+ 2 │   length(a)
+   ·   ───┬──  
+   ·      ╰──── Unexpected token
+───╯
+

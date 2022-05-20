@@ -1,6 +1,13 @@
 ---
 source: tests/suite/parse.rs
-assertion_line: 22
+assertion_line: 36
 expression: Snapshot(program)
 ---
-3:5 error:Unexpected length in array type
+Error: Syntactic error
+   ╭─[tests/parse/bad-array-dim-assign1.xi:3:5]
+   │
+ 3 │     a:int[2] = {2}
+   ·     ────┬───  
+   ·         ╰───── Unexpected length in array type
+───╯
+

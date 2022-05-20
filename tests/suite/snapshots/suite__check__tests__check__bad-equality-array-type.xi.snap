@@ -1,6 +1,13 @@
 ---
 source: tests/suite/check.rs
-assertion_line: 21
+assertion_line: 35
 expression: Snapshot(context)
 ---
-4:20 error:Expected int[][] but found bool[][]
+Error: Semantic error
+   ╭─[tests/check/bad-equality-array-type.xi:4:20]
+   │
+ 4 │     c: bool = a == b
+   ·                    ┬  
+   ·                    ╰── Expected int[][] but found bool[][]
+───╯
+

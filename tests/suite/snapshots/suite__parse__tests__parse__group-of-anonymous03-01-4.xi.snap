@@ -1,6 +1,13 @@
 ---
 source: tests/suite/parse.rs
-assertion_line: 22
+assertion_line: 36
 expression: Snapshot(program)
 ---
-8:29 error:Unexpected token ;
+Error: Syntactic error
+   ╭─[tests/parse/group-of-anonymous03-01-4.xi:8:29]
+   │
+ 8 │     printab("Hello, World\n";
+   ·                             ┬  
+   ·                             ╰── Unexpected token
+───╯
+

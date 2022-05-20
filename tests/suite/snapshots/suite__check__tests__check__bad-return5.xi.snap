@@ -1,6 +1,13 @@
 ---
 source: tests/suite/check.rs
-assertion_line: 21
+assertion_line: 35
 expression: Snapshot(context)
 ---
-7:9 error:Return mismatch
+Error: Semantic error
+   ╭─[tests/check/bad-return5.xi:7:9]
+   │
+ 7 │         return 1
+   ·         ────┬───  
+   ·             ╰───── Return mismatch
+───╯
+

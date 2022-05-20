@@ -1,6 +1,13 @@
 ---
 source: tests/suite/check.rs
-assertion_line: 20
+assertion_line: 35
 expression: Snapshot(context)
 ---
-8:21 error:Name already bound in environment
+Error: Semantic error
+   ╭─[tests/check/bad-var-shadowing4.xi:8:21]
+   │
+ 8 │                     bar, baz, foo: int
+   ·                     ─────────┬────────  
+   ·                              ╰────────── Name already bound in environment
+───╯
+

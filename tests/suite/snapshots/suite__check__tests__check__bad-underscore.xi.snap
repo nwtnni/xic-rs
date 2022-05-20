@@ -1,6 +1,13 @@
 ---
 source: tests/suite/check.rs
-assertion_line: 21
+assertion_line: 35
 expression: Snapshot(context)
 ---
-4:3 error:Cannot initialize with a procedure
+Error: Semantic error
+   ╭─[tests/check/bad-underscore.xi:4:3]
+   │
+ 4 │   _ = foo()
+   ·   ────┬────  
+   ·       ╰────── Cannot initialize with a procedure
+───╯
+

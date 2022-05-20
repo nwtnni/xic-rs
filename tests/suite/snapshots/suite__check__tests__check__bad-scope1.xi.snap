@@ -1,6 +1,13 @@
 ---
 source: tests/suite/check.rs
-assertion_line: 21
+assertion_line: 35
 expression: Snapshot(context)
 ---
-6:9 error:Unbound variable y
+Error: Semantic error
+   ╭─[tests/check/bad-scope1.xi:6:9]
+   │
+ 6 │     x = y
+   ·         ┬  
+   ·         ╰── Unbound variable y
+───╯
+

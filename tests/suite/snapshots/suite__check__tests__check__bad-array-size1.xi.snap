@@ -1,6 +1,13 @@
 ---
 source: tests/suite/check.rs
-assertion_line: 21
+assertion_line: 35
 expression: Snapshot(context)
 ---
-5:10 error:Expected int but found int[]
+Error: Semantic error
+   ╭─[tests/check/bad-array-size1.xi:5:10]
+   │
+ 5 │   b: int["invalid"]
+   ·          ────┬────  
+   ·              ╰────── Expected int but found int[]
+───╯
+

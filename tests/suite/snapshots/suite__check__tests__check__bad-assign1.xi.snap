@@ -1,6 +1,13 @@
 ---
 source: tests/suite/check.rs
-assertion_line: 21
+assertion_line: 35
 expression: Snapshot(context)
 ---
-2:9 error:Expected int but found bool
+Error: Semantic error
+   ╭─[tests/check/bad-assign1.xi:2:9]
+   │
+ 2 │     x = false
+   ·         ──┬──  
+   ·           ╰──── Expected int but found bool
+───╯
+

@@ -1,6 +1,13 @@
 ---
 source: tests/suite/check.rs
-assertion_line: 21
+assertion_line: 35
 expression: Snapshot(context)
 ---
-1:22 error:Unbound function baz
+Error: Semantic error
+   ╭─[tests/check/bad-pa3-6.xi:1:22]
+   │
+ 1 │ foo(): bool { return baz() }
+   ·                      ──┬──  
+   ·                        ╰──── Unbound function baz
+───╯
+

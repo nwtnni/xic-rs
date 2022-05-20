@@ -1,6 +1,13 @@
 ---
 source: tests/suite/check.rs
-assertion_line: 20
+assertion_line: 35
 expression: Snapshot(context)
 ---
-2:16 error:Expected bool but found int
+Error: Semantic error
+   ╭─[tests/check/bad-pa3-11.xi:2:16]
+   │
+ 2 │ bar() { x:int, b:bool, _ = foo() }
+   ·                ───┬──  
+   ·                   ╰──── Expected bool but found int
+───╯
+

@@ -1,6 +1,13 @@
 ---
 source: tests/suite/parse.rs
-assertion_line: 22
+assertion_line: 36
 expression: Snapshot(program)
 ---
-2:5 error:Unexpected length in array type
+Error: Syntactic error
+   ╭─[tests/parse/group-of-anonymous08-01-4.xi:2:5]
+   │
+ 2 │     x:int[3] = {1, 2, 3} // Will fail because can't initialize indexed array
+   ·     ────┬───  
+   ·         ╰───── Unexpected length in array type
+───╯
+

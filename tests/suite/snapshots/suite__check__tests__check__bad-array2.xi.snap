@@ -1,6 +1,13 @@
 ---
 source: tests/suite/check.rs
-assertion_line: 20
+assertion_line: 35
 expression: Snapshot(context)
 ---
-2:5 error:Expected bool[] but found bool
+Error: Semantic error
+   ╭─[tests/check/bad-array2.xi:2:5]
+   │
+ 2 │     x:bool[] = false
+   ·     ────┬───  
+   ·         ╰───── Expected bool[] but found bool
+───╯
+

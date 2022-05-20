@@ -1,6 +1,13 @@
 ---
 source: tests/suite/check.rs
-assertion_line: 21
+assertion_line: 35
 expression: Snapshot(context)
 ---
-8:5 error:Unreachable statement
+Error: Semantic error
+   ╭─[tests/check/bad-unreachable1.xi:8:5]
+   │
+ 8 │     return 3
+   ·     ────┬───  
+   ·         ╰───── Unreachable statement
+───╯
+

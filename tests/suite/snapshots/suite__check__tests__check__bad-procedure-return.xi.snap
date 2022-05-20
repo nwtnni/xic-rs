@@ -1,6 +1,13 @@
 ---
 source: tests/suite/check.rs
-assertion_line: 21
+assertion_line: 35
 expression: Snapshot(context)
 ---
-3:12 error:Not a single expression type
+Error: Semantic error
+   ╭─[tests/check/bad-procedure-return.xi:3:12]
+   │
+ 3 │     return foo()
+   ·            ──┬──  
+   ·              ╰──── Not a single expression type
+───╯
+

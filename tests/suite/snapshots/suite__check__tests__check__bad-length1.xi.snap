@@ -1,6 +1,13 @@
 ---
 source: tests/suite/check.rs
-assertion_line: 21
+assertion_line: 35
 expression: Snapshot(context)
 ---
-2:13 error:Expected any[] but found int
+Error: Semantic error
+   ╭─[tests/check/bad-length1.xi:2:13]
+   │
+ 2 │     x:int = length(1)
+   ·             ────┬────  
+   ·                 ╰────── Expected any[] but found int
+───╯
+

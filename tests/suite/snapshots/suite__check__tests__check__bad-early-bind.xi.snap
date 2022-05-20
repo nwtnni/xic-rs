@@ -1,6 +1,13 @@
 ---
 source: tests/suite/check.rs
-assertion_line: 21
+assertion_line: 35
 expression: Snapshot(context)
 ---
-2:12 error:Unbound variable a
+Error: Semantic error
+   ╭─[tests/check/bad-early-bind.xi:2:12]
+   │
+ 2 │   a: int = a
+   ·            ┬  
+   ·            ╰── Unbound variable a
+───╯
+

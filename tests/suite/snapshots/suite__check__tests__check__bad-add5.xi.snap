@@ -1,6 +1,13 @@
 ---
 source: tests/suite/check.rs
-assertion_line: 20
+assertion_line: 35
 expression: Snapshot(context)
 ---
-2:5 error:Expected int but found int[]
+Error: Semantic error
+   ╭─[tests/check/bad-add5.xi:2:5]
+   │
+ 2 │     x:int = {1,2} + {}
+   ·     ──┬──  
+   ·       ╰──── Expected int but found int[]
+───╯
+

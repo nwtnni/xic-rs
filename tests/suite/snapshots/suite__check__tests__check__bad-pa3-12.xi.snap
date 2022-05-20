@@ -1,6 +1,13 @@
 ---
 source: tests/suite/check.rs
-assertion_line: 21
+assertion_line: 35
 expression: Snapshot(context)
 ---
-2:9 error:Cannot initialize with a procedure
+Error: Semantic error
+   ╭─[tests/check/bad-pa3-12.xi:2:9]
+   │
+ 2 │ bar() { x:int = foo() }
+   ·         ──────┬──────  
+   ·               ╰──────── Cannot initialize with a procedure
+───╯
+

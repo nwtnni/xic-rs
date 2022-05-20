@@ -1,6 +1,13 @@
 ---
 source: tests/suite/check.rs
-assertion_line: 21
+assertion_line: 35
 expression: Snapshot(context)
 ---
-2:15 error:Expected int but found int[]
+Error: Semantic error
+   ╭─[tests/check/bad-bin-op2.xi:2:15]
+   │
+ 2 │     i:int[] = {1} - {}
+   ·               ─┬─  
+   ·                ╰─── Expected int but found int[]
+───╯
+

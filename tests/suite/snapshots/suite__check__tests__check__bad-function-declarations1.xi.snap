@@ -1,6 +1,13 @@
 ---
 source: tests/suite/check.rs
-assertion_line: 21
+assertion_line: 35
 expression: Snapshot(context)
 ---
-2:1 error:Name already bound in environment
+Error: Semantic error
+   ╭─[tests/check/bad-function-declarations1.xi:2:1]
+   │
+ 2 │ foo() {}
+   · ───┬───  
+   ·    ╰───── Name already bound in environment
+───╯
+

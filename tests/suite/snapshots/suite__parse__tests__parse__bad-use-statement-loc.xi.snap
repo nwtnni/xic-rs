@@ -1,6 +1,13 @@
 ---
 source: tests/suite/parse.rs
-assertion_line: 22
+assertion_line: 36
 expression: Snapshot(program)
 ---
-4:1 error:Unexpected token use
+Error: Syntactic error
+   ╭─[tests/parse/bad-use-statement-loc.xi:4:1]
+   │
+ 4 │ use io
+   · ─┬─  
+   ·  ╰─── Unexpected token
+───╯
+

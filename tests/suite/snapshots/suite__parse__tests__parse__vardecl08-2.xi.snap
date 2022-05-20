@@ -1,6 +1,13 @@
 ---
 source: tests/suite/parse.rs
-assertion_line: 22
+assertion_line: 36
 expression: Snapshot(program)
 ---
-2:3 error:Unexpected length in array type
+Error: Syntactic error
+   ╭─[tests/parse/vardecl08-2.xi:2:3]
+   │
+ 2 │   x:int[1] = {1}
+   ·   ────┬───  
+   ·       ╰───── Unexpected length in array type
+───╯
+
