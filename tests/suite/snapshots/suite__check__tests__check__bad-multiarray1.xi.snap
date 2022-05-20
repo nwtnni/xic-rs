@@ -1,6 +1,6 @@
 ---
 source: tests/suite/check.rs
-assertion_line: 21
+assertion_line: 20
 expression: Snapshot(context)
 ---
-2:5 error:Expected int[] but found int[][]
+2:5 error:Expected int[][] but found int[]

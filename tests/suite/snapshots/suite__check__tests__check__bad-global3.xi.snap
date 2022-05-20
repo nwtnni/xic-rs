@@ -3,4 +3,4 @@ source: tests/suite/check.rs
 assertion_line: 20
 expression: Snapshot(context)
 ---
-1:1 error:Expected bool but found int
+1:1 error:Expected int but found bool

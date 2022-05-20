@@ -717,7 +717,7 @@ impl Checker {
         {
             let supertype = self.check_single_declaration(scope, declaration)?;
             if !self.context.is_subtype(&subtype, &supertype) {
-                expected!(declaration.span, subtype, supertype);
+                expected!(declaration.span, supertype, subtype);
             }
         }
 
