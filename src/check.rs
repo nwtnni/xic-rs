@@ -1,7 +1,9 @@
 #[allow(clippy::module_inception)]
+#[macro_use]
 mod check;
 mod context;
 mod error;
+mod load;
 
 pub use check::check;
 pub(crate) use context::Context;
