@@ -1,6 +1,0 @@
----
-source: tests/suite/check.rs
-assertion_line: 35
-expression: Snapshot(context)
----
-Valid Xi Program

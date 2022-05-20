@@ -1,0 +1,7 @@
+---
+source: tests/suite/emit.rs
+expression: lir_stdout
+---
+1000 = 1000
+40 = 40
+

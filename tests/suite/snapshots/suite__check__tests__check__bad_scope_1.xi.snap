@@ -1,0 +1,12 @@
+---
+source: tests/suite/check.rs
+expression: Snapshot(context)
+---
+Error: Semantic error
+   ╭─[tests/check/bad_scope_1.xi:6:9]
+   │
+ 6 │     x = y
+   ·         ┬  
+   ·         ╰── Unbound variable y
+───╯
+

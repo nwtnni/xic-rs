@@ -1,0 +1,5 @@
+---
+source: tests/suite/parse.rs
+expression: Snapshot(program)
+---
+(() ((foo () () ((if true ((= (x int) 4)) ((= x (bar))))))))

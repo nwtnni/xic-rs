@@ -1,0 +1,12 @@
+---
+source: tests/suite/check.rs
+expression: Snapshot(context)
+---
+Error: Semantic error
+   ╭─[tests/check/bad_subtract_1.xi:2:15]
+   │
+ 2 │     x:int = 1-false
+   ·               ──┬──  
+   ·                 ╰──── Expected int but found bool
+───╯
+

@@ -1,0 +1,5 @@
+---
+source: tests/suite/parse.rs
+expression: Snapshot(program)
+---
+(() ((f1 () () ((return))) (f2 () () ((return)))))

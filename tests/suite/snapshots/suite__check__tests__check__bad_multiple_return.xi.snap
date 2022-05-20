@@ -1,0 +1,12 @@
+---
+source: tests/suite/check.rs
+expression: Snapshot(context)
+---
+Error: Semantic error
+   ╭─[tests/check/bad_multiple_return.xi:6:12]
+   │
+ 6 │     return foo()
+   ·            ──┬──  
+   ·              ╰──── Not a single expression type
+───╯
+

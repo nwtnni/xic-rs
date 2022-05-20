@@ -1,0 +1,10 @@
+---
+source: tests/suite/emit.rs
+expression: lir_stdout
+---
+hello
+world
+foo
+bar
+baz
+

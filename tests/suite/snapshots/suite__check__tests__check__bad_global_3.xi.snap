@@ -1,0 +1,12 @@
+---
+source: tests/suite/check.rs
+expression: Snapshot(context)
+---
+Error: Semantic error
+   ╭─[tests/check/bad_global_3.xi:1:1]
+   │
+ 1 │ x: int = foo()
+   · ───┬──  
+   ·    ╰──── Expected int but found bool
+───╯
+

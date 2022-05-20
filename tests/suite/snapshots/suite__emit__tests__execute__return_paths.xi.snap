@@ -1,0 +1,13 @@
+---
+source: tests/suite/emit.rs
+expression: lir_stdout
+---
+0 is 00 in binary
+1 is 01 in binary
+2 is 10 in binary
+3 is 11 in binary
+4 is 4
+2 is 2
+-1 is -1
+-1 is -1
+

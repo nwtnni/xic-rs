@@ -1,0 +1,12 @@
+---
+source: tests/suite/check.rs
+expression: Snapshot(context)
+---
+Error: Semantic error
+   ╭─[tests/check/bad_array_size_1.xi:5:10]
+   │
+ 5 │   b: int["invalid"]
+   ·          ────┬────  
+   ·              ╰────── Expected int but found int[]
+───╯
+

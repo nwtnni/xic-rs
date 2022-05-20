@@ -1,0 +1,6 @@
+---
+source: tests/suite/lex.rs
+expression: tokens
+---
+1:1 error:Invalid escape sequence
+

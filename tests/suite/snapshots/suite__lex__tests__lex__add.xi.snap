@@ -1,7 +1,6 @@
 ---
 source: tests/suite/lex.rs
-assertion_line: 17
-expression: Snapshot(tokens)
+expression: tokens
 ---
 1:1 +
 1:2 +

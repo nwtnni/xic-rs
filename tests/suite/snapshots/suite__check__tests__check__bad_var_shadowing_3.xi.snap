@@ -1,0 +1,12 @@
+---
+source: tests/suite/check.rs
+expression: Snapshot(context)
+---
+Error: Semantic error
+   ╭─[tests/check/bad_var_shadowing_3.xi:6:21]
+   │
+ 6 │                     bar, baz, foo: int
+   ·                     ─────────┬────────  
+   ·                              ╰────────── Name already bound in environment
+───╯
+

@@ -1,0 +1,12 @@
+---
+source: tests/suite/emit.rs
+expression: lir_stdout
+---
+72
+101
+108
+108
+111
+Hello
+Hello
+

@@ -1,0 +1,12 @@
+---
+source: tests/suite/parse.rs
+expression: Snapshot(program)
+---
+Error: Syntactic error
+   ╭─[tests/parse/vardecl06_2.xi:2:3]
+   │
+ 2 │   x:int[1], _
+   ·   ────┬───  
+   ·       ╰───── Unexpected length in array type
+───╯
+

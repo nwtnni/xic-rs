@@ -1,8 +1,0 @@
----
-source: tests/suite/lex.rs
-assertion_line: 17
-expression: Snapshot(tokens)
----
-1:1 -
-1:2 integer 9223372036854775808
-

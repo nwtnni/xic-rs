@@ -1,0 +1,12 @@
+---
+source: tests/suite/check.rs
+expression: Snapshot(context)
+---
+Error: Semantic error
+   ╭─[tests/check/bad_return_4.xi:2:5]
+   │
+ 2 │     return
+   ·     ───┬──  
+   ·        ╰──── Return mismatch
+───╯
+

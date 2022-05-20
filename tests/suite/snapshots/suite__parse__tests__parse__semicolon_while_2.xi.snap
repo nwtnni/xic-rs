@@ -1,0 +1,5 @@
+---
+source: tests/suite/parse.rs
+expression: Snapshot(program)
+---
+(() ((foo () () ((while false ((= (x int) 5)))))))

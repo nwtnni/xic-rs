@@ -1,0 +1,12 @@
+---
+source: tests/suite/check.rs
+expression: Snapshot(context)
+---
+Error: Semantic error
+   ╭─[tests/check/bad_pa3_10.xi:2:9]
+   │
+ 2 │ bar() { x:int, _ = foo() }
+   ·         ────────┬───────  
+   ·                 ╰───────── Initialization mismatch
+───╯
+

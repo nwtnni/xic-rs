@@ -1,0 +1,8 @@
+---
+source: tests/suite/emit.rs
+expression: lir_stdout
+---
+ABC
+DEF
+GHI
+

@@ -1,0 +1,12 @@
+---
+source: tests/suite/parse.rs
+expression: Snapshot(program)
+---
+Error: Syntactic error
+   ╭─[tests/parse/bad_array_dim_assign_1.xi:3:5]
+   │
+ 3 │     a:int[2] = {2}
+   ·     ────┬───  
+   ·         ╰───── Unexpected length in array type
+───╯
+

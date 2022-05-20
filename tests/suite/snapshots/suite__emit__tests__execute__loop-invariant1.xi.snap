@@ -1,7 +1,0 @@
----
-source: tests/suite/emit.rs
-assertion_line: 10
-expression: lir_stdout
----
-5000 = 5000
-

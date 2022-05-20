@@ -1,0 +1,12 @@
+---
+source: tests/suite/check.rs
+expression: Snapshot(context)
+---
+Error: Semantic error
+   ╭─[tests/check/bad_unreachable_1.xi:8:5]
+   │
+ 8 │     return 3
+   ·     ────┬───  
+   ·         ╰───── Unreachable statement
+───╯
+

@@ -1,0 +1,12 @@
+---
+source: tests/suite/check.rs
+expression: Snapshot(context)
+---
+Error: Semantic error
+   ╭─[tests/check/bad_global_1.xi:1:10]
+   │
+ 1 │ x: int = y
+   ·          ┬  
+   ·          ╰── Unbound variable y
+───╯
+

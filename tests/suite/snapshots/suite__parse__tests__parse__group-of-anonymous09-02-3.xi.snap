@@ -1,6 +1,0 @@
----
-source: tests/suite/parse.rs
-assertion_line: 22
-expression: Snapshot(program)
----
-(() ((wemustgodeeper ((levels int)) (bool) (((((spokey (scary) skeltalz))))))))

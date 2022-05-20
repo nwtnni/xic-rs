@@ -1,0 +1,6 @@
+---
+source: tests/suite/emit.rs
+expression: lir_stdout
+---
+4611686018427387903
+

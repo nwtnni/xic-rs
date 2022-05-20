@@ -1,0 +1,7 @@
+---
+source: tests/suite/lex.rs
+expression: tokens
+---
+1:1 -
+1:2 integer 9223372036854775808
+

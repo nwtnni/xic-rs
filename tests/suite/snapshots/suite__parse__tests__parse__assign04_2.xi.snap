@@ -1,0 +1,12 @@
+---
+source: tests/suite/parse.rs
+expression: Snapshot(program)
+---
+Error: Syntactic error
+   ╭─[tests/parse/assign04_2.xi:2:12]
+   │
+ 2 │   a:int, y = f(x);
+   ·            ┬  
+   ·            ╰── Unexpected token
+───╯
+

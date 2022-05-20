@@ -1,0 +1,12 @@
+---
+source: tests/suite/check.rs
+expression: Snapshot(context)
+---
+Error: Semantic error
+   ╭─[tests/check/bad_nested_array.xi:2:5]
+   │
+ 2 │     i:bool[][] = {{}, {1}}
+   ·     ─────┬────  
+   ·          ╰────── Expected bool[][] but found int[][]
+───╯
+

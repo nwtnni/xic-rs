@@ -1,8 +1,0 @@
----
-source: tests/suite/parse.rs
-assertion_line: 22
-expression: Snapshot(program)
----
-(()
-((f1 ((x1 int) (x2 bool) (x3 ([] int))) () ())
-    (f2 ((x1 int) (x2 bool) (x3 ([] int))) (int) ((return 0)))))

@@ -1,0 +1,12 @@
+---
+source: tests/suite/check.rs
+expression: Snapshot(context)
+---
+Error: Semantic error
+   ╭─[tests/check/bad_pa3_6.xi:1:22]
+   │
+ 1 │ foo(): bool { return baz() }
+   ·                      ──┬──  
+   ·                        ╰──── Unbound function baz
+───╯
+

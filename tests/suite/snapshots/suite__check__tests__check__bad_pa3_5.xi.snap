@@ -1,0 +1,12 @@
+---
+source: tests/suite/check.rs
+expression: Snapshot(context)
+---
+Error: Semantic error
+   ╭─[tests/check/bad_pa3_5.xi:2:28]
+   │
+ 2 │     return 47 + (((false & ((x)))))
+   ·                            ──┬──  
+   ·                              ╰──── Expected bool but found int
+───╯
+

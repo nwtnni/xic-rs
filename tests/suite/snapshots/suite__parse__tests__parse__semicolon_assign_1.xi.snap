@@ -1,0 +1,5 @@
+---
+source: tests/suite/parse.rs
+expression: Snapshot(program)
+---
+(() ((foo () () ((= (x int) 5)))))

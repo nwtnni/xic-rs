@@ -1,0 +1,12 @@
+---
+source: tests/suite/check.rs
+expression: Snapshot(context)
+---
+Error: Semantic error
+   ╭─[tests/check/bad_multiarray_1.xi:2:5]
+   │
+ 2 │     x:int[][] = {1,2,3}
+   ·     ────┬────  
+   ·         ╰────── Expected int[][] but found int[]
+───╯
+

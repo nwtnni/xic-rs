@@ -1,0 +1,12 @@
+---
+source: tests/suite/check.rs
+expression: Snapshot(context)
+---
+Error: Semantic error
+   ╭─[tests/check/bad_multiarray_2.xi:2:5]
+   │
+ 2 │     x:bool[][] = {true,false}
+   ·     ─────┬────  
+   ·          ╰────── Expected bool[][] but found bool[]
+───╯
+

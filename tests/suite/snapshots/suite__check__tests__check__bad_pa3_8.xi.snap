@@ -1,0 +1,14 @@
+---
+source: tests/suite/check.rs
+expression: Snapshot(context)
+---
+Error: Semantic error
+   ╭─[tests/check/bad_pa3_8.xi:1:1]
+   │
+ 1 │ ╭─▶ foo(): bool {
+   ⋮ ⋮   
+ 3 │ ├─▶     b:bool = x != 3
+   · │                          
+   · ╰────────────────────────── Missing return statement
+───╯
+

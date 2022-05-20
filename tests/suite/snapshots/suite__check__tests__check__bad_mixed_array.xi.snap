@@ -1,0 +1,12 @@
+---
+source: tests/suite/check.rs
+expression: Snapshot(context)
+---
+Error: Semantic error
+   ╭─[tests/check/bad_mixed_array.xi:2:30]
+   │
+ 2 │     i:int[][] = {{}, {true}, {1}}
+   ·                              ─┬─  
+   ·                               ╰─── Expected bool[] but found int[]
+───╯
+

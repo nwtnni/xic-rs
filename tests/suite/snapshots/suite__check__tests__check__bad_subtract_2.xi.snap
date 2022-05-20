@@ -1,0 +1,12 @@
+---
+source: tests/suite/check.rs
+expression: Snapshot(context)
+---
+Error: Semantic error
+   ╭─[tests/check/bad_subtract_2.xi:2:17]
+   │
+ 2 │     x:int = 1 - {1,2}
+   ·                 ──┬──  
+   ·                   ╰──── Expected int but found int[]
+───╯
+
