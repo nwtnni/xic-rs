@@ -554,6 +554,19 @@ fn main() -> anyhow::Result<()> {
     };
 
     if let Some(report) = error.report() {
+        let (character_set, color) = match atty::is(atty::Stream::Stderr) {
+            true => (ariadne::CharSet::Unicode, true),
+            false => (ariadne::CharSet::Ascii, false),
+        };
+
+        let report = report
+            .with_config(
+                ariadne::Config::default()
+                    .with_char_set(character_set)
+                    .with_color(color),
+            )
+            .finish();
+
         let mut cache = xic::data::span::FileCache::default();
         report.eprint(&mut cache)?;
         process::exit(1)

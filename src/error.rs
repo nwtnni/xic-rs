@@ -12,11 +12,11 @@ pub enum Error {
 }
 
 impl Error {
-    pub fn report(&self) -> Option<ariadne::Report<Span>> {
+    pub fn report(&self) -> Option<ariadne::ReportBuilder<Span>> {
         let report = match self {
-            Error::Lexical(error) => error.report(),
-            Error::Syntactic(error) => error.report(),
-            Error::Semantic(error) => error.report(),
+            Error::Lexical(error) => error.report().with_message("Lexical error"),
+            Error::Syntactic(error) => error.report().with_message("Syntactic error"),
+            Error::Semantic(error) => error.report().with_message("Semantic error"),
             Error::Io(_) => return None,
         };
 
@@ -62,5 +62,5 @@ impl From<check::Error> for Error {
 }
 
 pub(crate) trait Report {
-    fn report(&self) -> ariadne::Report<Span>;
+    fn report(&self) -> ariadne::ReportBuilder<Span>;
 }

@@ -62,7 +62,7 @@ impl From<ParseError> for error::Error {
 }
 
 impl error::Report for Error {
-    fn report(&self) -> ariadne::Report<span::Span> {
+    fn report(&self) -> ariadne::ReportBuilder<span::Span> {
         use ariadne::Span as _;
 
         const ERROR: ariadne::ReportKind = ariadne::ReportKind::Error;
@@ -70,15 +70,16 @@ impl error::Report for Error {
         let message = self.message();
 
         match self {
-            Error::Eof(point) => ariadne::Report::build(ERROR, point.path.unwrap(), point.idx)
-                .with_message(message)
-                .finish(),
+            Error::Eof(point) => {
+                let span = span::Span::new(*point, point.bump());
+                ariadne::Report::build(ERROR, *span.source(), point.idx)
+                    .with_label(ariadne::Label::new(span).with_message(message))
+            }
             Error::Integer(span)
             | Error::Array(span)
             | Error::Length(span)
             | Error::Token(span, _) => ariadne::Report::build(ERROR, *span.source(), span.lo.idx)
-                .with_label(ariadne::Label::new(*span).with_message(message))
-                .finish(),
+                .with_label(ariadne::Label::new(*span).with_message(message)),
         }
     }
 }

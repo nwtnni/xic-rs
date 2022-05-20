@@ -100,7 +100,7 @@ impl std::fmt::Display for Error {
 }
 
 impl error::Report for Error {
-    fn report(&self) -> ariadne::Report<span::Span> {
+    fn report(&self) -> ariadne::ReportBuilder<span::Span> {
         use ariadne::Span as _;
         ariadne::Report::build(
             ariadne::ReportKind::Error,
@@ -108,6 +108,5 @@ impl error::Report for Error {
             self.span.lo.idx,
         )
         .with_label(ariadne::Label::new(self.span).with_message(self.kind.message()))
-        .finish()
     }
 }
