@@ -34,6 +34,7 @@ pub enum ErrorKind {
     NotClass,
     NotInClass(Option<Symbol>),
     NotInClassModule(Symbol),
+    ClassCycle(Symbol),
     IndexEmpty,
     CallLength,
     InitLength,
@@ -76,6 +77,9 @@ impl ErrorKind {
             ErrorKind::NotInClass(Some(class)) => Cow::Owned(format!("Not inside class {}", class)),
             ErrorKind::NotInClassModule(class) => {
                 Cow::Owned(format!("Not inside module that defines class {}", class))
+            }
+            ErrorKind::ClassCycle(class) => {
+                Cow::Owned(format!("Class hierarchy for class {} forms a cycle", class))
             }
             ErrorKind::IndexEmpty => Cow::Borrowed("Cannot index empty array"),
             ErrorKind::CallLength => {

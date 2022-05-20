@@ -166,6 +166,10 @@ impl Checker {
                     r#type::Expression::Class(supertype)
                 );
             }
+
+            if self.context.has_cycle(&class.name) {
+                bail!(class.span, ErrorKind::ClassCycle(class.name));
+            }
         }
 
         for method in &class.methods {
@@ -249,17 +253,26 @@ impl Checker {
     }
 
     fn check_class(&mut self, class: &ast::Class) -> Result<(), error::Error> {
-        if !self.defined.insert(class.name) && matches!(self.phase, Phase::Load) {
-            bail!(class.span, ErrorKind::NameClash);
-        }
+        match self.phase {
+            Phase::Check => (),
+            Phase::Load => {
+                if !self.defined.insert(class.name) {
+                    bail!(class.span, ErrorKind::NameClash);
+                }
 
-        if let Some(supertype) = class.extends {
-            if let Some(existing) = self.context.insert_subtype(class.name, supertype) {
-                expected!(
-                    class.span,
-                    r#type::Expression::Class(existing),
-                    r#type::Expression::Class(supertype)
-                );
+                if let Some(supertype) = class.extends {
+                    if let Some(existing) = self.context.insert_subtype(class.name, supertype) {
+                        expected!(
+                            class.span,
+                            r#type::Expression::Class(existing),
+                            r#type::Expression::Class(supertype)
+                        );
+                    }
+
+                    if self.context.has_cycle(&class.name) {
+                        bail!(class.span, ErrorKind::ClassCycle(class.name));
+                    }
+                }
             }
         }
 

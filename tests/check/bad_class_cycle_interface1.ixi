@@ -1,0 +1,3 @@
+use bad_class_cycle_interface2
+
+class A extends B {}

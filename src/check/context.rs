@@ -140,6 +140,20 @@ impl Context {
             .filter(|existing| *existing != supertype)
     }
 
+    pub fn has_cycle(&self, subtype: &Symbol) -> bool {
+        let mut r#type = *subtype;
+
+        while let Some(supertype) = self.hierarchy.get(&r#type) {
+            if supertype == subtype {
+                return true;
+            } else {
+                r#type = *supertype;
+            }
+        }
+
+        false
+    }
+
     pub fn push(&mut self, scope: LocalScope) {
         self.locals.push((scope, Map::default()));
     }
