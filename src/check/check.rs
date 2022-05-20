@@ -158,13 +158,18 @@ impl Checker {
     }
 
     fn load_class_signature(&mut self, class: &ast::ClassSignature) -> Result<(), error::Error> {
+        if self.context.insert_class(class.name).is_some() {
+            bail!(class.span, ErrorKind::NameClash);
+        }
+
         if let Some(supertype) = class.extends {
-            if let Some(existing) = self.context.insert_subtype(class.name, supertype) {
-                expected!(
-                    class.span,
-                    r#type::Expression::Class(existing),
-                    r#type::Expression::Class(supertype)
-                );
+            assert!(self
+                .context
+                .insert_supertype(class.name, supertype)
+                .is_none());
+
+            if self.context.get_class(&supertype).is_none() {
+                bail!(class.span, ErrorKind::UnboundClass(supertype))
             }
 
             if self.context.has_cycle(&class.name) {
@@ -222,10 +227,16 @@ impl Checker {
         match (self.phase, r#type) {
             (_, ast::Type::Bool(_)) => Ok(r#type::Expression::Boolean),
             (_, ast::Type::Int(_)) => Ok(r#type::Expression::Integer),
-            (_, ast::Type::Class(class, _)) => Ok(r#type::Expression::Class(*class)),
-            (_, ast::Type::Array(r#type, None, _))
 
-            // When loading, delay type-checking of the length expression
+            // Delay checking class existence
+            (Phase::Load, ast::Type::Class(class, _)) => Ok(r#type::Expression::Class(*class)),
+            (Phase::Check, ast::Type::Class(class, span)) => match self.context.get_class(class) {
+                Some(_) => Ok(r#type::Expression::Class(*class)),
+                None => bail!(*span, ErrorKind::UnboundClass(*class)),
+            },
+
+            // Delay checking length expression
+            (_, ast::Type::Array(r#type, None, _))
             | (Phase::Load, ast::Type::Array(r#type, Some(_), _)) => self
                 .check_type(r#type)
                 .map(Box::new)
@@ -254,14 +265,23 @@ impl Checker {
 
     fn check_class(&mut self, class: &ast::Class) -> Result<(), error::Error> {
         match self.phase {
-            Phase::Check => (),
             Phase::Load => {
                 if !self.defined.insert(class.name) {
                     bail!(class.span, ErrorKind::NameClash);
                 }
 
+                // May already be defined by an interface
+                if self.context.get_class(&class.name).is_none() {
+                    self.context.insert_class(class.name);
+                }
+            }
+            Phase::Check => {
                 if let Some(supertype) = class.extends {
-                    if let Some(existing) = self.context.insert_subtype(class.name, supertype) {
+                    if self.context.get_class(&supertype).is_none() {
+                        bail!(class.span, ErrorKind::UnboundClass(supertype));
+                    }
+
+                    if let Some(existing) = self.context.insert_supertype(class.name, supertype) {
                         expected!(
                             class.span,
                             r#type::Expression::Class(existing),
@@ -389,7 +409,7 @@ impl Checker {
 
                 let expected = self
                     .context
-                    .get_returns()
+                    .get_scoped_returns()
                     .expect("[INTERNAL PARSER ERROR]: return outside function scope");
 
                 if self.context.all_subtype(&returns, expected) {
@@ -470,7 +490,7 @@ impl Checker {
             ))),
             ast::Expression::Integer(_, _) => Ok(r#type::Expression::Integer),
             ast::Expression::This(span) | ast::Expression::Null(span) => {
-                match self.context.get_class() {
+                match self.context.get_scoped_class() {
                     None => bail!(*span, ErrorKind::NotInClass(None)),
                     Some(class) => Ok(r#type::Expression::Class(class)),
                 }
@@ -532,7 +552,7 @@ impl Checker {
 
                         let left = self.check_expression(left)?;
                         let right = self.check_expression(right)?;
-                        let class = self.context.get_class();
+                        let class = self.context.get_scoped_class();
 
                         match (&left, &right) {
                             (r#type::Expression::Class(left), r#type::Expression::Class(right))
@@ -636,7 +656,12 @@ impl Checker {
                 }
             }
             ast::Expression::New(class, span) => match self.defined.contains(class) {
-                false => bail!(*span, ErrorKind::NotInClassModule(*class)),
+                false if self.context.get_class(class).is_some() => {
+                    bail!(*span, ErrorKind::NotInClassModule(*class))
+                }
+                false => {
+                    bail!(*span, ErrorKind::UnboundClass(*class))
+                }
                 true => Ok(r#type::Expression::Class(*class)),
             },
 

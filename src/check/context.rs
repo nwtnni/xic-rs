@@ -1,3 +1,5 @@
+use std::iter;
+
 use crate::data::r#type;
 use crate::Map;
 
@@ -77,7 +79,10 @@ impl Context {
     pub fn get<S: Into<Scope>>(&self, scope: S, symbol: &Symbol) -> Option<&Entry> {
         match scope.into() {
             Scope::Global(GlobalScope::Global) => self.globals.get(symbol),
-            Scope::Global(GlobalScope::Class(class)) => self.search_class_hierarchy(class, symbol),
+            Scope::Global(GlobalScope::Class(class)) => iter::once(class)
+                .chain(self.ancestors(&class))
+                .map(|class| &self.classes[&class])
+                .find_map(|class| class.get(symbol)),
             Scope::Local => self
                 .locals
                 .iter()
@@ -85,19 +90,9 @@ impl Context {
                 .find_map(|(_, r#types)| r#types.get(symbol))
                 .or_else(|| self.globals.get(symbol))
                 .or_else(|| {
-                    let class = self.get_class()?;
-                    self.search_class_hierarchy(class, symbol)
+                    let class = self.get_scoped_class()?;
+                    self.get(GlobalScope::Class(class), symbol)
                 }),
-        }
-    }
-
-    fn search_class_hierarchy(&self, mut class: Symbol, symbol: &Symbol) -> Option<&Entry> {
-        loop {
-            if let Some(entry) = self.classes.get(&class)?.get(symbol) {
-                return Some(entry);
-            }
-
-            class = self.hierarchy.get(&class).copied()?;
         }
     }
 
@@ -109,11 +104,7 @@ impl Context {
     ) -> Option<Entry> {
         match scope.into() {
             Scope::Global(GlobalScope::Global) => self.globals.insert(symbol, r#type),
-            Scope::Global(GlobalScope::Class(class)) => self
-                .classes
-                .entry(class)
-                .or_default()
-                .insert(symbol, r#type),
+            Scope::Global(GlobalScope::Class(class)) => self.classes[&class].insert(symbol, r#type),
             Scope::Local => self
                 .locals
                 .last_mut()
@@ -134,24 +125,23 @@ impl Context {
         }
     }
 
-    pub fn insert_subtype(&mut self, subtype: Symbol, supertype: Symbol) -> Option<Symbol> {
+    pub fn insert_class(&mut self, class: Symbol) -> Option<Map<Symbol, Entry>> {
+        self.classes.insert(class, Map::default())
+    }
+
+    pub fn get_class(&self, class: &Symbol) -> Option<&Map<Symbol, Entry>> {
+        self.classes.get(class)
+    }
+
+    pub fn insert_supertype(&mut self, subtype: Symbol, supertype: Symbol) -> Option<Symbol> {
         self.hierarchy
             .insert(subtype, supertype)
             .filter(|existing| *existing != supertype)
     }
 
     pub fn has_cycle(&self, subtype: &Symbol) -> bool {
-        let mut r#type = *subtype;
-
-        while let Some(supertype) = self.hierarchy.get(&r#type) {
-            if supertype == subtype {
-                return true;
-            } else {
-                r#type = *supertype;
-            }
-        }
-
-        false
+        self.ancestors(subtype)
+            .any(|supertype| *subtype == supertype)
     }
 
     pub fn push(&mut self, scope: LocalScope) {
@@ -162,7 +152,16 @@ impl Context {
         self.locals.pop();
     }
 
-    pub fn get_class(&self) -> Option<Symbol> {
+    pub fn ancestors(&self, class: &Symbol) -> impl Iterator<Item = Symbol> + '_ {
+        let mut r#type = *class;
+        iter::from_fn(move || {
+            let supertype = self.hierarchy.get(&r#type).copied()?;
+            r#type = supertype;
+            Some(supertype)
+        })
+    }
+
+    pub fn get_scoped_class(&self) -> Option<Symbol> {
         match self.locals.first()? {
             (LocalScope::Method { class, returns: _ }, _) => Some(*class),
             (LocalScope::Function { returns: _ }, _) => None,
@@ -170,7 +169,7 @@ impl Context {
         }
     }
 
-    pub fn get_returns(&self) -> Option<&[r#type::Expression]> {
+    pub fn get_scoped_returns(&self) -> Option<&[r#type::Expression]> {
         match self.locals.first()? {
             (LocalScope::Method { class: _, returns } | LocalScope::Function { returns }, _) => {
                 Some(returns.as_slice())

@@ -1,1 +1,0 @@
-use bad_class_cycle_interface_1
