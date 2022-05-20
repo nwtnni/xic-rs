@@ -2,6 +2,7 @@ use std::path::Path;
 
 use crate::data::span;
 use crate::data::symbol;
+use crate::data::symbol::Symbol;
 use crate::data::token;
 use crate::error;
 use crate::lex::Error;
@@ -11,13 +12,17 @@ use crate::util::Tap as _;
 
 pub fn lex(path: &Path) -> Result<token::Tokens, crate::Error> {
     let source = std::fs::read_to_string(path)?;
-    let tokens = Lexer::new(&source).lex();
+    let path = symbol::intern(path.to_str().unwrap());
+    let tokens = Lexer::new(&path, &source).lex();
     Ok(tokens)
 }
 
 /// Stateful Xi lexer.
 /// Converts a stream of source characters into a stream of `Token`s.
 struct Lexer<'source> {
+    /// Path to source file for diagnostics
+    path: Symbol,
+
     /// View into original source
     source: &'source str,
 
@@ -51,10 +56,11 @@ fn is_ident(c: char) -> bool {
 
 impl<'source> Lexer<'source> {
     /// Construct a new lexer
-    pub fn new(source: &'source str) -> Self {
+    pub fn new(path: &Symbol, source: &'source str) -> Self {
         let mut stream = source.char_indices().peekable();
         let next = stream.next();
         Lexer {
+            path: *path,
             source,
             stream,
             next,
@@ -83,6 +89,7 @@ impl<'source> Lexer<'source> {
     /// Return the current position in the source file
     fn point(&self) -> span::Point {
         span::Point {
+            path: Some(self.path),
             idx: self.idx,
             row: self.row,
             col: self.col,

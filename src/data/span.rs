@@ -1,6 +1,9 @@
+use crate::data::symbol::Symbol;
+
 /// Represents a single point in a source file.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct Point {
+    pub path: Option<Symbol>,
     pub idx: usize,
     pub row: usize,
     pub col: usize,
@@ -9,6 +12,7 @@ pub struct Point {
 impl Default for Point {
     fn default() -> Self {
         Point {
+            path: None,
             idx: 0,
             row: 1,
             col: 1,
@@ -21,6 +25,7 @@ impl Point {
     /// Assumes that the current character is ASCII.
     pub fn bump(&self) -> Self {
         Point {
+            path: self.path,
             idx: self.idx + 1,
             row: self.row,
             col: self.col + 1,
