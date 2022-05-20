@@ -1,0 +1,13 @@
+---
+source: tests/suite/check.rs
+assertion_line: 35
+expression: Snapshot(context)
+---
+Error: Semantic error
+   ╭─[tests/check/bad_subclass_initialize_2.xi:6:5]
+   │
+ 6 │     b: B = new C
+   ·     ──┬─  
+   ·       ╰─── Expected B but found C
+───╯
+

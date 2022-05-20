@@ -1,0 +1,13 @@
+---
+source: tests/suite/check.rs
+assertion_line: 35
+expression: Snapshot(context)
+---
+Error: Semantic error
+   ╭─[tests/check/bad_invariant_assign.xi:7:5]
+   │
+ 7 │     a: A[] = c
+   ·     ───┬──  
+   ·        ╰──── Expected A[] but found C[]
+───╯
+
