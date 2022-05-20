@@ -1,4 +1,5 @@
 use crate::check;
+use crate::data::span::Span;
 use crate::lex;
 use crate::parse;
 
@@ -8,6 +9,19 @@ pub enum Error {
     Syntactic(parse::Error),
     Semantic(check::Error),
     Io(std::io::Error),
+}
+
+impl Error {
+    pub fn report(&self) -> Option<ariadne::Report<Span>> {
+        let report = match self {
+            Error::Lexical(error) => error.report(),
+            Error::Syntactic(error) => error.report(),
+            Error::Semantic(error) => error.report(),
+            Error::Io(_) => return None,
+        };
+
+        Some(report)
+    }
 }
 
 impl std::fmt::Display for Error {
@@ -45,4 +59,8 @@ impl From<check::Error> for Error {
     fn from(error: check::Error) -> Self {
         Error::Semantic(error)
     }
+}
+
+pub(crate) trait Report {
+    fn report(&self) -> ariadne::Report<Span>;
 }

@@ -1,7 +1,10 @@
+use std::borrow::Cow;
+
 use crate::data::r#type;
 use crate::data::span;
 use crate::data::symbol;
 use crate::data::symbol::Symbol;
+use crate::error;
 
 #[derive(Clone, Debug)]
 pub struct Error {
@@ -45,37 +48,66 @@ pub enum ErrorKind {
     },
 }
 
+impl ErrorKind {
+    fn message(&self) -> Cow<'static, str> {
+        match self {
+            ErrorKind::NotFound(i) => Cow::Owned(format!(
+                "Interface file not found in library directory: {}.ixi",
+                i
+            )),
+            ErrorKind::UnboundVariable(v) => {
+                Cow::Owned(format!("Unbound variable {}", symbol::resolve(*v)))
+            }
+            ErrorKind::UnboundFun(f) => {
+                Cow::Owned(format!("Unbound function {}", symbol::resolve(*f)))
+            }
+            ErrorKind::NotVariable(v) => {
+                Cow::Owned(format!("{} is not a variable type", symbol::resolve(*v)))
+            }
+            ErrorKind::NotFun(Some(f)) => {
+                Cow::Owned(format!("{} is not a function", symbol::resolve(*f)))
+            }
+            ErrorKind::NotFun(None) => Cow::Borrowed("Not a function"),
+            ErrorKind::NotExp => Cow::Borrowed("Not a single expression type"),
+            ErrorKind::NotProcedure => Cow::Borrowed("Not a procedure"),
+            ErrorKind::NotClass => Cow::Borrowed("Receiver of dot operator must be a class"),
+            ErrorKind::NotInClass(None) => Cow::Borrowed("Not inside a class implementation"),
+            ErrorKind::NotInClass(Some(class)) => Cow::Owned(format!("Not inside class {}", class)),
+            ErrorKind::IndexEmpty => Cow::Borrowed("Cannot index empty array"),
+            ErrorKind::CallLength => {
+                Cow::Borrowed("Incorrect number of arguments for function call")
+            }
+            ErrorKind::InitLength => Cow::Borrowed("Initialization mismatch"),
+            ErrorKind::InitProcedure => Cow::Borrowed("Cannot initialize with a procedure"),
+            ErrorKind::Unreachable => Cow::Borrowed("Unreachable statement"),
+            ErrorKind::MissingReturn => Cow::Borrowed("Missing return statement"),
+            ErrorKind::ReturnMismatch => Cow::Borrowed("Return mismatch"),
+            ErrorKind::NameClash => Cow::Borrowed("Name already bound in environment"),
+            ErrorKind::SignatureMismatch => {
+                Cow::Borrowed("Implementation does not match signature")
+            }
+            ErrorKind::Mismatch { expected, found } => {
+                Cow::Owned(format!("Expected {} but found {}", expected, found))
+            }
+        }
+    }
+}
+
 impl std::fmt::Display for Error {
     fn fmt(&self, fmt: &mut std::fmt::Formatter) -> std::fmt::Result {
-        let error = match &self.kind {
-            ErrorKind::NotFound(i) => {
-                format!("Interface file not found in library directory: {}.ixi", i)
-            }
-            ErrorKind::UnboundVariable(v) => format!("Unbound variable {}", symbol::resolve(*v)),
-            ErrorKind::UnboundFun(f) => format!("Unbound function {}", symbol::resolve(*f)),
-            ErrorKind::NotVariable(v) => format!("{} is not a variable type", symbol::resolve(*v)),
-            ErrorKind::NotFun(Some(f)) => format!("{} is not a function", symbol::resolve(*f)),
-            ErrorKind::NotFun(None) => String::from("Not a function"),
-            ErrorKind::NotExp => String::from("Not a single expression type"),
-            ErrorKind::NotProcedure => String::from("Not a procedure"),
-            ErrorKind::NotClass => String::from("Receiver of dot operator must be a class"),
-            ErrorKind::NotInClass(None) => String::from("Not inside a class implementation"),
-            ErrorKind::NotInClass(Some(class)) => format!("Not inside class {}", class),
-            ErrorKind::IndexEmpty => String::from("Cannot index empty array"),
-            ErrorKind::CallLength => {
-                String::from("Incorrect number of arguments for function call")
-            }
-            ErrorKind::InitLength => String::from("Initialization mismatch"),
-            ErrorKind::InitProcedure => String::from("Cannot initialize with a procedure"),
-            ErrorKind::Unreachable => String::from("Unreachable statement"),
-            ErrorKind::MissingReturn => String::from("Missing return statement"),
-            ErrorKind::ReturnMismatch => String::from("Return mismatch"),
-            ErrorKind::NameClash => String::from("Name already bound in environment"),
-            ErrorKind::SignatureMismatch => String::from("Implementation does not match signature"),
-            ErrorKind::Mismatch { expected, found } => {
-                format!("Expected {} but found {}", expected, found)
-            }
-        };
-        write!(fmt, "{} error:{}", self.span, error)
+        write!(fmt, "{} error:{}", self.span, self.kind.message())
+    }
+}
+
+impl error::Report for Error {
+    fn report(&self) -> ariadne::Report<span::Span> {
+        use ariadne::Span as _;
+        ariadne::Report::build(
+            ariadne::ReportKind::Error,
+            *self.span.source(),
+            self.span.lo.idx,
+        )
+        .with_label(ariadne::Label::new(self.span).with_message(self.kind.message()))
+        .finish()
     }
 }

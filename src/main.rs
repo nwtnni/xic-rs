@@ -5,6 +5,7 @@ use std::io;
 use std::io::Write as _;
 use std::path::Path;
 use std::path::PathBuf;
+use std::process;
 use std::str;
 
 use anyhow::anyhow;
@@ -366,7 +367,7 @@ impl str::FromStr for Opt {
     }
 }
 
-fn main() -> anyhow::Result<()> {
+fn run() -> anyhow::Result<()> {
     pretty_env_logger::init_timed();
 
     let command = Command::parse();
@@ -539,4 +540,24 @@ fn main() -> anyhow::Result<()> {
     }
 
     Ok(())
+}
+
+fn main() -> anyhow::Result<()> {
+    let error = match run() {
+        Ok(()) => return Ok(()),
+        Err(error) => error,
+    };
+
+    let error = match error.downcast::<xic::Error>() {
+        Ok(error) => error,
+        Err(error) => return Err(error),
+    };
+
+    if let Some(report) = error.report() {
+        let mut cache = xic::data::span::FileCache::default();
+        report.eprint(&mut cache)?;
+        process::exit(1)
+    } else {
+        Err(anyhow::Error::from(error))
+    }
 }

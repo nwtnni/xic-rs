@@ -13,18 +13,27 @@ pub enum Error {
     Token(span::Span, token::Token),
 }
 
+impl Error {
+    fn message(&self) -> &'static str {
+        match self {
+            Error::Eof(_) => "Unexpected EOF",
+            Error::Integer(_) => "Invalid integer literal",
+            Error::Array(_) => "Unexpected length in array type",
+            Error::Length(_) => "Declared array length after undeclared array length",
+            Error::Token(_, _) => "Unexpected token",
+        }
+    }
+}
+
 impl std::fmt::Display for Error {
     fn fmt(&self, fmt: &mut std::fmt::Formatter) -> std::fmt::Result {
+        let message = self.message();
         match &self {
-            Error::Eof(point) => write!(fmt, "{} error:Unexpected eof", point),
-            Error::Integer(span) => write!(fmt, "{} error:Invalid integer literal", span),
-            Error::Array(span) => write!(fmt, "{} error:Illegal length in array type", span),
-            Error::Length(span) => write!(
-                fmt,
-                "{} error:Undeclared length before declared length",
-                span
-            ),
-            Error::Token(span, token) => write!(fmt, "{} error:Unexpected token {}", span, token),
+            Error::Eof(point) => write!(fmt, "{} error:{}", point, message),
+            Error::Integer(span) | Error::Array(span) | Error::Length(span) => {
+                write!(fmt, "{} error:{}", span, message)
+            }
+            Error::Token(span, token) => write!(fmt, "{} error:{} {}", span, message, token),
         }
     }
 }
@@ -48,6 +57,28 @@ impl From<ParseError> for error::Error {
                 token: (start, token, end),
                 ..
             } => error::Error::Syntactic(Error::Token(span::Span::new(start, end), token)),
+        }
+    }
+}
+
+impl error::Report for Error {
+    fn report(&self) -> ariadne::Report<span::Span> {
+        use ariadne::Span as _;
+
+        const ERROR: ariadne::ReportKind = ariadne::ReportKind::Error;
+
+        let message = self.message();
+
+        match self {
+            Error::Eof(point) => ariadne::Report::build(ERROR, point.path.unwrap(), point.idx)
+                .with_message(message)
+                .finish(),
+            Error::Integer(span)
+            | Error::Array(span)
+            | Error::Length(span)
+            | Error::Token(span, _) => ariadne::Report::build(ERROR, *span.source(), span.lo.idx)
+                .with_label(ariadne::Label::new(*span).with_message(message))
+                .finish(),
         }
     }
 }

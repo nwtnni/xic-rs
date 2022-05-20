@@ -3,4 +3,4 @@ source: tests/suite/parse.rs
 assertion_line: 22
 expression: Snapshot(program)
 ---
-1:5 error:Illegal length in array type
+1:5 error:Unexpected length in array type

@@ -3,4 +3,4 @@ source: tests/suite/parse.rs
 assertion_line: 22
 expression: Snapshot(program)
 ---
-1:5 error:Unexpected eof
+1:5 error:Unexpected EOF

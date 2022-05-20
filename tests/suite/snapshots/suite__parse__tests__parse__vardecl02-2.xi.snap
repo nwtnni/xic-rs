@@ -3,4 +3,4 @@ source: tests/suite/parse.rs
 assertion_line: 22
 expression: Snapshot(program)
 ---
-2:12 error:Undeclared length before declared length
+2:12 error:Declared array length after undeclared array length
