@@ -33,6 +33,7 @@ pub enum ErrorKind {
     NotProcedure,
     NotClass,
     NotInClass(Option<Symbol>),
+    NotInClassModule(Symbol),
     IndexEmpty,
     CallLength,
     InitLength,
@@ -73,6 +74,9 @@ impl ErrorKind {
             ErrorKind::NotClass => Cow::Borrowed("Receiver of dot operator must be a class"),
             ErrorKind::NotInClass(None) => Cow::Borrowed("Not inside a class implementation"),
             ErrorKind::NotInClass(Some(class)) => Cow::Owned(format!("Not inside class {}", class)),
+            ErrorKind::NotInClassModule(class) => {
+                Cow::Owned(format!("Not inside module that defines class {}", class))
+            }
             ErrorKind::IndexEmpty => Cow::Borrowed("Cannot index empty array"),
             ErrorKind::CallLength => {
                 Cow::Borrowed("Incorrect number of arguments for function call")

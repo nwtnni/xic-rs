@@ -45,7 +45,12 @@ pub fn check(
 struct Checker {
     context: Context,
     phase: Phase,
+
+    /// Set of unique interfaces in the use tree
     used: Set<Symbol>,
+
+    /// Set of classes defined in this module
+    defined: Set<Symbol>,
 }
 
 // Because Xi allows functions, methods, and globals to reference symbols defined later
@@ -66,6 +71,7 @@ impl Checker {
             phase: Phase::Load,
             context: Context::new(),
             used: Set::default(),
+            defined: Set::default(),
         }
     }
 
@@ -243,6 +249,10 @@ impl Checker {
     }
 
     fn check_class(&mut self, class: &ast::Class) -> Result<(), error::Error> {
+        if !self.defined.insert(class.name) && matches!(self.phase, Phase::Load) {
+            bail!(class.span, ErrorKind::NameClash);
+        }
+
         if let Some(supertype) = class.extends {
             if let Some(existing) = self.context.insert_subtype(class.name, supertype) {
                 expected!(
@@ -289,7 +299,7 @@ impl Checker {
                     }
                     Some(Entry::Signature(_, _)) | None => {
                         self.context.insert(
-                            GlobalScope::Global,
+                            scope,
                             function.name,
                             Entry::Function(new_parameters, new_returns),
                         );
@@ -612,12 +622,9 @@ impl Checker {
                     Some(_) => bail!(*span, ErrorKind::NotVariable(*field)),
                 }
             }
-            ast::Expression::New(class, span) => match self.context.get_class() {
-                None => bail!(*span, ErrorKind::NotInClass(None)),
-                Some(expected) if *class != expected => {
-                    bail!(*span, ErrorKind::NotInClass(Some(*class)))
-                }
-                Some(_) => Ok(r#type::Expression::Class(*class)),
+            ast::Expression::New(class, span) => match self.defined.contains(class) {
+                false => bail!(*span, ErrorKind::NotInClassModule(*class)),
+                true => Ok(r#type::Expression::Class(*class)),
             },
 
             ast::Expression::Call(call) => {
