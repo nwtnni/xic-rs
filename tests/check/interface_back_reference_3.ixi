@@ -1,0 +1,11 @@
+foo(x: A): int
+
+class A extends B {}
+
+class B {
+    foo(x: C): A
+}
+
+class C {}
+
+

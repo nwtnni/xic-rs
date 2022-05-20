@@ -1,0 +1,3 @@
+foo(x: A): int
+class A {}
+

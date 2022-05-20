@@ -84,7 +84,7 @@ impl Checker {
         let directory_library = directory_library.unwrap_or_else(|| path.parent().unwrap());
 
         for r#use in &program.uses {
-            self.load_use(directory_library, r#use)?;
+            self.check_use(directory_library, r#use)?;
         }
 
         let implicit = path
@@ -96,12 +96,14 @@ impl Checker {
             })
             .unwrap();
 
-        match self.load_use(directory_library, &implicit) {
+        match self.check_use(directory_library, &implicit) {
             Ok(()) => (),
             Err(error::Error::Semantic(error))
                 if *error.kind() == ErrorKind::NotFound(implicit.name) => {}
             Err(error) => return Err(error),
         }
+
+        self.phase = Phase::Load;
 
         for _ in 0..2 {
             for item in &program.items {
@@ -118,7 +120,12 @@ impl Checker {
         Ok(self.context)
     }
 
-    fn load_use(&mut self, directory_library: &Path, r#use: &ast::Use) -> Result<(), error::Error> {
+    fn check_use(
+        &mut self,
+        directory_library: &Path,
+        r#use: &ast::Use,
+    ) -> Result<(), error::Error> {
+        // Load each interface exactly once
         if !self.used.insert(r#use.name) {
             return Ok(());
         }
@@ -133,44 +140,59 @@ impl Checker {
         };
 
         let interface = parse::InterfaceParser::new().parse(tokens)?;
-        self.load_interface(directory_library, &interface)
+        self.check_interface(directory_library, &interface)
     }
 
-    fn load_interface(
+    fn check_interface(
         &mut self,
         directory_library: &Path,
         interface: &ast::Interface,
     ) -> Result<(), error::Error> {
         for r#use in &interface.uses {
-            self.load_use(directory_library, r#use)?;
+            self.check_use(directory_library, r#use)?;
         }
 
-        for item in &interface.items {
-            match item {
-                ast::ItemSignature::Class(class) => self.load_class_signature(class)?,
-                ast::ItemSignature::Function(function) => {
-                    self.load_function_signature(GlobalScope::Global, function)?;
-                }
-            };
+        self.phase = Phase::Load;
+
+        // Two passes are required per interface to allow classes, methods, and functions
+        // to reference classes defined later in the file.
+        for _ in 0..2 {
+            for item in &interface.items {
+                match item {
+                    ast::ItemSignature::Class(class) => self.check_class_signature(class)?,
+                    ast::ItemSignature::Function(function) => {
+                        self.check_function_signature(GlobalScope::Global, function)?;
+                    }
+                };
+            }
+
+            self.phase = Phase::Check;
         }
 
         Ok(())
     }
 
-    fn load_class_signature(&mut self, class: &ast::ClassSignature) -> Result<(), error::Error> {
-        if self.context.insert_class(class.name).is_some() {
-            bail!(class.span, ErrorKind::NameClash);
+    fn check_class_signature(&mut self, class: &ast::ClassSignature) -> Result<(), error::Error> {
+        match self.phase {
+            Phase::Load => {
+                if self.context.insert_class(class.name).is_some() {
+                    bail!(class.span, ErrorKind::NameClash);
+                }
+
+                return Ok(());
+            }
+            Phase::Check => (),
         }
 
         if let Some(supertype) = class.extends {
+            if self.context.get_class(&supertype).is_none() {
+                bail!(class.span, ErrorKind::UnboundClass(supertype))
+            }
+
             assert!(self
                 .context
                 .insert_supertype(class.name, supertype)
                 .is_none());
-
-            if self.context.get_class(&supertype).is_none() {
-                bail!(class.span, ErrorKind::UnboundClass(supertype))
-            }
 
             if self.context.has_cycle(&class.name) {
                 bail!(class.span, ErrorKind::ClassCycle(class.name));
@@ -178,18 +200,23 @@ impl Checker {
         }
 
         for method in &class.methods {
-            self.load_function_signature(GlobalScope::Class(class.name), method)?;
+            self.check_function_signature(GlobalScope::Class(class.name), method)?;
         }
 
         Ok(())
     }
 
-    fn load_function_signature(
+    fn check_function_signature(
         &mut self,
         scope: GlobalScope,
         function: &ast::FunctionSignature,
     ) -> Result<(), error::Error> {
-        let (parameters, returns) = self.check_signature(function)?;
+        match self.phase {
+            Phase::Load => return Ok(()),
+            Phase::Check => (),
+        }
+
+        let (parameters, returns) = self.check_callable(function)?;
         let signature = Entry::Signature(parameters, returns);
 
         match self.context.get(scope, &function.name) {
@@ -203,7 +230,7 @@ impl Checker {
         Ok(())
     }
 
-    fn check_signature<C: ast::Callable>(
+    fn check_callable<C: ast::Callable>(
         &self,
         signature: &C,
     ) -> Result<(Vec<r#type::Expression>, Vec<r#type::Expression>), error::Error> {
@@ -317,7 +344,7 @@ impl Checker {
 
         match self.phase {
             Phase::Load => {
-                let (new_parameters, new_returns) = self.check_signature(function)?;
+                let (new_parameters, new_returns) = self.check_callable(function)?;
 
                 match self.context.get(scope, &function.name) {
                     Some(Entry::Signature(old_parameters, _))
@@ -730,8 +757,6 @@ impl Checker {
         }: &ast::Initialization,
     ) -> Result<(), error::Error> {
         match self.phase {
-            Phase::Check => (),
-
             // When loading, delay type-checking of the initializer expression
             Phase::Load => {
                 let scope = scope.into();
@@ -740,6 +765,7 @@ impl Checker {
                 }
                 return Ok(());
             }
+            Phase::Check => (),
         }
 
         let r#types = self.check_call_or_expression(expression)?;
