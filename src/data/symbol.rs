@@ -1,5 +1,6 @@
 use std::borrow::Cow;
 use std::cell::RefCell;
+use std::num::NonZeroU32;
 
 use crate::Set;
 
@@ -23,7 +24,21 @@ pub struct Interner(Set<&'static str>);
 /// Only the same `Interner` that produced a `Symbol` can be used
 /// to resolve it to a string again.
 #[derive(Copy, Clone, Eq, Hash, Ord, PartialEq, PartialOrd)]
-pub struct Symbol(usize);
+pub struct Symbol(NonZeroU32);
+
+impl Symbol {
+    fn from_index(index: usize) -> Self {
+        u32::try_from(index + 1)
+            .ok()
+            .and_then(NonZeroU32::new)
+            .map(Symbol)
+            .unwrap()
+    }
+
+    fn as_index(&self) -> usize {
+        self.0.get() as usize - 1
+    }
+}
 
 impl Interner {
     /// Store `string` in this interner if not already cached.
@@ -33,25 +48,25 @@ impl Interner {
     {
         let cow = string.into();
         if let Some(index) = self.0.get_index_of(cow.as_ref()) {
-            Symbol(index)
+            Symbol::from_index(index)
         } else {
             let owned = cow.into_owned().into_boxed_str();
             let leaked = Box::leak(owned);
             let (index, _) = self.0.insert_full(leaked);
-            Symbol(index)
+            Symbol::from_index(index)
         }
     }
 
     /// Store static `string` in this interner if not already cached.
     fn intern_static(&mut self, string: &'static str) -> Symbol {
         let (index, _) = self.0.insert_full(string);
-        Symbol(index)
+        Symbol::from_index(index)
     }
 
     /// Resolve `symbol` in this interner.
     /// Requires that `symbol` was produced by this interner.
     fn resolve(&self, symbol: Symbol) -> &'static str {
-        self.0[symbol.0]
+        self.0[symbol.as_index()]
     }
 }
 

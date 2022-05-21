@@ -72,14 +72,16 @@ impl error::Report for Error {
         match self {
             Error::Eof(point) => {
                 let span = span::Span::new(*point, point.bump());
-                ariadne::Report::build(ERROR, *span.source(), point.idx)
+                ariadne::Report::build(ERROR, *span.source(), point.index())
                     .with_label(ariadne::Label::new(span).with_message(message))
             }
             Error::Integer(span)
             | Error::Array(span)
             | Error::Length(span)
-            | Error::Token(span, _) => ariadne::Report::build(ERROR, *span.source(), span.lo.idx)
-                .with_label(ariadne::Label::new(*span).with_message(message)),
+            | Error::Token(span, _) => {
+                ariadne::Report::build(ERROR, *span.source(), span.lo.index())
+                    .with_label(ariadne::Label::new(*span).with_message(message))
+            }
         }
     }
 }

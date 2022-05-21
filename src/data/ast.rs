@@ -44,6 +44,8 @@ impl fmt::Display for Use {
     }
 }
 
+const _: [u8; 88] = [0; std::mem::size_of::<ItemSignature>()];
+
 #[derive(Clone, Debug)]
 pub enum ItemSignature {
     Class(ClassSignature),
@@ -55,6 +57,8 @@ impl fmt::Display for ItemSignature {
         write!(fmt, "{}", self.sexp())
     }
 }
+
+const _: [u8; 280] = [0; std::mem::size_of::<Item>()];
 
 #[derive(Clone, Debug)]
 pub enum Item {
@@ -69,6 +73,8 @@ impl fmt::Display for Item {
     }
 }
 
+const _: [u8; 168] = [0; std::mem::size_of::<Global>()];
+
 #[derive(Clone, Debug)]
 pub enum Global {
     Declaration(Declaration),
@@ -80,6 +86,8 @@ impl fmt::Display for Global {
         write!(fmt, "{}", self.sexp())
     }
 }
+
+const _: [u8; 112] = [0; std::mem::size_of::<Initialization>()];
 
 #[derive(Clone, Debug)]
 pub struct Initialization {
@@ -108,6 +116,8 @@ impl fmt::Display for ClassSignature {
     }
 }
 
+const _: [u8; 56] = [0; std::mem::size_of::<Class>()];
+
 #[derive(Clone, Debug)]
 pub struct Class {
     pub name: Symbol,
@@ -121,6 +131,8 @@ impl fmt::Display for Class {
         write!(fmt, "{}", self.sexp())
     }
 }
+
+const _: [u8; 280] = [0; std::mem::size_of::<ClassItem>()];
 
 #[derive(Clone, Debug)]
 pub enum ClassItem {
@@ -158,6 +170,8 @@ macro_rules! impl_callable {
     };
 }
 
+const _: [u8; 80] = [0; std::mem::size_of::<FunctionSignature>()];
+
 /// Represents a function signature (i.e. without implementation).
 #[derive(Clone, Debug)]
 pub struct FunctionSignature {
@@ -174,6 +188,8 @@ impl fmt::Display for FunctionSignature {
         write!(fmt, "{}", self.sexp())
     }
 }
+
+const _: [u8; 272] = [0; std::mem::size_of::<Function>()];
 
 /// Represents a function definition (i.e. with implementation).
 #[derive(Clone, Debug)]
@@ -192,6 +208,8 @@ impl fmt::Display for Function {
         write!(fmt, "{}", self.sexp())
     }
 }
+
+const _: [u8; 104] = [0; std::mem::size_of::<Type>()];
 
 /// Represents a primitive type.
 #[derive(Clone, Debug)]
@@ -236,6 +254,8 @@ impl fmt::Display for Type {
         write!(fmt, "{}", self.sexp())
     }
 }
+
+const _: [u8; 192] = [0; std::mem::size_of::<Statement>()];
 
 /// Represents an imperative statement.
 #[derive(Clone, Debug)]
@@ -295,6 +315,8 @@ pub enum Do {
     Yes,
     No,
 }
+
+const _: [u8; 64] = [0; std::mem::size_of::<Expression>()];
 
 /// Represents an expression (i.e. a term that can be evaluated).
 #[derive(Clone, Debug)]
@@ -393,6 +415,8 @@ impl fmt::Display for Expression {
     }
 }
 
+const _: [u8; 56] = [0; std::mem::size_of::<Call>()];
+
 /// Represents a function call.
 #[derive(Clone, Debug)]
 pub struct Call {
@@ -406,6 +430,8 @@ impl fmt::Display for Call {
         write!(fmt, "{}", self.sexp())
     }
 }
+
+const _: [u8; 160] = [0; std::mem::size_of::<Declaration>()];
 
 #[derive(Clone, Debug)]
 pub enum Declaration {
@@ -434,6 +460,8 @@ impl fmt::Display for Declaration {
         write!(fmt, "{}", self.sexp())
     }
 }
+
+const _: [u8; 152] = [0; std::mem::size_of::<MultipleDeclaration>()];
 
 #[derive(Clone, Debug)]
 pub struct MultipleDeclaration {
@@ -465,6 +493,8 @@ impl fmt::Display for MultipleDeclaration {
         write!(fmt, "{}", self.sexp())
     }
 }
+
+const _: [u8; 136] = [0; std::mem::size_of::<SingleDeclaration>()];
 
 #[derive(Clone, Debug)]
 pub struct SingleDeclaration {

@@ -33,13 +33,13 @@ struct Lexer<'source> {
     next: Option<(usize, char)>,
 
     /// Current byte index
-    idx: usize,
+    index: usize,
 
     /// Current row position
     row: usize,
 
     /// Current column position
-    col: usize,
+    column: usize,
 }
 
 fn is_digit(c: char) -> bool {
@@ -64,9 +64,9 @@ impl<'source> Lexer<'source> {
             source,
             stream,
             next,
-            idx: 0,
+            index: 0,
             row: 1,
-            col: 1,
+            column: 1,
         }
     }
 
@@ -88,24 +88,19 @@ impl<'source> Lexer<'source> {
 
     /// Return the current position in the source file
     fn point(&self) -> span::Point {
-        span::Point {
-            path: Some(self.path),
-            idx: self.idx,
-            row: self.row,
-            col: self.col,
-        }
+        span::Point::new(self.path, self.index, self.row, self.column)
     }
 
     /// Skip the next character in the stream
     fn skip(&mut self) {
         if let Some((_, '\n')) = self.next {
             self.row += 1;
-            self.col = 0;
+            self.column = 0;
         }
         self.next = self.stream.next();
         if let Some((i, _)) = self.next {
-            self.col += 1;
-            self.idx = i;
+            self.column += 1;
+            self.index = i;
         }
     }
 
@@ -150,7 +145,7 @@ impl<'source> Lexer<'source> {
     fn lex_ident(&mut self, start: span::Point) -> token::Spanned {
         use token::Token::*;
         let end = self.take_while(is_ident);
-        let token = match &self.source[start.idx..end.idx] {
+        let token = match &self.source[start.index()..end.index()] {
             "use" => Use,
             "class" => Class,
             "this" => This,
@@ -176,7 +171,7 @@ impl<'source> Lexer<'source> {
     /// Lex a single integer literal
     fn lex_integer(&mut self, start: span::Point) -> token::Spanned {
         let end = self.take_while(is_digit);
-        let int = self.source[start.idx..end.idx]
+        let int = self.source[start.index()..end.index()]
             .to_string()
             .tap(token::Token::Integer);
         Ok((start, int, end))
@@ -216,7 +211,7 @@ impl<'source> Lexer<'source> {
                         is_hex_digit(c) && count <= 4
                     });
                     let span = span::Span::new(start, end);
-                    u32::from_str_radix(&self.source[start.idx..end.idx], 16)
+                    u32::from_str_radix(&self.source[start.index()..end.index()], 16)
                         .ok()
                         .and_then(std::char::from_u32)
                         .ok_or_else(|| Error::new(span, ErrorKind::InvalidCharacter).into())

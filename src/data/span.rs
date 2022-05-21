@@ -5,22 +5,39 @@ use crate::data::symbol;
 use crate::data::symbol::Symbol;
 use crate::Map;
 
+const _: [u8; 12] = [0; std::mem::size_of::<Point>()];
+
 /// Represents a single point in a source file.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct Point {
-    pub path: Option<Symbol>,
-    pub idx: usize,
-    pub row: usize,
-    pub col: usize,
+    path: Option<Symbol>,
+    index: u32,
+    row: u16,
+    column: u16,
+}
+
+impl Point {
+    pub fn new(path: Symbol, index: usize, row: usize, column: usize) -> Self {
+        Point {
+            path: Some(path),
+            index: u32::try_from(index).unwrap(),
+            row: u16::try_from(row).unwrap(),
+            column: u16::try_from(column).unwrap(),
+        }
+    }
+
+    pub fn index(&self) -> usize {
+        self.index as usize
+    }
 }
 
 impl Default for Point {
     fn default() -> Self {
         Point {
             path: None,
-            idx: 0,
+            index: 0,
             row: 1,
-            col: 1,
+            column: 1,
         }
     }
 }
@@ -31,18 +48,20 @@ impl Point {
     pub fn bump(&self) -> Self {
         Point {
             path: self.path,
-            idx: self.idx + 1,
+            index: self.index + 1,
             row: self.row,
-            col: self.col + 1,
+            column: self.column + 1,
         }
     }
 }
 
 impl fmt::Display for Point {
     fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
-        write!(fmt, "{}:{}", self.row, self.col)
+        write!(fmt, "{}:{}", self.row, self.column)
     }
 }
+
+const _: [u8; 24] = [0; std::mem::size_of::<Span>()];
 
 /// Represents a span of text in a source file.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -80,11 +99,11 @@ impl ariadne::Span for Span {
     }
 
     fn start(&self) -> usize {
-        self.lo.idx
+        self.lo.index as usize
     }
 
     fn end(&self) -> usize {
-        self.hi.idx
+        self.hi.index as usize
     }
 }
 

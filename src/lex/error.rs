@@ -48,7 +48,7 @@ impl error::Report for Error {
         ariadne::Report::build(
             ariadne::ReportKind::Error,
             *self.span.source(),
-            self.span.lo.idx,
+            self.span.lo.index(),
         )
         .with_label(ariadne::Label::new(self.span).with_message(self.kind.message()))
     }
