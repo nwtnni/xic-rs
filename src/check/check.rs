@@ -174,6 +174,7 @@ impl Checker {
             .context
             .get_class(&class.name.symbol)
             .unwrap()
+            .1
             .values()
             .find_map(|(span, entry)| match entry {
                 Entry::Signature(_, _) => Some(*span),
@@ -204,6 +205,7 @@ impl Checker {
                             self.context
                                 .get_class(&class)
                                 .unwrap()
+                                .1
                                 .get(&method.name.symbol)
                         })
                     {
@@ -211,6 +213,7 @@ impl Checker {
                             .context
                             .get_class(&class.name.symbol)
                             .unwrap()
+                            .1
                             .get(&method.name.symbol)
                             .and_then(|(_, entry)| match entry {
                                 Entry::Function(new_parameters, new_returns) => {

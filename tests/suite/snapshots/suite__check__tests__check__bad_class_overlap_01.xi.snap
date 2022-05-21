@@ -1,0 +1,19 @@
+---
+source: tests/suite/check.rs
+assertion_line: 35
+expression: Snapshot(context)
+---
+Error: Semantic error
+   ╭─[tests/check/A_02.ixi:1:7]
+   │
+ 1 │ class A {
+   ·       ┬  
+   ·       ╰── Name already bound in environment
+   │
+   ├─[tests/check/A_01.ixi:1:7]
+   │
+ 1 │ class A {
+   ·       ┬  
+   ·       ╰── Previous definition here
+───╯
+

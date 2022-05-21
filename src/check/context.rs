@@ -22,7 +22,7 @@ pub struct Context {
     globals: Map<Symbol, (Span, Entry)>,
 
     /// Class-scoped method and fields
-    classes: Map<Symbol, Map<Symbol, (Span, Entry)>>,
+    classes: Map<Symbol, (Span, Map<Symbol, (Span, Entry)>)>,
 
     /// Locally scoped variables
     locals: Vec<(LocalScope, Map<Symbol, (Span, Entry)>)>,
@@ -106,7 +106,7 @@ impl Context {
             Scope::Global(GlobalScope::Class(class)) => self
                 .ancestors_inclusive(&class)
                 .map(|class| &self.classes[&class])
-                .find_map(|class| class.get(symbol)),
+                .find_map(|(_, class)| class.get(symbol)),
             Scope::Local => self
                 .locals
                 .iter()
@@ -130,9 +130,9 @@ impl Context {
             Scope::Global(GlobalScope::Global) => self
                 .globals
                 .insert(identifier.symbol, (*identifier.span, r#type)),
-            Scope::Global(GlobalScope::Class(class)) => {
-                self.classes[&class].insert(identifier.symbol, (*identifier.span, r#type))
-            }
+            Scope::Global(GlobalScope::Class(class)) => self.classes[&class]
+                .1
+                .insert(identifier.symbol, (*identifier.span, r#type)),
             Scope::Local => self
                 .locals
                 .last_mut()
@@ -156,11 +156,15 @@ impl Context {
         }
     }
 
-    pub fn insert_class(&mut self, class: Identifier) -> Option<Map<Symbol, (Span, Entry)>> {
-        self.classes.insert(class.symbol, Map::default())
+    pub fn insert_class(
+        &mut self,
+        class: Identifier,
+    ) -> Option<(Span, Map<Symbol, (Span, Entry)>)> {
+        self.classes
+            .insert(class.symbol, (*class.span, Map::default()))
     }
 
-    pub fn get_class(&self, class: &Symbol) -> Option<&Map<Symbol, (Span, Entry)>> {
+    pub fn get_class(&self, class: &Symbol) -> Option<&(Span, Map<Symbol, (Span, Entry)>)> {
         self.classes.get(class)
     }
 

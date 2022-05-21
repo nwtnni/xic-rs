@@ -68,19 +68,9 @@ impl Checker {
     fn load_class_signature(&mut self, class: &ast::ClassSignature) -> Result<(), error::Error> {
         self.class_signatures.insert(class.name.clone());
 
-        if self.context.get_class(&class.name.symbol).is_none() {
-            self.context.insert_class(class.name.clone());
-        }
+        let expected = self.context.insert_class(class.name.clone());
 
-        Ok(())
-    }
-
-    fn check_class_signature(&mut self, class: &ast::ClassSignature) -> Result<(), error::Error> {
         if let Some(supertype) = &class.extends {
-            if self.context.get_class(&supertype.symbol).is_none() {
-                bail!(*supertype.span, ErrorKind::UnboundClass(supertype.symbol))
-            }
-
             if let Some(existing) = self
                 .context
                 .insert_supertype(class.name.clone(), supertype.clone())
@@ -100,6 +90,39 @@ impl Checker {
 
         for method in &class.methods {
             self.check_function_signature(GlobalScope::Class(class.name.symbol), method)?;
+        }
+
+        let (expected_span, expected) = match expected {
+            Some(expected) => expected,
+            None => return Ok(()),
+        };
+
+        let (actual_span, actual) = self.context.get_class(&class.name.symbol).unwrap();
+
+        // New and old signatures must be exactly the same
+        if expected.len() != actual.len()
+            || expected.iter().any(|(symbol, (_, expected_entry))| {
+                actual
+                    .get(symbol)
+                    .map_or(true, |(_, actual_entry)| expected_entry != actual_entry)
+            })
+            || actual.iter().any(|(symbol, (_, actual_entry))| {
+                expected
+                    .get(symbol)
+                    .map_or(true, |(_, expected_entry)| actual_entry != expected_entry)
+            })
+        {
+            bail!(*actual_span, ErrorKind::NameClash(expected_span));
+        }
+
+        Ok(())
+    }
+
+    fn check_class_signature(&mut self, class: &ast::ClassSignature) -> Result<(), error::Error> {
+        if let Some(supertype) = &class.extends {
+            if self.context.get_class(&supertype.symbol).is_none() {
+                bail!(*supertype.span, ErrorKind::UnboundClass(supertype.symbol))
+            }
         }
 
         Ok(())
