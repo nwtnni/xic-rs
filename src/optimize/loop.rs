@@ -72,7 +72,7 @@ fn effectful(expression: &ast::Expression) -> bool {
         ast::Expression::Boolean(_, _)
         | ast::Expression::Character(_, _)
         | ast::Expression::Integer(_, _)
-        | ast::Expression::Variable(_, _)
+        | ast::Expression::Variable(_)
         | ast::Expression::This(_)
         | ast::Expression::Null(_) => false,
 

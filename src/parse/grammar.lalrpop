@@ -18,7 +18,7 @@ pub Interface: Interface = {
 }
 
 Use: Use = {
-    <l: @L> "use" <name: ID> ";"? <r: @R> => Use { name, span: Span::new(l, r) },
+    <l: @L> "use" <name: Identifier> ";"? <r: @R> => Use { name, span: Span::new(l, r) },
 }
 
 ItemSignature: ItemSignature = {
@@ -27,7 +27,7 @@ ItemSignature: ItemSignature = {
 }
 
 ClassSignature: ClassSignature = {
-    <l: @L> "class" <name: ID> <extends: ("extends" <ID>)?> "{" <methods: FunctionSignature*> "}" <r: @R> => {
+    <l: @L> "class" <name: Identifier> <extends: ("extends" <Identifier>)?> "{" <methods: FunctionSignature*> "}" <r: @R> => {
         ClassSignature {
             name,
             extends,
@@ -39,7 +39,7 @@ ClassSignature: ClassSignature = {
 
 FunctionSignature: FunctionSignature = {
     <l: @L>
-        <name: ID>
+        <name: Identifier>
         "("
         <parameters: Comma<NoLength<SingleDeclaration>>>
         ")"
@@ -90,8 +90,8 @@ Initialization: Initialization = {
 Class: Class = {
     <l: @L>
         "class"
-        <name: ID>
-        <extends: ("extends" <ID>)?>
+        <name: Identifier>
+        <extends: ("extends" <Identifier>)?>
         "{"
         <items: ClassItem*>
         "}"
@@ -112,7 +112,7 @@ ClassItem: ClassItem = {
 
 Function: Function = {
     <l: @L>
-        <name: ID>
+        <name: Identifier>
         "("
         <parameters: Comma<NoLength<SingleDeclaration>>>
         ")"
@@ -218,12 +218,12 @@ LValue: Expression = {
 NoCallLValue: Expression = {
     <l: @L> "null" <r: @R> => Expression::Null(Span::new(l, r)),
     <l: @L> "this" <r: @R> => Expression::This(Span::new(l, r)),
-    <l: @L> "new" <class: ID> <r: @R> => Expression::New(class, Span::new(l, r)),
-    <l: @L> <name: ID> <r: @R> => Expression::Variable(name, Span::new(l, r)),
+    <l: @L> "new" <class: Identifier> <r: @R> => Expression::New(class, Span::new(l, r)),
+    <variable: Identifier> => Expression::Variable(variable),
     <l: @L> <array: LValue> "[" <index: Expression> "]" <r: @R> => {
         Expression::Index(Box::new(array), Box::new(index), Span::new(l, r))
     },
-    <l: @L> <expression: LValue> "." <field: ID> <r: @R> => {
+    <l: @L> <expression: LValue> "." <field: Identifier> <r: @R> => {
         Expression::Dot(Box::new(expression), field, Span::new(l, r))
     },
 }
@@ -260,7 +260,7 @@ Declaration: Declaration = {
 }
 
 MultipleDeclaration: MultipleDeclaration = {
-    <l: @L> <head: ID> "," <tail: CommaPlus<ID>> ":" <type_: Type> <r: @R> => {
+    <l: @L> <head: Identifier> "," <tail: CommaPlus<Identifier>> ":" <type_: Type> <r: @R> => {
         let mut names = tail;
         names.insert(0, head);
         MultipleDeclaration::new(names, type_, Span::new(l, r))
@@ -268,7 +268,7 @@ MultipleDeclaration: MultipleDeclaration = {
 }
 
 SingleDeclaration: SingleDeclaration = {
-    <l: @L> <name: ID> ":" <type_: Type> <r: @R> => {
+    <l: @L> <name: Identifier> ":" <type_: Type> <r: @R> => {
         SingleDeclaration::new(name, type_, Span::new(l, r))
     }
 }
@@ -293,7 +293,7 @@ Type: Type = {
 BaseType: Type = {
     <l: @L> "bool" <r: @R> => Type::Bool(Span::new(l, r)),
     <l: @L> "int" <r: @R> => Type::Int(Span::new(l, r)),
-    <l: @L> <class: ID> <r: @R> => Type::Class(class, Span::new(l, r)),
+    <class: Identifier> => Type::Class(class),
 }
 
 ArrayType: (Option<Expression>, Point) = {
@@ -427,7 +427,7 @@ RValue: Expression = {
     <l: @L> "{" <expressions: Comma<Expression>> ","? "}" <r: @R> => {
         Expression::Array(expressions, Span::new(l, r))
     },
-    <l: @L> <expression: RValue> "." <field: ID> <r: @R> => {
+    <l: @L> <expression: RValue> "." <field: Identifier> <r: @R> => {
         Expression::Dot(Box::new(expression), field, Span::new(l, r))
     },
     <l: @L> <function: RValue> "(" <arguments: Comma<Expression>> ")" <r: @R> => {
@@ -441,6 +441,16 @@ RValue: Expression = {
         *expression.span_mut() = Span::new(l, r);
         expression
     },
+}
+
+#[inline]
+Identifier: Identifier = {
+    <l: @L> <symbol: ID> <r: @R> => {
+        Identifier {
+            symbol,
+            span: Box::new(Span::new(l, r)),
+        }
+    }
 }
 
 #[inline]

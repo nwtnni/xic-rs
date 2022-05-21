@@ -34,7 +34,7 @@ impl fmt::Display for Program {
 /// Represents a use statement for importing interfaces.
 #[derive(Clone, Debug)]
 pub struct Use {
-    pub name: Symbol,
+    pub name: Identifier,
     pub span: Span,
 }
 
@@ -44,7 +44,7 @@ impl fmt::Display for Use {
     }
 }
 
-const _: [u8; 88] = [0; std::mem::size_of::<ItemSignature>()];
+const _: [u8; 96] = [0; std::mem::size_of::<ItemSignature>()];
 
 #[derive(Clone, Debug)]
 pub enum ItemSignature {
@@ -58,7 +58,7 @@ impl fmt::Display for ItemSignature {
     }
 }
 
-const _: [u8; 152] = [0; std::mem::size_of::<Item>()];
+const _: [u8; 160] = [0; std::mem::size_of::<Item>()];
 
 #[derive(Clone, Debug)]
 pub enum Item {
@@ -104,8 +104,8 @@ impl fmt::Display for Initialization {
 
 #[derive(Clone, Debug)]
 pub struct ClassSignature {
-    pub name: Symbol,
-    pub extends: Option<Symbol>,
+    pub name: Identifier,
+    pub extends: Option<Identifier>,
     pub methods: Vec<FunctionSignature>,
     pub span: Span,
 }
@@ -116,12 +116,12 @@ impl fmt::Display for ClassSignature {
     }
 }
 
-const _: [u8; 56] = [0; std::mem::size_of::<Class>()];
+const _: [u8; 80] = [0; std::mem::size_of::<Class>()];
 
 #[derive(Clone, Debug)]
 pub struct Class {
-    pub name: Symbol,
-    pub extends: Option<Symbol>,
+    pub name: Identifier,
+    pub extends: Option<Identifier>,
     pub items: Vec<ClassItem>,
     pub span: Span,
 }
@@ -132,7 +132,7 @@ impl fmt::Display for Class {
     }
 }
 
-const _: [u8; 152] = [0; std::mem::size_of::<ClassItem>()];
+const _: [u8; 160] = [0; std::mem::size_of::<ClassItem>()];
 
 #[derive(Clone, Debug)]
 pub enum ClassItem {
@@ -147,7 +147,7 @@ impl fmt::Display for ClassItem {
 }
 
 pub trait Callable {
-    fn name(&self) -> Symbol;
+    fn name(&self) -> &Identifier;
     fn parameters(&self) -> &[SingleDeclaration];
     fn returns(&self) -> &[Type];
 }
@@ -155,8 +155,8 @@ pub trait Callable {
 macro_rules! impl_callable {
     ($type:ty) => {
         impl Callable for $type {
-            fn name(&self) -> Symbol {
-                self.name
+            fn name(&self) -> &Identifier {
+                &self.name
             }
 
             fn parameters(&self) -> &[SingleDeclaration] {
@@ -170,12 +170,12 @@ macro_rules! impl_callable {
     };
 }
 
-const _: [u8; 80] = [0; std::mem::size_of::<FunctionSignature>()];
+const _: [u8; 88] = [0; std::mem::size_of::<FunctionSignature>()];
 
 /// Represents a function signature (i.e. without implementation).
 #[derive(Clone, Debug)]
 pub struct FunctionSignature {
-    pub name: Symbol,
+    pub name: Identifier,
     pub parameters: Vec<SingleDeclaration>,
     pub returns: Vec<Type>,
     pub span: Span,
@@ -189,12 +189,12 @@ impl fmt::Display for FunctionSignature {
     }
 }
 
-const _: [u8; 144] = [0; std::mem::size_of::<Function>()];
+const _: [u8; 152] = [0; std::mem::size_of::<Function>()];
 
 /// Represents a function definition (i.e. with implementation).
 #[derive(Clone, Debug)]
 pub struct Function {
-    pub name: Symbol,
+    pub name: Identifier,
     pub parameters: Vec<SingleDeclaration>,
     pub returns: Vec<Type>,
     pub statements: Statement,
@@ -216,23 +216,22 @@ const _: [u8; 48] = [0; std::mem::size_of::<Type>()];
 pub enum Type {
     Bool(Span),
     Int(Span),
-    Class(Symbol, Span),
+    Class(Identifier),
     Array(Box<Type>, Option<Box<Expression>>, Span),
 }
 
 impl Type {
     pub fn has_length(&self) -> bool {
         match self {
-            Type::Bool(_) | Type::Int(_) | Type::Class(_, _) => false,
+            Type::Bool(_) | Type::Int(_) | Type::Class(_) => false,
             Type::Array(r#type, length, _) => length.is_some() || r#type.has_length(),
         }
     }
 
     pub fn span(&self) -> Span {
         match self {
-            Type::Bool(span) | Type::Int(span) | Type::Class(_, span) | Type::Array(_, _, span) => {
-                *span
-            }
+            Type::Bool(span) | Type::Int(span) | Type::Array(_, _, span) => *span,
+            Type::Class(class) => *class.span,
         }
     }
 }
@@ -345,7 +344,7 @@ pub enum Expression {
     This(Span),
 
     /// Variable
-    Variable(Symbol, Span),
+    Variable(Identifier),
 
     /// Array literal
     Array(Vec<Expression>, Span),
@@ -366,10 +365,10 @@ pub enum Expression {
     Call(Call),
 
     /// Dot operator
-    Dot(Box<Expression>, Symbol, Span),
+    Dot(Box<Expression>, Identifier, Span),
 
     /// Class constructor
-    New(Symbol, Span),
+    New(Identifier, Span),
 }
 
 impl Expression {
@@ -381,7 +380,6 @@ impl Expression {
             | Expression::Integer(_, span)
             | Expression::Null(span)
             | Expression::This(span)
-            | Expression::Variable(_, span)
             | Expression::Array(_, span)
             | Expression::Binary(_, _, _, span)
             | Expression::Unary(_, _, span)
@@ -389,6 +387,7 @@ impl Expression {
             | Expression::Length(_, span)
             | Expression::Dot(_, _, span)
             | Expression::New(_, span) => *span,
+            Expression::Variable(variable) => *variable.span,
             Expression::Call(call) => call.span,
         }
     }
@@ -401,7 +400,6 @@ impl Expression {
             | Expression::Integer(_, span)
             | Expression::Null(span)
             | Expression::This(span)
-            | Expression::Variable(_, span)
             | Expression::Array(_, span)
             | Expression::Binary(_, _, _, span)
             | Expression::Unary(_, _, span)
@@ -409,6 +407,7 @@ impl Expression {
             | Expression::Length(_, span)
             | Expression::Dot(_, _, span)
             | Expression::New(_, span) => span,
+            Expression::Variable(variable) => &mut variable.span,
             Expression::Call(call) => &mut call.span,
         }
     }
@@ -470,13 +469,13 @@ const _: [u8; 56] = [0; std::mem::size_of::<MultipleDeclaration>()];
 
 #[derive(Clone, Debug)]
 pub struct MultipleDeclaration {
-    pub names: Vec<Symbol>,
+    pub names: Vec<Identifier>,
     pub r#type: Box<Type>,
     pub span: Span,
 }
 
 impl MultipleDeclaration {
-    pub fn new(names: Vec<Symbol>, r#type: Type, span: Span) -> Self {
+    pub fn new(names: Vec<Identifier>, r#type: Type, span: Span) -> Self {
         Self {
             names,
             r#type: Box::new(r#type),
@@ -499,17 +498,17 @@ impl fmt::Display for MultipleDeclaration {
     }
 }
 
-const _: [u8; 40] = [0; std::mem::size_of::<SingleDeclaration>()];
+const _: [u8; 48] = [0; std::mem::size_of::<SingleDeclaration>()];
 
 #[derive(Clone, Debug)]
 pub struct SingleDeclaration {
-    pub name: Symbol,
+    pub name: Identifier,
     pub r#type: Box<Type>,
     pub span: Span,
 }
 
 impl SingleDeclaration {
-    pub fn new(name: Symbol, r#type: Type, span: Span) -> Self {
+    pub fn new(name: Identifier, r#type: Type, span: Span) -> Self {
         Self {
             name,
             r#type: Box::new(r#type),
@@ -568,5 +567,49 @@ pub enum Unary {
 impl fmt::Display for Unary {
     fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
         write!(fmt, "{}", self.sexp())
+    }
+}
+
+#[derive(Clone, Debug, Eq)]
+pub struct Identifier {
+    pub symbol: Symbol,
+    pub span: Box<Span>,
+}
+
+impl std::ops::Deref for Identifier {
+    type Target = Symbol;
+
+    fn deref(&self) -> &Self::Target {
+        &self.symbol
+    }
+}
+
+impl fmt::Display for Identifier {
+    fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
+        write!(fmt, "{}", self.sexp())
+    }
+}
+
+impl PartialEq for Identifier {
+    fn eq(&self, other: &Self) -> bool {
+        self.symbol == other.symbol
+    }
+}
+
+impl Ord for Identifier {
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        self.symbol.cmp(&other.symbol)
+    }
+}
+
+impl PartialOrd for Identifier {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        Some(self.symbol.cmp(&other.symbol))
+    }
+}
+
+impl std::hash::Hash for Identifier {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        self.symbol.hash(state);
     }
 }

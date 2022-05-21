@@ -140,7 +140,7 @@ impl Serialize for ast::Type {
         match self {
             Bool(_) => "bool".sexp(),
             Int(_) => "int".sexp(),
-            Class(class, _) => class.sexp(),
+            Class(class) => class.sexp(),
             Array(r#type, None, _) => ["[]".sexp(), r#type.sexp()].sexp_move(),
             Array(r#type, Some(length), _) => {
                 ["[]".sexp(), r#type.sexp(), length.sexp()].sexp_move()
@@ -200,7 +200,7 @@ impl Serialize for ast::Expression {
             Integer(integer, _) => integer.to_string().sexp_move(),
             Null(_) => "null".sexp(),
             This(_) => "this".sexp(),
-            Variable(variable, _) => variable.sexp(),
+            Variable(variable) => variable.sexp(),
             Array(expressions, _) => expressions.sexp(),
             Binary(binary, left, right, _) => {
                 [binary.get().sexp(), left.sexp(), right.sexp()].sexp_move()
@@ -277,5 +277,11 @@ impl Serialize for ast::Statement {
             }
             Break(_) => "break".sexp(),
         }
+    }
+}
+
+impl Serialize for ast::Identifier {
+    fn sexp(&self) -> Sexp {
+        self.symbol.sexp()
     }
 }

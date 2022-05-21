@@ -1,9 +1,9 @@
 use std::iter;
 
+use crate::data::ast::Identifier;
 use crate::data::r#type;
-use crate::Map;
-
 use crate::data::symbol::Symbol;
+use crate::Map;
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Entry {
@@ -144,23 +144,27 @@ impl Context {
         }
     }
 
-    pub fn insert_class(&mut self, class: Symbol) -> Option<Map<Symbol, Entry>> {
-        self.classes.insert(class, Map::default())
+    pub fn insert_class(&mut self, class: Identifier) -> Option<Map<Symbol, Entry>> {
+        self.classes.insert(class.symbol, Map::default())
     }
 
     pub fn get_class(&self, class: &Symbol) -> Option<&Map<Symbol, Entry>> {
         self.classes.get(class)
     }
 
-    pub fn insert_supertype(&mut self, subtype: Symbol, supertype: Symbol) -> Option<Symbol> {
+    pub fn insert_supertype(
+        &mut self,
+        subtype: Identifier,
+        supertype: Identifier,
+    ) -> Option<Symbol> {
         self.hierarchy
-            .insert(subtype, supertype)
-            .filter(|existing| *existing != supertype)
+            .insert(subtype.symbol, supertype.symbol)
+            .filter(|existing| *existing != supertype.symbol)
     }
 
-    pub fn has_cycle(&self, subtype: &Symbol) -> bool {
+    pub fn has_cycle(&self, subtype: &Identifier) -> bool {
         self.ancestors_exclusive(subtype)
-            .any(|supertype| *subtype == supertype)
+            .any(|supertype| subtype.symbol == supertype)
     }
 
     pub fn push(&mut self, scope: LocalScope) {

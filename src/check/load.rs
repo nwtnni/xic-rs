@@ -19,7 +19,7 @@ impl Checker {
         r#use: &ast::Use,
     ) -> Result<(), error::Error> {
         // Load each interface exactly once
-        if !self.used.insert(r#use.name) {
+        if !self.used.insert(*r#use.name) {
             return Ok(());
         }
 
@@ -27,7 +27,7 @@ impl Checker {
         let tokens = match lex::lex(&path) {
             Ok(tokens) => tokens,
             Err(error::Error::Io(error)) if error.kind() == io::ErrorKind::NotFound => {
-                bail!(r#use.span, ErrorKind::NotFound(r#use.name))
+                bail!(r#use.span, ErrorKind::NotFound(r#use.name.symbol))
             }
             Err(error) => return Err(error),
         };
@@ -65,32 +65,32 @@ impl Checker {
     }
 
     fn load_class_signature(&mut self, class: &ast::ClassSignature) -> Result<(), error::Error> {
-        self.class_signatures.insert(class.name);
+        self.class_signatures.insert(*class.name);
 
-        match self.context.insert_class(class.name) {
+        match self.context.insert_class(class.name.clone()) {
             Some(_) => bail!(class.span, ErrorKind::NameClash),
             None => Ok(()),
         }
     }
 
     fn check_class_signature(&mut self, class: &ast::ClassSignature) -> Result<(), error::Error> {
-        if let Some(supertype) = class.extends {
+        if let Some(supertype) = &class.extends {
             if self.context.get_class(&supertype).is_none() {
-                bail!(class.span, ErrorKind::UnboundClass(supertype))
+                bail!(class.span, ErrorKind::UnboundClass(supertype.symbol))
             }
 
             assert!(self
                 .context
-                .insert_supertype(class.name, supertype)
+                .insert_supertype(class.name.clone(), supertype.clone())
                 .is_none());
 
             if self.context.has_cycle(&class.name) {
-                bail!(class.span, ErrorKind::ClassCycle(class.name));
+                bail!(class.span, ErrorKind::ClassCycle(*class.name));
             }
         }
 
         for method in &class.methods {
-            self.check_function_signature(GlobalScope::Class(class.name), method)?;
+            self.check_function_signature(GlobalScope::Class(*class.name), method)?;
         }
 
         Ok(())
@@ -107,7 +107,7 @@ impl Checker {
         match self.context.get(scope, &function.name) {
             Some(existing) if *existing != signature => bail!(function.span, ErrorKind::NameClash),
             Some(_) | None => {
-                self.context.insert(scope, function.name, signature);
+                self.context.insert(scope, *function.name, signature);
             }
         }
 
@@ -115,26 +115,29 @@ impl Checker {
     }
 
     pub(super) fn load_class(&mut self, class: &ast::Class) -> Result<(), error::Error> {
-        if !self.class_implementations.insert(class.name) {
+        if !self.class_implementations.insert(*class.name) {
             bail!(class.span, ErrorKind::NameClash);
         }
 
         // If not already declared by an interface
         if self.context.get_class(&class.name).is_none() {
-            self.context.insert_class(class.name);
+            self.context.insert_class(class.name.clone());
         }
 
-        if let Some(supertype) = class.extends {
-            if let Some(existing) = self.context.insert_supertype(class.name, supertype) {
+        if let Some(supertype) = &class.extends {
+            if let Some(existing) = self
+                .context
+                .insert_supertype(class.name.clone(), supertype.clone())
+            {
                 expected!(
                     r#type::Expression::Class(existing),
                     class.span,
-                    r#type::Expression::Class(supertype),
+                    r#type::Expression::Class(supertype.symbol),
                 );
             }
 
             if self.context.has_cycle(&class.name) {
-                bail!(class.span, ErrorKind::ClassCycle(class.name));
+                bail!(class.span, ErrorKind::ClassCycle(*class.name));
             }
         }
 
@@ -144,7 +147,7 @@ impl Checker {
                 // in array types, nor initializer expressions, so they can be checked linearly.
                 ast::ClassItem::Field(_) => (),
                 ast::ClassItem::Method(method) => {
-                    self.load_function(GlobalScope::Class(class.name), method)?
+                    self.load_function(GlobalScope::Class(*class.name), method)?
                 }
             }
         }
@@ -161,7 +164,7 @@ impl Checker {
 
         match self.context.insert(
             scope,
-            function.name,
+            *function.name,
             Entry::Function(new_parameters.clone(), new_returns.clone()),
         ) {
             None => match scope {
@@ -208,7 +211,7 @@ impl Checker {
         match r#type {
             ast::Type::Bool(_) => Ok(r#type::Expression::Boolean),
             ast::Type::Int(_) => Ok(r#type::Expression::Integer),
-            ast::Type::Class(class, _) => Ok(r#type::Expression::Class(*class)),
+            ast::Type::Class(class) => Ok(r#type::Expression::Class(**class)),
             ast::Type::Array(r#type, _, _) => self
                 .load_type(r#type)
                 .map(Box::new)

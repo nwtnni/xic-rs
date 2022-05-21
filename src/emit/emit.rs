@@ -104,7 +104,7 @@ impl<'env> Emitter<'env> {
             }
             Null(_) => todo!(),
             This(_) => todo!(),
-            Variable(variable, _) => hir!((TEMP variables[variable])).into(),
+            Variable(variable) => hir!((TEMP variables[&variable.symbol])).into(),
             Array(expressions, _) => {
                 let array = hir!((TEMP Temporary::fresh("array")));
 
@@ -306,7 +306,7 @@ impl<'env> Emitter<'env> {
         variables: &Map<Symbol, Temporary>,
     ) -> hir::Expression {
         let name = match &*call.function {
-            ast::Expression::Variable(name, _) => *name,
+            ast::Expression::Variable(variable) => variable.symbol,
             _ => todo!(),
         };
 
@@ -328,12 +328,12 @@ impl<'env> Emitter<'env> {
         variables: &mut Map<Symbol, Temporary>,
     ) -> hir::Expression {
         let fresh = Temporary::fresh("t");
-        variables.insert(declaration.name, fresh);
+        variables.insert(*declaration.name, fresh);
         match &*declaration.r#type {
             ast::Type::Bool(_) | ast::Type::Int(_) | ast::Type::Array(_, None, _) => {
                 hir!((TEMP fresh))
             }
-            ast::Type::Class(_, _) => todo!(),
+            ast::Type::Class(_) => todo!(),
             ast::Type::Array(r#type, Some(length), _) => {
                 let mut lengths = Vec::new();
                 let declaration =
@@ -372,7 +372,7 @@ impl<'env> Emitter<'env> {
 
         match r#type {
             ast::Type::Bool(_) | ast::Type::Int(_) | ast::Type::Array(_, None, _) => (),
-            ast::Type::Class(_, _) => todo!(),
+            ast::Type::Class(_) => todo!(),
             ast::Type::Array(r#type, Some(len), _) => {
                 let r#while = Label::fresh("while");
                 let done = Label::fresh("done");
