@@ -1,0 +1,13 @@
+---
+source: tests/suite/check.rs
+assertion_line: 35
+expression: Snapshot(context)
+---
+Error: Semantic error
+   ╭─[tests/check/bad_interface_implementation_2.xi:2:5]
+   │
+ 2 │     foo(a: int) {}
+   ·     ───────┬──────  
+   ·            ╰──────── Implementation does not match signature
+───╯
+

@@ -1,0 +1,13 @@
+---
+source: tests/suite/check.rs
+assertion_line: 35
+expression: Snapshot(context)
+---
+Error: Semantic error
+   ╭─[tests/check/bad_override_1.xi:6:5]
+   │
+ 6 │     foo(a: bool) {}
+   ·     ───────┬───────  
+   ·            ╰───────── Implementation does not match signature
+───╯
+

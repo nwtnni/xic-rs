@@ -65,6 +65,8 @@ impl Checker {
     }
 
     fn load_class_signature(&mut self, class: &ast::ClassSignature) -> Result<(), error::Error> {
+        self.class_signatures.insert(class.name);
+
         match self.context.insert_class(class.name) {
             Some(_) => bail!(class.span, ErrorKind::NameClash),
             None => Ok(()),
@@ -103,9 +105,8 @@ impl Checker {
         let signature = Entry::Signature(parameters, returns);
 
         match self.context.get(scope, &function.name) {
-            Some(existing) if *existing == signature => (),
-            Some(_) => bail!(function.span, ErrorKind::NameClash),
-            None => {
+            Some(existing) if *existing != signature => bail!(function.span, ErrorKind::NameClash),
+            Some(_) | None => {
                 self.context.insert(scope, function.name, signature);
             }
         }
@@ -114,9 +115,27 @@ impl Checker {
     }
 
     pub(super) fn load_class(&mut self, class: &ast::Class) -> Result<(), error::Error> {
-        // May already be defined by an interface
+        if !self.class_implementations.insert(class.name) {
+            bail!(class.span, ErrorKind::NameClash);
+        }
+
+        // If not already declared by an interface
         if self.context.get_class(&class.name).is_none() {
             self.context.insert_class(class.name);
+        }
+
+        if let Some(supertype) = class.extends {
+            if let Some(existing) = self.context.insert_supertype(class.name, supertype) {
+                expected!(
+                    class.span,
+                    r#type::Expression::Class(existing),
+                    r#type::Expression::Class(supertype)
+                );
+            }
+
+            if self.context.has_cycle(&class.name) {
+                bail!(class.span, ErrorKind::ClassCycle(class.name));
+            }
         }
 
         for item in &class.items {
@@ -140,26 +159,25 @@ impl Checker {
     ) -> Result<(), error::Error> {
         let (new_parameters, new_returns) = self.load_callable(function)?;
 
-        match self.context.get(scope, &function.name) {
-            Some(Entry::Signature(old_parameters, _))
-                if !self.context.all_subtype(old_parameters, &new_parameters) =>
-            {
-                bail!(function.span, ErrorKind::SignatureMismatch)
-            }
-            Some(Entry::Signature(_, old_returns))
-                if !self.context.all_subtype(&new_returns, old_returns) =>
-            {
-                bail!(function.span, ErrorKind::SignatureMismatch)
-            }
-            Some(Entry::Signature(_, _)) | None => {
-                self.context.insert(
-                    scope,
-                    function.name,
-                    Entry::Function(new_parameters, new_returns),
-                );
-            }
-            Some(Entry::Function(_, _)) | Some(Entry::Variable(_)) => {
+        match self.context.insert(
+            scope,
+            function.name,
+            Entry::Function(new_parameters.clone(), new_returns.clone()),
+        ) {
+            None => match scope {
+                GlobalScope::Class(class) if !self.class_signatures.contains(&class) => (),
+                GlobalScope::Class(_) => bail!(function.span, ErrorKind::SignatureMismatch),
+                GlobalScope::Global => (),
+            },
+            Some(Entry::Variable(_)) | Some(Entry::Function(_, _)) => {
                 bail!(function.span, ErrorKind::NameClash)
+            }
+            Some(Entry::Signature(old_parameters, old_returns)) => {
+                if !self.context.all_subtype(&old_parameters, &new_parameters)
+                    || !self.context.all_subtype(&new_returns, &old_returns)
+                {
+                    bail!(function.span, ErrorKind::SignatureMismatch)
+                }
             }
         }
 

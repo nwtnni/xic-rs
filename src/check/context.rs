@@ -79,8 +79,8 @@ impl Context {
     pub fn get<S: Into<Scope>>(&self, scope: S, symbol: &Symbol) -> Option<&Entry> {
         match scope.into() {
             Scope::Global(GlobalScope::Global) => self.globals.get(symbol),
-            Scope::Global(GlobalScope::Class(class)) => iter::once(class)
-                .chain(self.ancestors(&class))
+            Scope::Global(GlobalScope::Class(class)) => self
+                .ancestors_inclusive(&class)
                 .map(|class| &self.classes[&class])
                 .find_map(|class| class.get(symbol)),
             Scope::Local => self
@@ -88,7 +88,7 @@ impl Context {
                 .iter()
                 .rev()
                 .find_map(|(_, r#types)| r#types.get(symbol))
-                .or_else(|| self.globals.get(symbol))
+                .or_else(|| self.get(GlobalScope::Global, symbol))
                 .or_else(|| {
                     let class = self.get_scoped_class()?;
                     self.get(GlobalScope::Class(class), symbol)
@@ -120,7 +120,7 @@ impl Context {
                         .rev()
                         .skip(1)
                         .find_map(|(_, types)| types.get(&symbol).cloned())
-                        .or_else(|| self.globals.get(&symbol).cloned())
+                        .or_else(|| self.get(GlobalScope::Global, &symbol).cloned())
                 }),
         }
     }
@@ -140,7 +140,7 @@ impl Context {
     }
 
     pub fn has_cycle(&self, subtype: &Symbol) -> bool {
-        self.ancestors(subtype)
+        self.ancestors_exclusive(subtype)
             .any(|supertype| *subtype == supertype)
     }
 
@@ -152,7 +152,11 @@ impl Context {
         self.locals.pop();
     }
 
-    pub fn ancestors(&self, class: &Symbol) -> impl Iterator<Item = Symbol> + '_ {
+    pub fn ancestors_inclusive(&self, class: &Symbol) -> impl Iterator<Item = Symbol> + '_ {
+        iter::once(*class).chain(self.ancestors_exclusive(class))
+    }
+
+    pub fn ancestors_exclusive(&self, class: &Symbol) -> impl Iterator<Item = Symbol> + '_ {
         let mut r#type = *class;
         iter::from_fn(move || {
             let supertype = self.hierarchy.get(&r#type).copied()?;

@@ -46,7 +46,10 @@ pub(super) struct Checker {
     pub(super) used: Set<Symbol>,
 
     /// Set of classes defined in this module
-    defined: Set<Symbol>,
+    pub(super) class_implementations: Set<Symbol>,
+
+    /// Set of class signatures used by this module
+    pub(super) class_signatures: Set<Symbol>,
 }
 
 impl Checker {
@@ -54,7 +57,8 @@ impl Checker {
         Checker {
             context: Context::new(),
             used: Set::default(),
-            defined: Set::default(),
+            class_implementations: Set::default(),
+            class_signatures: Set::default(),
         }
     }
 
@@ -145,36 +149,9 @@ impl Checker {
     }
 
     fn check_class(&mut self, class: &ast::Class) -> Result<(), error::Error> {
-        if !self.defined.insert(class.name) {
-            bail!(class.span, ErrorKind::NameClash);
-        }
-
         if let Some(supertype) = class.extends {
             if self.context.get_class(&supertype).is_none() {
                 bail!(class.span, ErrorKind::UnboundClass(supertype));
-            }
-
-            if let Some(existing) = self.context.insert_supertype(class.name, supertype) {
-                expected!(
-                    class.span,
-                    r#type::Expression::Class(existing),
-                    r#type::Expression::Class(supertype)
-                );
-            }
-
-            if self.context.has_cycle(&class.name) {
-                bail!(class.span, ErrorKind::ClassCycle(class.name));
-            }
-        }
-
-        for item in &class.items {
-            match item {
-                ast::ClassItem::Field(declaration) => {
-                    self.check_declaration(GlobalScope::Class(class.name), declaration)?;
-                }
-                ast::ClassItem::Method(method) => {
-                    self.check_function(GlobalScope::Class(class.name), method)?
-                }
             }
         }
 
@@ -187,6 +164,46 @@ impl Checker {
             .any(|entry| matches!(entry, Entry::Signature(_, _)))
         {
             bail!(class.span, ErrorKind::ClassIncomplete(class.name));
+        }
+
+        for item in &class.items {
+            match item {
+                ast::ClassItem::Field(declaration) => {
+                    self.check_declaration(GlobalScope::Class(class.name), declaration)?;
+                }
+                ast::ClassItem::Method(method) => {
+                    // Check if method is declared or defined by an ancestor
+                    if let Some(
+                        Entry::Signature(old_parameters, old_returns)
+                        | Entry::Function(old_parameters, old_returns),
+                    ) = self
+                        .context
+                        .ancestors_exclusive(&class.name)
+                        .find_map(|class| self.context.get_class(&class).unwrap().get(&method.name))
+                    {
+                        let (new_parameters, new_returns) = self
+                            .context
+                            .get_class(&class.name)
+                            .unwrap()
+                            .get(&method.name)
+                            .and_then(|entry| match entry {
+                                Entry::Function(new_parameters, new_returns) => {
+                                    Some((new_parameters, new_returns))
+                                }
+                                _ => None,
+                            })
+                            .unwrap();
+
+                        if !self.context.all_subtype(old_parameters, new_parameters)
+                            || !self.context.all_subtype(new_returns, old_returns)
+                        {
+                            bail!(method.span, ErrorKind::SignatureMismatch);
+                        }
+                    }
+
+                    self.check_function(GlobalScope::Class(class.name), method)?
+                }
+            }
         }
 
         Ok(())
@@ -506,7 +523,7 @@ impl Checker {
                     Some(_) => bail!(*span, ErrorKind::NotVariable(*field)),
                 }
             }
-            ast::Expression::New(class, span) => match self.defined.contains(class) {
+            ast::Expression::New(class, span) => match self.class_implementations.contains(class) {
                 false if self.context.get_class(class).is_some() => {
                     bail!(*span, ErrorKind::NotInClassModule(*class))
                 }

@@ -1,0 +1,13 @@
+---
+source: tests/suite/check.rs
+assertion_line: 35
+expression: Snapshot(context)
+---
+Error: Semantic error
+   ╭─[tests/check/bad_interface_implementation_1.xi:1:1]
+   │
+ 1 │ class A {}
+   · ─────┬────  
+   ·      ╰────── Class A does not implement method required in interface
+───╯
+
