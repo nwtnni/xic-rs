@@ -329,7 +329,7 @@ impl<'env> Emitter<'env> {
     ) -> hir::Expression {
         let fresh = Temporary::fresh("t");
         variables.insert(declaration.name, fresh);
-        match &declaration.r#type {
+        match &*declaration.r#type {
             ast::Type::Bool(_) | ast::Type::Int(_) | ast::Type::Array(_, None, _) => {
                 hir!((TEMP fresh))
             }

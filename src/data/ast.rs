@@ -431,7 +431,7 @@ impl fmt::Display for Call {
     }
 }
 
-const _: [u8; 104] = [0; std::mem::size_of::<Declaration>()];
+const _: [u8; 64] = [0; std::mem::size_of::<Declaration>()];
 
 #[derive(Clone, Debug)]
 pub enum Declaration {
@@ -461,12 +461,12 @@ impl fmt::Display for Declaration {
     }
 }
 
-const _: [u8; 96] = [0; std::mem::size_of::<MultipleDeclaration>()];
+const _: [u8; 56] = [0; std::mem::size_of::<MultipleDeclaration>()];
 
 #[derive(Clone, Debug)]
 pub struct MultipleDeclaration {
     pub names: Vec<Symbol>,
-    pub r#type: Type,
+    pub r#type: Box<Type>,
     pub span: Span,
 }
 
@@ -474,7 +474,7 @@ impl MultipleDeclaration {
     pub fn new(names: Vec<Symbol>, r#type: Type, span: Span) -> Self {
         Self {
             names,
-            r#type,
+            r#type: Box::new(r#type),
             span,
         }
     }
@@ -494,18 +494,22 @@ impl fmt::Display for MultipleDeclaration {
     }
 }
 
-const _: [u8; 80] = [0; std::mem::size_of::<SingleDeclaration>()];
+const _: [u8; 40] = [0; std::mem::size_of::<SingleDeclaration>()];
 
 #[derive(Clone, Debug)]
 pub struct SingleDeclaration {
     pub name: Symbol,
-    pub r#type: Type,
+    pub r#type: Box<Type>,
     pub span: Span,
 }
 
 impl SingleDeclaration {
     pub fn new(name: Symbol, r#type: Type, span: Span) -> Self {
-        Self { name, r#type, span }
+        Self {
+            name,
+            r#type: Box::new(r#type),
+            span,
+        }
     }
 
     pub fn has_length(&self) -> bool {
