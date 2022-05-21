@@ -36,6 +36,7 @@ pub enum ErrorKind {
     NotInClass(Option<Symbol>),
     NotInClassModule(Symbol),
     ClassCycle(Symbol),
+    ClassIncomplete(Symbol),
     IndexEmpty,
     CallLength,
     InitLength,
@@ -85,6 +86,10 @@ impl ErrorKind {
             ErrorKind::ClassCycle(class) => {
                 Cow::Owned(format!("Class hierarchy for class {} forms a cycle", class))
             }
+            ErrorKind::ClassIncomplete(class) => Cow::Owned(format!(
+                "Class {} does not implement method required in interface",
+                class
+            )),
             ErrorKind::IndexEmpty => Cow::Borrowed("Cannot index empty array"),
             ErrorKind::CallLength => {
                 Cow::Borrowed("Incorrect number of arguments for function call")

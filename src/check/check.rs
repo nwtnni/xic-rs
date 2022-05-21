@@ -71,7 +71,7 @@ impl Checker {
         }
 
         let implicit = path
-            .file_name()
+            .file_stem()
             .map(Path::new)
             .map(|path| ast::Use {
                 name: symbol::intern(path.to_str().unwrap()),
@@ -176,6 +176,17 @@ impl Checker {
                     self.check_function(GlobalScope::Class(class.name), method)?
                 }
             }
+        }
+
+        // Classes must implement at least the methods declared in its interface
+        if self
+            .context
+            .get_class(&class.name)
+            .unwrap()
+            .values()
+            .any(|entry| matches!(entry, Entry::Signature(_, _)))
+        {
+            bail!(class.span, ErrorKind::ClassIncomplete(class.name));
         }
 
         Ok(())
