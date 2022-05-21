@@ -132,7 +132,8 @@ impl Checker {
                 .insert_supertype(class.name.clone(), supertype.clone())
             {
                 expected!(
-                    r#type::Expression::Class(existing),
+                    *existing.span,
+                    r#type::Expression::Class(existing.symbol),
                     *supertype.span,
                     r#type::Expression::Class(supertype.symbol),
                 );

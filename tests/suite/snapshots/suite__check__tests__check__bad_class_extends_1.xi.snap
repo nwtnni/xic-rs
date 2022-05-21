@@ -1,0 +1,19 @@
+---
+source: tests/suite/check.rs
+assertion_line: 35
+expression: Snapshot(context)
+---
+Error: Semantic error
+   ╭─[tests/check/bad_class_extends_1.xi:3:17]
+   │
+ 3 │ class B extends C {}
+   ·                 ┬  
+   ·                 ╰── Expected A but found C
+   │
+   ├─[tests/check/bad_class_extends_1.ixi:2:17]
+   │
+ 2 │ class B extends A {}
+   ·                 ┬  
+   ·                 ╰── Expected A because of this
+───╯
+

@@ -15,7 +15,7 @@ pub enum Entry {
 #[derive(Clone, Debug)]
 pub struct Context {
     /// Class hierarchy mapping subtype to supertype
-    hierarchy: Map<Symbol, Symbol>,
+    hierarchy: Map<Symbol, Identifier>,
 
     /// Globally-scoped global variables and functions
     globals: Map<Symbol, Entry>,
@@ -156,10 +156,11 @@ impl Context {
         &mut self,
         subtype: Identifier,
         supertype: Identifier,
-    ) -> Option<Symbol> {
+    ) -> Option<Identifier> {
+        let expected = supertype.symbol;
         self.hierarchy
-            .insert(subtype.symbol, supertype.symbol)
-            .filter(|existing| *existing != supertype.symbol)
+            .insert(subtype.symbol, supertype)
+            .filter(|actual| actual.symbol != expected)
     }
 
     pub fn has_cycle(&self, subtype: &Identifier) -> bool {
@@ -182,7 +183,10 @@ impl Context {
     pub fn ancestors_exclusive(&self, class: &Symbol) -> impl Iterator<Item = Symbol> + '_ {
         let mut r#type = *class;
         iter::from_fn(move || {
-            let supertype = self.hierarchy.get(&r#type).copied()?;
+            let supertype = self
+                .hierarchy
+                .get(&r#type)
+                .map(|identifier| identifier.symbol)?;
             r#type = supertype;
             Some(supertype)
         })
@@ -211,13 +215,9 @@ impl Context {
             (Any, _) | (Integer, Integer) | (Boolean, Boolean) => true,
             (Array(subtype), Array(supertype)) => self.is_subtype_array(subtype, supertype),
             (Class(subtype), Class(supertype)) if subtype == supertype => true,
-            (Class(mut subtype), Class(supertype)) => loop {
-                match self.hierarchy.get(&subtype) {
-                    None => return false,
-                    Some(r#type) if r#type == supertype => return true,
-                    Some(r#type) => subtype = *r#type,
-                }
-            },
+            (Class(subtype), Class(supertype)) => self
+                .ancestors_exclusive(subtype)
+                .any(|r#type| r#type == *supertype),
             (_, _) => false,
         }
     }
