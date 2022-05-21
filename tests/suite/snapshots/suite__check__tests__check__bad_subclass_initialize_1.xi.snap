@@ -4,10 +4,12 @@ assertion_line: 35
 expression: Snapshot(context)
 ---
 Error: Semantic error
-   ╭─[tests/check/bad_subclass_initialize_1.xi:5:5]
+   ╭─[tests/check/bad_subclass_initialize_1.xi:5:12]
    │
  5 │     b: B = new A
-   ·     ──┬─  
-   ·       ╰─── Expected B but found A
+   ·     ──┬─   ──┬──  
+   ·       ╰─────────── Expected B because of this
+   ·              │    
+   ·              ╰──── Expected B but found A
 ───╯
 

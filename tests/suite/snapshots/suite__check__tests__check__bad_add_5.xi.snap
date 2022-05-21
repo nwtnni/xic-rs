@@ -1,12 +1,15 @@
 ---
 source: tests/suite/check.rs
+assertion_line: 35
 expression: Snapshot(context)
 ---
 Error: Semantic error
-   ╭─[tests/check/bad_add_5.xi:2:5]
+   ╭─[tests/check/bad_add_5.xi:2:13]
    │
  2 │     x:int = {1,2} + {}
-   ·     ──┬──  
-   ·       ╰──── Expected int but found int[]
+   ·     ──┬──   ─────┬────  
+   ·       ╰───────────────── Expected int because of this
+   ·                  │      
+   ·                  ╰────── Expected int but found int[]
 ───╯
 

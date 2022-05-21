@@ -4,10 +4,12 @@ assertion_line: 35
 expression: Snapshot(context)
 ---
 Error: Semantic error
-   ╭─[tests/check/bad_invariant_initialize.xi:6:5]
+   ╭─[tests/check/bad_invariant_initialize.xi:6:14]
    │
  6 │     a: A[] = foo()
-   ·     ───┬──  
-   ·        ╰──── Expected A[] but found C[]
+   ·     ───┬──   ──┬──  
+   ·        ╰──────────── Expected A[] because of this
+   ·                │    
+   ·                ╰──── Expected A[] but found C[]
 ───╯
 

@@ -4,10 +4,12 @@ assertion_line: 35
 expression: Snapshot(context)
 ---
 Error: Semantic error
-   ╭─[tests/check/bad_invariant_assign.xi:7:5]
+   ╭─[tests/check/bad_invariant_assign.xi:7:14]
    │
  7 │     a: A[] = c
-   ·     ───┬──  
-   ·        ╰──── Expected A[] but found C[]
+   ·     ───┬──   ┬  
+   ·        ╰──────── Expected A[] because of this
+   ·              │  
+   ·              ╰── Expected A[] but found C[]
 ───╯
 

@@ -2,6 +2,7 @@ use std::path::Path;
 
 use crate::check::context::Entry;
 use crate::check::context::GlobalScope;
+use crate::check::context::LeastUpperBound;
 use crate::check::context::LocalScope;
 use crate::check::Context;
 use crate::check::Error;
@@ -22,12 +23,22 @@ macro_rules! bail {
 }
 
 macro_rules! expected {
-    ($span:expr, $expected:expr, $found:expr) => {{
+    ($expected_span:expr, $expected:expr, $found_span:expr, $found:expr $(,)?) => {{
         let kind = ErrorKind::Mismatch {
             expected: $expected,
+            expected_span: Some($expected_span),
             found: $found,
         };
-        bail!($span, kind)
+        bail!($found_span, kind)
+    }};
+
+    ($expected:expr, $found_span:expr, $found:expr $(,)?) => {{
+        let kind = ErrorKind::Mismatch {
+            expected: $expected,
+            expected_span: None,
+            found: $found,
+        };
+        bail!($found_span, kind)
     }};
 }
 
@@ -131,7 +142,7 @@ impl Checker {
                 let r#type = self.check_type(r#type)?;
                 match self.check_expression(length)? {
                     r#type::Expression::Integer => Ok(r#type::Expression::Array(Box::new(r#type))),
-                    r#type => expected!(length.span(), r#type::Expression::Integer, r#type),
+                    r#type => expected!(r#type::Expression::Integer, length.span(), r#type),
                 }
             }
         }
@@ -248,13 +259,14 @@ impl Checker {
     ) -> Result<r#type::Statement, error::Error> {
         match statement {
             ast::Statement::Assignment(left, right, _) => {
-                let span = right.span();
+                let left_span = left.span();
+                let right_span = right.span();
                 let left = self.check_expression(left)?;
                 let right = self.check_expression(right)?;
                 if self.context.is_subtype(&right, &left) {
                     Ok(r#type::Statement::Unit)
                 } else {
-                    expected!(span, left, right)
+                    expected!(left_span, left, right_span, right)
                 }
             }
             ast::Statement::Call(call) => match &*self.check_call(call)? {
@@ -305,7 +317,7 @@ impl Checker {
             ast::Statement::If(condition, r#if, None, _) => {
                 match self.check_expression(condition)? {
                     r#type::Expression::Boolean => (),
-                    typ => expected!(condition.span(), r#type::Expression::Boolean, typ),
+                    r#type => expected!(r#type::Expression::Boolean, condition.span(), r#type),
                 };
 
                 self.context.push(LocalScope::If);
@@ -317,7 +329,7 @@ impl Checker {
             ast::Statement::If(condition, r#if, Some(r#else), _) => {
                 match self.check_expression(condition)? {
                     r#type::Expression::Boolean => (),
-                    typ => expected!(condition.span(), r#type::Expression::Boolean, typ),
+                    r#type => expected!(r#type::Expression::Boolean, condition.span(), r#type),
                 };
 
                 self.context.push(LocalScope::If);
@@ -330,10 +342,10 @@ impl Checker {
 
                 Ok(r#if.least_upper_bound(&r#else))
             }
-            ast::Statement::While(_, cond, body, _) => {
-                match self.check_expression(cond)? {
+            ast::Statement::While(_, condition, body, _) => {
+                match self.check_expression(condition)? {
                     r#type::Expression::Boolean => (),
-                    typ => expected!(cond.span(), r#type::Expression::Boolean, typ),
+                    r#type => expected!(r#type::Expression::Boolean, condition.span(), r#type),
                 };
 
                 self.context.push(LocalScope::While);
@@ -371,12 +383,17 @@ impl Checker {
 
             ast::Expression::Array(array, _) => {
                 let mut bound = r#type::Expression::Any;
+                let mut bound_span = None;
 
                 for expression in array {
                     let r#type = self.check_expression(expression)?;
-                    match self.context.least_upper_bound(&r#type, &bound) {
-                        None => expected!(expression.span(), bound, r#type),
-                        Some(_bound) => bound = _bound,
+                    match self.context.least_upper_bound(&bound, &r#type) {
+                        None => expected!(bound_span.unwrap(), bound, expression.span(), r#type),
+                        Some(LeastUpperBound::Left(_bound)) => bound = _bound,
+                        Some(LeastUpperBound::Right(_bound)) => {
+                            bound = _bound;
+                            bound_span = Some(expression.span());
+                        }
                     }
                 }
 
@@ -442,21 +459,22 @@ impl Checker {
                         {
                             return Ok(r#type::Expression::Boolean);
                         } else {
-                            expected!(right_span, left, right);
+                            expected!(left_span, left, right_span, right);
                         }
                     }
                 }
 
-                let span = right.span();
+                let left_span = left.span();
+                let right_span = right.span();
 
-                if let (r#type::Expression::Array(left), r#type::Expression::Array(right)) =
+                if let (left @ r#type::Expression::Array(_), right @ r#type::Expression::Array(_)) =
                     (self.check_expression(left)?, self.check_expression(right)?)
                 {
                     return match self.context.least_upper_bound(&left, &right) {
-                        None => expected!(span, *left, *right),
-                        Some(bound) => {
+                        None => expected!(left_span, left, right_span, right),
+                        Some(LeastUpperBound::Left(r#type) | LeastUpperBound::Right(r#type)) => {
                             binary.set(ast::Binary::Cat);
-                            Ok(r#type::Expression::Array(Box::new(bound)))
+                            Ok(r#type)
                         }
                     };
                 }
@@ -472,13 +490,13 @@ impl Checker {
             ast::Expression::Unary(ast::Unary::Neg, expression, _) => {
                 match self.check_expression(expression)? {
                     r#type::Expression::Integer => Ok(r#type::Expression::Integer),
-                    r#type => expected!(expression.span(), r#type::Expression::Integer, r#type),
+                    r#type => expected!(r#type::Expression::Integer, expression.span(), r#type),
                 }
             }
             ast::Expression::Unary(ast::Unary::Not, expression, _) => {
                 match self.check_expression(expression)? {
                     r#type::Expression::Boolean => Ok(r#type::Expression::Boolean),
-                    r#type => expected!(expression.span(), r#type::Expression::Boolean, r#type),
+                    r#type => expected!(r#type::Expression::Boolean, expression.span(), r#type),
                 }
             }
 
@@ -491,23 +509,23 @@ impl Checker {
                     }
                     (r#type::Expression::Array(r#type), r#type::Expression::Integer) => Ok(*r#type),
                     (r#type::Expression::Array(r#type), _) => {
-                        expected!(index.span(), r#type::Expression::Integer, *r#type)
+                        expected!(r#type::Expression::Integer, index.span(), *r#type)
                     }
                     (r#type, _) => {
                         expected!(
-                            array.span(),
                             r#type::Expression::Array(Box::new(r#type::Expression::Any)),
-                            r#type
+                            array.span(),
+                            r#type,
                         )
                     }
                 }
             }
             ast::Expression::Length(array, span) => match self.check_expression(array)? {
                 r#type::Expression::Array(_) => Ok(r#type::Expression::Integer),
-                typ => expected!(
-                    *span,
+                r#type => expected!(
                     r#type::Expression::Array(Box::new(r#type::Expression::Any)),
-                    typ
+                    *span,
+                    r#type,
                 ),
             },
 
@@ -581,7 +599,8 @@ impl Checker {
             let r#type = self.check_expression(argument)?;
 
             if !self.context.is_subtype(&r#type, parameter) {
-                expected!(argument.span(), parameter.clone(), r#type)
+                // TODO: attach span to parameters
+                expected!(parameter.clone(), argument.span(), r#type)
             }
         }
 
@@ -615,7 +634,7 @@ impl Checker {
         {
             let supertype = self.check_single_declaration(scope, declaration)?;
             if !self.context.is_subtype(&subtype, &supertype) {
-                expected!(declaration.span, supertype, subtype);
+                expected!(declaration.span(), supertype, expression.span(), subtype);
             }
         }
 
@@ -682,9 +701,9 @@ impl Checker {
                 Ok(r#return)
             }
             (left, mismatch) if self.context.is_subtype(&left, &parameter) => {
-                expected!(right.span(), parameter, mismatch)
+                expected!(parameter, right.span(), mismatch)
             }
-            (mismatch, _) => expected!(left.span(), parameter, mismatch),
+            (mismatch, _) => expected!(parameter, left.span(), mismatch),
         }
     }
 }

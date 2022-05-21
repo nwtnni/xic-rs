@@ -127,9 +127,9 @@ impl Checker {
         if let Some(supertype) = class.extends {
             if let Some(existing) = self.context.insert_supertype(class.name, supertype) {
                 expected!(
-                    class.span,
                     r#type::Expression::Class(existing),
-                    r#type::Expression::Class(supertype)
+                    class.span,
+                    r#type::Expression::Class(supertype),
                 );
             }
 

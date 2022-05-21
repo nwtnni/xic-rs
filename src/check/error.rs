@@ -48,6 +48,7 @@ pub enum ErrorKind {
     SignatureMismatch,
     Mismatch {
         expected: r#type::Expression,
+        expected_span: Option<span::Span>,
         found: r#type::Expression,
     },
 }
@@ -103,9 +104,11 @@ impl ErrorKind {
             ErrorKind::SignatureMismatch => {
                 Cow::Borrowed("Implementation does not match signature")
             }
-            ErrorKind::Mismatch { expected, found } => {
-                Cow::Owned(format!("Expected {} but found {}", expected, found))
-            }
+            ErrorKind::Mismatch {
+                expected,
+                expected_span: _,
+                found,
+            } => Cow::Owned(format!("Expected {} but found {}", expected, found)),
         }
     }
 }
@@ -119,11 +122,25 @@ impl std::fmt::Display for Error {
 impl error::Report for Error {
     fn report(&self) -> ariadne::ReportBuilder<span::Span> {
         use ariadne::Span as _;
-        ariadne::Report::build(
+        let report = ariadne::Report::build(
             ariadne::ReportKind::Error,
             *self.span.source(),
             self.span.lo.idx,
         )
-        .with_label(ariadne::Label::new(self.span).with_message(self.kind.message()))
+        .with_label(ariadne::Label::new(self.span).with_message(self.kind.message()));
+
+        if let ErrorKind::Mismatch {
+            expected,
+            expected_span: Some(span),
+            found: _,
+        } = &self.kind
+        {
+            report.with_label(
+                ariadne::Label::new(*span)
+                    .with_message(format!("Expected {} because of this", expected)),
+            )
+        } else {
+            report
+        }
     }
 }

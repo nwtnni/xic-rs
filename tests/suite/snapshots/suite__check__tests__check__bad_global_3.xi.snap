@@ -1,12 +1,15 @@
 ---
 source: tests/suite/check.rs
+assertion_line: 35
 expression: Snapshot(context)
 ---
 Error: Semantic error
-   ╭─[tests/check/bad_global_3.xi:1:1]
+   ╭─[tests/check/bad_global_3.xi:1:10]
    │
  1 │ x: int = foo()
-   · ───┬──  
-   ·    ╰──── Expected int but found bool
+   · ───┬──   ──┬──  
+   ·    ╰──────────── Expected int because of this
+   ·            │    
+   ·            ╰──── Expected int but found bool
 ───╯
 

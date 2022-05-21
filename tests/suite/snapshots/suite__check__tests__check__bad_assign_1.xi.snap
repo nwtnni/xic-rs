@@ -1,12 +1,15 @@
 ---
 source: tests/suite/check.rs
+assertion_line: 35
 expression: Snapshot(context)
 ---
 Error: Semantic error
    ╭─[tests/check/bad_assign_1.xi:2:9]
    │
  2 │     x = false
-   ·         ──┬──  
+   ·     ┬   ──┬──  
+   ·     ╰────────── Expected int because of this
+   ·           │    
    ·           ╰──── Expected int but found bool
 ───╯
 

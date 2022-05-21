@@ -60,6 +60,25 @@ pub enum LocalScope {
     While,
 }
 
+#[derive(Clone, Debug)]
+pub(super) enum LeastUpperBound {
+    Left(r#type::Expression),
+    Right(r#type::Expression),
+}
+
+impl LeastUpperBound {
+    fn array(self) -> Self {
+        match self {
+            LeastUpperBound::Left(r#type) => {
+                LeastUpperBound::Left(r#type::Expression::Array(Box::new(r#type)))
+            }
+            LeastUpperBound::Right(r#type) => {
+                LeastUpperBound::Right(r#type::Expression::Array(Box::new(r#type)))
+            }
+        }
+    }
+}
+
 impl Default for Context {
     fn default() -> Self {
         Self::new()
@@ -229,25 +248,25 @@ impl Context {
         }
     }
 
-    pub fn least_upper_bound(
+    pub(super) fn least_upper_bound(
         &self,
         left: &r#type::Expression,
         right: &r#type::Expression,
-    ) -> Option<r#type::Expression> {
+    ) -> Option<LeastUpperBound> {
         use r#type::Expression::*;
         match (left, right) {
-            (Any, r#type) | (r#type, Any) => Some(r#type.clone()),
-            (Integer, Integer) => Some(Integer),
-            (Boolean, Boolean) => Some(Boolean),
+            (r#type, Any) => Some(LeastUpperBound::Left(r#type.clone())),
+            (Any, r#type) => Some(LeastUpperBound::Right(r#type.clone())),
+            (Integer, Integer) => Some(LeastUpperBound::Left(Integer)),
+            (Boolean, Boolean) => Some(LeastUpperBound::Left(Boolean)),
             (Array(left), Array(right)) => self
                 .least_upper_bound_array(left, right)
-                .map(Box::new)
-                .map(Array),
+                .map(LeastUpperBound::array),
             (Class(_), Class(_)) => {
-                if self.is_subtype(left, right) {
-                    Some(right.clone())
-                } else if self.is_subtype(right, left) {
-                    Some(left.clone())
+                if self.is_subtype(right, left) {
+                    Some(LeastUpperBound::Left(left.clone()))
+                } else if self.is_subtype(left, right) {
+                    Some(LeastUpperBound::Right(right.clone()))
                 } else {
                     None
                 }
@@ -256,18 +275,19 @@ impl Context {
         }
     }
 
-    pub fn least_upper_bound_array(
+    fn least_upper_bound_array(
         &self,
         left: &r#type::Expression,
         right: &r#type::Expression,
-    ) -> Option<r#type::Expression> {
+    ) -> Option<LeastUpperBound> {
         use r#type::Expression::*;
         match (left, right) {
-            (Any, r#type) | (r#type, Any) => Some(r#type.clone()),
-            (Array(left), Array(right)) => {
-                self.least_upper_bound(left, right).map(Box::new).map(Array)
-            }
-            (_, _) if left == right => Some(left.clone()),
+            (r#type, Any) => Some(LeastUpperBound::Left(r#type.clone())),
+            (Any, r#type) => Some(LeastUpperBound::Right(r#type.clone())),
+            (Array(left), Array(right)) => self
+                .least_upper_bound(left, right)
+                .map(LeastUpperBound::array),
+            (_, _) if left == right => Some(LeastUpperBound::Left(left.clone())),
             (_, _) => None,
         }
     }
