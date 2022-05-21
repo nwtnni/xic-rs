@@ -1,12 +1,13 @@
 ---
 source: tests/suite/check.rs
+assertion_line: 35
 expression: Snapshot(context)
 ---
 Error: Semantic error
    ╭─[tests/check/bad_function_declarations_1.xi:2:1]
    │
  2 │ foo() {}
-   · ───┬───  
-   ·    ╰───── Name already bound in environment
+   · ─┬─  
+   ·  ╰─── Name already bound in environment
 ───╯
 

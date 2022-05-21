@@ -1,12 +1,13 @@
 ---
 source: tests/suite/check.rs
+assertion_line: 35
 expression: Snapshot(context)
 ---
 Error: Semantic error
-   ╭─[tests/check/bad_class_cycle_2.xi:5:1]
+   ╭─[tests/check/bad_class_cycle_2.xi:5:7]
    │
  5 │ class E extends B {}
-   · ──────────┬─────────  
-   ·           ╰─────────── Class hierarchy for class E forms a cycle
+   ·       ┬  
+   ·       ╰── Class hierarchy for class E forms a cycle
 ───╯
 

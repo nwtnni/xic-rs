@@ -27,7 +27,7 @@ impl Checker {
         let tokens = match lex::lex(&path) {
             Ok(tokens) => tokens,
             Err(error::Error::Io(error)) if error.kind() == io::ErrorKind::NotFound => {
-                bail!(r#use.span, ErrorKind::NotFound(r#use.name.symbol))
+                bail!(*r#use.name.span, ErrorKind::NotFound(r#use.name.symbol))
             }
             Err(error) => return Err(error),
         };
@@ -68,7 +68,7 @@ impl Checker {
         self.class_signatures.insert(class.name.symbol);
 
         match self.context.insert_class(class.name.clone()) {
-            Some(_) => bail!(class.span, ErrorKind::NameClash),
+            Some(_) => bail!(*class.name.span, ErrorKind::NameClash),
             None => Ok(()),
         }
     }
@@ -76,7 +76,7 @@ impl Checker {
     fn check_class_signature(&mut self, class: &ast::ClassSignature) -> Result<(), error::Error> {
         if let Some(supertype) = &class.extends {
             if self.context.get_class(&supertype.symbol).is_none() {
-                bail!(class.span, ErrorKind::UnboundClass(supertype.symbol))
+                bail!(*supertype.span, ErrorKind::UnboundClass(supertype.symbol))
             }
 
             assert!(self
@@ -85,7 +85,7 @@ impl Checker {
                 .is_none());
 
             if self.context.has_cycle(&class.name) {
-                bail!(class.span, ErrorKind::ClassCycle(class.name.symbol));
+                bail!(*class.name.span, ErrorKind::ClassCycle(class.name.symbol));
             }
         }
 
@@ -105,7 +105,9 @@ impl Checker {
         let signature = Entry::Signature(parameters, returns);
 
         match self.context.get(scope, &function.name.symbol) {
-            Some(existing) if *existing != signature => bail!(function.span, ErrorKind::NameClash),
+            Some(existing) if *existing != signature => {
+                bail!(*function.name.span, ErrorKind::NameClash)
+            }
             Some(_) | None => {
                 self.context.insert(scope, function.name.symbol, signature);
             }
@@ -131,13 +133,13 @@ impl Checker {
             {
                 expected!(
                     r#type::Expression::Class(existing),
-                    class.span,
+                    *supertype.span,
                     r#type::Expression::Class(supertype.symbol),
                 );
             }
 
             if self.context.has_cycle(&class.name) {
-                bail!(class.span, ErrorKind::ClassCycle(class.name.symbol));
+                bail!(*class.name.span, ErrorKind::ClassCycle(class.name.symbol));
             }
         }
 
@@ -169,17 +171,17 @@ impl Checker {
         ) {
             None => match scope {
                 GlobalScope::Class(class) if !self.class_signatures.contains(&class) => (),
-                GlobalScope::Class(_) => bail!(function.span, ErrorKind::SignatureMismatch),
+                GlobalScope::Class(_) => bail!(*function.name.span, ErrorKind::SignatureMismatch),
                 GlobalScope::Global => (),
             },
             Some(Entry::Variable(_)) | Some(Entry::Function(_, _)) => {
-                bail!(function.span, ErrorKind::NameClash)
+                bail!(*function.name.span, ErrorKind::NameClash)
             }
             Some(Entry::Signature(old_parameters, old_returns)) => {
                 if !self.context.all_subtype(&old_parameters, &new_parameters)
                     || !self.context.all_subtype(&new_returns, &old_returns)
                 {
-                    bail!(function.span, ErrorKind::SignatureMismatch)
+                    bail!(*function.name.span, ErrorKind::SignatureMismatch)
                 }
             }
         }

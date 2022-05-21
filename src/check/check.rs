@@ -165,7 +165,7 @@ impl Checker {
     fn check_class(&mut self, class: &ast::Class) -> Result<(), error::Error> {
         if let Some(supertype) = &class.extends {
             if self.context.get_class(&supertype.symbol).is_none() {
-                bail!(class.span, ErrorKind::UnboundClass(supertype.symbol));
+                bail!(*supertype.span, ErrorKind::UnboundClass(supertype.symbol));
             }
         }
 
@@ -539,16 +539,16 @@ impl Checker {
                 ),
             },
 
-            ast::Expression::Dot(receiver, field, span) => {
+            ast::Expression::Dot(receiver, field, _) => {
                 let class = match self.check_expression(receiver)? {
                     r#type::Expression::Class(class) => class,
-                    _ => bail!(*span, ErrorKind::NotClass),
+                    _ => bail!(receiver.span(), ErrorKind::NotClass),
                 };
 
                 match self.context.get(GlobalScope::Class(class), &field.symbol) {
-                    None => bail!(*span, ErrorKind::UnboundVariable(field.symbol)),
+                    None => bail!(*field.span, ErrorKind::UnboundVariable(field.symbol)),
                     Some(Entry::Variable(r#type)) => Ok(r#type.clone()),
-                    Some(_) => bail!(*span, ErrorKind::NotVariable(field.symbol)),
+                    Some(_) => bail!(*field.span, ErrorKind::NotVariable(field.symbol)),
                 }
             }
             ast::Expression::New(class, span) => {
@@ -557,7 +557,7 @@ impl Checker {
                         bail!(*span, ErrorKind::NotInClassModule(class.symbol))
                     }
                     false => {
-                        bail!(*span, ErrorKind::UnboundClass(class.symbol))
+                        bail!(*class.span, ErrorKind::UnboundClass(class.symbol))
                     }
                     true => Ok(r#type::Expression::Class(class.symbol)),
                 }
@@ -584,23 +584,23 @@ impl Checker {
     }
 
     fn check_call(&self, call: &ast::Call) -> Result<Vec<r#type::Expression>, error::Error> {
-        let (scope, name) = match &*call.function {
-            ast::Expression::Variable(name) => (Scope::Local, name.symbol),
+        let (scope, function_span, function_name) = match &*call.function {
+            ast::Expression::Variable(name) => (Scope::Local, *name.span, name.symbol),
             ast::Expression::Dot(receiver, name, span) => {
                 let class = match self.check_expression(receiver)? {
                     r#type::Expression::Class(class) => class,
-                    _ => bail!(*span, ErrorKind::NotClass),
+                    _ => bail!(receiver.span(), ErrorKind::NotClass),
                 };
-                (Scope::Global(GlobalScope::Class(class)), name.symbol)
+                (Scope::Global(GlobalScope::Class(class)), *span, name.symbol)
             }
             expression => bail!(expression.span(), ErrorKind::NotFun(None)),
         };
 
-        let (parameters, returns) = match self.context.get(scope, &name) {
+        let (parameters, returns) = match self.context.get(scope, &function_name) {
             Some(Entry::Signature(parameters, returns))
             | Some(Entry::Function(parameters, returns)) => (parameters, returns),
-            Some(_) => bail!(call.span, ErrorKind::NotFun(Some(name))),
-            None => bail!(call.span, ErrorKind::UnboundFun(name)),
+            Some(_) => bail!(function_span, ErrorKind::NotFun(Some(function_name))),
+            None => bail!(function_span, ErrorKind::UnboundFun(function_name)),
         };
 
         if call.arguments.len() != parameters.len() {

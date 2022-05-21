@@ -1,13 +1,13 @@
 ---
 source: tests/suite/check.rs
+assertion_line: 35
 expression: Snapshot(context)
 ---
 Error: Semantic error
    ╭─[tests/check/bad_use_conflict.xi:3:1]
    │
- 3 │ ╭─▶ foo(x:int) : int {
- 4 │ ├─▶     return x
-   · │                  
-   · ╰────────────────── Implementation does not match signature
+ 3 │ foo(x:int) : int {
+   · ─┬─  
+   ·  ╰─── Implementation does not match signature
 ───╯
 
