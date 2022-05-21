@@ -2,6 +2,22 @@ use std::fmt::Write as _;
 
 use crate::data::r#type;
 use crate::data::symbol;
+use crate::data::symbol::Symbol;
+
+#[allow(unused)]
+pub fn mangle_class_size(class: &str) -> Symbol {
+    symbol::intern(&format!("_I_size_{}", escape(class)))
+}
+
+#[allow(unused)]
+pub fn mangle_class_virtual_table(class: &str) -> Symbol {
+    symbol::intern(&format!("_I_vt_{}", escape(class)))
+}
+
+#[allow(unused)]
+pub fn mangle_class_initialization(class: &str) -> Symbol {
+    symbol::intern(&format!("_I_init_{}", escape(class)))
+}
 
 #[allow(unused)]
 pub fn mangle_global(name: &str, r#type: &r#type::Expression) -> String {
