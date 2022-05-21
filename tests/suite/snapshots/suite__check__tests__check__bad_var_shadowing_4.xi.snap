@@ -1,12 +1,17 @@
 ---
 source: tests/suite/check.rs
+assertion_line: 35
 expression: Snapshot(context)
 ---
 Error: Semantic error
    ╭─[tests/check/bad_var_shadowing_4.xi:8:21]
    │
+ 3 │ bar() {
+   · ─┬─  
+   ·  ╰─── Previous definition here
+   · 
  8 │                     bar, baz, foo: int
-   ·                     ─────────┬────────  
-   ·                              ╰────────── Name already bound in environment
+   ·                     ─┬─  
+   ·                      ╰─── Name already bound in environment
 ───╯
 

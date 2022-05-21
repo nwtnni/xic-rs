@@ -9,5 +9,11 @@ Error: Semantic error
  3 │ foo(x:int) : int {
    · ─┬─  
    ·  ╰─── Implementation does not match signature
+   │
+   ├─[tests/check/bar.ixi:1:1]
+   │
+ 1 │ foo(x:int) : int, int
+   · ─┬─  
+   ·  ╰─── Signature definition here
 ───╯
 

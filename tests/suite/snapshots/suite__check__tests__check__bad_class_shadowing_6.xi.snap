@@ -7,7 +7,10 @@ Error: Semantic error
    ╭─[tests/check/bad_class_shadowing_6.xi:2:5]
    │
  2 │     a: int
-   ·     ───┬──  
-   ·        ╰──── Name already bound in environment
+   ·     ┬  
+   ·     ╰── Name already bound in environment
+ 3 │     a() {}
+   ·     ┬  
+   ·     ╰── Previous definition here
 ───╯
 

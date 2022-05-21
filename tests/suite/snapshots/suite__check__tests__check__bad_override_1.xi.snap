@@ -6,8 +6,12 @@ expression: Snapshot(context)
 Error: Semantic error
    ╭─[tests/check/bad_override_1.xi:6:5]
    │
+ 2 │     foo(a: int) {}
+   ·     ─┬─  
+   ·      ╰─── Signature definition here
+   · 
  6 │     foo(a: bool) {}
-   ·     ───────┬───────  
-   ·            ╰───────── Implementation does not match signature
+   ·     ─┬─  
+   ·      ╰─── Implementation does not match signature
 ───╯
 

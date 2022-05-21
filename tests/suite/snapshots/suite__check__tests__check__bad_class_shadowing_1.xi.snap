@@ -1,10 +1,14 @@
 ---
 source: tests/suite/check.rs
+assertion_line: 35
 expression: Snapshot(context)
 ---
 Error: Semantic error
    ╭─[tests/check/bad_class_shadowing_1.xi:2:1]
    │
+ 1 │ class A {}
+   ·       ┬  
+   ·       ╰── Previous definition here
  2 │ class A {}
    · ─────┬────  
    ·      ╰────── Name already bound in environment

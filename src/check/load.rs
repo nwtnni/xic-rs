@@ -8,6 +8,7 @@ use crate::check::ErrorKind;
 use crate::check::GlobalScope;
 use crate::data::ast;
 use crate::data::r#type;
+use crate::data::span::Span;
 use crate::error;
 use crate::lex;
 use crate::parse;
@@ -65,12 +66,13 @@ impl Checker {
     }
 
     fn load_class_signature(&mut self, class: &ast::ClassSignature) -> Result<(), error::Error> {
-        self.class_signatures.insert(class.name.symbol);
+        self.class_signatures.insert(class.name.clone());
 
-        match self.context.insert_class(class.name.clone()) {
-            Some(_) => bail!(*class.name.span, ErrorKind::NameClash),
-            None => Ok(()),
+        if self.context.get_class(&class.name.symbol).is_none() {
+            self.context.insert_class(class.name.clone());
         }
+
+        Ok(())
     }
 
     fn check_class_signature(&mut self, class: &ast::ClassSignature) -> Result<(), error::Error> {
@@ -79,10 +81,17 @@ impl Checker {
                 bail!(*supertype.span, ErrorKind::UnboundClass(supertype.symbol))
             }
 
-            assert!(self
+            if let Some(existing) = self
                 .context
                 .insert_supertype(class.name.clone(), supertype.clone())
-                .is_none());
+            {
+                expected!(
+                    *existing.span,
+                    r#type::Expression::Class(existing.symbol),
+                    *supertype.span,
+                    r#type::Expression::Class(supertype.symbol),
+                );
+            }
 
             if self.context.has_cycle(&class.name) {
                 bail!(*class.name.span, ErrorKind::ClassCycle(class.name.symbol));
@@ -104,12 +113,12 @@ impl Checker {
         let (parameters, returns) = self.load_callable(function)?;
         let signature = Entry::Signature(parameters, returns);
 
-        match self.context.get(scope, &function.name.symbol) {
-            Some(existing) if *existing != signature => {
-                bail!(*function.name.span, ErrorKind::NameClash)
+        match self.context.get_full(scope, &function.name.symbol) {
+            Some((span, existing)) if *existing != signature => {
+                bail!(*function.name.span, ErrorKind::NameClash(*span))
             }
             Some(_) | None => {
-                self.context.insert(scope, function.name.symbol, signature);
+                self.context.insert_full(scope, &function.name, signature);
             }
         }
 
@@ -117,8 +126,8 @@ impl Checker {
     }
 
     pub(super) fn load_class(&mut self, class: &ast::Class) -> Result<(), error::Error> {
-        if !self.class_implementations.insert(class.name.symbol) {
-            bail!(class.span, ErrorKind::NameClash);
+        if let Some(existing) = self.class_implementations.replace(class.name.clone()) {
+            bail!(class.span, ErrorKind::NameClash(*existing.span));
         }
 
         // If not already declared by an interface
@@ -165,24 +174,32 @@ impl Checker {
     ) -> Result<(), error::Error> {
         let (new_parameters, new_returns) = self.load_callable(function)?;
 
-        match self.context.insert(
+        match self.context.insert_full(
             scope,
-            function.name.symbol,
+            &function.name,
             Entry::Function(new_parameters.clone(), new_returns.clone()),
         ) {
             None => match scope {
-                GlobalScope::Class(class) if !self.class_signatures.contains(&class) => (),
-                GlobalScope::Class(_) => bail!(*function.name.span, ErrorKind::SignatureMismatch),
                 GlobalScope::Global => (),
+                GlobalScope::Class(class) => match self.class_signatures.get(&ast::Identifier {
+                    symbol: class,
+                    span: Box::new(Span::default()),
+                }) {
+                    None => (),
+                    Some(signature) => bail!(
+                        *function.name.span,
+                        ErrorKind::SignatureMismatch(*signature.span)
+                    ),
+                },
             },
-            Some(Entry::Variable(_)) | Some(Entry::Function(_, _)) => {
-                bail!(*function.name.span, ErrorKind::NameClash)
+            Some((span, Entry::Variable(_))) | Some((span, Entry::Function(_, _))) => {
+                bail!(*function.name.span, ErrorKind::NameClash(span))
             }
-            Some(Entry::Signature(old_parameters, old_returns)) => {
+            Some((span, Entry::Signature(old_parameters, old_returns))) => {
                 if !self.context.all_subtype(&old_parameters, &new_parameters)
                     || !self.context.all_subtype(&new_returns, &old_returns)
                 {
-                    bail!(*function.name.span, ErrorKind::SignatureMismatch)
+                    bail!(*function.name.span, ErrorKind::SignatureMismatch(span))
                 }
             }
         }

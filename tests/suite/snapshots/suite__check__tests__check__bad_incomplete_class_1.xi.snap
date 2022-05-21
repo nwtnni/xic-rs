@@ -9,5 +9,11 @@ Error: Semantic error
  1 │ class A {}
    · ─────┬────  
    ·      ╰────── Class A does not implement method required in interface
+   │
+   ├─[tests/check/bad_incomplete_class_1.ixi:2:5]
+   │
+ 2 │     foo(): int
+   ·     ─┬─  
+   ·      ╰─── Method required here
 ───╯
 

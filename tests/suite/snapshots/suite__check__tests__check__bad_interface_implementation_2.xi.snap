@@ -9,5 +9,11 @@ Error: Semantic error
  2 │     foo(a: int) {}
    ·     ─┬─  
    ·      ╰─── Implementation does not match signature
+   │
+   ├─[tests/check/bad_interface_implementation_2.ixi:1:7]
+   │
+ 1 │ class A {}
+   ·       ┬  
+   ·       ╰── Signature definition here
 ───╯
 

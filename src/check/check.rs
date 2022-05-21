@@ -57,10 +57,10 @@ pub(super) struct Checker {
     pub(super) used: Set<Symbol>,
 
     /// Set of classes defined in this module
-    pub(super) class_implementations: Set<Symbol>,
+    pub(super) class_implementations: Set<ast::Identifier>,
 
     /// Set of class signatures used by this module
-    pub(super) class_signatures: Set<Symbol>,
+    pub(super) class_signatures: Set<ast::Identifier>,
 }
 
 impl Checker {
@@ -170,14 +170,20 @@ impl Checker {
         }
 
         // Classes must implement at least the methods declared in its interface
-        if self
+        if let Some(span) = self
             .context
             .get_class(&class.name.symbol)
             .unwrap()
             .values()
-            .any(|entry| matches!(entry, Entry::Signature(_, _)))
+            .find_map(|(span, entry)| match entry {
+                Entry::Signature(_, _) => Some(*span),
+                _ => None,
+            })
         {
-            bail!(class.span, ErrorKind::ClassIncomplete(class.name.symbol));
+            bail!(
+                class.span,
+                ErrorKind::ClassIncomplete(class.name.symbol, span)
+            );
         }
 
         for item in &class.items {
@@ -187,10 +193,11 @@ impl Checker {
                 }
                 ast::ClassItem::Method(method) => {
                     // Check if method is declared or defined by an ancestor
-                    if let Some(
+                    if let Some((
+                        span,
                         Entry::Signature(old_parameters, old_returns)
                         | Entry::Function(old_parameters, old_returns),
-                    ) = self
+                    )) = self
                         .context
                         .ancestors_exclusive(&class.name.symbol)
                         .find_map(|class| {
@@ -205,7 +212,7 @@ impl Checker {
                             .get_class(&class.name.symbol)
                             .unwrap()
                             .get(&method.name.symbol)
-                            .and_then(|entry| match entry {
+                            .and_then(|(_, entry)| match entry {
                                 Entry::Function(new_parameters, new_returns) => {
                                     Some((new_parameters, new_returns))
                                 }
@@ -216,7 +223,7 @@ impl Checker {
                         if !self.context.all_subtype(old_parameters, new_parameters)
                             || !self.context.all_subtype(new_returns, old_returns)
                         {
-                            bail!(method.span, ErrorKind::SignatureMismatch);
+                            bail!(*method.name.span, ErrorKind::SignatureMismatch(*span));
                         }
                     }
 
@@ -551,17 +558,15 @@ impl Checker {
                     Some(_) => bail!(*field.span, ErrorKind::NotVariable(field.symbol)),
                 }
             }
-            ast::Expression::New(class, span) => {
-                match self.class_implementations.contains(&class.symbol) {
-                    false if self.context.get_class(&class.symbol).is_some() => {
-                        bail!(*span, ErrorKind::NotInClassModule(class.symbol))
-                    }
-                    false => {
-                        bail!(*class.span, ErrorKind::UnboundClass(class.symbol))
-                    }
-                    true => Ok(r#type::Expression::Class(class.symbol)),
+            ast::Expression::New(class, span) => match self.class_implementations.contains(class) {
+                false if self.context.get_class(&class.symbol).is_some() => {
+                    bail!(*span, ErrorKind::NotInClassModule(class.symbol))
                 }
-            }
+                false => {
+                    bail!(*class.span, ErrorKind::UnboundClass(class.symbol))
+                }
+                true => Ok(r#type::Expression::Class(class.symbol)),
+            },
 
             ast::Expression::Call(call) => {
                 let mut returns = self.check_call(call)?;
@@ -683,16 +688,19 @@ impl Checker {
     fn check_single_declaration<S: Into<Scope>>(
         &mut self,
         scope: S,
-        ast::SingleDeclaration { name, r#type, span }: &ast::SingleDeclaration,
+        ast::SingleDeclaration {
+            name,
+            r#type,
+            span: _,
+        }: &ast::SingleDeclaration,
     ) -> Result<r#type::Expression, error::Error> {
         let r#type = self.check_type(r#type)?;
 
-        if self
-            .context
-            .insert(scope, name.symbol, Entry::Variable(r#type.clone()))
-            .is_some()
+        if let Some((span, _)) =
+            self.context
+                .insert_full(scope, name, Entry::Variable(r#type.clone()))
         {
-            bail!(*span, ErrorKind::NameClash)
+            bail!(*name.span, ErrorKind::NameClash(span))
         }
 
         Ok(r#type)

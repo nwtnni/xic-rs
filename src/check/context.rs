@@ -2,6 +2,7 @@ use std::iter;
 
 use crate::data::ast::Identifier;
 use crate::data::r#type;
+use crate::data::span::Span;
 use crate::data::symbol::Symbol;
 use crate::Map;
 
@@ -18,13 +19,13 @@ pub struct Context {
     hierarchy: Map<Symbol, Identifier>,
 
     /// Globally-scoped global variables and functions
-    globals: Map<Symbol, Entry>,
+    globals: Map<Symbol, (Span, Entry)>,
 
     /// Class-scoped method and fields
-    classes: Map<Symbol, Map<Symbol, Entry>>,
+    classes: Map<Symbol, Map<Symbol, (Span, Entry)>>,
 
     /// Locally scoped variables
-    locals: Vec<(LocalScope, Map<Symbol, Entry>)>,
+    locals: Vec<(LocalScope, Map<Symbol, (Span, Entry)>)>,
 }
 
 #[derive(Copy, Clone, Debug)]
@@ -96,6 +97,10 @@ impl Context {
     }
 
     pub fn get<S: Into<Scope>>(&self, scope: S, symbol: &Symbol) -> Option<&Entry> {
+        self.get_full(scope, symbol).map(|(_, entry)| entry)
+    }
+
+    pub fn get_full<S: Into<Scope>>(&self, scope: S, symbol: &Symbol) -> Option<&(Span, Entry)> {
         match scope.into() {
             Scope::Global(GlobalScope::Global) => self.globals.get(symbol),
             Scope::Global(GlobalScope::Class(class)) => self
@@ -107,29 +112,33 @@ impl Context {
                 .iter()
                 .rev()
                 .find_map(|(_, r#types)| r#types.get(symbol))
-                .or_else(|| self.get(GlobalScope::Global, symbol))
+                .or_else(|| self.get_full(GlobalScope::Global, symbol))
                 .or_else(|| {
                     let class = self.get_scoped_class()?;
-                    self.get(GlobalScope::Class(class), symbol)
+                    self.get_full(GlobalScope::Class(class), symbol)
                 }),
         }
     }
 
-    pub fn insert<S: Into<Scope>>(
+    pub fn insert_full<S: Into<Scope>>(
         &mut self,
         scope: S,
-        symbol: Symbol,
+        identifier: &Identifier,
         r#type: Entry,
-    ) -> Option<Entry> {
+    ) -> Option<(Span, Entry)> {
         match scope.into() {
-            Scope::Global(GlobalScope::Global) => self.globals.insert(symbol, r#type),
-            Scope::Global(GlobalScope::Class(class)) => self.classes[&class].insert(symbol, r#type),
+            Scope::Global(GlobalScope::Global) => self
+                .globals
+                .insert(identifier.symbol, (*identifier.span, r#type)),
+            Scope::Global(GlobalScope::Class(class)) => {
+                self.classes[&class].insert(identifier.symbol, (*identifier.span, r#type))
+            }
             Scope::Local => self
                 .locals
                 .last_mut()
                 .expect("[INTERNAL ERROR]: missing environment")
                 .1
-                .insert(symbol, r#type)
+                .insert(identifier.symbol, (*identifier.span, r#type))
                 // Note: inserting into local scope conflicts with names in the global
                 // scope, but does *not* conflict with names in the class scope, which
                 // can be disambiguated by the type of the receiver.
@@ -138,17 +147,20 @@ impl Context {
                         .iter_mut()
                         .rev()
                         .skip(1)
-                        .find_map(|(_, types)| types.get(&symbol).cloned())
-                        .or_else(|| self.get(GlobalScope::Global, &symbol).cloned())
+                        .find_map(|(_, types)| types.get(&identifier.symbol).cloned())
+                        .or_else(|| {
+                            self.get_full(GlobalScope::Global, &identifier.symbol)
+                                .cloned()
+                        })
                 }),
         }
     }
 
-    pub fn insert_class(&mut self, class: Identifier) -> Option<Map<Symbol, Entry>> {
+    pub fn insert_class(&mut self, class: Identifier) -> Option<Map<Symbol, (Span, Entry)>> {
         self.classes.insert(class.symbol, Map::default())
     }
 
-    pub fn get_class(&self, class: &Symbol) -> Option<&Map<Symbol, Entry>> {
+    pub fn get_class(&self, class: &Symbol) -> Option<&Map<Symbol, (Span, Entry)>> {
         self.classes.get(class)
     }
 

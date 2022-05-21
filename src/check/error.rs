@@ -1,19 +1,19 @@
 use std::borrow::Cow;
 
 use crate::data::r#type;
-use crate::data::span;
+use crate::data::span::Span;
 use crate::data::symbol;
 use crate::data::symbol::Symbol;
 use crate::error;
 
 #[derive(Clone, Debug)]
 pub struct Error {
-    span: span::Span,
+    span: Span,
     kind: ErrorKind,
 }
 
 impl Error {
-    pub fn new(span: span::Span, kind: ErrorKind) -> Self {
+    pub fn new(span: Span, kind: ErrorKind) -> Self {
         Error { span, kind }
     }
 
@@ -36,7 +36,7 @@ pub enum ErrorKind {
     NotInClass(Option<Symbol>),
     NotInClassModule(Symbol),
     ClassCycle(Symbol),
-    ClassIncomplete(Symbol),
+    ClassIncomplete(Symbol, Span),
     IndexEmpty,
     CallLength,
     InitLength,
@@ -44,11 +44,11 @@ pub enum ErrorKind {
     Unreachable,
     MissingReturn,
     ReturnMismatch,
-    NameClash,
-    SignatureMismatch,
+    NameClash(Span),
+    SignatureMismatch(Span),
     Mismatch {
         expected: r#type::Expression,
-        expected_span: Option<span::Span>,
+        expected_span: Option<Span>,
         found: r#type::Expression,
     },
 }
@@ -87,7 +87,7 @@ impl ErrorKind {
             ErrorKind::ClassCycle(class) => {
                 Cow::Owned(format!("Class hierarchy for class {} forms a cycle", class))
             }
-            ErrorKind::ClassIncomplete(class) => Cow::Owned(format!(
+            ErrorKind::ClassIncomplete(class, _) => Cow::Owned(format!(
                 "Class {} does not implement method required in interface",
                 class
             )),
@@ -100,8 +100,8 @@ impl ErrorKind {
             ErrorKind::Unreachable => Cow::Borrowed("Unreachable statement"),
             ErrorKind::MissingReturn => Cow::Borrowed("Missing return statement"),
             ErrorKind::ReturnMismatch => Cow::Borrowed("Return mismatch"),
-            ErrorKind::NameClash => Cow::Borrowed("Name already bound in environment"),
-            ErrorKind::SignatureMismatch => {
+            ErrorKind::NameClash(_) => Cow::Borrowed("Name already bound in environment"),
+            ErrorKind::SignatureMismatch(_) => {
                 Cow::Borrowed("Implementation does not match signature")
             }
             ErrorKind::Mismatch {
@@ -120,7 +120,7 @@ impl std::fmt::Display for Error {
 }
 
 impl error::Report for Error {
-    fn report(&self) -> ariadne::ReportBuilder<span::Span> {
+    fn report(&self) -> ariadne::ReportBuilder<Span> {
         use ariadne::Span as _;
         let report = ariadne::Report::build(
             ariadne::ReportKind::Error,
@@ -129,18 +129,23 @@ impl error::Report for Error {
         )
         .with_label(ariadne::Label::new(self.span).with_message(self.kind.message()));
 
-        if let ErrorKind::Mismatch {
-            expected,
-            expected_span: Some(span),
-            found: _,
-        } = &self.kind
-        {
-            report.with_label(
+        match &self.kind {
+            ErrorKind::Mismatch {
+                expected,
+                expected_span: Some(span),
+                found: _,
+            } => report.with_label(
                 ariadne::Label::new(*span)
                     .with_message(format!("Expected {} because of this", expected)),
-            )
-        } else {
-            report
+            ),
+            ErrorKind::ClassIncomplete(_, span) => {
+                report.with_label(ariadne::Label::new(*span).with_message("Method required here"))
+            }
+            ErrorKind::NameClash(span) => report
+                .with_label(ariadne::Label::new(*span).with_message("Previous definition here")),
+            ErrorKind::SignatureMismatch(span) => report
+                .with_label(ariadne::Label::new(*span).with_message("Signature definition here")),
+            _ => report,
         }
     }
 }

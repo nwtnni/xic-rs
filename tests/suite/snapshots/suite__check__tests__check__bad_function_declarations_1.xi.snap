@@ -6,6 +6,9 @@ expression: Snapshot(context)
 Error: Semantic error
    ╭─[tests/check/bad_function_declarations_1.xi:2:1]
    │
+ 1 │ foo() {}
+   · ─┬─  
+   ·  ╰─── Previous definition here
  2 │ foo() {}
    · ─┬─  
    ·  ╰─── Name already bound in environment
