@@ -2,6 +2,7 @@
 
 use crate::abi;
 use crate::check;
+use crate::check::Entry;
 use crate::check::GlobalScope;
 use crate::data::ast;
 use crate::data::hir;
@@ -294,7 +295,37 @@ impl<'env> Emitter<'env> {
                 let address = self.emit_expression(array, variables).into();
                 hir!((MEM (SUB address (CONST abi::WORD)))).into()
             }
-            Dot(_, _, _, _) => todo!(),
+            Dot(class, receiver, field, _) => {
+                let class = class.get().unwrap();
+
+                let base = match self.context.ancestors_exclusive(&class).next() {
+                    // 8-byte offset for virtual table pointer
+                    None => hir!((CONST abi::WORD)),
+                    Some(superclass) => {
+                        let superclass_size =
+                            Label::Fixed(abi::mangle_class_size(symbol::resolve(superclass)));
+                        hir!((MEM (NAME superclass_size)))
+                    }
+                };
+
+                let offset = self
+                    .context
+                    .get_class(&class)
+                    .unwrap()
+                    .1
+                    .iter()
+                    .filter_map(|(name, (_, entry))| match entry {
+                        Entry::Variable(_) => Some(*name),
+                        _ => None,
+                    })
+                    .position(|name| name == field.symbol)
+                    .map(|index| hir!((CONST(index as i64 * abi::WORD))))
+                    .expect("[TYPE ERROR]: unbound field in class");
+
+                let receiver = self.emit_expression(receiver, variables).into();
+
+                hir!((MEM (ADD receiver (ADD base offset)))).into()
+            }
             New(class, _) => {
                 let xi_alloc = Label::Fixed(symbol::intern_static(abi::XI_ALLOC));
                 let class_size =
