@@ -295,7 +295,25 @@ impl<'env> Emitter<'env> {
                 hir!((MEM (SUB address (CONST abi::WORD)))).into()
             }
             Dot(_, _, _) => todo!(),
-            New(_, _) => todo!(),
+            New(class, _) => {
+                let xi_alloc = Label::Fixed(symbol::intern_static(abi::XI_ALLOC));
+                let class_size =
+                    Label::Fixed(abi::mangle_class_size(symbol::resolve(class.symbol)));
+                let class_virtual_table = Label::Fixed(abi::mangle_class_virtual_table(
+                    symbol::resolve(class.symbol),
+                ));
+
+                let new = Temporary::fresh("new");
+
+                hir!(
+                (ESEQ
+                    (SEQ
+                        (MOVE (TEMP new) (CALL (NAME xi_alloc) 1 (MEM (NAME class_size))))
+                        (MOVE (MEM (TEMP new)) (NAME class_virtual_table)))
+                    (TEMP new))
+                )
+                .into()
+            }
             Call(call) => self.emit_call(call, variables).into(),
         }
     }
