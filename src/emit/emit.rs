@@ -429,9 +429,14 @@ impl<'env> Emitter<'env> {
             }
             Initialization(ast::Initialization {
                 declarations,
-                expression: ast::Expression::Call(call),
+                expression,
                 span: _,
             }) => {
+                let call = match &**expression {
+                    ast::Expression::Call(call) => call,
+                    _ => unreachable!("[TYPE ERROR]: multiple non-function initialization"),
+                };
+
                 let mut statements =
                     vec![hir::Statement::Expression(self.emit_call(call, variables))];
 
@@ -448,12 +453,9 @@ impl<'env> Emitter<'env> {
 
                 hir::Statement::Sequence(statements)
             }
-            Initialization(_) => {
-                unreachable!("[TYPE ERROR]: multiple non-function initialization")
-            }
 
             Declaration(declaration, _) => {
-                let declaration = match declaration {
+                let declaration = match &**declaration {
                     ast::Declaration::Multiple(_) => todo!(),
                     ast::Declaration::Single(declaration) => declaration,
                 };

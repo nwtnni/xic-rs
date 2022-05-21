@@ -58,7 +58,7 @@ impl fmt::Display for ItemSignature {
     }
 }
 
-const _: [u8; 208] = [0; std::mem::size_of::<Item>()];
+const _: [u8; 152] = [0; std::mem::size_of::<Item>()];
 
 #[derive(Clone, Debug)]
 pub enum Item {
@@ -73,7 +73,7 @@ impl fmt::Display for Item {
     }
 }
 
-const _: [u8; 120] = [0; std::mem::size_of::<Global>()];
+const _: [u8; 72] = [0; std::mem::size_of::<Global>()];
 
 #[derive(Clone, Debug)]
 pub enum Global {
@@ -87,12 +87,12 @@ impl fmt::Display for Global {
     }
 }
 
-const _: [u8; 112] = [0; std::mem::size_of::<Initialization>()];
+const _: [u8; 56] = [0; std::mem::size_of::<Initialization>()];
 
 #[derive(Clone, Debug)]
 pub struct Initialization {
     pub declarations: Vec<Option<SingleDeclaration>>,
-    pub expression: Expression,
+    pub expression: Box<Expression>,
     pub span: Span,
 }
 
@@ -132,7 +132,7 @@ impl fmt::Display for Class {
     }
 }
 
-const _: [u8; 208] = [0; std::mem::size_of::<ClassItem>()];
+const _: [u8; 152] = [0; std::mem::size_of::<ClassItem>()];
 
 #[derive(Clone, Debug)]
 pub enum ClassItem {
@@ -189,7 +189,7 @@ impl fmt::Display for FunctionSignature {
     }
 }
 
-const _: [u8; 200] = [0; std::mem::size_of::<Function>()];
+const _: [u8; 144] = [0; std::mem::size_of::<Function>()];
 
 /// Represents a function definition (i.e. with implementation).
 #[derive(Clone, Debug)]
@@ -255,7 +255,7 @@ impl fmt::Display for Type {
     }
 }
 
-const _: [u8; 120] = [0; std::mem::size_of::<Statement>()];
+const _: [u8; 64] = [0; std::mem::size_of::<Statement>()];
 
 /// Represents an imperative statement.
 #[derive(Clone, Debug)]
@@ -270,7 +270,7 @@ pub enum Statement {
     Initialization(Initialization),
 
     /// Variable declaration
-    Declaration(Declaration, Span),
+    Declaration(Box<Declaration>, Span),
 
     /// Return statement
     Return(Vec<Expression>, Span),
@@ -279,10 +279,15 @@ pub enum Statement {
     Sequence(Vec<Statement>, Span),
 
     /// If-else block
-    If(Expression, Box<Statement>, Option<Box<Statement>>, Span),
+    If(
+        Box<Expression>,
+        Box<Statement>,
+        Option<Box<Statement>>,
+        Span,
+    ),
 
     /// While block
-    While(Do, Expression, Box<Statement>, Span),
+    While(Do, Box<Expression>, Box<Statement>, Span),
 
     /// Break statement
     Break(Span),

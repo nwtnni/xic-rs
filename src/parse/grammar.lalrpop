@@ -81,7 +81,7 @@ Initialization: Initialization = {
     <r: @R> => {
         Initialization {
             declarations,
-            expression,
+            expression: Box::new(expression),
             span: Span::new(l, r),
         }
     },
@@ -144,26 +144,26 @@ NoReturnStatement: Statement = {
 OpenStatement: Statement = {
     // If statement
     <l: @L> "if" <condition: Expression> <if_: NoReturnStatement> <r: @R> => {
-        Statement::If(condition, Box::new(if_), None, Span::new(l, r))
+        Statement::If(Box::new(condition), Box::new(if_), None, Span::new(l, r))
     },
 
     // If-else statement
     <l: @L> "if" <condition: Expression> <if_: ClosedStatement> "else" <else_: OpenStatement> <r: @R> => {
-        Statement::If(condition, Box::new(if_), Some(Box::new(else_)), Span::new(l, r))
+        Statement::If(Box::new(condition), Box::new(if_), Some(Box::new(else_)), Span::new(l, r))
     },
 }
 
 ClosedStatement: Statement = {
     // If-else statement
     <l: @L> "if" <condition: Expression> <if_: ClosedStatement> "else" <else_: ClosedStatement> <r: @R> => {
-        Statement::If(condition, Box::new(if_), Some(Box::new(else_)), Span::new(l, r))
+        Statement::If(Box::new(condition), Box::new(if_), Some(Box::new(else_)), Span::new(l, r))
     },
 
     // Procedure call
     <call: Call> ";"? => Statement::Call(call),
 
     // Declarations
-    <l: @L> <declaration: Declaration> ";"? <r: @R> => Statement::Declaration(declaration, Span::new(l, r)),
+    <l: @L> <declaration: Declaration> ";"? <r: @R> => Statement::Declaration(Box::new(declaration), Span::new(l, r)),
 
     // Single assignment
     <l: @L> <lhs: LValue> "=" <expression: Expression> ";"? <r: @R> => {
@@ -174,12 +174,12 @@ ClosedStatement: Statement = {
 
     // While statement
     <l: @L> "while" <condition: Expression> <statements: ClosedStatement> <r: @R> => {
-        Statement::While(Do::No, condition, Box::new(statements), Span::new(l, r))
+        Statement::While(Do::No, Box::new(condition), Box::new(statements), Span::new(l, r))
     },
 
     // Do while statement
     <l: @L> "do" <statements: NoReturnStatement> "while" <condition: Expression> <r: @R> => {
-        Statement::While(Do::Yes, condition, Box::new(statements), Span::new(l, r))
+        Statement::While(Do::Yes, Box::new(condition), Box::new(statements), Span::new(l, r))
     },
 
     // Break statement
