@@ -4,7 +4,16 @@ pub fn invert_ast(program: &mut ast::Program) {
     for item in &mut program.items {
         match item {
             ast::Item::Global(_) => (),
-            ast::Item::Class(_) => todo!(),
+            ast::Item::Class(class) => {
+                for item in &mut class.items {
+                    match item {
+                        ast::ClassItem::Field(_) => (),
+                        ast::ClassItem::Method(method) => {
+                            invert_statement(&mut method.statements);
+                        }
+                    }
+                }
+            }
             ast::Item::Function(function) => {
                 invert_statement(&mut function.statements);
             }
