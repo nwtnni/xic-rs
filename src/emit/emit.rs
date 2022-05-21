@@ -102,8 +102,8 @@ impl<'env> Emitter<'env> {
 
                 hir!((NAME label)).into()
             }
-            Null(_) => todo!(),
-            This(_) => todo!(),
+            Null(_) => hir!((MEM (CONST 0))).into(),
+            This(_) => hir!((TEMP Temporary::Argument(0))).into(),
             Variable(variable) => hir!((TEMP variables[&variable.symbol])).into(),
             Array(expressions, _) => {
                 let array = hir!((TEMP Temporary::fresh("array")));
@@ -312,13 +312,13 @@ impl<'env> Emitter<'env> {
 
         hir::Expression::Call(
             Box::new(hir::Expression::from(Label::Fixed(
-                self.mangle_function(&name),
+                self.mangle_function(name),
             ))),
             call.arguments
                 .iter()
                 .map(|argument| self.emit_expression(argument, variables).into())
                 .collect(),
-            self.get_returns(&name),
+            self.get_returns(name),
         )
     }
 
