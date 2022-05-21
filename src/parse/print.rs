@@ -208,7 +208,7 @@ impl Serialize for ast::Expression {
             Unary(unary, expression, _) => [unary.sexp(), expression.sexp()].sexp_move(),
             Index(array, index, _) => ["[]".sexp(), array.sexp(), index.sexp()].sexp_move(),
             Length(array, _) => ["length".sexp(), array.sexp()].sexp_move(),
-            Dot(expression, symbol, _) => {
+            Dot(_, expression, symbol, _) => {
                 [".".sexp(), expression.sexp(), symbol.sexp()].sexp_move()
             }
             New(symbol, _) => ["new".sexp(), symbol.sexp()].sexp_move(),

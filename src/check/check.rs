@@ -549,11 +549,13 @@ impl Checker {
                 ),
             },
 
-            ast::Expression::Dot(receiver, field, _) => {
+            ast::Expression::Dot(receiver_class, receiver, field, _) => {
                 let class = match self.check_expression(receiver)? {
                     r#type::Expression::Class(class) => class,
                     _ => bail!(receiver.span(), ErrorKind::NotClass),
                 };
+
+                receiver_class.set(Some(class));
 
                 match self.context.get(GlobalScope::Class(class), &field.symbol) {
                     None => bail!(*field.span, ErrorKind::UnboundVariable(field.symbol)),
@@ -594,11 +596,14 @@ impl Checker {
     fn check_call(&self, call: &ast::Call) -> Result<Vec<r#type::Expression>, error::Error> {
         let (scope, function_span, function_name) = match &*call.function {
             ast::Expression::Variable(name) => (Scope::Local, *name.span, name.symbol),
-            ast::Expression::Dot(receiver, name, span) => {
+            ast::Expression::Dot(receiver_class, receiver, name, span) => {
                 let class = match self.check_expression(receiver)? {
                     r#type::Expression::Class(class) => class,
                     _ => bail!(receiver.span(), ErrorKind::NotClass),
                 };
+
+                receiver_class.set(Some(class));
+
                 (Scope::Global(GlobalScope::Class(class)), *span, name.symbol)
             }
             expression => bail!(expression.span(), ErrorKind::NotFun(None)),

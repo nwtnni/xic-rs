@@ -224,7 +224,7 @@ NoCallLValue: Expression = {
         Expression::Index(Box::new(array), Box::new(index), Span::new(l, r))
     },
     <l: @L> <expression: LValue> "." <field: Identifier> <r: @R> => {
-        Expression::Dot(Box::new(expression), field, Span::new(l, r))
+        Expression::Dot(Cell::new(None), Box::new(expression), field, Span::new(l, r))
     },
 }
 
@@ -428,7 +428,7 @@ RValue: Expression = {
         Expression::Array(expressions, Span::new(l, r))
     },
     <l: @L> <expression: RValue> "." <field: Identifier> <r: @R> => {
-        Expression::Dot(Box::new(expression), field, Span::new(l, r))
+        Expression::Dot(Cell::new(None), Box::new(expression), field, Span::new(l, r))
     },
     <l: @L> <function: RValue> "(" <arguments: Comma<Expression>> ")" <r: @R> => {
         Expression::Call(Call { function: Box::new(function), arguments, span: Span::new(l, r) })

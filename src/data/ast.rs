@@ -365,7 +365,7 @@ pub enum Expression {
     Call(Call),
 
     /// Dot operator
-    Dot(Box<Expression>, Identifier, Span),
+    Dot(Cell<Option<Symbol>>, Box<Expression>, Identifier, Span),
 
     /// Class constructor
     New(Identifier, Span),
@@ -385,7 +385,7 @@ impl Expression {
             | Expression::Unary(_, _, span)
             | Expression::Index(_, _, span)
             | Expression::Length(_, span)
-            | Expression::Dot(_, _, span)
+            | Expression::Dot(_, _, _, span)
             | Expression::New(_, span) => *span,
             Expression::Variable(variable) => *variable.span,
             Expression::Call(call) => call.span,
@@ -405,7 +405,7 @@ impl Expression {
             | Expression::Unary(_, _, span)
             | Expression::Index(_, _, span)
             | Expression::Length(_, span)
-            | Expression::Dot(_, _, span)
+            | Expression::Dot(_, _, _, span)
             | Expression::New(_, span) => span,
             Expression::Variable(variable) => &mut variable.span,
             Expression::Call(call) => &mut call.span,

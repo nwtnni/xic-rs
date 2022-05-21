@@ -294,7 +294,7 @@ impl<'env> Emitter<'env> {
                 let address = self.emit_expression(array, variables).into();
                 hir!((MEM (SUB address (CONST abi::WORD)))).into()
             }
-            Dot(_, _, _) => todo!(),
+            Dot(_, _, _, _) => todo!(),
             New(class, _) => {
                 let xi_alloc = Label::Fixed(symbol::intern_static(abi::XI_ALLOC));
                 let class_size =

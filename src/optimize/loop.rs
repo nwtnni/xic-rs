@@ -87,7 +87,7 @@ fn effectful(expression: &ast::Expression) -> bool {
         // effects other than crashing.
         ast::Expression::Index(array, index, _) => effectful(array) || effectful(index),
         ast::Expression::Length(array, _) => effectful(array),
-        ast::Expression::Dot(expression, _, _) => effectful(expression),
+        ast::Expression::Dot(_, expression, _, _) => effectful(expression),
 
         ast::Expression::Call(_) => true,
         ast::Expression::Binary(binary, left, right, _) => match binary.get() {
