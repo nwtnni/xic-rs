@@ -1,0 +1,19 @@
+---
+source: tests/suite/check.rs
+assertion_line: 35
+expression: Snapshot(context)
+---
+Error: Semantic error
+   ╭─[tests/check/bad_class_interface_00.xi:2:3]
+   │
+ 2 │   foo() : A {
+   ·   ─┬─  
+   ·    ╰─── Implementation does not match signature
+   │
+   ├─[tests/check/bad_class_interface_00.ixi:2:3]
+   │
+ 2 │   foo() : int
+   ·   ─┬─  
+   ·    ╰─── Signature definition here
+───╯
+

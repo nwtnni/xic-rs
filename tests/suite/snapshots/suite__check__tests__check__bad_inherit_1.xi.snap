@@ -1,0 +1,13 @@
+---
+source: tests/suite/check.rs
+assertion_line: 35
+expression: Snapshot(context)
+---
+Error: Semantic error
+   ╭─[tests/check/bad_inherit_1.xi:8:10]
+   │
+ 8 │   return a.baz()
+   ·          ──┬──  
+   ·            ╰──── Unbound function baz
+───╯
+

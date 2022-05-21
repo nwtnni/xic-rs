@@ -1,0 +1,15 @@
+---
+source: tests/suite/check.rs
+assertion_line: 35
+expression: Snapshot(context)
+---
+Error: Semantic error
+   ╭─[tests/check/bad_assign_new_4.xi:2:11]
+   │
+ 2 │     x:B = new C
+   ·     ─┬─   ──┬──  
+   ·      ╰─────────── Expected B because of this
+   ·             │    
+   ·             ╰──── Expected B but found C
+───╯
+

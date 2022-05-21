@@ -1,0 +1,13 @@
+---
+source: tests/suite/check.rs
+assertion_line: 35
+expression: Snapshot(context)
+---
+Error: Semantic error
+   ╭─[tests/check/bad_sub_obj_1.xi:2:11]
+   │
+ 2 │     t:A = x-y
+   ·           ┬  
+   ·           ╰── Expected int but found A
+───╯
+

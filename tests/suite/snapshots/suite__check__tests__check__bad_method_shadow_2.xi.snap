@@ -1,0 +1,17 @@
+---
+source: tests/suite/check.rs
+assertion_line: 35
+expression: Snapshot(context)
+---
+Error: Semantic error
+   ╭─[tests/check/bad_method_shadow_2.xi:6:3]
+   │
+ 2 │   x(): int { return 1 }
+   ·   ┬  
+   ·   ╰── Signature definition here
+   · 
+ 6 │   x() {}
+   ·   ┬  
+   ·   ╰── Implementation does not match signature
+───╯
+

@@ -1,0 +1,7 @@
+use tree_02
+
+class B extends C {
+  d(): int
+  c(): int
+  b(): int
+}

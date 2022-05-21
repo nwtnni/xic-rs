@@ -1,0 +1,13 @@
+---
+source: tests/suite/check.rs
+assertion_line: 35
+expression: Snapshot(context)
+---
+Error: Semantic error
+   ╭─[tests/check/bad_obj_array_1.xi:3:7]
+   │
+ 3 │     y:B[]
+   ·       ┬  
+   ·       ╰── Unbound class B
+───╯
+
