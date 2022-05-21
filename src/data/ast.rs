@@ -58,7 +58,7 @@ impl fmt::Display for ItemSignature {
     }
 }
 
-const _: [u8; 280] = [0; std::mem::size_of::<Item>()];
+const _: [u8; 248] = [0; std::mem::size_of::<Item>()];
 
 #[derive(Clone, Debug)]
 pub enum Item {
@@ -73,7 +73,7 @@ impl fmt::Display for Item {
     }
 }
 
-const _: [u8; 168] = [0; std::mem::size_of::<Global>()];
+const _: [u8; 120] = [0; std::mem::size_of::<Global>()];
 
 #[derive(Clone, Debug)]
 pub enum Global {
@@ -132,7 +132,7 @@ impl fmt::Display for Class {
     }
 }
 
-const _: [u8; 280] = [0; std::mem::size_of::<ClassItem>()];
+const _: [u8; 248] = [0; std::mem::size_of::<ClassItem>()];
 
 #[derive(Clone, Debug)]
 pub enum ClassItem {
@@ -189,7 +189,7 @@ impl fmt::Display for FunctionSignature {
     }
 }
 
-const _: [u8; 272] = [0; std::mem::size_of::<Function>()];
+const _: [u8; 240] = [0; std::mem::size_of::<Function>()];
 
 /// Represents a function definition (i.e. with implementation).
 #[derive(Clone, Debug)]
@@ -209,7 +209,7 @@ impl fmt::Display for Function {
     }
 }
 
-const _: [u8; 104] = [0; std::mem::size_of::<Type>()];
+const _: [u8; 48] = [0; std::mem::size_of::<Type>()];
 
 /// Represents a primitive type.
 #[derive(Clone, Debug)]
@@ -217,7 +217,7 @@ pub enum Type {
     Bool(Span),
     Int(Span),
     Class(Symbol, Span),
-    Array(Box<Type>, Option<Expression>, Span),
+    Array(Box<Type>, Option<Box<Expression>>, Span),
 }
 
 impl Type {
@@ -255,7 +255,7 @@ impl fmt::Display for Type {
     }
 }
 
-const _: [u8; 192] = [0; std::mem::size_of::<Statement>()];
+const _: [u8; 160] = [0; std::mem::size_of::<Statement>()];
 
 /// Represents an imperative statement.
 #[derive(Clone, Debug)]
@@ -431,7 +431,7 @@ impl fmt::Display for Call {
     }
 }
 
-const _: [u8; 160] = [0; std::mem::size_of::<Declaration>()];
+const _: [u8; 104] = [0; std::mem::size_of::<Declaration>()];
 
 #[derive(Clone, Debug)]
 pub enum Declaration {
@@ -461,7 +461,7 @@ impl fmt::Display for Declaration {
     }
 }
 
-const _: [u8; 152] = [0; std::mem::size_of::<MultipleDeclaration>()];
+const _: [u8; 96] = [0; std::mem::size_of::<MultipleDeclaration>()];
 
 #[derive(Clone, Debug)]
 pub struct MultipleDeclaration {
@@ -494,7 +494,7 @@ impl fmt::Display for MultipleDeclaration {
     }
 }
 
-const _: [u8; 136] = [0; std::mem::size_of::<SingleDeclaration>()];
+const _: [u8; 80] = [0; std::mem::size_of::<SingleDeclaration>()];
 
 #[derive(Clone, Debug)]
 pub struct SingleDeclaration {

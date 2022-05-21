@@ -284,7 +284,7 @@ Type: Type = {
             | (Some(length), seen) => *seen = Some(length.span()),
             | _ => (),
             }
-            type_ = Type::Array(Box::new(type_), length, Span::new(l, r));
+            type_ = Type::Array(Box::new(type_), length.map(Box::new), Span::new(l, r));
         }
         Ok(type_)
     },
