@@ -58,7 +58,7 @@ impl fmt::Display for ItemSignature {
     }
 }
 
-const _: [u8; 248] = [0; std::mem::size_of::<Item>()];
+const _: [u8; 208] = [0; std::mem::size_of::<Item>()];
 
 #[derive(Clone, Debug)]
 pub enum Item {
@@ -132,7 +132,7 @@ impl fmt::Display for Class {
     }
 }
 
-const _: [u8; 248] = [0; std::mem::size_of::<ClassItem>()];
+const _: [u8; 208] = [0; std::mem::size_of::<ClassItem>()];
 
 #[derive(Clone, Debug)]
 pub enum ClassItem {
@@ -189,7 +189,7 @@ impl fmt::Display for FunctionSignature {
     }
 }
 
-const _: [u8; 240] = [0; std::mem::size_of::<Function>()];
+const _: [u8; 200] = [0; std::mem::size_of::<Function>()];
 
 /// Represents a function definition (i.e. with implementation).
 #[derive(Clone, Debug)]
@@ -255,13 +255,13 @@ impl fmt::Display for Type {
     }
 }
 
-const _: [u8; 160] = [0; std::mem::size_of::<Statement>()];
+const _: [u8; 120] = [0; std::mem::size_of::<Statement>()];
 
 /// Represents an imperative statement.
 #[derive(Clone, Debug)]
 pub enum Statement {
     /// Assignment
-    Assignment(Expression, Expression, Span),
+    Assignment(Box<Expression>, Box<Expression>, Span),
 
     /// Procedure call
     Call(Call),

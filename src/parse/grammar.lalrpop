@@ -167,7 +167,7 @@ ClosedStatement: Statement = {
 
     // Single assignment
     <l: @L> <lhs: LValue> "=" <expression: Expression> ";"? <r: @R> => {
-        Statement::Assignment(lhs, expression, Span::new(l, r))
+        Statement::Assignment(Box::new(lhs), Box::new(expression), Span::new(l, r))
     },
 
     <initialization: Initialization> => Statement::Initialization(initialization),
