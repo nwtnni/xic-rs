@@ -576,14 +576,6 @@ pub struct Identifier {
     pub span: Box<Span>,
 }
 
-impl std::ops::Deref for Identifier {
-    type Target = Symbol;
-
-    fn deref(&self) -> &Self::Target {
-        &self.symbol
-    }
-}
-
 impl fmt::Display for Identifier {
     fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
         write!(fmt, "{}", self.sexp())

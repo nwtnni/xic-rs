@@ -306,7 +306,7 @@ impl<'env> Emitter<'env> {
         variables: &Map<Symbol, Temporary>,
     ) -> hir::Expression {
         let name = match &*call.function {
-            ast::Expression::Variable(variable) => variable.symbol,
+            ast::Expression::Variable(variable) => variable,
             _ => todo!(),
         };
 
@@ -328,7 +328,7 @@ impl<'env> Emitter<'env> {
         variables: &mut Map<Symbol, Temporary>,
     ) -> hir::Expression {
         let fresh = Temporary::fresh("t");
-        variables.insert(*declaration.name, fresh);
+        variables.insert(declaration.name.symbol, fresh);
         match &*declaration.r#type {
             ast::Type::Bool(_) | ast::Type::Int(_) | ast::Type::Array(_, None, _) => {
                 hir!((TEMP fresh))
@@ -556,32 +556,32 @@ impl<'env> Emitter<'env> {
         }
     }
 
-    fn get_returns(&self, name: &Symbol) -> usize {
-        match self.context.get(GlobalScope::Global, name) {
+    fn get_returns(&self, name: &ast::Identifier) -> usize {
+        match self.context.get(GlobalScope::Global, &name.symbol) {
             Some(check::Entry::Function(_, returns))
             | Some(check::Entry::Signature(_, returns)) => returns.len(),
             _ => panic!("[INTERNAL ERROR]: type checking failed"),
         }
     }
 
-    fn mangle_function(&mut self, name: &Symbol) -> Symbol {
-        if let Some(mangled) = self.mangled.get(name) {
+    fn mangle_function(&mut self, name: &ast::Identifier) -> Symbol {
+        if let Some(mangled) = self.mangled.get(&name.symbol) {
             return *mangled;
         }
 
-        let (parameters, returns) = match self.context.get(GlobalScope::Global, name) {
+        let (parameters, returns) = match self.context.get(GlobalScope::Global, &name.symbol) {
             Some(check::Entry::Function(parameters, returns))
             | Some(check::Entry::Signature(parameters, returns)) => (parameters, returns),
             _ => panic!("[INTERNAL ERROR]: type checking failed"),
         };
 
         let mangled = symbol::intern(abi::mangle_function(
-            symbol::resolve(*name),
+            symbol::resolve(name.symbol),
             parameters,
             returns,
         ));
 
-        self.mangled.insert(*name, mangled);
+        self.mangled.insert(name.symbol, mangled);
         mangled
     }
 }

@@ -163,7 +163,7 @@ impl Context {
     }
 
     pub fn has_cycle(&self, subtype: &Identifier) -> bool {
-        self.ancestors_exclusive(subtype)
+        self.ancestors_exclusive(&subtype.symbol)
             .any(|supertype| subtype.symbol == supertype)
     }
 

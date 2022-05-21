@@ -19,7 +19,7 @@ impl Checker {
         r#use: &ast::Use,
     ) -> Result<(), error::Error> {
         // Load each interface exactly once
-        if !self.used.insert(*r#use.name) {
+        if !self.used.insert(r#use.name.symbol) {
             return Ok(());
         }
 
@@ -65,7 +65,7 @@ impl Checker {
     }
 
     fn load_class_signature(&mut self, class: &ast::ClassSignature) -> Result<(), error::Error> {
-        self.class_signatures.insert(*class.name);
+        self.class_signatures.insert(class.name.symbol);
 
         match self.context.insert_class(class.name.clone()) {
             Some(_) => bail!(class.span, ErrorKind::NameClash),
@@ -75,7 +75,7 @@ impl Checker {
 
     fn check_class_signature(&mut self, class: &ast::ClassSignature) -> Result<(), error::Error> {
         if let Some(supertype) = &class.extends {
-            if self.context.get_class(&supertype).is_none() {
+            if self.context.get_class(&supertype.symbol).is_none() {
                 bail!(class.span, ErrorKind::UnboundClass(supertype.symbol))
             }
 
@@ -85,12 +85,12 @@ impl Checker {
                 .is_none());
 
             if self.context.has_cycle(&class.name) {
-                bail!(class.span, ErrorKind::ClassCycle(*class.name));
+                bail!(class.span, ErrorKind::ClassCycle(class.name.symbol));
             }
         }
 
         for method in &class.methods {
-            self.check_function_signature(GlobalScope::Class(*class.name), method)?;
+            self.check_function_signature(GlobalScope::Class(class.name.symbol), method)?;
         }
 
         Ok(())
@@ -104,10 +104,10 @@ impl Checker {
         let (parameters, returns) = self.load_callable(function)?;
         let signature = Entry::Signature(parameters, returns);
 
-        match self.context.get(scope, &function.name) {
+        match self.context.get(scope, &function.name.symbol) {
             Some(existing) if *existing != signature => bail!(function.span, ErrorKind::NameClash),
             Some(_) | None => {
-                self.context.insert(scope, *function.name, signature);
+                self.context.insert(scope, function.name.symbol, signature);
             }
         }
 
@@ -115,12 +115,12 @@ impl Checker {
     }
 
     pub(super) fn load_class(&mut self, class: &ast::Class) -> Result<(), error::Error> {
-        if !self.class_implementations.insert(*class.name) {
+        if !self.class_implementations.insert(class.name.symbol) {
             bail!(class.span, ErrorKind::NameClash);
         }
 
         // If not already declared by an interface
-        if self.context.get_class(&class.name).is_none() {
+        if self.context.get_class(&class.name.symbol).is_none() {
             self.context.insert_class(class.name.clone());
         }
 
@@ -137,7 +137,7 @@ impl Checker {
             }
 
             if self.context.has_cycle(&class.name) {
-                bail!(class.span, ErrorKind::ClassCycle(*class.name));
+                bail!(class.span, ErrorKind::ClassCycle(class.name.symbol));
             }
         }
 
@@ -147,7 +147,7 @@ impl Checker {
                 // in array types, nor initializer expressions, so they can be checked linearly.
                 ast::ClassItem::Field(_) => (),
                 ast::ClassItem::Method(method) => {
-                    self.load_function(GlobalScope::Class(*class.name), method)?
+                    self.load_function(GlobalScope::Class(class.name.symbol), method)?
                 }
             }
         }
@@ -164,7 +164,7 @@ impl Checker {
 
         match self.context.insert(
             scope,
-            *function.name,
+            function.name.symbol,
             Entry::Function(new_parameters.clone(), new_returns.clone()),
         ) {
             None => match scope {
@@ -211,7 +211,7 @@ impl Checker {
         match r#type {
             ast::Type::Bool(_) => Ok(r#type::Expression::Boolean),
             ast::Type::Int(_) => Ok(r#type::Expression::Integer),
-            ast::Type::Class(class) => Ok(r#type::Expression::Class(**class)),
+            ast::Type::Class(class) => Ok(r#type::Expression::Class(class.symbol)),
             ast::Type::Array(r#type, _, _) => self
                 .load_type(r#type)
                 .map(Box::new)

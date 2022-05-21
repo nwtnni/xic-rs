@@ -100,7 +100,7 @@ impl Checker {
         match self.load_use(directory_library, &implicit) {
             Ok(()) => (),
             Err(error::Error::Semantic(error))
-                if *error.kind() == ErrorKind::NotFound(*implicit.name) => {}
+                if *error.kind() == ErrorKind::NotFound(implicit.name.symbol) => {}
             Err(error) => return Err(error),
         }
 
@@ -133,9 +133,9 @@ impl Checker {
         match r#type {
             ast::Type::Bool(_) => Ok(r#type::Expression::Boolean),
             ast::Type::Int(_) => Ok(r#type::Expression::Integer),
-            ast::Type::Class(class) => match self.context.get_class(class) {
-                Some(_) => Ok(r#type::Expression::Class(**class)),
-                None => bail!(*class.span, ErrorKind::UnboundClass(**class)),
+            ast::Type::Class(class) => match self.context.get_class(&class.symbol) {
+                Some(_) => Ok(r#type::Expression::Class(class.symbol)),
+                None => bail!(*class.span, ErrorKind::UnboundClass(class.symbol)),
             },
             ast::Type::Array(r#type, None, _) => self
                 .check_type(r#type)
@@ -164,7 +164,7 @@ impl Checker {
 
     fn check_class(&mut self, class: &ast::Class) -> Result<(), error::Error> {
         if let Some(supertype) = &class.extends {
-            if self.context.get_class(supertype).is_none() {
+            if self.context.get_class(&supertype.symbol).is_none() {
                 bail!(class.span, ErrorKind::UnboundClass(supertype.symbol));
             }
         }
@@ -172,18 +172,18 @@ impl Checker {
         // Classes must implement at least the methods declared in its interface
         if self
             .context
-            .get_class(&class.name)
+            .get_class(&class.name.symbol)
             .unwrap()
             .values()
             .any(|entry| matches!(entry, Entry::Signature(_, _)))
         {
-            bail!(class.span, ErrorKind::ClassIncomplete(*class.name));
+            bail!(class.span, ErrorKind::ClassIncomplete(class.name.symbol));
         }
 
         for item in &class.items {
             match item {
                 ast::ClassItem::Field(declaration) => {
-                    self.check_declaration(GlobalScope::Class(*class.name), declaration)?;
+                    self.check_declaration(GlobalScope::Class(class.name.symbol), declaration)?;
                 }
                 ast::ClassItem::Method(method) => {
                     // Check if method is declared or defined by an ancestor
@@ -192,16 +192,19 @@ impl Checker {
                         | Entry::Function(old_parameters, old_returns),
                     ) = self
                         .context
-                        .ancestors_exclusive(&class.name)
+                        .ancestors_exclusive(&class.name.symbol)
                         .find_map(|class| {
-                            self.context.get_class(&class).unwrap().get(&*method.name)
+                            self.context
+                                .get_class(&class)
+                                .unwrap()
+                                .get(&method.name.symbol)
                         })
                     {
                         let (new_parameters, new_returns) = self
                             .context
-                            .get_class(&class.name)
+                            .get_class(&class.name.symbol)
                             .unwrap()
-                            .get(&*method.name)
+                            .get(&method.name.symbol)
                             .and_then(|entry| match entry {
                                 Entry::Function(new_parameters, new_returns) => {
                                     Some((new_parameters, new_returns))
@@ -217,7 +220,7 @@ impl Checker {
                         }
                     }
 
-                    self.check_function(GlobalScope::Class(*class.name), method)?
+                    self.check_function(GlobalScope::Class(class.name.symbol), method)?
                 }
             }
         }
@@ -230,7 +233,7 @@ impl Checker {
         scope: GlobalScope,
         function: &ast::Function,
     ) -> Result<(), error::Error> {
-        let returns = match self.context.get(scope, &function.name) {
+        let returns = match self.context.get(scope, &function.name.symbol) {
             Some(Entry::Function(_, returns)) => returns.clone(),
             _ => panic!("[INTERNAL ERROR]: functions and methods should be bound in first pass"),
         };
@@ -380,11 +383,13 @@ impl Checker {
                     Some(class) => Ok(r#type::Expression::Class(class)),
                 }
             }
-            ast::Expression::Variable(name) => match self.context.get(Scope::Local, name) {
-                Some(Entry::Variable(r#type)) => Ok(r#type.clone()),
-                Some(_) => bail!(*name.span, ErrorKind::NotVariable(**name)),
-                None => bail!(*name.span, ErrorKind::UnboundVariable(**name)),
-            },
+            ast::Expression::Variable(variable) => {
+                match self.context.get(Scope::Local, &variable.symbol) {
+                    Some(Entry::Variable(r#type)) => Ok(r#type.clone()),
+                    Some(_) => bail!(*variable.span, ErrorKind::NotVariable(variable.symbol)),
+                    None => bail!(*variable.span, ErrorKind::UnboundVariable(variable.symbol)),
+                }
+            }
 
             ast::Expression::Array(array, _) => {
                 let mut bound = r#type::Expression::Any;
@@ -540,21 +545,21 @@ impl Checker {
                     _ => bail!(*span, ErrorKind::NotClass),
                 };
 
-                match self.context.get(GlobalScope::Class(class), field) {
-                    None => bail!(*span, ErrorKind::UnboundVariable(**field)),
+                match self.context.get(GlobalScope::Class(class), &field.symbol) {
+                    None => bail!(*span, ErrorKind::UnboundVariable(field.symbol)),
                     Some(Entry::Variable(r#type)) => Ok(r#type.clone()),
-                    Some(_) => bail!(*span, ErrorKind::NotVariable(**field)),
+                    Some(_) => bail!(*span, ErrorKind::NotVariable(field.symbol)),
                 }
             }
             ast::Expression::New(class, span) => {
-                match self.class_implementations.contains(&**class) {
-                    false if self.context.get_class(class).is_some() => {
-                        bail!(*span, ErrorKind::NotInClassModule(**class))
+                match self.class_implementations.contains(&class.symbol) {
+                    false if self.context.get_class(&class.symbol).is_some() => {
+                        bail!(*span, ErrorKind::NotInClassModule(class.symbol))
                     }
                     false => {
-                        bail!(*span, ErrorKind::UnboundClass(**class))
+                        bail!(*span, ErrorKind::UnboundClass(class.symbol))
                     }
-                    true => Ok(r#type::Expression::Class(**class)),
+                    true => Ok(r#type::Expression::Class(class.symbol)),
                 }
             }
 
@@ -684,7 +689,7 @@ impl Checker {
 
         if self
             .context
-            .insert(scope, **name, Entry::Variable(r#type.clone()))
+            .insert(scope, name.symbol, Entry::Variable(r#type.clone()))
             .is_some()
         {
             bail!(*span, ErrorKind::NameClash)
