@@ -42,17 +42,8 @@ pub fn emit_unit(
             ast::Item::Function(function) => function,
         };
 
-        let (parameters, returns) = emitter
-            .get_signature(GlobalScope::Global, &function.name)
-            .unwrap();
-
-        let name = abi::mangle::function(&function.name.symbol, parameters, returns);
-        let returns = returns.to_vec();
-
-        emitter.context.push(LocalScope::Function { returns });
-        let hir = emitter.emit_function(&name, function);
+        let (name, hir) = emitter.emit_function(function);
         functions.insert(name, hir);
-        emitter.context.pop();
     }
 
     ir::Unit {
@@ -63,9 +54,16 @@ pub fn emit_unit(
 }
 
 impl<'env> Emitter<'env> {
-    fn emit_function(&mut self, name: &Symbol, function: &ast::Function) -> hir::Function {
+    fn emit_function(&mut self, function: &ast::Function) -> (Symbol, hir::Function) {
         let mut variables = Map::default();
         let mut statements = Vec::new();
+
+        let (parameters, returns) = self
+            .get_signature(GlobalScope::Global, &function.name)
+            .unwrap();
+
+        let name = abi::mangle::function(&function.name.symbol, parameters, returns);
+        let returns = returns.to_vec();
 
         for (index, parameter) in function.parameters.iter().enumerate() {
             #[rustfmt::skip]
@@ -76,15 +74,19 @@ impl<'env> Emitter<'env> {
             ));
         }
 
-        let statement = self.emit_statement(&function.statements, &mut variables);
-        statements.push(statement);
+        self.context.push(LocalScope::Function { returns });
+        statements.push(self.emit_statement(&function.statements, &mut variables));
+        self.context.pop();
 
-        hir::Function {
-            name: *name,
-            statement: hir::Statement::Sequence(statements),
-            arguments: function.parameters.len(),
-            returns: function.returns.len(),
-        }
+        (
+            name,
+            hir::Function {
+                name,
+                statement: hir::Statement::Sequence(statements),
+                arguments: function.parameters.len(),
+                returns: function.returns.len(),
+            },
+        )
     }
 
     fn emit_expression(
