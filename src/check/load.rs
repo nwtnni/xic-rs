@@ -196,10 +196,11 @@ impl Checker {
         ) {
             None => match scope {
                 GlobalScope::Global => (),
-                GlobalScope::Class(class) => match self.context.get_class_signature(&class) {
-                    Some(span) => bail!(*function.name.span, ErrorKind::SignatureMismatch(*span)),
-                    None => (),
-                },
+                GlobalScope::Class(class) => {
+                    if let Some(span) = self.context.get_class_signature(&class) {
+                        bail!(*function.name.span, ErrorKind::SignatureMismatch(*span));
+                    }
+                }
             },
             Some((span, Entry::Variable(_))) | Some((span, Entry::Function(_, _))) => {
                 bail!(*function.name.span, ErrorKind::NameClash(span))

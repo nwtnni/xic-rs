@@ -13,16 +13,18 @@ pub enum Entry {
     Signature(Vec<r#type::Expression>, Vec<r#type::Expression>),
 }
 
+type Environment = Map<Symbol, (Span, Entry)>;
+
 #[derive(Clone, Debug)]
 pub struct Context {
     /// Class hierarchy mapping subtype to supertype
     hierarchy: Map<Symbol, Identifier>,
 
     /// Globally-scoped global variables and functions
-    globals: Map<Symbol, (Span, Entry)>,
+    globals: Environment,
 
     /// Class-scoped method and fields
-    classes: Map<Symbol, (Span, Map<Symbol, (Span, Entry)>)>,
+    classes: Map<Symbol, (Span, Environment)>,
 
     /// Set of classes declared in interfaces
     class_signatures: Map<Symbol, Span>,
@@ -31,7 +33,7 @@ pub struct Context {
     class_implementations: Map<Symbol, Span>,
 
     /// Locally scoped variables
-    locals: Vec<(LocalScope, Map<Symbol, (Span, Entry)>)>,
+    locals: Vec<(LocalScope, Environment)>,
 }
 
 #[derive(Copy, Clone, Debug)]
@@ -168,10 +170,7 @@ impl Context {
         self.class_signatures.get(class)
     }
 
-    pub fn insert_class_signature(
-        &mut self,
-        class: &Identifier,
-    ) -> Option<(Span, Map<Symbol, (Span, Entry)>)> {
+    pub fn insert_class_signature(&mut self, class: &Identifier) -> Option<(Span, Environment)> {
         self.class_signatures.insert(class.symbol, *class.span);
         self.classes
             .insert(class.symbol, (*class.span, Map::default()))
@@ -234,7 +233,7 @@ impl Context {
         })
     }
 
-    pub fn get_class(&self, class: &Symbol) -> Option<&(Span, Map<Symbol, (Span, Entry)>)> {
+    pub fn get_class(&self, class: &Symbol) -> Option<&(Span, Environment)> {
         self.classes.get(class)
     }
 
