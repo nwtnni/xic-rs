@@ -4,32 +4,34 @@ use crate::abi;
 use crate::check;
 use crate::check::Entry;
 use crate::check::GlobalScope;
+use crate::check::LocalScope;
 use crate::data::ast;
 use crate::data::hir;
 use crate::data::ir;
 use crate::data::operand::Label;
 use crate::data::operand::Temporary;
+use crate::data::r#type;
+use crate::data::span::Span;
 use crate::data::symbol;
 use crate::data::symbol::Symbol;
 use crate::hir;
 use crate::Map;
 
-#[derive(Debug)]
 struct Emitter<'env> {
-    context: &'env check::Context,
+    context: &'env mut check::Context,
+    r#virtual: abi::r#virtual::Table,
     data: Map<Symbol, Label>,
-    returns: usize,
 }
 
 pub fn emit_unit(
     path: &std::path::Path,
-    context: &check::Context,
+    context: &mut check::Context,
     ast: &ast::Program,
 ) -> ir::Unit<hir::Function> {
     let mut emitter = Emitter {
+        r#virtual: abi::r#virtual::Table::new(context),
         context,
         data: Map::default(),
-        returns: 0,
     };
 
     let mut functions = Map::default();
@@ -41,10 +43,17 @@ pub fn emit_unit(
             ast::Item::Function(function) => function,
         };
 
-        emitter.returns = emitter.get_returns(&function.name);
-        let name = emitter.mangle_function(&function.name);
-        let hir = emitter.emit_function(function);
+        let (parameters, returns) = emitter
+            .get_signature(GlobalScope::Global, &function.name)
+            .unwrap();
+
+        let name = abi::mangle::function(&function.name.symbol, parameters, returns);
+        let returns = returns.to_vec();
+
+        emitter.context.push(LocalScope::Function { returns });
+        let hir = emitter.emit_function(&name, function);
         functions.insert(name, hir);
+        emitter.context.pop();
     }
 
     ir::Unit {
@@ -55,7 +64,7 @@ pub fn emit_unit(
 }
 
 impl<'env> Emitter<'env> {
-    fn emit_function(&mut self, function: &ast::Function) -> hir::Function {
+    fn emit_function(&mut self, name: &Symbol, function: &ast::Function) -> hir::Function {
         let mut variables = Map::default();
         let mut statements = Vec::new();
 
@@ -68,13 +77,11 @@ impl<'env> Emitter<'env> {
             ));
         }
 
-        let name = self.mangle_function(&function.name);
         let statement = self.emit_statement(&function.statements, &mut variables);
-
         statements.push(statement);
 
         hir::Function {
-            name,
+            name: *name,
             statement: hir::Statement::Sequence(statements),
             arguments: function.parameters.len(),
             returns: function.returns.len(),
@@ -284,7 +291,7 @@ impl<'env> Emitter<'env> {
                             //
                             // The number of returns must match the rest of the function, so return values
                             // are defined along all paths to the exit.
-                            (hir::Statement::Return(vec![hir!((CONST 0)); self.returns]))
+                            (hir::Statement::Return(vec![hir!((CONST 0)); self.context.get_scoped_returns().unwrap().len()]))
                             (LABEL r#in))
                         (MEM (ADD (TEMP base) (MUL (TEMP index) (CONST abi::WORD)))))
                 ).into()
@@ -349,21 +356,51 @@ impl<'env> Emitter<'env> {
         call: &ast::Call,
         variables: &Map<Symbol, Temporary>,
     ) -> hir::Expression {
-        let name = match &*call.function {
-            ast::Expression::Variable(variable) => variable,
-            _ => todo!(),
+        let arguments = call
+            .arguments
+            .iter()
+            .map(|argument| self.emit_expression(argument, variables).into())
+            .collect::<Vec<_>>();
+
+        let (class, receiver, method) = match &*call.function {
+            ast::Expression::Variable(variable) => {
+                if let Some((parameters, returns)) =
+                    self.get_signature(GlobalScope::Global, variable)
+                {
+                    let function = abi::mangle::function(&variable.symbol, parameters, returns);
+                    let returns = returns.len();
+                    return hir::Expression::Call(
+                        Box::new(hir::Expression::from(Label::Fixed(function))),
+                        arguments,
+                        returns,
+                    );
+                }
+
+                let class = self.context.get_scoped_class().unwrap();
+                let receiver = self
+                    .emit_expression(&ast::Expression::This(Span::default()), variables)
+                    .into();
+                (class, receiver, variable)
+            }
+            ast::Expression::Dot(class, receiver, method, _) => {
+                let class = class.get().unwrap();
+                let receiver = self.emit_expression(receiver, variables).into();
+                (class, receiver, method)
+            }
+            _ => unreachable!(),
         };
 
-        hir::Expression::Call(
-            Box::new(hir::Expression::from(Label::Fixed(
-                self.mangle_function(name),
-            ))),
-            call.arguments
-                .iter()
-                .map(|argument| self.emit_expression(argument, variables).into())
-                .collect(),
-            self.get_returns(name),
-        )
+        let function = hir!(
+            (ADD
+                (MEM receiver)
+                (CONST self.r#virtual.method(&class, &method.symbol).unwrap() as i64 * abi::WORD))
+        );
+
+        let (_, returns) = self
+            .get_signature(GlobalScope::Class(class), method)
+            .unwrap();
+
+        hir::Expression::Call(Box::new(function), arguments, returns.len())
     }
 
     fn emit_declaration(
@@ -600,21 +637,16 @@ impl<'env> Emitter<'env> {
         }
     }
 
-    fn get_returns(&self, name: &ast::Identifier) -> usize {
-        match self.context.get(GlobalScope::Global, &name.symbol) {
-            Some(check::Entry::Function(_, returns))
-            | Some(check::Entry::Signature(_, returns)) => returns.len(),
-            _ => panic!("[INTERNAL ERROR]: type checking failed"),
-        }
-    }
-
-    fn mangle_function(&mut self, name: &ast::Identifier) -> Symbol {
-        let (parameters, returns) = match self.context.get(GlobalScope::Global, &name.symbol) {
+    fn get_signature(
+        &self,
+        scope: GlobalScope,
+        name: &ast::Identifier,
+    ) -> Option<(&[r#type::Expression], &[r#type::Expression])> {
+        match self.context.get(scope, &name.symbol) {
             Some(check::Entry::Function(parameters, returns))
-            | Some(check::Entry::Signature(parameters, returns)) => (parameters, returns),
-            _ => panic!("[INTERNAL ERROR]: type checking failed"),
-        };
-
-        abi::mangle::function(&name.symbol, parameters, returns)
+            | Some(check::Entry::Signature(parameters, returns)) => Some((parameters, returns)),
+            Some(check::Entry::Variable(_)) => None,
+            None => unreachable!(),
+        }
     }
 }

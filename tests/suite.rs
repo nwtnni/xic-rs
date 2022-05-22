@@ -50,8 +50,8 @@ pub fn parse(path: &str) -> ast::Program {
 
 pub fn emit_hir(path: &str) -> hir::Unit {
     let program = parse(path);
-    let context = xic::api::check(None, Path::new(path), &program).unwrap();
-    xic::api::emit_hir(Path::new(path), &program, &context)
+    let mut context = xic::api::check(None, Path::new(path), &program).unwrap();
+    xic::api::emit_hir(Path::new(path), &program, &mut context)
 }
 
 pub fn emit_lir(path: &str) -> lir::Unit<Label> {

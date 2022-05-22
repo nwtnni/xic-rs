@@ -11,7 +11,7 @@ use crate::data::hir;
 use crate::data::lir;
 use crate::data::operand::Label;
 
-pub fn emit_hir(path: &Path, program: &ast::Program, context: &check::Context) -> hir::Unit {
+pub fn emit_hir(path: &Path, program: &ast::Program, context: &mut check::Context) -> hir::Unit {
     emit::emit_unit(path, context, program)
 }
 

@@ -411,7 +411,7 @@ fn run() -> anyhow::Result<()> {
             optimize::invert_loops_ast(&mut program);
         }
 
-        let mut hir = api::emit_hir(&path, &program, &context?);
+        let mut hir = api::emit_hir(&path, &program, &mut context?);
 
         if command.optimize(Opt::ConstantFold) {
             hir = hir.map(optimize::fold_constants);
