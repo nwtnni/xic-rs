@@ -55,12 +55,6 @@ pub(super) struct Checker {
 
     /// Set of unique interfaces in the use tree
     pub(super) used: Set<Symbol>,
-
-    /// Set of classes defined in this module
-    pub(super) class_implementations: Set<ast::Identifier>,
-
-    /// Set of class signatures used by this module
-    pub(super) class_signatures: Set<ast::Identifier>,
 }
 
 impl Checker {
@@ -68,8 +62,6 @@ impl Checker {
         Checker {
             context: Context::new(),
             used: Set::default(),
-            class_implementations: Set::default(),
-            class_signatures: Set::default(),
         }
     }
 
@@ -563,15 +555,17 @@ impl Checker {
                     Some(_) => bail!(*field.span, ErrorKind::NotVariable(field.symbol)),
                 }
             }
-            ast::Expression::New(class, span) => match self.class_implementations.contains(class) {
-                false if self.context.get_class(&class.symbol).is_some() => {
-                    bail!(*span, ErrorKind::NotInClassModule(class.symbol))
+            ast::Expression::New(class, span) => {
+                match self.context.get_class_implementation(&class.symbol) {
+                    Some(_) => Ok(r#type::Expression::Class(class.symbol)),
+                    None if self.context.get_class(&class.symbol).is_some() => {
+                        bail!(*span, ErrorKind::NotInClassModule(class.symbol))
+                    }
+                    None => {
+                        bail!(*class.span, ErrorKind::UnboundClass(class.symbol))
+                    }
                 }
-                false => {
-                    bail!(*class.span, ErrorKind::UnboundClass(class.symbol))
-                }
-                true => Ok(r#type::Expression::Class(class.symbol)),
-            },
+            }
 
             ast::Expression::Call(call) => {
                 let mut returns = self.check_call(call)?;

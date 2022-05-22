@@ -8,7 +8,6 @@ use crate::check::ErrorKind;
 use crate::check::GlobalScope;
 use crate::data::ast;
 use crate::data::r#type;
-use crate::data::span::Span;
 use crate::error;
 use crate::lex;
 use crate::parse;
@@ -66,9 +65,7 @@ impl Checker {
     }
 
     fn load_class_signature(&mut self, class: &ast::ClassSignature) -> Result<(), error::Error> {
-        self.class_signatures.insert(class.name.clone());
-
-        let expected = self.context.insert_class(class.name.clone());
+        let expected = self.context.insert_class_signature(&class.name);
 
         if let Some(supertype) = &class.extends {
             if let Some(existing) = self
@@ -149,13 +146,8 @@ impl Checker {
     }
 
     pub(super) fn load_class(&mut self, class: &ast::Class) -> Result<(), error::Error> {
-        if let Some(existing) = self.class_implementations.replace(class.name.clone()) {
-            bail!(class.span, ErrorKind::NameClash(*existing.span));
-        }
-
-        // If not already declared by an interface
-        if self.context.get_class(&class.name.symbol).is_none() {
-            self.context.insert_class(class.name.clone());
+        if let Some(span) = self.context.insert_class_implementation(&class.name) {
+            bail!(class.span, ErrorKind::NameClash(span));
         }
 
         if let Some(supertype) = &class.extends {
@@ -204,15 +196,9 @@ impl Checker {
         ) {
             None => match scope {
                 GlobalScope::Global => (),
-                GlobalScope::Class(class) => match self.class_signatures.get(&ast::Identifier {
-                    symbol: class,
-                    span: Box::new(Span::default()),
-                }) {
+                GlobalScope::Class(class) => match self.context.get_class_signature(&class) {
+                    Some(span) => bail!(*function.name.span, ErrorKind::SignatureMismatch(*span)),
                     None => (),
-                    Some(signature) => bail!(
-                        *function.name.span,
-                        ErrorKind::SignatureMismatch(*signature.span)
-                    ),
                 },
             },
             Some((span, Entry::Variable(_))) | Some((span, Entry::Function(_, _))) => {

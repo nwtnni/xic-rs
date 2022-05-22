@@ -24,6 +24,12 @@ pub struct Context {
     /// Class-scoped method and fields
     classes: Map<Symbol, (Span, Map<Symbol, (Span, Entry)>)>,
 
+    /// Set of classes declared in interfaces
+    class_signatures: Map<Symbol, Span>,
+
+    /// Set of classes in implementation module
+    class_implementations: Map<Symbol, Span>,
+
     /// Locally scoped variables
     locals: Vec<(LocalScope, Map<Symbol, (Span, Entry)>)>,
 }
@@ -91,6 +97,8 @@ impl Context {
         Context {
             globals: Map::default(),
             classes: Map::default(),
+            class_signatures: Map::default(),
+            class_implementations: Map::default(),
             locals: Vec::default(),
             hierarchy: Map::default(),
         }
@@ -156,16 +164,34 @@ impl Context {
         }
     }
 
-    pub fn insert_class(
+    pub fn get_class_signature(&self, class: &Symbol) -> Option<&Span> {
+        self.class_signatures.get(class)
+    }
+
+    pub fn insert_class_signature(
         &mut self,
-        class: Identifier,
+        class: &Identifier,
     ) -> Option<(Span, Map<Symbol, (Span, Entry)>)> {
+        self.class_signatures.insert(class.symbol, *class.span);
         self.classes
             .insert(class.symbol, (*class.span, Map::default()))
     }
 
-    pub fn get_class(&self, class: &Symbol) -> Option<&(Span, Map<Symbol, (Span, Entry)>)> {
-        self.classes.get(class)
+    pub fn get_class_implementation(&self, class: &Symbol) -> Option<&Span> {
+        self.class_implementations.get(class)
+    }
+
+    pub fn insert_class_implementation(&mut self, class: &Identifier) -> Option<Span> {
+        if let Some(span) = self.class_implementations.insert(class.symbol, *class.span) {
+            return Some(span);
+        }
+
+        self.classes
+            .entry(class.symbol)
+            .and_modify(|(span, _)| *span = *class.span)
+            .or_insert_with(|| (*class.span, Map::default()));
+
+        None
     }
 
     pub fn insert_supertype(
@@ -206,6 +232,10 @@ impl Context {
             r#type = supertype;
             Some(supertype)
         })
+    }
+
+    pub fn get_class(&self, class: &Symbol) -> Option<&(Span, Map<Symbol, (Span, Entry)>)> {
+        self.classes.get(class)
     }
 
     pub fn get_superclass(&self, class: &Symbol) -> Option<Symbol> {
