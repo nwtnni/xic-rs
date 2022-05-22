@@ -2,7 +2,6 @@
 
 use crate::abi;
 use crate::check;
-use crate::check::Entry;
 use crate::check::GlobalScope;
 use crate::check::LocalScope;
 use crate::data::ast;
@@ -110,7 +109,24 @@ impl<'env> Emitter<'env> {
             }
             Null(_) => hir!((MEM (CONST 0))).into(),
             This(_) => hir!((TEMP Temporary::Argument(0))).into(),
-            Variable(variable) => hir!((TEMP variables[&variable.symbol])).into(),
+            Variable(variable) => {
+                if let Some(temporary) = variables.get(&variable.symbol).copied() {
+                    return hir!((TEMP temporary)).into();
+                }
+
+                if let Some(r#type) = self.get_variable(GlobalScope::Global, variable) {
+                    let address = Label::Fixed(abi::mangle::global(&variable.symbol, r#type));
+                    return hir!((MEM (NAME address))).into();
+                }
+
+                self.emit_field_access(
+                    &self.context.get_scoped_class().unwrap(),
+                    &ast::Expression::This(Span::default()),
+                    &variable.symbol,
+                    variables,
+                )
+                .into()
+            }
             Array(expressions, _) => {
                 let array = hir!((TEMP Temporary::fresh("array")));
 
@@ -300,28 +316,9 @@ impl<'env> Emitter<'env> {
                 let address = self.emit_expression(array, variables).into();
                 hir!((MEM (SUB address (CONST abi::WORD)))).into()
             }
-            Dot(class, receiver, field, _) => {
-                let class = class.get().unwrap();
-
-                let base = match self.context.get_superclass(&class) {
-                    // 8-byte offset for virtual table pointer
-                    None => hir!((CONST abi::WORD)),
-                    Some(superclass) => {
-                        let superclass_size = Label::Fixed(abi::mangle::class_size(&superclass));
-                        hir!((MEM (NAME superclass_size)))
-                    }
-                };
-
-                let offset = self
-                    .r#virtual
-                    .field(&class, &field.symbol)
-                    .map(|index| hir!((CONST index as i64 * abi::WORD)))
-                    .expect("[TYPE ERROR]: unbound field in class");
-
-                let receiver = self.emit_expression(receiver, variables).into();
-
-                hir!((MEM (ADD receiver (ADD base offset)))).into()
-            }
+            Dot(class, receiver, field, _) => self
+                .emit_field_access(&class.get().unwrap(), receiver, &field.symbol, variables)
+                .into(),
             New(class, _) => {
                 let xi_alloc = Label::Fixed(symbol::intern_static(abi::XI_ALLOC));
                 let class_size = Label::Fixed(abi::mangle::class_size(&class.symbol));
@@ -393,6 +390,33 @@ impl<'env> Emitter<'env> {
             .unwrap();
 
         hir::Expression::Call(Box::new(function), arguments, returns.len())
+    }
+
+    fn emit_field_access(
+        &mut self,
+        class: &Symbol,
+        receiver: &ast::Expression,
+        field: &Symbol,
+        variables: &Map<Symbol, Temporary>,
+    ) -> hir::Expression {
+        let base = match self.context.get_superclass(class) {
+            // 8-byte offset for virtual table pointer
+            None => hir!((CONST abi::WORD)),
+            Some(superclass) => {
+                let superclass_size = Label::Fixed(abi::mangle::class_size(&superclass));
+                hir!((MEM (NAME superclass_size)))
+            }
+        };
+
+        let offset = self
+            .r#virtual
+            .field(class, field)
+            .map(|index| hir!((CONST index as i64 * abi::WORD)))
+            .expect("[TYPE ERROR]: unbound field in class");
+
+        let receiver = self.emit_expression(receiver, variables).into();
+
+        hir!((MEM (ADD receiver (ADD base offset))))
     }
 
     fn emit_declaration(
@@ -635,9 +659,23 @@ impl<'env> Emitter<'env> {
         name: &ast::Identifier,
     ) -> Option<(&[r#type::Expression], &[r#type::Expression])> {
         match self.context.get(scope, &name.symbol) {
-            Some(check::Entry::Function(parameters, returns))
-            | Some(check::Entry::Signature(parameters, returns)) => Some((parameters, returns)),
+            Some(
+                check::Entry::Function(parameters, returns)
+                | check::Entry::Signature(parameters, returns),
+            ) => Some((parameters, returns)),
             Some(check::Entry::Variable(_)) => None,
+            None => unreachable!(),
+        }
+    }
+
+    fn get_variable(
+        &self,
+        scope: GlobalScope,
+        name: &ast::Identifier,
+    ) -> Option<&r#type::Expression> {
+        match self.context.get(scope, &name.symbol) {
+            Some(check::Entry::Variable(r#type)) => Some(r#type),
+            Some(check::Entry::Function(_, _) | check::Entry::Signature(_, _)) => None,
             None => unreachable!(),
         }
     }

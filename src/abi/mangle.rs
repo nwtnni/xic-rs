@@ -17,7 +17,6 @@ pub fn class_initialization(class: &Symbol) -> Symbol {
     symbol::intern(&format!("_I_init_{}", escape(class)))
 }
 
-#[allow(unused)]
 pub fn global(name: &Symbol, r#type: &r#type::Expression) -> Symbol {
     let mut mangled = format!("_I_g_{}_", escape(name));
     mangled.push('_');
