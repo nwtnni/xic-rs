@@ -313,17 +313,9 @@ impl<'env> Emitter<'env> {
                 };
 
                 let offset = self
-                    .context
-                    .get_class(&class)
-                    .unwrap()
-                    .1
-                    .iter()
-                    .filter_map(|(name, (_, entry))| match entry {
-                        Entry::Variable(_) => Some(*name),
-                        _ => None,
-                    })
-                    .position(|name| name == field.symbol)
-                    .map(|index| hir!((CONST(index as i64 * abi::WORD))))
+                    .r#virtual
+                    .field(&class, &field.symbol)
+                    .map(|index| hir!((CONST index as i64 * abi::WORD)))
                     .expect("[TYPE ERROR]: unbound field in class");
 
                 let receiver = self.emit_expression(receiver, variables).into();
