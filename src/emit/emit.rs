@@ -18,7 +18,6 @@ use crate::Map;
 struct Emitter<'env> {
     context: &'env check::Context,
     data: Map<Symbol, Label>,
-    mangled: Map<Symbol, Symbol>,
     returns: usize,
 }
 
@@ -30,7 +29,6 @@ pub fn emit_unit(
     let mut emitter = Emitter {
         context,
         data: Map::default(),
-        mangled: Map::default(),
         returns: 0,
     };
 
@@ -302,8 +300,7 @@ impl<'env> Emitter<'env> {
                     // 8-byte offset for virtual table pointer
                     None => hir!((CONST abi::WORD)),
                     Some(superclass) => {
-                        let superclass_size =
-                            Label::Fixed(abi::mangle_class_size(symbol::resolve(superclass)));
+                        let superclass_size = Label::Fixed(abi::mangle::class_size(&superclass));
                         hir!((MEM (NAME superclass_size)))
                     }
                 };
@@ -328,11 +325,9 @@ impl<'env> Emitter<'env> {
             }
             New(class, _) => {
                 let xi_alloc = Label::Fixed(symbol::intern_static(abi::XI_ALLOC));
-                let class_size =
-                    Label::Fixed(abi::mangle_class_size(symbol::resolve(class.symbol)));
-                let class_virtual_table = Label::Fixed(abi::mangle_class_virtual_table(
-                    symbol::resolve(class.symbol),
-                ));
+                let class_size = Label::Fixed(abi::mangle::class_size(&class.symbol));
+                let class_virtual_table =
+                    Label::Fixed(abi::mangle::class_virtual_table(&class.symbol));
 
                 let new = Temporary::fresh("new");
 
@@ -614,23 +609,12 @@ impl<'env> Emitter<'env> {
     }
 
     fn mangle_function(&mut self, name: &ast::Identifier) -> Symbol {
-        if let Some(mangled) = self.mangled.get(&name.symbol) {
-            return *mangled;
-        }
-
         let (parameters, returns) = match self.context.get(GlobalScope::Global, &name.symbol) {
             Some(check::Entry::Function(parameters, returns))
             | Some(check::Entry::Signature(parameters, returns)) => (parameters, returns),
             _ => panic!("[INTERNAL ERROR]: type checking failed"),
         };
 
-        let mangled = symbol::intern(abi::mangle_function(
-            symbol::resolve(name.symbol),
-            parameters,
-            returns,
-        ));
-
-        self.mangled.insert(name.symbol, mangled);
-        mangled
+        abi::mangle::function(&name.symbol, parameters, returns)
     }
 }

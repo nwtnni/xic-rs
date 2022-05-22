@@ -30,14 +30,7 @@
 //!   TOP (lower memory address)
 //! ```
 
-mod mangle;
-
-pub use mangle::mangle_class_initialization;
-pub use mangle::mangle_class_size;
-pub use mangle::mangle_class_virtual_table;
-pub use mangle::mangle_function;
-pub use mangle::mangle_global;
-pub use mangle::mangle_method;
+pub mod mangle;
 
 use crate::data::operand::Immediate;
 use crate::data::operand::Memory;
