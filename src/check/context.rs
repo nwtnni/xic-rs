@@ -176,6 +176,10 @@ impl Context {
             .insert(class.symbol, (*class.span, Map::default()))
     }
 
+    pub fn class_implementations(&self) -> impl Iterator<Item = &Symbol> + '_ {
+        self.class_implementations.keys()
+    }
+
     pub fn get_class_implementation(&self, class: &Symbol) -> Option<&Span> {
         self.class_implementations.get(class)
     }
