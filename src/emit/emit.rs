@@ -2,6 +2,7 @@
 
 use crate::abi;
 use crate::check;
+use crate::check::Entry;
 use crate::check::GlobalScope;
 use crate::check::LocalScope;
 use crate::data::ast;
@@ -35,6 +36,11 @@ pub fn emit_unit(
 
     let mut functions = Map::default();
 
+    for class in emitter.context.class_implementations() {
+        let (name, function) = emitter.emit_class_initialization(class);
+        functions.insert(name, function);
+    }
+
     for item in &ast.items {
         let function = match item {
             ast::Item::Global(_) => todo!(),
@@ -42,8 +48,8 @@ pub fn emit_unit(
             ast::Item::Function(function) => function,
         };
 
-        let (name, hir) = emitter.emit_function(function);
-        functions.insert(name, hir);
+        let (name, function) = emitter.emit_function(function);
+        functions.insert(name, function);
     }
 
     ir::Unit {
@@ -54,6 +60,88 @@ pub fn emit_unit(
 }
 
 impl<'env> Emitter<'env> {
+    fn emit_class_initialization(&self, class: &Symbol) -> (Symbol, hir::Function) {
+        let size = Label::Fixed(abi::mangle::class_size(class));
+        let enter = Label::fresh("enter");
+        let exit = Label::fresh("exit");
+
+        let mut statements = vec![
+            hir!((CJUMP (NE (MEM (NAME size)) (CONST 0)) exit enter)),
+            hir!((LABEL enter)),
+        ];
+
+        let superclass = self.context.get_superclass(class);
+
+        // Recursively initialize superclass
+        if let Some(superclass) = superclass {
+            let initialize = Label::Fixed(abi::mangle::class_initialization(&superclass));
+            statements.push(hir!((EXP (CALL (NAME initialize) 0))));
+        }
+
+        // Initialize class size
+        let class_size = self.r#virtual.field_len(class).unwrap() as i64 * abi::WORD;
+        let superclass_size = superclass
+            .map(|superclass| hir!((MEM (NAME Label::Fixed(abi::mangle::class_size(&superclass))))))
+            .unwrap_or_else(|| hir!((CONST abi::WORD)));
+
+        statements.push(hir!((MOVE (MEM (NAME size)) (ADD superclass_size (CONST class_size)))));
+
+        let virtual_table_class = Label::Fixed(abi::mangle::class_virtual_table(class));
+
+        // Initialize class vtable
+        if let Some(superclass) = superclass {
+            let length = self.r#virtual.method_len(&superclass).unwrap();
+            let virtual_table_superclass =
+                Label::Fixed(abi::mangle::class_virtual_table(&superclass));
+
+            let offset = Temporary::fresh("offset");
+            let r#while = Label::fresh("while");
+            let done = Label::fresh("done");
+
+            statements.extend([
+                hir!((MOVE (TEMP offset) (CONST 0))),
+                hir!((LABEL r#while)),
+                hir!((MOVE
+                    (MEM (ADD (NAME virtual_table_class) (TEMP offset)))
+                    (MEM (ADD (NAME virtual_table_superclass) (TEMP offset))))),
+                hir!((MOVE (TEMP offset) (ADD (TEMP offset) (CONST abi::WORD)))),
+                hir!((CJUMP (LT (TEMP offset) (CONST length as i64 * abi::WORD)) r#while r#done)),
+                hir!((LABEL r#done)),
+            ]);
+        }
+
+        for (symbol, (_, entry)) in &self.context.get_class(class).unwrap().1 {
+            let (parameters, returns) = match entry {
+                Entry::Variable(_) | Entry::Signature(_, _) => continue,
+                Entry::Function(parameters, returns) => (parameters, returns),
+            };
+
+            let offset = self.r#virtual.method(class, symbol).unwrap();
+            let method = Label::Fixed(abi::mangle::method(class, symbol, parameters, returns));
+
+            statements.push(hir!(
+                (MOVE
+                    (MEM (ADD (NAME virtual_table_class) (CONST offset as i64 * abi::WORD)))
+                    (NAME method))
+            ));
+        }
+
+        statements.push(hir!((LABEL exit)));
+        statements.push(hir!((RETURN)));
+
+        let name = abi::mangle::class_initialization(class);
+
+        (
+            name,
+            hir::Function {
+                name,
+                statement: hir::Statement::Sequence(statements),
+                arguments: 0,
+                returns: 0,
+            },
+        )
+    }
+
     fn emit_function(&mut self, function: &ast::Function) -> (Symbol, hir::Function) {
         let mut variables = Map::default();
         let mut statements = Vec::new();

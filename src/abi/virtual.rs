@@ -64,7 +64,7 @@ impl Table {
         self.fields.get(class)?.get_index_of(field)
     }
 
-    pub fn fields(&self, class: &Symbol) -> Option<usize> {
+    pub fn field_len(&self, class: &Symbol) -> Option<usize> {
         Some(self.fields.get(class)?.len())
     }
 
@@ -72,7 +72,7 @@ impl Table {
         self.methods.get(class)?.get_index_of(method)
     }
 
-    pub fn size(&self, class: &Symbol) -> Option<usize> {
+    pub fn method_len(&self, class: &Symbol) -> Option<usize> {
         self.methods
             .get(class)?
             .last()
