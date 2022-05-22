@@ -296,7 +296,7 @@ impl<'env> Emitter<'env> {
             Dot(class, receiver, field, _) => {
                 let class = class.get().unwrap();
 
-                let base = match self.context.ancestors_exclusive(&class).next() {
+                let base = match self.context.get_superclass(&class) {
                     // 8-byte offset for virtual table pointer
                     None => hir!((CONST abi::WORD)),
                     Some(superclass) => {

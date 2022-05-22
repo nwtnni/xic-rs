@@ -208,6 +208,12 @@ impl Context {
         })
     }
 
+    pub fn get_superclass(&self, class: &Symbol) -> Option<Symbol> {
+        self.hierarchy
+            .get(class)
+            .map(|identifier| identifier.symbol)
+    }
+
     pub fn get_scoped_class(&self) -> Option<Symbol> {
         match self.locals.first()? {
             (LocalScope::Method { class, returns: _ }, _) => Some(*class),
