@@ -42,14 +42,26 @@ pub fn emit_unit(
     }
 
     for item in &ast.items {
-        let function = match item {
+        match item {
             ast::Item::Global(_) => todo!(),
-            ast::Item::Class(_) => todo!(),
-            ast::Item::Function(function) => function,
-        };
+            ast::Item::Class(class) => {
+                for item in &class.items {
+                    let method = match item {
+                        ast::ClassItem::Field(_) => continue,
+                        ast::ClassItem::Method(method) => method,
+                    };
 
-        let (name, function) = emitter.emit_function(function);
-        functions.insert(name, function);
+                    let (name, function) =
+                        emitter.emit_function(GlobalScope::Class(class.name.symbol), method);
+
+                    functions.insert(name, function);
+                }
+            }
+            ast::Item::Function(function) => {
+                let (name, function) = emitter.emit_function(GlobalScope::Global, function);
+                functions.insert(name, function);
+            }
+        }
     }
 
     ir::Unit {
@@ -142,27 +154,46 @@ impl<'env> Emitter<'env> {
         )
     }
 
-    fn emit_function(&mut self, function: &ast::Function) -> (Symbol, hir::Function) {
+    fn emit_function(
+        &mut self,
+        scope: GlobalScope,
+        function: &ast::Function,
+    ) -> (Symbol, hir::Function) {
         let mut variables = Map::default();
         let mut statements = Vec::new();
 
-        let (parameters, returns) = self
-            .get_signature(GlobalScope::Global, &function.name)
-            .unwrap();
+        let (parameters, returns) = self.get_signature(scope, &function.name).unwrap();
 
-        let name = abi::mangle::function(&function.name.symbol, parameters, returns);
+        let name = match scope {
+            GlobalScope::Global => {
+                abi::mangle::function(&function.name.symbol, parameters, returns)
+            }
+            GlobalScope::Class(class) => {
+                abi::mangle::method(&class, &function.name.symbol, parameters, returns)
+            }
+        };
+
         let returns = returns.to_vec();
+        let offset = match scope {
+            GlobalScope::Global => 0,
+            GlobalScope::Class(_) => 1,
+        };
 
         for (index, parameter) in function.parameters.iter().enumerate() {
             #[rustfmt::skip]
             statements.push(hir!(
                 (MOVE
                     (self.emit_declaration(parameter, &mut variables))
-                    (TEMP (Temporary::Argument(index))))
+                    (TEMP (Temporary::Argument(index + offset))))
             ));
         }
 
-        self.context.push(LocalScope::Function { returns });
+        let scope = match scope {
+            GlobalScope::Global => LocalScope::Function { returns },
+            GlobalScope::Class(class) => LocalScope::Method { class, returns },
+        };
+
+        self.context.push(scope);
         statements.push(self.emit_statement(&function.statements, &mut variables));
         self.context.pop();
 
