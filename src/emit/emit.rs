@@ -463,7 +463,7 @@ impl<'env> Emitter<'env> {
                     return hir!((MEM (NAME address))).into();
                 }
 
-                self.emit_field_access(
+                self.emit_class_field(
                     &self.context.get_scoped_class().unwrap(),
                     &ast::Expression::This(Span::default()),
                     &variable.symbol,
@@ -661,7 +661,7 @@ impl<'env> Emitter<'env> {
                 hir!((MEM (SUB address (CONST abi::WORD)))).into()
             }
             Dot(class, receiver, field, _) => self
-                .emit_field_access(&class.get().unwrap(), receiver, &field.symbol, variables)
+                .emit_class_field(&class.get().unwrap(), receiver, &field.symbol, variables)
                 .into(),
             New(class, _) => {
                 let xi_alloc = Label::Fixed(symbol::intern_static(abi::XI_ALLOC));
@@ -689,43 +689,68 @@ impl<'env> Emitter<'env> {
         call: &ast::Call,
         variables: &Map<Symbol, Temporary>,
     ) -> hir::Expression {
-        let mut arguments = call
-            .arguments
+        match &*call.function {
+            ast::Expression::Variable(variable) => self
+                .emit_function_call(variable, &call.arguments, variables)
+                .unwrap_or_else(|| {
+                    self.emit_class_method_call(
+                        &self.context.get_scoped_class().unwrap(),
+                        &ast::Expression::This(Span::default()),
+                        variable,
+                        &call.arguments,
+                        variables,
+                    )
+                }),
+            ast::Expression::Dot(class, receiver, method, _) => self.emit_class_method_call(
+                &class.get().unwrap(),
+                receiver,
+                method,
+                &call.arguments,
+                variables,
+            ),
+            _ => unreachable!(),
+        }
+    }
+
+    fn emit_function_call(
+        &mut self,
+        function: &ast::Identifier,
+        arguments: &[ast::Expression],
+        variables: &Map<Symbol, Temporary>,
+    ) -> Option<hir::Expression> {
+        let (parameters, returns) = self.get_signature(GlobalScope::Global, function)?;
+
+        let function = abi::mangle::function(&function.symbol, parameters, returns);
+        let returns = returns.len();
+        let arguments = arguments
             .iter()
             .map(|argument| self.emit_expression(argument, variables).into())
             .collect::<Vec<_>>();
 
-        let (class, receiver, method) = match &*call.function {
-            ast::Expression::Variable(variable) => {
-                if let Some((parameters, returns)) =
-                    self.get_signature(GlobalScope::Global, variable)
-                {
-                    let function = abi::mangle::function(&variable.symbol, parameters, returns);
-                    let returns = returns.len();
-                    return hir::Expression::Call(
-                        Box::new(hir::Expression::from(Label::Fixed(function))),
-                        arguments,
-                        returns,
-                    );
-                }
+        Some(hir::Expression::Call(
+            Box::new(hir::Expression::from(Label::Fixed(function))),
+            arguments,
+            returns,
+        ))
+    }
 
-                let class = self.context.get_scoped_class().unwrap();
-                let receiver = self
-                    .emit_expression(&ast::Expression::This(Span::default()), variables)
-                    .into();
-                (class, receiver, variable)
-            }
-            ast::Expression::Dot(class, receiver, method, _) => {
-                let class = class.get().unwrap();
-                let receiver = self.emit_expression(receiver, variables).into();
-                (class, receiver, method)
-            }
-            _ => unreachable!(),
-        };
-
+    fn emit_class_method_call(
+        &mut self,
+        class: &Symbol,
+        receiver: &ast::Expression,
+        method: &ast::Identifier,
+        arguments: &[ast::Expression],
+        variables: &Map<Symbol, Temporary>,
+    ) -> hir::Expression {
         let instance = Temporary::fresh("instance");
+        let receiver = self.emit_expression(receiver, variables).into();
+
+        let mut arguments = arguments
+            .iter()
+            .map(|argument| self.emit_expression(argument, variables).into())
+            .collect::<Vec<_>>();
         let returns = self
-            .get_signature(GlobalScope::Class(class), method)
+            .get_signature(GlobalScope::Class(*class), method)
             .map(|(_, returns)| returns.len())
             .unwrap();
 
@@ -734,7 +759,7 @@ impl<'env> Emitter<'env> {
         let method = hir!(
             (MEM (ADD
                 (MEM (TEMP instance))
-                (CONST self.classes[&class].method(&method.symbol).unwrap() as i64 * abi::WORD)))
+                (CONST self.classes[class].method(&method.symbol).unwrap() as i64 * abi::WORD)))
         );
 
         let call = hir::Expression::Call(Box::new(method), arguments, returns);
@@ -742,7 +767,7 @@ impl<'env> Emitter<'env> {
         hir!((ESEQ (MOVE (TEMP instance) receiver) call))
     }
 
-    fn emit_field_access(
+    fn emit_class_field(
         &mut self,
         class: &Symbol,
         receiver: &ast::Expression,
