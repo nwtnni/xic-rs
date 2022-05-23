@@ -20,9 +20,20 @@ pub fn class_initialization(class: &Symbol) -> Symbol {
     symbol::intern(&format!("_I_init_{}", escape(class)))
 }
 
+pub fn global_initialization<'a, 'b, I>(initialization: I) -> Symbol
+where
+    I: IntoIterator<Item = (&'a Symbol, &'b r#type::Expression)>,
+{
+    let mut mangled = String::from("_I_init_global");
+    for (name, r#type) in initialization {
+        write!(&mut mangled, "_{}", escape(name)).unwrap();
+        mangle_type(r#type, &mut mangled);
+    }
+    symbol::intern(mangled)
+}
+
 pub fn global(name: &Symbol, r#type: &r#type::Expression) -> Symbol {
-    let mut mangled = format!("_I_g_{}_", escape(name));
-    mangled.push('_');
+    let mut mangled = format!("_I_global_{}_", escape(name));
     mangle_type(r#type, &mut mangled);
     symbol::intern(mangled)
 }
@@ -33,7 +44,7 @@ pub fn method(
     parameters: &[r#type::Expression],
     returns: &[r#type::Expression],
 ) -> Symbol {
-    let mut mangled = format!("_M_{}_", escape(class));
+    let mut mangled = format!("_I_{}_", escape(class));
     mangle_function(name, parameters, returns, &mut mangled);
     symbol::intern(mangled)
 }
@@ -43,7 +54,7 @@ pub fn function(
     parameters: &[r#type::Expression],
     returns: &[r#type::Expression],
 ) -> Symbol {
-    let mut mangled = String::new();
+    let mut mangled = String::from("_I");
     mangle_function(name, parameters, returns, &mut mangled);
     symbol::intern(mangled)
 }
@@ -54,7 +65,7 @@ fn mangle_function(
     returns: &[r#type::Expression],
     mangled: &mut String,
 ) {
-    write!(mangled, "_I{}_", escape(name)).unwrap();
+    write!(mangled, "{}_", escape(name)).unwrap();
 
     match returns {
         [] => mangled.push('p'),

@@ -49,6 +49,7 @@ pub fn emit_unit(
         match item {
             ast::Item::Global(global) => {
                 if let Some((name, function)) = emitter.emit_global(global) {
+                    initialize.push(hir!((EXP (CALL (NAME (Label::Fixed(name))) 0))));
                     functions.insert(name, function);
                 }
             }
@@ -126,7 +127,35 @@ impl<'env> Emitter<'env> {
                 }
                 None
             }
-            ast::Global::Initialization(_) => todo!(),
+            ast::Global::Initialization(initialization) => {
+                let name = abi::mangle::global_initialization(
+                    initialization
+                        .declarations
+                        .iter()
+                        .flatten()
+                        .map(|declaration| {
+                            (
+                                &declaration.name.symbol,
+                                self.get_variable(GlobalScope::Global, &declaration.name)
+                                    .unwrap(),
+                            )
+                        }),
+                );
+
+                let statement =
+                    self.emit_initialization(Scope::Global(GlobalScope::Global), initialization);
+
+                Some((
+                    name,
+                    hir::Function {
+                        name,
+                        statement,
+                        arguments: 0,
+                        returns: 0,
+                        global: false,
+                    },
+                ))
+            }
         }
     }
 
@@ -255,7 +284,7 @@ impl<'env> Emitter<'env> {
             #[rustfmt::skip]
             statements.push(hir!(
                 (MOVE
-                    (self.emit_declaration(parameter))
+                    (self.emit_declaration(Scope::Local, parameter))
                     (TEMP (Temporary::Argument(index + offset))))
             ));
         }
@@ -293,14 +322,16 @@ impl<'env> Emitter<'env> {
                 )
             }
             Call(call) => hir::Statement::Expression(self.emit_call(call)),
-            Initialization(initialization) => self.emit_initialization(initialization),
+            Initialization(initialization) => {
+                self.emit_initialization(Scope::Local, initialization)
+            }
             Declaration(declaration, _) => {
                 let declaration = match &**declaration {
                     ast::Declaration::Multiple(_) => todo!(),
                     ast::Declaration::Single(declaration) => declaration,
                 };
 
-                hir::Statement::Expression(self.emit_declaration(declaration))
+                hir::Statement::Expression(self.emit_declaration(Scope::Local, declaration))
             }
             Return(expressions, _) => hir::Statement::Return(
                 expressions
@@ -743,6 +774,7 @@ impl<'env> Emitter<'env> {
 
     fn emit_initialization(
         &mut self,
+        scope: Scope,
         ast::Initialization {
             declarations,
             expression,
@@ -753,7 +785,7 @@ impl<'env> Emitter<'env> {
         if let [Some(declaration)] = declarations.as_slice() {
             return hir!(
                 (MOVE
-                    (self.emit_declaration(declaration))
+                    (self.emit_declaration(scope, declaration))
                     (self.emit_expression(expression).into()))
             );
         };
@@ -768,7 +800,7 @@ impl<'env> Emitter<'env> {
                 #[rustfmt::skip]
                 statements.push(hir!(
                     (MOVE
-                        (self.emit_declaration(declaration))
+                        (self.emit_declaration(scope, declaration))
                         (TEMP (Temporary::Return(index))))
                 ));
             }
@@ -777,24 +809,46 @@ impl<'env> Emitter<'env> {
         hir::Statement::Sequence(statements)
     }
 
-    fn emit_declaration(&mut self, declaration: &ast::SingleDeclaration) -> hir::Expression {
-        let fresh = Temporary::fresh(symbol::resolve(declaration.name.symbol));
-        self.locals.insert(declaration.name.symbol, fresh);
+    fn emit_declaration(
+        &mut self,
+        scope: Scope,
+        declaration: &ast::SingleDeclaration,
+    ) -> hir::Expression {
+        let fresh = match scope {
+            Scope::Global(GlobalScope::Class(_)) => unreachable!(),
+            Scope::Global(GlobalScope::Global) => {
+                let r#type = self
+                    .get_variable(GlobalScope::Global, &declaration.name)
+                    .unwrap();
+
+                let name = abi::mangle::global(&declaration.name.symbol, r#type);
+
+                self.bss.insert(name, 1);
+
+                hir!((MEM (NAME Label::Fixed(name))))
+            }
+            Scope::Local => {
+                let fresh = Temporary::fresh(symbol::resolve(declaration.name.symbol));
+                self.locals.insert(declaration.name.symbol, fresh);
+                hir!((TEMP fresh))
+            }
+        };
+
         match &*declaration.r#type {
             ast::Type::Bool(_)
             | ast::Type::Int(_)
             | ast::Type::Class(_)
-            | ast::Type::Array(_, None, _) => {
-                hir!((TEMP fresh))
-            }
+            | ast::Type::Array(_, None, _) => fresh,
             ast::Type::Array(r#type, Some(length), _) => {
                 let mut lengths = Vec::new();
                 let declaration = self.emit_array_declaration(r#type, length, &mut lengths);
-                lengths.push(hir!((MOVE (TEMP fresh) (declaration))));
+
+                #[rustfmt::skip]
+                lengths.push(hir!((MOVE (fresh.clone()) (declaration))));
 
                 hir::Expression::Sequence(
                     Box::new(hir::Statement::Sequence(lengths)),
-                    Box::new(hir!((TEMP fresh))),
+                    Box::new(fresh),
                 )
             }
         }
