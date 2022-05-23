@@ -14,6 +14,7 @@ macro_rules! lir_function {
                 statements,
                 arguments: $arguments,
                 returns: $returns,
+                global: true,
                 enter,
                 exit,
             }
@@ -65,6 +66,7 @@ macro_rules! asm_function {
                 statements,
                 arguments: $arguments,
                 returns: $returns,
+                global: true,
                 enter,
                 exit,
             }

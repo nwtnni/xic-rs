@@ -26,6 +26,7 @@ pub struct Function<T> {
     pub statements: Vec<Statement<T>>,
     pub arguments: usize,
     pub returns: usize,
+    pub global: bool,
     pub enter: Label,
     pub exit: Label,
 }

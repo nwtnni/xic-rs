@@ -74,6 +74,7 @@ pub fn emit_unit(
             statement: hir::Statement::Sequence(initialize),
             arguments: 0,
             returns: 0,
+            global: false,
         },
     );
 
@@ -163,6 +164,7 @@ impl<'env> Emitter<'env> {
                 statement: hir::Statement::Sequence(statements),
                 arguments: 0,
                 returns: 0,
+                global: false,
             },
         )
     }
@@ -217,6 +219,7 @@ impl<'env> Emitter<'env> {
                 statement: hir::Statement::Sequence(statements),
                 arguments: function.parameters.len(),
                 returns: function.returns.len(),
+                global: true,
             },
         )
     }

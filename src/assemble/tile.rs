@@ -72,6 +72,7 @@ pub fn tile(function: &lir::Function<lir::Fallthrough>) -> asm::Function<Tempora
         statements: tiler.statements,
         arguments: function.arguments,
         returns: function.returns,
+        global: function.global,
         enter: function.enter,
         exit: function.exit,
     }

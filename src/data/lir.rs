@@ -28,6 +28,7 @@ pub struct Function<T: Target> {
     pub statements: Vec<Statement<T>>,
     pub arguments: usize,
     pub returns: usize,
+    pub global: bool,
     pub enter: T::Access,
     pub exit: T::Access,
 }

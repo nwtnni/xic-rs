@@ -30,6 +30,7 @@ pub fn canonize_function(function: &hir::Function) -> lir::Function<Label> {
         statements: canonized,
         arguments: function.arguments,
         returns: function.returns,
+        global: function.global,
         enter: (),
         exit: (),
     }

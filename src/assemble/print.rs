@@ -50,7 +50,12 @@ impl<T: fmt::Display> fmt::Display for Intel<&asm::Unit<T>> {
         writeln!(fmt, "{}\n", asm::Directive::Text)?;
 
         for (name, function) in &self.0.functions {
-            writeln!(fmt, "{}", asm::Directive::Global(Label::Fixed(*name)))?;
+            let visibility = match function.global {
+                true => asm::Directive::Global(Label::Fixed(*name)),
+                false => asm::Directive::Local(Label::Fixed(*name)),
+            };
+
+            writeln!(fmt, "{}", visibility)?;
             writeln!(fmt, "{}", Intel(function))?;
         }
 

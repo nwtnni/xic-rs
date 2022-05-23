@@ -24,6 +24,7 @@ pub struct Function {
     pub statement: Statement,
     pub arguments: usize,
     pub returns: usize,
+    pub global: bool,
 }
 
 impl fmt::Display for Function {
