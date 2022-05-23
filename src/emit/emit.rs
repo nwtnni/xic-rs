@@ -277,6 +277,160 @@ impl<'env> Emitter<'env> {
         )
     }
 
+    fn emit_statement(
+        &mut self,
+        statement: &ast::Statement,
+        variables: &mut Map<Symbol, Temporary>,
+    ) -> hir::Statement {
+        use ast::Statement::*;
+        match statement {
+            #[rustfmt::skip]
+            Assignment(left, right, _) => {
+                hir!(
+                    (MOVE
+                        (self.emit_expression(left, variables).into())
+                        (self.emit_expression(right, variables).into()))
+                )
+            }
+            Call(call) => hir::Statement::Expression(self.emit_call(call, variables)),
+            #[rustfmt::skip]
+            Initialization(ast::Initialization { declarations, expression, span: _ }) if declarations.len() == 1 => {
+                let declaration = declarations[0].as_ref().unwrap();
+                hir!(
+                    (MOVE
+                        (self.emit_declaration(declaration, variables))
+                        (self.emit_expression(expression, variables).into()))
+                )
+            }
+            Initialization(ast::Initialization {
+                declarations,
+                expression,
+                span: _,
+            }) => {
+                let call = match &**expression {
+                    ast::Expression::Call(call) => call,
+                    _ => unreachable!("[TYPE ERROR]: multiple non-function initialization"),
+                };
+
+                let mut statements =
+                    vec![hir::Statement::Expression(self.emit_call(call, variables))];
+
+                for (index, declaration) in declarations.iter().enumerate() {
+                    if let Some(declaration) = declaration {
+                        #[rustfmt::skip]
+                        statements.push(hir!(
+                            (MOVE
+                                (self.emit_declaration(declaration, variables))
+                                (TEMP (Temporary::Return(index))))
+                        ));
+                    }
+                }
+
+                hir::Statement::Sequence(statements)
+            }
+
+            Declaration(declaration, _) => {
+                let declaration = match &**declaration {
+                    ast::Declaration::Multiple(_) => todo!(),
+                    ast::Declaration::Single(declaration) => declaration,
+                };
+
+                hir::Statement::Expression(self.emit_declaration(declaration, variables))
+            }
+            Return(expressions, _) => hir::Statement::Return(
+                expressions
+                    .iter()
+                    .map(|expression| self.emit_expression(expression, variables).into())
+                    .collect(),
+            ),
+            Sequence(statements, _) => hir::Statement::Sequence(
+                statements
+                    .iter()
+                    .map(|statement| self.emit_statement(statement, variables))
+                    .collect(),
+            ),
+            If(condition, r#if, None, _) => {
+                let r#true = Label::fresh("true");
+                let r#false = Label::fresh("false");
+
+                hir!(
+                    (SEQ
+                        (hir::Condition::from(self.emit_expression(condition, variables))(r#true, r#false))
+                        (LABEL r#true)
+                        (self.emit_statement(r#if, variables))
+                        (LABEL r#false))
+                )
+            }
+            If(condition, r#if, Some(r#else), _) => {
+                let r#true = Label::fresh("true");
+                let r#false = Label::fresh("false");
+                let endif = Label::fresh("endif");
+
+                hir!(
+                    (SEQ
+                        (hir::Condition::from(self.emit_expression(condition, variables))(r#true, r#false))
+                        (LABEL r#true)
+                        (self.emit_statement(r#if, variables))
+                        (JUMP endif)
+                        (LABEL r#false)
+                        (self.emit_statement(r#else, variables))
+                        (LABEL endif))
+                )
+            }
+            While(r#do, condition, statements, _) => {
+                let r#while = Label::fresh("while");
+                let r#true = Label::fresh("true");
+                let r#false = Label::fresh("false");
+
+                let condition = match hir::Condition::from(
+                    self.emit_expression(condition, variables),
+                )(r#true, r#false)
+                {
+                    hir::Statement::CJump {
+                        condition,
+                        left,
+                        right,
+                        r#true,
+                        r#false,
+                    } => hir::Statement::CJump {
+                        condition: condition.negate(),
+                        left,
+                        right,
+                        r#true,
+                        r#false,
+                    },
+                    _ => unreachable!(),
+                };
+
+                match r#do {
+                    ast::Do::Yes => {
+                        hir!(
+                            (SEQ
+                                (LABEL r#while)
+                                (self.emit_statement(statements, variables))
+                                (condition)
+                                (LABEL r#false)
+                                (JUMP r#while)
+                                (LABEL r#true))
+                        )
+                    }
+                    ast::Do::No => {
+                        hir!(
+                            (SEQ
+                                (LABEL r#while)
+                                (condition)
+                                (LABEL r#false)
+                                (self.emit_statement(statements, variables))
+                                (JUMP r#while)
+                                (LABEL r#true))
+                        )
+                    }
+                }
+            }
+            Break(_) => todo!(),
+        }
+    }
+
     fn emit_expression(
         &mut self,
         expression: &ast::Expression,
@@ -694,160 +848,6 @@ impl<'env> Emitter<'env> {
                 (hir::Statement::Sequence(statements))
                 (ADD (TEMP array) (CONST abi::WORD)))
         )
-    }
-
-    fn emit_statement(
-        &mut self,
-        statement: &ast::Statement,
-        variables: &mut Map<Symbol, Temporary>,
-    ) -> hir::Statement {
-        use ast::Statement::*;
-        match statement {
-            #[rustfmt::skip]
-            Assignment(left, right, _) => {
-                hir!(
-                    (MOVE
-                        (self.emit_expression(left, variables).into())
-                        (self.emit_expression(right, variables).into()))
-                )
-            }
-            Call(call) => hir::Statement::Expression(self.emit_call(call, variables)),
-            #[rustfmt::skip]
-            Initialization(ast::Initialization { declarations, expression, span: _ }) if declarations.len() == 1 => {
-                let declaration = declarations[0].as_ref().unwrap();
-                hir!(
-                    (MOVE
-                        (self.emit_declaration(declaration, variables))
-                        (self.emit_expression(expression, variables).into()))
-                )
-            }
-            Initialization(ast::Initialization {
-                declarations,
-                expression,
-                span: _,
-            }) => {
-                let call = match &**expression {
-                    ast::Expression::Call(call) => call,
-                    _ => unreachable!("[TYPE ERROR]: multiple non-function initialization"),
-                };
-
-                let mut statements =
-                    vec![hir::Statement::Expression(self.emit_call(call, variables))];
-
-                for (index, declaration) in declarations.iter().enumerate() {
-                    if let Some(declaration) = declaration {
-                        #[rustfmt::skip]
-                        statements.push(hir!(
-                            (MOVE
-                                (self.emit_declaration(declaration, variables))
-                                (TEMP (Temporary::Return(index))))
-                        ));
-                    }
-                }
-
-                hir::Statement::Sequence(statements)
-            }
-
-            Declaration(declaration, _) => {
-                let declaration = match &**declaration {
-                    ast::Declaration::Multiple(_) => todo!(),
-                    ast::Declaration::Single(declaration) => declaration,
-                };
-
-                hir::Statement::Expression(self.emit_declaration(declaration, variables))
-            }
-            Return(expressions, _) => hir::Statement::Return(
-                expressions
-                    .iter()
-                    .map(|expression| self.emit_expression(expression, variables).into())
-                    .collect(),
-            ),
-            Sequence(statements, _) => hir::Statement::Sequence(
-                statements
-                    .iter()
-                    .map(|statement| self.emit_statement(statement, variables))
-                    .collect(),
-            ),
-            If(condition, r#if, None, _) => {
-                let r#true = Label::fresh("true");
-                let r#false = Label::fresh("false");
-
-                hir!(
-                    (SEQ
-                        (hir::Condition::from(self.emit_expression(condition, variables))(r#true, r#false))
-                        (LABEL r#true)
-                        (self.emit_statement(r#if, variables))
-                        (LABEL r#false))
-                )
-            }
-            If(condition, r#if, Some(r#else), _) => {
-                let r#true = Label::fresh("true");
-                let r#false = Label::fresh("false");
-                let endif = Label::fresh("endif");
-
-                hir!(
-                    (SEQ
-                        (hir::Condition::from(self.emit_expression(condition, variables))(r#true, r#false))
-                        (LABEL r#true)
-                        (self.emit_statement(r#if, variables))
-                        (JUMP endif)
-                        (LABEL r#false)
-                        (self.emit_statement(r#else, variables))
-                        (LABEL endif))
-                )
-            }
-            While(r#do, condition, statements, _) => {
-                let r#while = Label::fresh("while");
-                let r#true = Label::fresh("true");
-                let r#false = Label::fresh("false");
-
-                let condition = match hir::Condition::from(
-                    self.emit_expression(condition, variables),
-                )(r#true, r#false)
-                {
-                    hir::Statement::CJump {
-                        condition,
-                        left,
-                        right,
-                        r#true,
-                        r#false,
-                    } => hir::Statement::CJump {
-                        condition: condition.negate(),
-                        left,
-                        right,
-                        r#true,
-                        r#false,
-                    },
-                    _ => unreachable!(),
-                };
-
-                match r#do {
-                    ast::Do::Yes => {
-                        hir!(
-                            (SEQ
-                                (LABEL r#while)
-                                (self.emit_statement(statements, variables))
-                                (condition)
-                                (LABEL r#false)
-                                (JUMP r#while)
-                                (LABEL r#true))
-                        )
-                    }
-                    ast::Do::No => {
-                        hir!(
-                            (SEQ
-                                (LABEL r#while)
-                                (condition)
-                                (LABEL r#false)
-                                (self.emit_statement(statements, variables))
-                                (JUMP r#while)
-                                (LABEL r#true))
-                        )
-                    }
-                }
-            }
-            Break(_) => todo!(),
-        }
     }
 
     fn get_signature(
