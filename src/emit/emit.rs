@@ -44,7 +44,11 @@ pub fn emit_unit(
 
     for item in &ast.items {
         match item {
-            ast::Item::Global(_) => todo!(),
+            ast::Item::Global(global) => {
+                if let Some((name, function)) = emitter.emit_global(global) {
+                    functions.insert(name, function);
+                }
+            }
             ast::Item::Class(class) => {
                 for item in &class.items {
                     let method = match item {
@@ -97,6 +101,32 @@ pub fn emit_unit(
 }
 
 impl<'env> Emitter<'env> {
+    fn emit_global(&mut self, global: &ast::Global) -> Option<(Symbol, hir::Function)> {
+        match global {
+            ast::Global::Declaration(ast::Declaration::Single(ast::SingleDeclaration {
+                name,
+                ..
+            })) => {
+                let r#type = self.get_variable(GlobalScope::Global, name).unwrap();
+                let name = abi::mangle::global(&name.symbol, r#type);
+                self.bss.insert(name, 1);
+                None
+            }
+            ast::Global::Declaration(ast::Declaration::Multiple(ast::MultipleDeclaration {
+                names,
+                ..
+            })) => {
+                for name in names {
+                    let r#type = self.get_variable(GlobalScope::Global, name).unwrap();
+                    let name = abi::mangle::global(&name.symbol, r#type);
+                    self.bss.insert(name, 1);
+                }
+                None
+            }
+            ast::Global::Initialization(_) => todo!(),
+        }
+    }
+
     fn emit_class_initialization(&mut self, class: &Symbol) -> (Symbol, hir::Function) {
         let size = abi::mangle::class_size(class);
 
