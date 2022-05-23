@@ -466,7 +466,7 @@ impl<'env> Emitter<'env> {
         call: &ast::Call,
         variables: &Map<Symbol, Temporary>,
     ) -> hir::Expression {
-        let arguments = call
+        let mut arguments = call
             .arguments
             .iter()
             .map(|argument| self.emit_expression(argument, variables).into())
@@ -500,17 +500,23 @@ impl<'env> Emitter<'env> {
             _ => unreachable!(),
         };
 
-        let function = hir!(
+        let instance = Temporary::fresh("instance");
+        let returns = self
+            .get_signature(GlobalScope::Class(class), method)
+            .map(|(_, returns)| returns.len())
+            .unwrap();
+
+        arguments.insert(0, hir!((TEMP instance)));
+
+        let method = hir!(
             (ADD
-                (MEM receiver)
+                (MEM (TEMP instance))
                 (CONST self.r#virtual.method(&class, &method.symbol).unwrap() as i64 * abi::WORD))
         );
 
-        let (_, returns) = self
-            .get_signature(GlobalScope::Class(class), method)
-            .unwrap();
+        let call = hir::Expression::Call(Box::new(method), arguments, returns);
 
-        hir::Expression::Call(Box::new(function), arguments, returns.len())
+        hir!((ESEQ (MOVE (TEMP instance) receiver) call))
     }
 
     fn emit_field_access(
