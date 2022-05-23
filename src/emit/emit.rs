@@ -19,7 +19,7 @@ use crate::Map;
 
 struct Emitter<'env> {
     context: &'env mut check::Context,
-    r#virtual: abi::r#virtual::Table,
+    classes: Map<Symbol, abi::class::Layout>,
     data: Map<Symbol, Label>,
     bss: Map<Symbol, usize>,
 }
@@ -30,7 +30,10 @@ pub fn emit_unit(
     ast: &ast::Program,
 ) -> ir::Unit<hir::Function> {
     let mut emitter = Emitter {
-        r#virtual: abi::r#virtual::Table::new(context),
+        classes: context
+            .class_implementations()
+            .map(|class| (*class, abi::class::Layout::new(context, class)))
+            .collect(),
         context,
         data: Map::default(),
         bss: Map::default(),
@@ -117,7 +120,7 @@ impl<'env> Emitter<'env> {
         }
 
         // Initialize class size
-        let size_class = self.r#virtual.field_len(class).unwrap() as i64 * abi::WORD;
+        let size_class = self.classes[class].field_len() as i64 * abi::WORD;
         let size_superclass = superclass
             .map(|superclass| hir!((MEM (NAME Label::Fixed(abi::mangle::class_size(&superclass))))))
             .unwrap_or_else(|| hir!((CONST abi::WORD)));
@@ -130,14 +133,12 @@ impl<'env> Emitter<'env> {
         let virtual_table_class = abi::mangle::class_virtual_table(class);
 
         // Reserve n words in BSS section for class virtual table
-        self.bss.insert(
-            virtual_table_class,
-            self.r#virtual.method_len(class).unwrap(),
-        );
+        self.bss
+            .insert(virtual_table_class, self.classes[class].size());
 
         // Copy superclass virtual table
         if let Some(superclass) = superclass {
-            let length = self.r#virtual.method_len(&superclass).unwrap();
+            let size_superclass = self.classes[&superclass].size();
             let virtual_table_superclass =
                 Label::Fixed(abi::mangle::class_virtual_table(&superclass));
 
@@ -152,7 +153,7 @@ impl<'env> Emitter<'env> {
                     (MEM (ADD (NAME Label::Fixed(virtual_table_class)) (TEMP offset)))
                     (MEM (ADD (NAME virtual_table_superclass) (TEMP offset))))),
                 hir!((MOVE (TEMP offset) (ADD (TEMP offset) (CONST abi::WORD)))),
-                hir!((CJUMP (LT (TEMP offset) (CONST length as i64 * abi::WORD)) r#while r#done)),
+                hir!((CJUMP (LT (TEMP offset) (CONST size_superclass as i64 * abi::WORD)) r#while r#done)),
                 hir!((LABEL r#done)),
             ]);
         }
@@ -164,7 +165,7 @@ impl<'env> Emitter<'env> {
                 Entry::Function(parameters, returns) => (parameters, returns),
             };
 
-            let offset = self.r#virtual.method(class, symbol).unwrap();
+            let offset = self.classes[class].method(symbol).unwrap();
             let method = Label::Fixed(abi::mangle::method(class, symbol, parameters, returns));
 
             statements.push(hir!(
@@ -549,7 +550,7 @@ impl<'env> Emitter<'env> {
         let method = hir!(
             (MEM (ADD
                 (MEM (TEMP instance))
-                (CONST self.r#virtual.method(&class, &method.symbol).unwrap() as i64 * abi::WORD)))
+                (CONST self.classes[&class].method(&method.symbol).unwrap() as i64 * abi::WORD)))
         );
 
         let call = hir::Expression::Call(Box::new(method), arguments, returns);
@@ -573,9 +574,8 @@ impl<'env> Emitter<'env> {
             }
         };
 
-        let offset = self
-            .r#virtual
-            .field(class, field)
+        let offset = self.classes[class]
+            .field(field)
             .map(|index| hir!((CONST index as i64 * abi::WORD)))
             .expect("[TYPE ERROR]: unbound field in class");
 

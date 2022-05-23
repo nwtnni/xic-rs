@@ -31,7 +31,7 @@
 //! ```
 
 pub mod mangle;
-pub mod r#virtual;
+pub mod class;
 
 use crate::data::operand::Immediate;
 use crate::data::operand::Memory;
