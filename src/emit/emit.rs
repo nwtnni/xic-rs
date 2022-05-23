@@ -567,10 +567,12 @@ impl<'env> Emitter<'env> {
         let fresh = Temporary::fresh("t");
         variables.insert(declaration.name.symbol, fresh);
         match &*declaration.r#type {
-            ast::Type::Bool(_) | ast::Type::Int(_) | ast::Type::Array(_, None, _) => {
+            ast::Type::Bool(_)
+            | ast::Type::Int(_)
+            | ast::Type::Class(_)
+            | ast::Type::Array(_, None, _) => {
                 hir!((TEMP fresh))
             }
-            ast::Type::Class(_) => todo!(),
             ast::Type::Array(r#type, Some(length), _) => {
                 let mut lengths = Vec::new();
                 let declaration =
