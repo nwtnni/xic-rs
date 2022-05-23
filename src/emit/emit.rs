@@ -20,6 +20,7 @@ use crate::Map;
 struct Emitter<'env> {
     context: &'env mut check::Context,
     classes: Map<Symbol, abi::class::Layout>,
+    locals: Map<Symbol, Temporary>,
     data: Map<Symbol, Label>,
     bss: Map<Symbol, usize>,
 }
@@ -35,6 +36,7 @@ pub fn emit_unit(
             .map(|class| (*class, abi::class::Layout::new(context, class)))
             .collect(),
         context,
+        locals: Map::default(),
         data: Map::default(),
         bss: Map::default(),
     };
@@ -227,7 +229,8 @@ impl<'env> Emitter<'env> {
         scope: GlobalScope,
         function: &ast::Function,
     ) -> (Symbol, hir::Function) {
-        let mut variables = Map::default();
+        self.locals.clear();
+
         let mut statements = Vec::new();
 
         let (parameters, returns) = self.get_signature(scope, &function.name).unwrap();
@@ -251,7 +254,7 @@ impl<'env> Emitter<'env> {
             #[rustfmt::skip]
             statements.push(hir!(
                 (MOVE
-                    (self.emit_declaration(parameter, &mut variables))
+                    (self.emit_declaration(parameter))
                     (TEMP (Temporary::Argument(index + offset))))
             ));
         }
@@ -262,7 +265,7 @@ impl<'env> Emitter<'env> {
         };
 
         self.context.push(scope);
-        statements.push(self.emit_statement(&function.statements, &mut variables));
+        statements.push(self.emit_statement(&function.statements));
         self.context.pop();
 
         (
@@ -277,41 +280,37 @@ impl<'env> Emitter<'env> {
         )
     }
 
-    fn emit_statement(
-        &mut self,
-        statement: &ast::Statement,
-        variables: &mut Map<Symbol, Temporary>,
-    ) -> hir::Statement {
+    fn emit_statement(&mut self, statement: &ast::Statement) -> hir::Statement {
         use ast::Statement::*;
         match statement {
             #[rustfmt::skip]
             Assignment(left, right, _) => {
                 hir!(
                     (MOVE
-                        (self.emit_expression(left, variables).into())
-                        (self.emit_expression(right, variables).into()))
+                        (self.emit_expression(left).into())
+                        (self.emit_expression(right).into()))
                 )
             }
-            Call(call) => hir::Statement::Expression(self.emit_call(call, variables)),
-            Initialization(initialization) => self.emit_initialization(initialization, variables),
+            Call(call) => hir::Statement::Expression(self.emit_call(call)),
+            Initialization(initialization) => self.emit_initialization(initialization),
             Declaration(declaration, _) => {
                 let declaration = match &**declaration {
                     ast::Declaration::Multiple(_) => todo!(),
                     ast::Declaration::Single(declaration) => declaration,
                 };
 
-                hir::Statement::Expression(self.emit_declaration(declaration, variables))
+                hir::Statement::Expression(self.emit_declaration(declaration))
             }
             Return(expressions, _) => hir::Statement::Return(
                 expressions
                     .iter()
-                    .map(|expression| self.emit_expression(expression, variables).into())
+                    .map(|expression| self.emit_expression(expression).into())
                     .collect(),
             ),
             Sequence(statements, _) => hir::Statement::Sequence(
                 statements
                     .iter()
-                    .map(|statement| self.emit_statement(statement, variables))
+                    .map(|statement| self.emit_statement(statement))
                     .collect(),
             ),
             If(condition, r#if, None, _) => {
@@ -320,9 +319,9 @@ impl<'env> Emitter<'env> {
 
                 hir!(
                     (SEQ
-                        (hir::Condition::from(self.emit_expression(condition, variables))(r#true, r#false))
+                        (hir::Condition::from(self.emit_expression(condition))(r#true, r#false))
                         (LABEL r#true)
-                        (self.emit_statement(r#if, variables))
+                        (self.emit_statement(r#if))
                         (LABEL r#false))
                 )
             }
@@ -333,12 +332,12 @@ impl<'env> Emitter<'env> {
 
                 hir!(
                     (SEQ
-                        (hir::Condition::from(self.emit_expression(condition, variables))(r#true, r#false))
+                        (hir::Condition::from(self.emit_expression(condition))(r#true, r#false))
                         (LABEL r#true)
-                        (self.emit_statement(r#if, variables))
+                        (self.emit_statement(r#if))
                         (JUMP endif)
                         (LABEL r#false)
-                        (self.emit_statement(r#else, variables))
+                        (self.emit_statement(r#else))
                         (LABEL endif))
                 )
             }
@@ -347,32 +346,30 @@ impl<'env> Emitter<'env> {
                 let r#true = Label::fresh("true");
                 let r#false = Label::fresh("false");
 
-                let condition = match hir::Condition::from(
-                    self.emit_expression(condition, variables),
-                )(r#true, r#false)
-                {
-                    hir::Statement::CJump {
-                        condition,
-                        left,
-                        right,
-                        r#true,
-                        r#false,
-                    } => hir::Statement::CJump {
-                        condition: condition.negate(),
-                        left,
-                        right,
-                        r#true,
-                        r#false,
-                    },
-                    _ => unreachable!(),
-                };
+                let condition =
+                    match hir::Condition::from(self.emit_expression(condition))(r#true, r#false) {
+                        hir::Statement::CJump {
+                            condition,
+                            left,
+                            right,
+                            r#true,
+                            r#false,
+                        } => hir::Statement::CJump {
+                            condition: condition.negate(),
+                            left,
+                            right,
+                            r#true,
+                            r#false,
+                        },
+                        _ => unreachable!(),
+                    };
 
                 match r#do {
                     ast::Do::Yes => {
                         hir!(
                             (SEQ
                                 (LABEL r#while)
-                                (self.emit_statement(statements, variables))
+                                (self.emit_statement(statements))
                                 (condition)
                                 (LABEL r#false)
                                 (JUMP r#while)
@@ -385,7 +382,7 @@ impl<'env> Emitter<'env> {
                                 (LABEL r#while)
                                 (condition)
                                 (LABEL r#false)
-                                (self.emit_statement(statements, variables))
+                                (self.emit_statement(statements))
                                 (JUMP r#while)
                                 (LABEL r#true))
                         )
@@ -396,30 +393,25 @@ impl<'env> Emitter<'env> {
         }
     }
 
-    fn emit_expression(
-        &mut self,
-        expression: &ast::Expression,
-        variables: &Map<Symbol, Temporary>,
-    ) -> hir::Tree {
+    fn emit_expression(&self, expression: &ast::Expression) -> hir::Tree {
         use ast::Expression::*;
         match expression {
             Boolean(false, _) => hir!((CONST 0)).into(),
             Boolean(true, _) => hir!((CONST 1)).into(),
             &Integer(integer, _) => hir!((CONST integer)).into(),
             &Character(character, _) => hir!((CONST character as i64)).into(),
-            String(string, _) => {
-                let symbol = symbol::intern(string);
-                let label = *self
-                    .data
-                    .entry(symbol)
-                    .or_insert_with(|| Label::fresh("string"));
-
-                hir!((NAME label)).into()
-            }
+            String(string, span) => self.emit_expression(&ast::Expression::Array(
+                string
+                    .bytes()
+                    .map(|byte| byte as i64)
+                    .map(|byte| ast::Expression::Integer(byte, Span::default()))
+                    .collect::<Vec<_>>(),
+                *span,
+            )),
             Null(_) => hir!((MEM (CONST 0))).into(),
             This(_) => hir!((TEMP Temporary::Argument(0))).into(),
             Variable(variable) => {
-                if let Some(temporary) = variables.get(&variable.symbol).copied() {
+                if let Some(temporary) = self.locals.get(&variable.symbol).copied() {
                     return hir!((TEMP temporary)).into();
                 }
 
@@ -432,7 +424,6 @@ impl<'env> Emitter<'env> {
                     &self.context.get_scoped_class().unwrap(),
                     &ast::Expression::This(Span::default()),
                     &variable.symbol,
-                    variables,
                 )
                 .into()
             }
@@ -452,7 +443,7 @@ impl<'env> Emitter<'env> {
                 ];
 
                 for (index, expression) in expressions.iter().enumerate() {
-                    let expression = self.emit_expression(expression, variables).into();
+                    let expression = self.emit_expression(expression).into();
                     statements.push(hir!(
                         (MOVE
                             (MEM (ADD (TEMP array.clone()) (CONST (index + 1) as i64 * abi::WORD)))
@@ -467,8 +458,8 @@ impl<'env> Emitter<'env> {
                 .into()
             }
             Binary(binary, left, right, _) if binary.get() == ast::Binary::Cat => {
-                let left = self.emit_expression(left, variables);
-                let right = self.emit_expression(right, variables);
+                let left = self.emit_expression(left);
+                let right = self.emit_expression(right);
 
                 let array_left = Temporary::fresh("array");
                 let array_right = Temporary::fresh("array");
@@ -533,8 +524,8 @@ impl<'env> Emitter<'env> {
                 .into()
             }
             Binary(binary, left, right, _) => {
-                let left = self.emit_expression(left, variables);
-                let right = self.emit_expression(right, variables);
+                let left = self.emit_expression(left);
+                let right = self.emit_expression(right);
 
                 match binary.get() {
                     ast::Binary::Cat => unreachable!(),
@@ -584,11 +575,11 @@ impl<'env> Emitter<'env> {
             }
 
             Unary(ast::Unary::Neg, expression, _) => {
-                let expression = self.emit_expression(expression, variables).into();
+                let expression = self.emit_expression(expression).into();
                 hir!((SUB (CONST 0) expression)).into()
             }
             Unary(ast::Unary::Not, expression, _) => {
-                let expression = self.emit_expression(expression, variables).into();
+                let expression = self.emit_expression(expression).into();
                 hir!((XOR (CONST 1) expression)).into()
             }
 
@@ -603,8 +594,8 @@ impl<'env> Emitter<'env> {
                 hir!(
                     (ESEQ
                         (SEQ
-                            (MOVE (TEMP base) (self.emit_expression(&*array, variables).into()))
-                            (MOVE (TEMP index) (self.emit_expression(&*array_index, variables).into()))
+                            (MOVE (TEMP base) (self.emit_expression(&*array).into()))
+                            (MOVE (TEMP index) (self.emit_expression(&*array_index).into()))
                             (CJUMP (AE (TEMP index) (MEM (SUB (TEMP base) (CONST abi::WORD)))) out high)
                             (LABEL high)
                             (JUMP r#in)
@@ -622,11 +613,11 @@ impl<'env> Emitter<'env> {
                 ).into()
             }
             Length(array, _) => {
-                let address = self.emit_expression(array, variables).into();
+                let address = self.emit_expression(array).into();
                 hir!((MEM (SUB address (CONST abi::WORD)))).into()
             }
             Dot(class, receiver, field, _) => self
-                .emit_class_field(&class.get().unwrap(), receiver, &field.symbol, variables)
+                .emit_class_field(&class.get().unwrap(), receiver, &field.symbol)
                 .into(),
             New(class, _) => {
                 let xi_alloc = Label::Fixed(symbol::intern_static(abi::XI_ALLOC));
@@ -645,25 +636,20 @@ impl<'env> Emitter<'env> {
                 )
                 .into()
             }
-            Call(call) => self.emit_call(call, variables).into(),
+            Call(call) => self.emit_call(call).into(),
         }
     }
 
-    fn emit_call(
-        &mut self,
-        call: &ast::Call,
-        variables: &Map<Symbol, Temporary>,
-    ) -> hir::Expression {
+    fn emit_call(&self, call: &ast::Call) -> hir::Expression {
         match &*call.function {
             ast::Expression::Variable(variable) => self
-                .emit_function_call(variable, &call.arguments, variables)
+                .emit_function_call(variable, &call.arguments)
                 .unwrap_or_else(|| {
                     self.emit_class_method_call(
                         &self.context.get_scoped_class().unwrap(),
                         &ast::Expression::This(Span::default()),
                         variable,
                         &call.arguments,
-                        variables,
                     )
                 }),
             ast::Expression::Dot(class, receiver, method, _) => self.emit_class_method_call(
@@ -671,17 +657,15 @@ impl<'env> Emitter<'env> {
                 receiver,
                 method,
                 &call.arguments,
-                variables,
             ),
             _ => unreachable!(),
         }
     }
 
     fn emit_function_call(
-        &mut self,
+        &self,
         function: &ast::Identifier,
         arguments: &[ast::Expression],
-        variables: &Map<Symbol, Temporary>,
     ) -> Option<hir::Expression> {
         let (parameters, returns) = self.get_signature(GlobalScope::Global, function)?;
 
@@ -689,7 +673,7 @@ impl<'env> Emitter<'env> {
         let returns = returns.len();
         let arguments = arguments
             .iter()
-            .map(|argument| self.emit_expression(argument, variables).into())
+            .map(|argument| self.emit_expression(argument).into())
             .collect::<Vec<_>>();
 
         Some(hir::Expression::Call(
@@ -700,19 +684,18 @@ impl<'env> Emitter<'env> {
     }
 
     fn emit_class_method_call(
-        &mut self,
+        &self,
         class: &Symbol,
         receiver: &ast::Expression,
         method: &ast::Identifier,
         arguments: &[ast::Expression],
-        variables: &Map<Symbol, Temporary>,
     ) -> hir::Expression {
         let instance = Temporary::fresh("instance");
-        let receiver = self.emit_expression(receiver, variables).into();
+        let receiver = self.emit_expression(receiver).into();
 
         let mut arguments = arguments
             .iter()
-            .map(|argument| self.emit_expression(argument, variables).into())
+            .map(|argument| self.emit_expression(argument).into())
             .collect::<Vec<_>>();
         let returns = self
             .get_signature(GlobalScope::Class(*class), method)
@@ -733,11 +716,10 @@ impl<'env> Emitter<'env> {
     }
 
     fn emit_class_field(
-        &mut self,
+        &self,
         class: &Symbol,
         receiver: &ast::Expression,
         field: &Symbol,
-        variables: &Map<Symbol, Temporary>,
     ) -> hir::Expression {
         let base = match self.context.get_superclass(class) {
             // 8-byte offset for virtual table pointer
@@ -753,7 +735,7 @@ impl<'env> Emitter<'env> {
             .map(|index| hir!((CONST index as i64 * abi::WORD)))
             .expect("[TYPE ERROR]: unbound field in class");
 
-        let receiver = self.emit_expression(receiver, variables).into();
+        let receiver = self.emit_expression(receiver).into();
 
         hir!((MEM (ADD receiver (ADD base offset))))
     }
@@ -765,20 +747,19 @@ impl<'env> Emitter<'env> {
             expression,
             ..
         }: &ast::Initialization,
-        variables: &mut Map<Symbol, Temporary>,
     ) -> hir::Statement {
         #[rustfmt::skip]
         if let [Some(declaration)] = declarations.as_slice() {
             return hir!(
                 (MOVE
-                    (self.emit_declaration(declaration, variables))
-                    (self.emit_expression(expression, variables).into()))
+                    (self.emit_declaration(declaration))
+                    (self.emit_expression(expression).into()))
             );
         };
 
         #[rustfmt::skip]
         let mut statements = vec![hir!(
-            (EXP (self.emit_expression(expression, variables).into()))
+            (EXP (self.emit_expression(expression).into()))
         )];
 
         for (index, declaration) in declarations.iter().enumerate() {
@@ -786,7 +767,7 @@ impl<'env> Emitter<'env> {
                 #[rustfmt::skip]
                 statements.push(hir!(
                     (MOVE
-                        (self.emit_declaration(declaration, variables))
+                        (self.emit_declaration(declaration))
                         (TEMP (Temporary::Return(index))))
                 ));
             }
@@ -795,13 +776,9 @@ impl<'env> Emitter<'env> {
         hir::Statement::Sequence(statements)
     }
 
-    fn emit_declaration(
-        &mut self,
-        declaration: &ast::SingleDeclaration,
-        variables: &mut Map<Symbol, Temporary>,
-    ) -> hir::Expression {
+    fn emit_declaration(&mut self, declaration: &ast::SingleDeclaration) -> hir::Expression {
         let fresh = Temporary::fresh("t");
-        variables.insert(declaration.name.symbol, fresh);
+        self.locals.insert(declaration.name.symbol, fresh);
         match &*declaration.r#type {
             ast::Type::Bool(_)
             | ast::Type::Int(_)
@@ -811,8 +788,7 @@ impl<'env> Emitter<'env> {
             }
             ast::Type::Array(r#type, Some(length), _) => {
                 let mut lengths = Vec::new();
-                let declaration =
-                    self.emit_array_declaration(r#type, length, variables, &mut lengths);
+                let declaration = self.emit_array_declaration(r#type, length, &mut lengths);
                 lengths.push(hir!((MOVE (TEMP fresh) (declaration))));
 
                 hir::Expression::Sequence(
@@ -827,14 +803,13 @@ impl<'env> Emitter<'env> {
         &mut self,
         r#type: &ast::Type,
         len: &ast::Expression,
-        variables: &mut Map<Symbol, Temporary>,
         lengths: &mut Vec<hir::Statement>,
     ) -> hir::Expression {
         let length = Temporary::fresh("length");
         let array = Temporary::fresh("array");
         let alloc = Label::Fixed(symbol::intern_static(abi::XI_ALLOC));
 
-        lengths.push(hir!((MOVE (TEMP length) (self.emit_expression(len, variables).into()))));
+        lengths.push(hir!((MOVE (TEMP length) (self.emit_expression(len).into()))));
 
         let mut statements = vec![
             hir!((MOVE (TEMP array)
@@ -862,7 +837,7 @@ impl<'env> Emitter<'env> {
                     hir!(
                         (MOVE
                             (MEM (TEMP address))
-                            (self.emit_array_declaration(r#type, len, variables, lengths)))),
+                            (self.emit_array_declaration(r#type, len, lengths)))),
                     hir!((MOVE (TEMP address) (ADD (TEMP address) (CONST abi::WORD)))),
                     hir!((CJUMP (AE (TEMP address) (TEMP bound)) done r#while)),
                     hir!((LABEL done)),
