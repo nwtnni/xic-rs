@@ -1,9 +1,11 @@
 use std::cell::Cell;
 use std::fmt;
+use std::iter;
 
 use crate::data::sexp::Serialize as _;
 use crate::data::span::Span;
 use crate::data::symbol::Symbol;
+use crate::util::Or;
 
 /// Represents a Xi interface file.
 #[derive(Clone, Debug)]
@@ -444,6 +446,20 @@ pub enum Declaration {
 }
 
 impl Declaration {
+    pub fn iter(&self) -> impl Iterator<Item = (&'_ Identifier, &'_ Type)> + '_ {
+        match self {
+            Declaration::Single(declaration) => {
+                Or::L(iter::once((&declaration.name, &*declaration.r#type)))
+            }
+            Declaration::Multiple(declaration) => Or::R(
+                declaration
+                    .names
+                    .iter()
+                    .map(|name| (name, &*declaration.r#type)),
+            ),
+        }
+    }
+
     pub fn has_length(&self) -> bool {
         match self {
             Declaration::Multiple(multiple) => multiple.has_length(),

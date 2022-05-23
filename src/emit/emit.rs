@@ -106,28 +106,21 @@ pub fn emit_unit(
 
 impl<'env> Emitter<'env> {
     fn emit_global(&mut self, global: &ast::Global) -> Option<(Symbol, hir::Function)> {
-        match global {
-            ast::Global::Declaration(ast::Declaration::Single(ast::SingleDeclaration {
-                name,
-                ..
-            })) => {
-                let r#type = self.get_variable(GlobalScope::Global, name).unwrap();
-                let name = abi::mangle::global(&name.symbol, r#type);
-                self.bss.insert(name, 1);
-                None
-            }
-            ast::Global::Declaration(ast::Declaration::Multiple(ast::MultipleDeclaration {
-                names,
-                ..
-            })) => {
-                for name in names {
-                    let r#type = self.get_variable(GlobalScope::Global, name).unwrap();
-                    let name = abi::mangle::global(&name.symbol, r#type);
-                    self.bss.insert(name, 1);
-                }
-                None
+        let (name, statement) = match global {
+            ast::Global::Declaration(declaration) => {
+                let statement = self.emit_declaration(GlobalScope::Global, declaration)?;
+                let name =
+                    abi::mangle::global_initialization(declaration.iter().map(|(name, _)| {
+                        (
+                            &name.symbol,
+                            self.get_variable(GlobalScope::Global, name).unwrap(),
+                        )
+                    }));
+                (name, statement)
             }
             ast::Global::Initialization(initialization) => {
+                let statement =
+                    self.emit_initialization(Scope::Global(GlobalScope::Global), initialization);
                 let name = abi::mangle::global_initialization(
                     initialization
                         .declarations
@@ -141,22 +134,20 @@ impl<'env> Emitter<'env> {
                             )
                         }),
                 );
-
-                let statement =
-                    self.emit_initialization(Scope::Global(GlobalScope::Global), initialization);
-
-                Some((
-                    name,
-                    hir::Function {
-                        name,
-                        statement,
-                        arguments: 0,
-                        returns: 0,
-                        global: false,
-                    },
-                ))
+                (name, statement)
             }
-        }
+        };
+
+        Some((
+            name,
+            hir::Function {
+                name,
+                statement,
+                arguments: 0,
+                returns: 0,
+                global: false,
+            },
+        ))
     }
 
     fn emit_class_initialization(&mut self, class: &Symbol) -> (Symbol, hir::Function) {
@@ -284,7 +275,7 @@ impl<'env> Emitter<'env> {
             #[rustfmt::skip]
             statements.push(hir!(
                 (MOVE
-                    (self.emit_declaration(Scope::Local, parameter))
+                    (self.emit_single_declaration(Scope::Local, &parameter.name, &parameter.r#type))
                     (TEMP (Temporary::Argument(index + offset))))
             ));
         }
@@ -325,14 +316,12 @@ impl<'env> Emitter<'env> {
             Initialization(initialization) => {
                 self.emit_initialization(Scope::Local, initialization)
             }
-            Declaration(declaration, _) => {
-                let declaration = match &**declaration {
-                    ast::Declaration::Multiple(_) => todo!(),
-                    ast::Declaration::Single(declaration) => declaration,
-                };
-
-                hir::Statement::Expression(self.emit_declaration(Scope::Local, declaration))
-            }
+            Declaration(declaration, _) => match self.emit_declaration(Scope::Local, declaration) {
+                // Note: relies on the parser and type-checker to ensure that we never assign
+                // into a declaration that requires initialization (e.g. x: int[10]).
+                None => hir!((EXP (CONST 0))),
+                Some(statement) => statement,
+            },
             Return(expressions, _) => hir::Statement::Return(
                 expressions
                     .iter()
@@ -785,7 +774,7 @@ impl<'env> Emitter<'env> {
         if let [Some(declaration)] = declarations.as_slice() {
             return hir!(
                 (MOVE
-                    (self.emit_declaration(scope, declaration))
+                    (self.emit_single_declaration(scope, &declaration.name, &declaration.r#type))
                     (self.emit_expression(expression).into()))
             );
         };
@@ -800,7 +789,7 @@ impl<'env> Emitter<'env> {
                 #[rustfmt::skip]
                 statements.push(hir!(
                     (MOVE
-                        (self.emit_declaration(scope, declaration))
+                        (self.emit_single_declaration(scope, &declaration.name, &declaration.r#type))
                         (TEMP (Temporary::Return(index))))
                 ));
             }
@@ -809,32 +798,49 @@ impl<'env> Emitter<'env> {
         hir::Statement::Sequence(statements)
     }
 
-    fn emit_declaration(
+    fn emit_declaration<S: Into<Scope>>(
         &mut self,
-        scope: Scope,
-        declaration: &ast::SingleDeclaration,
+        scope: S,
+        declaration: &ast::Declaration,
+    ) -> Option<hir::Statement> {
+        let scope = scope.into();
+        let statements = declaration
+            .iter()
+            .map(|(name, r#type)| self.emit_single_declaration(scope, name, r#type))
+            .filter_map(|expression| match expression {
+                hir::Expression::Sequence(statement, _) => Some(*statement),
+                _ => None,
+            })
+            .collect::<Vec<_>>();
+
+        match statements.is_empty() {
+            true => None,
+            false => Some(hir::Statement::Sequence(statements)),
+        }
+    }
+
+    fn emit_single_declaration<S: Into<Scope>>(
+        &mut self,
+        scope: S,
+        name: &ast::Identifier,
+        r#type: &ast::Type,
     ) -> hir::Expression {
-        let fresh = match scope {
+        let fresh = match scope.into() {
             Scope::Global(GlobalScope::Class(_)) => unreachable!(),
             Scope::Global(GlobalScope::Global) => {
-                let r#type = self
-                    .get_variable(GlobalScope::Global, &declaration.name)
-                    .unwrap();
-
-                let name = abi::mangle::global(&declaration.name.symbol, r#type);
-
+                let r#type = self.get_variable(GlobalScope::Global, name).unwrap();
+                let name = abi::mangle::global(&name.symbol, r#type);
                 self.bss.insert(name, 1);
-
                 hir!((MEM (NAME Label::Fixed(name))))
             }
             Scope::Local => {
-                let fresh = Temporary::fresh(symbol::resolve(declaration.name.symbol));
-                self.locals.insert(declaration.name.symbol, fresh);
+                let fresh = Temporary::fresh(symbol::resolve(name.symbol));
+                self.locals.insert(name.symbol, fresh);
                 hir!((TEMP fresh))
             }
         };
 
-        match &*declaration.r#type {
+        match r#type {
             ast::Type::Bool(_)
             | ast::Type::Int(_)
             | ast::Type::Class(_)
