@@ -547,9 +547,9 @@ impl<'env> Emitter<'env> {
         arguments.insert(0, hir!((TEMP instance)));
 
         let method = hir!(
-            (ADD
+            (MEM (ADD
                 (MEM (TEMP instance))
-                (CONST self.r#virtual.method(&class, &method.symbol).unwrap() as i64 * abi::WORD))
+                (CONST self.r#virtual.method(&class, &method.symbol).unwrap() as i64 * abi::WORD)))
         );
 
         let call = hir::Expression::Call(Box::new(method), arguments, returns);
