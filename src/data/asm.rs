@@ -2,6 +2,7 @@ use std::fmt;
 
 use crate::data::ir;
 use crate::data::operand;
+use crate::data::operand::Immediate;
 use crate::data::operand::Label;
 use crate::data::symbol::Symbol;
 
@@ -91,9 +92,10 @@ pub enum Directive {
     Align(usize),
     Local(Label),
     Global(Label),
-    Quad(Vec<i64>),
+    Quad(Vec<Immediate>),
     Data,
     Text,
+    Ctors,
 }
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]

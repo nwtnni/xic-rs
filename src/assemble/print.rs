@@ -12,6 +12,15 @@ pub struct Intel<T>(pub T);
 impl<T: fmt::Display> fmt::Display for Intel<&asm::Unit<T>> {
     fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
         writeln!(fmt, "{}\n", asm::Directive::Intel)?;
+
+        writeln!(fmt, "{}", asm::Directive::Ctors)?;
+        writeln!(fmt, "{}", asm::Directive::Align(abi::WORD as usize))?;
+        writeln!(
+            fmt,
+            "{}\n",
+            asm::Directive::Quad(vec![Immediate::Label(Label::Fixed(abi::mangle::init()))])
+        )?;
+
         writeln!(fmt, "{}\n", asm::Directive::Data)?;
 
         for (symbol, label) in &self.0.data {
@@ -19,12 +28,22 @@ impl<T: fmt::Display> fmt::Display for Intel<&asm::Unit<T>> {
 
             writeln!(fmt, "{}", asm::Directive::Local(*label))?;
             writeln!(fmt, "{}", asm::Directive::Align(abi::WORD as usize))?;
-            writeln!(fmt, "{}", asm::Directive::Quad(vec![string.len() as i64]))?;
+            writeln!(
+                fmt,
+                "{}",
+                asm::Directive::Quad(vec![Immediate::Integer(string.len() as i64)])
+            )?;
             writeln!(fmt, "{}", Intel(&asm::Statement::<T>::Label(*label)))?;
             writeln!(
                 fmt,
                 "{}\n",
-                asm::Directive::Quad(string.bytes().map(|byte| byte as i64).collect())
+                asm::Directive::Quad(
+                    string
+                        .bytes()
+                        .map(|byte| byte as i64)
+                        .map(Immediate::Integer)
+                        .collect()
+                )
             )?;
         }
 
@@ -175,8 +194,9 @@ impl fmt::Display for asm::Directive {
 
                 Ok(())
             }
-            asm::Directive::Data => write!(fmt, ".data"),
-            asm::Directive::Text => write!(fmt, ".text"),
+            asm::Directive::Data => write!(fmt, ".section .data"),
+            asm::Directive::Text => write!(fmt, ".section .text"),
+            asm::Directive::Ctors => write!(fmt, ".section .ctors"),
         }
     }
 }
