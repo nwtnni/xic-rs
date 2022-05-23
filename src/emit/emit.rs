@@ -293,42 +293,7 @@ impl<'env> Emitter<'env> {
                 )
             }
             Call(call) => hir::Statement::Expression(self.emit_call(call, variables)),
-            #[rustfmt::skip]
-            Initialization(ast::Initialization { declarations, expression, span: _ }) if declarations.len() == 1 => {
-                let declaration = declarations[0].as_ref().unwrap();
-                hir!(
-                    (MOVE
-                        (self.emit_declaration(declaration, variables))
-                        (self.emit_expression(expression, variables).into()))
-                )
-            }
-            Initialization(ast::Initialization {
-                declarations,
-                expression,
-                span: _,
-            }) => {
-                let call = match &**expression {
-                    ast::Expression::Call(call) => call,
-                    _ => unreachable!("[TYPE ERROR]: multiple non-function initialization"),
-                };
-
-                let mut statements =
-                    vec![hir::Statement::Expression(self.emit_call(call, variables))];
-
-                for (index, declaration) in declarations.iter().enumerate() {
-                    if let Some(declaration) = declaration {
-                        #[rustfmt::skip]
-                        statements.push(hir!(
-                            (MOVE
-                                (self.emit_declaration(declaration, variables))
-                                (TEMP (Temporary::Return(index))))
-                        ));
-                    }
-                }
-
-                hir::Statement::Sequence(statements)
-            }
-
+            Initialization(initialization) => self.emit_initialization(initialization, variables),
             Declaration(declaration, _) => {
                 let declaration = match &**declaration {
                     ast::Declaration::Multiple(_) => todo!(),
@@ -791,6 +756,43 @@ impl<'env> Emitter<'env> {
         let receiver = self.emit_expression(receiver, variables).into();
 
         hir!((MEM (ADD receiver (ADD base offset))))
+    }
+
+    fn emit_initialization(
+        &mut self,
+        ast::Initialization {
+            declarations,
+            expression,
+            ..
+        }: &ast::Initialization,
+        variables: &mut Map<Symbol, Temporary>,
+    ) -> hir::Statement {
+        #[rustfmt::skip]
+        if let [Some(declaration)] = declarations.as_slice() {
+            return hir!(
+                (MOVE
+                    (self.emit_declaration(declaration, variables))
+                    (self.emit_expression(expression, variables).into()))
+            );
+        };
+
+        #[rustfmt::skip]
+        let mut statements = vec![hir!(
+            (EXP (self.emit_expression(expression, variables).into()))
+        )];
+
+        for (index, declaration) in declarations.iter().enumerate() {
+            if let Some(declaration) = declaration {
+                #[rustfmt::skip]
+                statements.push(hir!(
+                    (MOVE
+                        (self.emit_declaration(declaration, variables))
+                        (TEMP (Temporary::Return(index))))
+                ));
+            }
+        }
+
+        hir::Statement::Sequence(statements)
     }
 
     fn emit_declaration(
