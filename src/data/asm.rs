@@ -94,9 +94,11 @@ pub enum Directive {
     Local(Label),
     Global(Label),
     Quad(Vec<Immediate>),
+    Space(usize),
     Data,
-    Text,
+    Bss,
     Ctors,
+    Text,
 }
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]

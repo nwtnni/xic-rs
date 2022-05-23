@@ -13,14 +13,6 @@ impl<T: fmt::Display> fmt::Display for Intel<&asm::Unit<T>> {
     fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
         writeln!(fmt, "{}\n", asm::Directive::Intel)?;
 
-        writeln!(fmt, "{}", asm::Directive::Ctors)?;
-        writeln!(fmt, "{}", asm::Directive::Align(abi::WORD as usize))?;
-        writeln!(
-            fmt,
-            "{}\n",
-            asm::Directive::Quad(vec![Immediate::Label(Label::Fixed(abi::mangle::init()))])
-        )?;
-
         writeln!(fmt, "{}\n", asm::Directive::Data)?;
 
         for (symbol, label) in &self.0.data {
@@ -46,6 +38,31 @@ impl<T: fmt::Display> fmt::Display for Intel<&asm::Unit<T>> {
                 )
             )?;
         }
+
+        writeln!(fmt, "{}\n", asm::Directive::Bss)?;
+
+        for (symbol, size) in &self.0.bss {
+            writeln!(fmt, "{}", asm::Directive::Local(Label::Fixed(*symbol)))?;
+            writeln!(fmt, "{}", asm::Directive::Align(abi::WORD as usize))?;
+            writeln!(
+                fmt,
+                "{}",
+                Intel(&asm::Statement::<T>::Label(Label::Fixed(*symbol))),
+            )?;
+            writeln!(
+                fmt,
+                "{}\n",
+                asm::Directive::Space(*size * abi::WORD as usize),
+            )?;
+        }
+
+        writeln!(fmt, "{}", asm::Directive::Ctors)?;
+        writeln!(fmt, "{}", asm::Directive::Align(abi::WORD as usize))?;
+        writeln!(
+            fmt,
+            "{}\n",
+            asm::Directive::Quad(vec![Immediate::Label(Label::Fixed(abi::mangle::init()))])
+        )?;
 
         writeln!(fmt, "{}\n", asm::Directive::Text)?;
 
@@ -199,9 +216,11 @@ impl fmt::Display for asm::Directive {
 
                 Ok(())
             }
+            asm::Directive::Space(bytes) => write!(fmt, ".space {}", bytes),
             asm::Directive::Data => write!(fmt, ".section .data"),
-            asm::Directive::Text => write!(fmt, ".section .text"),
+            asm::Directive::Bss => write!(fmt, ".section .bss"),
             asm::Directive::Ctors => write!(fmt, ".section .ctors"),
+            asm::Directive::Text => write!(fmt, ".section .text"),
         }
     }
 }

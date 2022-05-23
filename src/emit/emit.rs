@@ -21,6 +21,7 @@ struct Emitter<'env> {
     context: &'env mut check::Context,
     r#virtual: abi::r#virtual::Table,
     data: Map<Symbol, Label>,
+    bss: Map<Symbol, usize>,
 }
 
 pub fn emit_unit(
@@ -32,6 +33,7 @@ pub fn emit_unit(
         r#virtual: abi::r#virtual::Table::new(context),
         context,
         data: Map::default(),
+        bss: Map::default(),
     };
 
     let mut functions = Map::default();
@@ -60,8 +62,13 @@ pub fn emit_unit(
         }
     }
 
-    for class in emitter.context.class_implementations() {
-        let (name, function) = emitter.emit_class_initialization(class);
+    for class in emitter
+        .context
+        .class_implementations()
+        .copied()
+        .collect::<Vec<_>>()
+    {
+        let (name, function) = emitter.emit_class_initialization(&class);
         functions.insert(name, function);
         initialize.push(hir!((EXP (CALL (NAME Label::Fixed(name)) 0))));
     }
@@ -82,17 +89,22 @@ pub fn emit_unit(
         name: symbol::intern(path.to_string_lossy().trim_start_matches("./")),
         functions,
         data: emitter.data,
+        bss: emitter.bss,
     }
 }
 
 impl<'env> Emitter<'env> {
-    fn emit_class_initialization(&self, class: &Symbol) -> (Symbol, hir::Function) {
-        let size = Label::Fixed(abi::mangle::class_size(class));
+    fn emit_class_initialization(&mut self, class: &Symbol) -> (Symbol, hir::Function) {
+        let size = abi::mangle::class_size(class);
+
+        // Reserve 1 word in BSS section for class size
+        self.bss.insert(size, 1);
+
         let enter = Label::fresh("enter");
         let exit = Label::fresh("exit");
 
         let mut statements = vec![
-            hir!((CJUMP (NE (MEM (NAME size)) (CONST 0)) exit enter)),
+            hir!((CJUMP (NE (MEM (NAME Label::Fixed(size))) (CONST 0)) exit enter)),
             hir!((LABEL enter)),
         ];
 
@@ -105,16 +117,25 @@ impl<'env> Emitter<'env> {
         }
 
         // Initialize class size
-        let class_size = self.r#virtual.field_len(class).unwrap() as i64 * abi::WORD;
-        let superclass_size = superclass
+        let size_class = self.r#virtual.field_len(class).unwrap() as i64 * abi::WORD;
+        let size_superclass = superclass
             .map(|superclass| hir!((MEM (NAME Label::Fixed(abi::mangle::class_size(&superclass))))))
             .unwrap_or_else(|| hir!((CONST abi::WORD)));
 
-        statements.push(hir!((MOVE (MEM (NAME size)) (ADD superclass_size (CONST class_size)))));
+        statements.push(
+            hir!((MOVE (MEM (NAME Label::Fixed(size))) (ADD size_superclass (CONST size_class)))),
+        );
 
-        let virtual_table_class = Label::Fixed(abi::mangle::class_virtual_table(class));
+        // Initialize class virtual table
+        let virtual_table_class = abi::mangle::class_virtual_table(class);
 
-        // Initialize class vtable
+        // Reserve n words in BSS section for class virtual table
+        self.bss.insert(
+            virtual_table_class,
+            self.r#virtual.method_len(class).unwrap(),
+        );
+
+        // Copy superclass virtual table
         if let Some(superclass) = superclass {
             let length = self.r#virtual.method_len(&superclass).unwrap();
             let virtual_table_superclass =
@@ -128,7 +149,7 @@ impl<'env> Emitter<'env> {
                 hir!((MOVE (TEMP offset) (CONST 0))),
                 hir!((LABEL r#while)),
                 hir!((MOVE
-                    (MEM (ADD (NAME virtual_table_class) (TEMP offset)))
+                    (MEM (ADD (NAME Label::Fixed(virtual_table_class)) (TEMP offset)))
                     (MEM (ADD (NAME virtual_table_superclass) (TEMP offset))))),
                 hir!((MOVE (TEMP offset) (ADD (TEMP offset) (CONST abi::WORD)))),
                 hir!((CJUMP (LT (TEMP offset) (CONST length as i64 * abi::WORD)) r#while r#done)),
@@ -136,6 +157,7 @@ impl<'env> Emitter<'env> {
             ]);
         }
 
+        // Selectively override superclass entries
         for (symbol, (_, entry)) in &self.context.get_class(class).unwrap().1 {
             let (parameters, returns) = match entry {
                 Entry::Variable(_) | Entry::Signature(_, _) => continue,
@@ -147,7 +169,7 @@ impl<'env> Emitter<'env> {
 
             statements.push(hir!(
                 (MOVE
-                    (MEM (ADD (NAME virtual_table_class) (CONST offset as i64 * abi::WORD)))
+                    (MEM (ADD (NAME Label::Fixed(virtual_table_class)) (CONST offset as i64 * abi::WORD)))
                     (NAME method))
             ));
         }

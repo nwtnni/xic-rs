@@ -8,6 +8,7 @@ pub struct Unit<T> {
     pub name: Symbol,
     pub functions: Map<Symbol, T>,
     pub data: Map<Symbol, Label>,
+    pub bss: Map<Symbol, usize>,
 }
 
 impl<T> Unit<T> {
@@ -20,6 +21,7 @@ impl<T> Unit<T> {
                 .map(|(symbol, function)| (symbol, apply(function)))
                 .collect(),
             data: self.data,
+            bss: self.bss,
         }
     }
 
@@ -32,6 +34,7 @@ impl<T> Unit<T> {
                 .map(|(symbol, function)| (*symbol, apply(function)))
                 .collect(),
             data: self.data.clone(),
+            bss: self.bss.clone(),
         }
     }
 
