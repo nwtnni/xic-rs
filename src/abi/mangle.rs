@@ -4,6 +4,10 @@ use crate::data::r#type;
 use crate::data::symbol;
 use crate::data::symbol::Symbol;
 
+pub fn init() -> Symbol {
+    symbol::intern_static("_I_init")
+}
+
 pub fn class_size(class: &Symbol) -> Symbol {
     symbol::intern(&format!("_I_size_{}", escape(class)))
 }
@@ -12,7 +16,6 @@ pub fn class_virtual_table(class: &Symbol) -> Symbol {
     symbol::intern(&format!("_I_vt_{}", escape(class)))
 }
 
-#[allow(unused)]
 pub fn class_initialization(class: &Symbol) -> Symbol {
     symbol::intern(&format!("_I_init_{}", escape(class)))
 }
@@ -24,7 +27,6 @@ pub fn global(name: &Symbol, r#type: &r#type::Expression) -> Symbol {
     symbol::intern(mangled)
 }
 
-#[allow(unused)]
 pub fn method(
     class: &Symbol,
     name: &Symbol,

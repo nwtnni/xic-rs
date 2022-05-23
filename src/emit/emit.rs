@@ -35,11 +35,7 @@ pub fn emit_unit(
     };
 
     let mut functions = Map::default();
-
-    for class in emitter.context.class_implementations() {
-        let (name, function) = emitter.emit_class_initialization(class);
-        functions.insert(name, function);
-    }
+    let mut initialize = Vec::new();
 
     for item in &ast.items {
         match item {
@@ -63,6 +59,23 @@ pub fn emit_unit(
             }
         }
     }
+
+    for class in emitter.context.class_implementations() {
+        let (name, function) = emitter.emit_class_initialization(class);
+        functions.insert(name, function);
+        initialize.push(hir!((EXP (CALL (NAME Label::Fixed(name)) 0))));
+    }
+
+    initialize.push(hir!((RETURN)));
+    functions.insert(
+        abi::mangle::init(),
+        hir::Function {
+            name: abi::mangle::init(),
+            statement: hir::Statement::Sequence(initialize),
+            arguments: 0,
+            returns: 0,
+        },
+    );
 
     ir::Unit {
         name: symbol::intern(path.to_string_lossy().trim_start_matches("./")),
