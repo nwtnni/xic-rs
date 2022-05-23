@@ -39,13 +39,15 @@ pub fn eliminate_assembly(
                 asm::Statement::Unary(asm::Unary::Hul, _) => {
                     Some(Temporary::Register(Register::Rdx))
                 }
-                asm::Statement::Unary(asm::Unary::Div | asm::Unary::Mod, _) => None,
-                asm::Statement::Unary(asm::Unary::Neg | asm::Unary::Call { .. }, operand) => {
-                    match operand {
-                        operand::Unary::M(_) | operand::Unary::I(_) => None,
-                        operand::Unary::R(temporary) => Some(*temporary),
-                    }
-                }
+                // Preserve statements that may have side effects
+                asm::Statement::Unary(
+                    asm::Unary::Div | asm::Unary::Mod | asm::Unary::Call { .. },
+                    _,
+                ) => None,
+                asm::Statement::Unary(asm::Unary::Neg, operand) => match operand {
+                    operand::Unary::M(_) | operand::Unary::I(_) => None,
+                    operand::Unary::R(temporary) => Some(*temporary),
+                },
                 asm::Statement::Nullary(asm::Nullary::Cqo) => {
                     Some(Temporary::Register(Register::Rdx))
                 }

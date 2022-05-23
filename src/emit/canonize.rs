@@ -56,51 +56,34 @@ impl Canonizer {
                 let (left, right) = self.canonize_pair(left, right);
                 lir::Expression::Binary(*binary, Box::new(left), Box::new(right))
             }
-            hir::Expression::Call(name, arguments, 1) => {
-                let save = lir::Expression::Temporary(Temporary::fresh("save"));
-                let name = match &**name {
-                    hir::Expression::Immediate(Immediate::Label(name)) => name,
-                    _ => unimplemented!("Calls to arbitrary expressions not yet implemented"),
+            hir::Expression::Call(function, arguments, returns) => {
+                let function = if arguments.iter().all(|argument| commute(function, argument)) {
+                    self.canonize_expression(function)
+                } else {
+                    let save = Temporary::fresh("save");
+                    let function = self.canonize_expression(function);
+                    self.canonized.push(lir::Statement::Move {
+                        destination: lir::Expression::Temporary(save),
+                        source: function,
+                    });
+                    lir::Expression::Temporary(save)
                 };
 
                 let arguments = self.canonize_list(arguments);
-                self.canonized.push(lir::Statement::Call(
-                    lir::Expression::Immediate(Immediate::Label(*name)),
-                    arguments,
-                    1,
-                ));
 
-                self.canonized.push(lir::Statement::Move {
-                    destination: save.clone(),
-                    source: lir::Expression::Temporary(Temporary::Return(0)),
-                });
+                self.canonized
+                    .push(lir::Statement::Call(function, arguments, *returns));
 
-                save
+                // Note: this return must not be used if `returns` is 0. This property
+                // must be guaranteed when we emit HIR by wrapping any 0-return calls
+                // in an `EXP` statement, to discard this temporary.
+                lir::Expression::Temporary(Temporary::Return(0))
             }
-            // 0- and multiple-return calls should be in (EXP (CALL ...)) statements.
-            hir::Expression::Call(_, _, _) => unreachable!("[TYPE ERROR]"),
         }
     }
 
     fn canonize_statement(&mut self, statement: &hir::Statement) {
         match statement {
-            // Single-return calls should be in (MOVE (...) (CALL ...)) statements.
-            hir::Statement::Expression(hir::Expression::Call(_, _, 1)) => {
-                unreachable!("[TYPE ERROR]")
-            }
-            hir::Statement::Expression(hir::Expression::Call(name, arguments, returns)) => {
-                let name = match &**name {
-                    hir::Expression::Immediate(Immediate::Label(name)) => name,
-                    _ => unimplemented!("Calls to arbitrary expressions not yet implemented"),
-                };
-
-                let arguments = self.canonize_list(arguments);
-                self.canonized.push(lir::Statement::Call(
-                    lir::Expression::Immediate(Immediate::Label(*name)),
-                    arguments,
-                    *returns,
-                ));
-            }
             hir::Statement::Expression(expression) => {
                 self.canonize_expression(expression);
             }
