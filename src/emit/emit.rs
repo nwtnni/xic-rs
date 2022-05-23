@@ -5,6 +5,7 @@ use crate::check;
 use crate::check::Entry;
 use crate::check::GlobalScope;
 use crate::check::LocalScope;
+use crate::check::Scope;
 use crate::data::ast;
 use crate::data::hir;
 use crate::data::ir;
@@ -777,7 +778,7 @@ impl<'env> Emitter<'env> {
     }
 
     fn emit_declaration(&mut self, declaration: &ast::SingleDeclaration) -> hir::Expression {
-        let fresh = Temporary::fresh("t");
+        let fresh = Temporary::fresh(symbol::resolve(declaration.name.symbol));
         self.locals.insert(declaration.name.symbol, fresh);
         match &*declaration.r#type {
             ast::Type::Bool(_)
