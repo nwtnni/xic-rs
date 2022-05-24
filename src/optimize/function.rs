@@ -12,7 +12,6 @@ use crate::data::symbol;
 use crate::lir;
 use crate::util::Or;
 use crate::Map;
-use crate::Set;
 
 pub fn inline_lir(lir: &mut lir::Unit<lir::Fallthrough>) {
     let call_graph = CallGraph::new(lir);
@@ -33,21 +32,6 @@ pub fn inline_lir(lir: &mut lir::Unit<lir::Fallthrough>) {
         .postorder(&start)
         .filter(|name| lir.functions.contains_key(name))
         .collect::<Vec<_>>();
-
-    let global = lir
-        .data
-        .values()
-        .copied()
-        .chain(lir.functions.keys().copied().map(Label::Fixed))
-        .chain(
-            abi::STANDARD_LIBRARY
-                .iter()
-                .copied()
-                .chain(iter::once(abi::XI_MAIN))
-                .map(symbol::intern_static)
-                .map(Label::Fixed),
-        )
-        .collect::<Set<_>>();
 
     for name in &postorder {
         let mut function = lir.functions.remove(name).unwrap();
@@ -79,7 +63,7 @@ pub fn inline_lir(lir: &mut lir::Unit<lir::Fallthrough>) {
                         callee_arguments,
                         callee_returns,
                         statements,
-                    } = rewrite(&global, &lir.functions[&label]);
+                    } = rewrite(&lir.functions[&label]);
 
                     let arguments = callee_arguments
                         .into_iter()
@@ -102,9 +86,8 @@ pub fn inline_lir(lir: &mut lir::Unit<lir::Fallthrough>) {
     }
 }
 
-fn rewrite(global: &Set<Label>, function: &lir::Function<lir::Fallthrough>) -> Rewritten {
+fn rewrite(function: &lir::Function<lir::Fallthrough>) -> Rewritten {
     let mut rewriter = Rewriter {
-        global,
         arguments: (0..function.arguments)
             .map(|_| Temporary::fresh("INLINE_ARG"))
             .collect::<Vec<_>>(),
@@ -131,9 +114,7 @@ struct Rewritten {
     statements: Vec<lir::Statement<lir::Fallthrough>>,
 }
 
-struct Rewriter<'a> {
-    // Globally accessible labels should not be rewritten.
-    global: &'a Set<Label>,
+struct Rewriter {
     arguments: Vec<Temporary>,
     returns: Vec<Temporary>,
     rename_temporary: RefCell<Map<Temporary, Temporary>>,
@@ -141,7 +122,7 @@ struct Rewriter<'a> {
     rewritten: Vec<lir::Statement<lir::Fallthrough>>,
 }
 
-impl<'a> Rewriter<'a> {
+impl Rewriter {
     fn rewrite_function(&mut self, function: &lir::Function<lir::Fallthrough>) {
         for statement in &function.statements {
             self.rewrite_statement(statement);
@@ -249,12 +230,9 @@ impl<'a> Rewriter<'a> {
     }
 
     fn rewrite_label(&self, label: &Label) -> Label {
-        if self.global.contains(label) {
-            return *label;
-        }
-
+        // Note: assumes any fixed labels are globally visible and should not be renamed.
         let symbol = match label {
-            Label::Fixed(symbol) => *symbol,
+            Label::Fixed(symbol) => return Label::Fixed(*symbol),
             Label::Fresh(symbol, _) => *symbol,
         };
 

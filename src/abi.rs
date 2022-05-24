@@ -53,19 +53,6 @@ pub const XI_UNPARSE_INT: &str = "_IunparseInt_aii";
 pub const XI_PARSE_INT: &str = "_IparseInt_t2ibai";
 pub const XI_ASSERT: &str = "_Iassert_pb";
 
-pub const STANDARD_LIBRARY: &[&str] = &[
-    XI_ALLOC,
-    XI_OUT_OF_BOUNDS,
-    XI_PRINT,
-    XI_PRINTLN,
-    XI_READLN,
-    XI_GETCHAR,
-    XI_EOF,
-    XI_UNPARSE_INT,
-    XI_PARSE_INT,
-    XI_ASSERT,
-];
-
 pub const CALLEE_SAVED: &[Register] = &[
     Register::rsp(),
     Register::Rbx,
