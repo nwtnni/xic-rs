@@ -8,7 +8,7 @@ pub struct Unit<T> {
     pub name: Symbol,
     pub functions: Map<Symbol, T>,
     pub data: Map<Symbol, Label>,
-    pub bss: Map<Symbol, usize>,
+    pub bss: Map<Symbol, (Visibility, usize)>,
 }
 
 impl<T> Unit<T> {
@@ -44,6 +44,12 @@ impl<T> Unit<T> {
             .for_each(|(_, function)| apply(function));
         self
     }
+}
+
+#[derive(Copy, Clone, Debug, PartialEq, Eq, Hash)]
+pub enum Visibility {
+    Local,
+    Global,
 }
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq, Hash)]

@@ -2,6 +2,7 @@ use std::fmt;
 
 use crate::abi;
 use crate::data::asm;
+use crate::data::ir;
 use crate::data::operand;
 use crate::data::operand::Immediate;
 use crate::data::operand::Label;
@@ -18,7 +19,11 @@ impl<T: fmt::Display> fmt::Display for Intel<&asm::Unit<T>> {
         for (symbol, label) in &self.0.data {
             let string = symbol::resolve(*symbol);
 
-            writeln!(fmt, "{}", asm::Directive::Local(*label))?;
+            writeln!(
+                fmt,
+                "{}",
+                asm::Directive::Visible(ir::Visibility::Local, *label)
+            )?;
             writeln!(fmt, "{}", asm::Directive::Align(abi::WORD as usize))?;
             writeln!(
                 fmt,
@@ -41,8 +46,12 @@ impl<T: fmt::Display> fmt::Display for Intel<&asm::Unit<T>> {
 
         writeln!(fmt, "{}\n", asm::Directive::Bss)?;
 
-        for (symbol, size) in &self.0.bss {
-            writeln!(fmt, "{}", asm::Directive::Local(Label::Fixed(*symbol)))?;
+        for (symbol, (visibility, size)) in &self.0.bss {
+            writeln!(
+                fmt,
+                "{}",
+                asm::Directive::Visible(*visibility, Label::Fixed(*symbol))
+            )?;
             writeln!(fmt, "{}", asm::Directive::Align(abi::WORD as usize))?;
             writeln!(
                 fmt,
@@ -67,12 +76,11 @@ impl<T: fmt::Display> fmt::Display for Intel<&asm::Unit<T>> {
         writeln!(fmt, "{}\n", asm::Directive::Text)?;
 
         for (name, function) in &self.0.functions {
-            let visibility = match function.global {
-                true => asm::Directive::Global(Label::Fixed(*name)),
-                false => asm::Directive::Local(Label::Fixed(*name)),
-            };
-
-            writeln!(fmt, "{}", visibility)?;
+            writeln!(
+                fmt,
+                "{}",
+                asm::Directive::Visible(function.visibility, Label::Fixed(*name))
+            )?;
             writeln!(fmt, "{}", Intel(function))?;
         }
 
@@ -199,8 +207,12 @@ impl fmt::Display for asm::Directive {
         match self {
             asm::Directive::Intel => write!(fmt, ".intel_syntax noprefix"),
             asm::Directive::Align(alignment) => write!(fmt, ".align {}", alignment),
-            asm::Directive::Local(label) => write!(fmt, ".local {}", label),
-            asm::Directive::Global(label) => write!(fmt, ".global {}", label),
+            asm::Directive::Visible(ir::Visibility::Local, label) => {
+                write!(fmt, ".local {}", label)
+            }
+            asm::Directive::Visible(ir::Visibility::Global, label) => {
+                write!(fmt, ".global {}", label)
+            }
             asm::Directive::Quad(data) => {
                 write!(fmt, ".quad")?;
 

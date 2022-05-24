@@ -18,7 +18,7 @@ impl Foldable for hir::Function {
             statement: self.statement.fold(),
             arguments: self.arguments,
             returns: self.returns,
-            global: self.global,
+            visibility: self.visibility,
         }
     }
 }
@@ -30,7 +30,7 @@ impl<T: lir::Target> Foldable for lir::Function<T> {
             statements: self.statements.fold(),
             arguments: self.arguments,
             returns: self.returns,
-            global: self.global,
+            visibility: self.visibility,
             enter: self.enter,
             exit: self.exit,
         }

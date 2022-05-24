@@ -23,7 +23,7 @@ struct Emitter<'env> {
     classes: Map<Symbol, abi::class::Layout>,
     locals: Map<Symbol, Temporary>,
     data: Map<Symbol, Label>,
-    bss: Map<Symbol, usize>,
+    bss: Map<Symbol, (ir::Visibility, usize)>,
 }
 
 pub fn emit_unit(
@@ -100,7 +100,7 @@ pub fn emit_unit(
             statement: hir::Statement::Sequence(initialize),
             arguments: 0,
             returns: 0,
-            global: false,
+            visibility: ir::Visibility::Local,
         },
     );
 
@@ -153,7 +153,7 @@ impl<'env> Emitter<'env> {
                 statement,
                 arguments: 0,
                 returns: 0,
-                global: false,
+                visibility: ir::Visibility::Local,
             },
         ))
     }
@@ -162,7 +162,7 @@ impl<'env> Emitter<'env> {
         let size = abi::mangle::class_size(class);
 
         // Reserve 1 word in BSS section for class size
-        self.bss.insert(size, 1);
+        self.bss.insert(size, (ir::Visibility::Global, 1));
 
         let enter = Label::fresh("enter");
         let exit = Label::fresh("exit");
@@ -194,8 +194,10 @@ impl<'env> Emitter<'env> {
         let virtual_table_class = abi::mangle::class_virtual_table(class);
 
         // Reserve n words in BSS section for class virtual table
-        self.bss
-            .insert(virtual_table_class, self.classes[class].size());
+        self.bss.insert(
+            virtual_table_class,
+            (ir::Visibility::Global, self.classes[class].size()),
+        );
 
         // Copy superclass virtual table
         if let Some(superclass) = superclass {
@@ -248,7 +250,7 @@ impl<'env> Emitter<'env> {
                 statement: hir::Statement::Sequence(statements),
                 arguments: 0,
                 returns: 0,
-                global: false,
+                visibility: ir::Visibility::Global,
             },
         )
     }
@@ -288,9 +290,11 @@ impl<'env> Emitter<'env> {
             ));
         }
 
-        let scope = match scope {
-            GlobalScope::Global => LocalScope::Function { returns },
-            GlobalScope::Class(class) => LocalScope::Method { class, returns },
+        let (visibility, scope) = match scope {
+            GlobalScope::Global => (ir::Visibility::Global, LocalScope::Function { returns }),
+            GlobalScope::Class(class) => {
+                (ir::Visibility::Local, LocalScope::Method { class, returns })
+            }
         };
 
         self.context.push(scope);
@@ -304,7 +308,7 @@ impl<'env> Emitter<'env> {
                 statement: hir::Statement::Sequence(statements),
                 arguments: function.parameters.len(),
                 returns: function.returns.len(),
-                global: true,
+                visibility,
             },
         )
     }
@@ -838,7 +842,7 @@ impl<'env> Emitter<'env> {
             Scope::Global(GlobalScope::Global) => {
                 let r#type = self.get_variable(GlobalScope::Global, name).unwrap();
                 let name = abi::mangle::global(&name.symbol, r#type);
-                self.bss.insert(name, 1);
+                self.bss.insert(name, (ir::Visibility::Local, 1));
                 hir!((MEM (NAME Label::Fixed(name))))
             }
             Scope::Local => {

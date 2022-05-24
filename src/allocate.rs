@@ -110,7 +110,7 @@ fn allocate(
         arguments: function.arguments,
         returns: function.returns,
         statements: allocator.statements,
-        global: function.global,
+        visibility: function.visibility,
         enter: function.enter,
         exit: function.exit,
     }
