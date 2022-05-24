@@ -882,8 +882,10 @@ impl<'env> Emitter<'env> {
         ];
 
         match r#type {
-            ast::Type::Bool(_) | ast::Type::Int(_) | ast::Type::Array(_, None, _) => (),
-            ast::Type::Class(_) => todo!(),
+            ast::Type::Bool(_)
+            | ast::Type::Int(_)
+            | ast::Type::Array(_, None, _)
+            | ast::Type::Class(_) => (),
             ast::Type::Array(r#type, Some(len), _) => {
                 let r#while = Label::fresh("while");
                 let done = Label::fresh("done");
