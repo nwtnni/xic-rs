@@ -55,14 +55,14 @@ fn invert_statement(statement: &mut ast::Statement) {
     };
 
     *statement = ast::Statement::If(
-        condition.clone(),
-        Box::new(ast::Statement::While(
+        Box::new(condition.negate_logical()),
+        Box::new(ast::Statement::Sequence(Vec::new(), span)),
+        Some(Box::new(ast::Statement::While(
             ast::Do::Yes,
             condition,
             r#while,
             span,
-        )),
-        None,
+        ))),
         span,
     );
 }
