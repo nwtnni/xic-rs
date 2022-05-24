@@ -939,13 +939,10 @@ impl<'env> Emitter<'env> {
         scope: GlobalScope,
         name: &ast::Identifier,
     ) -> Option<(&[r#type::Expression], &[r#type::Expression])> {
-        match self.context.get(scope, &name.symbol) {
-            Some(
-                check::Entry::Function(parameters, returns)
-                | check::Entry::Signature(parameters, returns),
-            ) => Some((parameters, returns)),
-            Some(check::Entry::Variable(_)) => None,
-            None => unreachable!(),
+        match self.context.get(scope, &name.symbol)? {
+            check::Entry::Function(parameters, returns)
+            | check::Entry::Signature(parameters, returns) => Some((parameters, returns)),
+            check::Entry::Variable(_) => None,
         }
     }
 
@@ -954,10 +951,9 @@ impl<'env> Emitter<'env> {
         scope: GlobalScope,
         name: &ast::Identifier,
     ) -> Option<&r#type::Expression> {
-        match self.context.get(scope, &name.symbol) {
-            Some(check::Entry::Variable(r#type)) => Some(r#type),
-            Some(check::Entry::Function(_, _) | check::Entry::Signature(_, _)) => None,
-            None => unreachable!(),
+        match self.context.get(scope, &name.symbol)? {
+            check::Entry::Variable(r#type) => Some(r#type),
+            check::Entry::Function(_, _) | check::Entry::Signature(_, _) => None,
         }
     }
 }
