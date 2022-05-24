@@ -2,39 +2,39 @@ use std::fmt;
 
 use crate::abi;
 use crate::data::asm;
+use crate::data::asm::Directive;
+use crate::data::asm::Statement;
 use crate::data::ir;
-use crate::data::operand;
+use crate::data::operand::Binary;
 use crate::data::operand::Immediate;
 use crate::data::operand::Label;
+use crate::data::operand::Memory;
+use crate::data::operand::Unary;
 use crate::data::symbol;
 
 pub struct Intel<T>(pub T);
 
 impl<T: fmt::Display> fmt::Display for Intel<&asm::Unit<T>> {
     fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
-        writeln!(fmt, "{}\n", asm::Directive::Intel)?;
+        writeln!(fmt, "{}\n", Directive::Intel)?;
 
-        writeln!(fmt, "{}\n", asm::Directive::Data)?;
+        writeln!(fmt, "{}\n", Directive::Data)?;
 
         for (symbol, label) in &self.0.data {
             let string = symbol::resolve(*symbol);
 
+            writeln!(fmt, "{}", Directive::Visible(ir::Visibility::Local, *label))?;
+            writeln!(fmt, "{}", Directive::Align(abi::WORD as usize))?;
             writeln!(
                 fmt,
                 "{}",
-                asm::Directive::Visible(ir::Visibility::Local, *label)
+                Directive::Quad(vec![Immediate::Integer(string.len() as i64)])
             )?;
-            writeln!(fmt, "{}", asm::Directive::Align(abi::WORD as usize))?;
-            writeln!(
-                fmt,
-                "{}",
-                asm::Directive::Quad(vec![Immediate::Integer(string.len() as i64)])
-            )?;
-            writeln!(fmt, "{}", Intel(&asm::Statement::<T>::Label(*label)))?;
+            writeln!(fmt, "{}", Intel(&Statement::<T>::Label(*label)))?;
             writeln!(
                 fmt,
                 "{}\n",
-                asm::Directive::Quad(
+                Directive::Quad(
                     string
                         .bytes()
                         .map(|byte| byte as i64)
@@ -44,42 +44,38 @@ impl<T: fmt::Display> fmt::Display for Intel<&asm::Unit<T>> {
             )?;
         }
 
-        writeln!(fmt, "{}\n", asm::Directive::Bss)?;
+        writeln!(fmt, "{}\n", Directive::Bss)?;
 
         for (symbol, (visibility, size)) in &self.0.bss {
             writeln!(
                 fmt,
                 "{}",
-                asm::Directive::Visible(*visibility, Label::Fixed(*symbol))
+                Directive::Visible(*visibility, Label::Fixed(*symbol))
             )?;
-            writeln!(fmt, "{}", asm::Directive::Align(abi::WORD as usize))?;
+            writeln!(fmt, "{}", Directive::Align(abi::WORD as usize))?;
             writeln!(
                 fmt,
                 "{}",
-                Intel(&asm::Statement::<T>::Label(Label::Fixed(*symbol))),
+                Intel(&Statement::<T>::Label(Label::Fixed(*symbol))),
             )?;
-            writeln!(
-                fmt,
-                "{}\n",
-                asm::Directive::Space(*size * abi::WORD as usize),
-            )?;
+            writeln!(fmt, "{}\n", Directive::Space(*size * abi::WORD as usize),)?;
         }
 
-        writeln!(fmt, "{}", asm::Directive::Ctors)?;
-        writeln!(fmt, "{}", asm::Directive::Align(abi::WORD as usize))?;
+        writeln!(fmt, "{}", Directive::Ctors)?;
+        writeln!(fmt, "{}", Directive::Align(abi::WORD as usize))?;
         writeln!(
             fmt,
             "{}\n",
-            asm::Directive::Quad(vec![Immediate::Label(Label::Fixed(abi::mangle::init()))])
+            Directive::Quad(vec![Immediate::Label(Label::Fixed(abi::mangle::init()))])
         )?;
 
-        writeln!(fmt, "{}\n", asm::Directive::Text)?;
+        writeln!(fmt, "{}\n", Directive::Text)?;
 
         for (name, function) in &self.0.functions {
             writeln!(
                 fmt,
                 "{}",
-                asm::Directive::Visible(function.visibility, Label::Fixed(*name))
+                Directive::Visible(function.visibility, Label::Fixed(*name))
             )?;
             writeln!(fmt, "{}", Intel(function))?;
         }
@@ -92,7 +88,7 @@ impl<T: fmt::Display> fmt::Display for Intel<&asm::Function<T>> {
     fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
         writeln!(fmt, "{}:", self.0.name)?;
         for statement in &self.0.statements {
-            if !matches!(statement, asm::Statement::Label(_)) {
+            if !matches!(statement, Statement::Label(_)) {
                 write!(fmt, "  ")?;
             }
 
@@ -102,49 +98,49 @@ impl<T: fmt::Display> fmt::Display for Intel<&asm::Function<T>> {
     }
 }
 
-impl<T: fmt::Display> fmt::Display for Intel<&asm::Statement<T>> {
+impl<T: fmt::Display> fmt::Display for Intel<&Statement<T>> {
     fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
         match &self.0 {
-            asm::Statement::Binary(binary, operands) => {
+            Statement::Binary(binary, operands) => {
                 write!(fmt, "{} {}", binary, Intel(operands))
             }
-            asm::Statement::Unary(unary, operand) => write!(fmt, "{} {}", unary, Intel(operand)),
-            asm::Statement::Nullary(nullary) => write!(fmt, "{}", nullary),
-            asm::Statement::Label(label) => write!(fmt, "{}:", label),
-            asm::Statement::Jmp(label) => write!(fmt, "jmp {}", label),
-            asm::Statement::Jcc(condition, label) => write!(fmt, "j{} {}", condition, label),
+            Statement::Unary(unary, operand) => write!(fmt, "{} {}", unary, Intel(operand)),
+            Statement::Nullary(nullary) => write!(fmt, "{}", nullary),
+            Statement::Label(label) => write!(fmt, "{}:", label),
+            Statement::Jmp(label) => write!(fmt, "jmp {}", label),
+            Statement::Jcc(condition, label) => write!(fmt, "j{} {}", condition, label),
         }
     }
 }
 
-impl<T: fmt::Display> fmt::Display for Intel<&operand::Binary<T>> {
+impl<T: fmt::Display> fmt::Display for Intel<&Binary<T>> {
     fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
         match &self.0 {
-            operand::Binary::RI {
+            Binary::RI {
                 destination,
                 source: source @ Immediate::Integer(_),
             } => write!(fmt, "{}, {}", destination, source),
-            operand::Binary::RI {
+            Binary::RI {
                 destination,
                 source: source @ Immediate::Label(_),
             } => write!(fmt, "{}, offset {}", destination, source),
-            operand::Binary::MI {
+            Binary::MI {
                 destination,
                 source: source @ Immediate::Integer(_),
             } => write!(fmt, "qword ptr {}, {}", Intel(destination), source),
-            operand::Binary::MI {
+            Binary::MI {
                 destination,
                 source: source @ Immediate::Label(_),
             } => write!(fmt, "qword ptr {}, offset {}", Intel(destination), source),
-            operand::Binary::MR {
+            Binary::MR {
                 destination,
                 source,
             } => write!(fmt, "{}, {}", Intel(destination), source),
-            operand::Binary::RM {
+            Binary::RM {
                 destination,
                 source,
             } => write!(fmt, "{}, {}", destination, Intel(source)),
-            operand::Binary::RR {
+            Binary::RR {
                 destination,
                 source,
             } => write!(fmt, "{}, {}", destination, source),
@@ -152,45 +148,45 @@ impl<T: fmt::Display> fmt::Display for Intel<&operand::Binary<T>> {
     }
 }
 
-impl<T: fmt::Display> fmt::Display for Intel<&operand::Unary<T>> {
+impl<T: fmt::Display> fmt::Display for Intel<&Unary<T>> {
     fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
         match &self.0 {
-            operand::Unary::I(immediate) => write!(fmt, "{}", immediate),
-            operand::Unary::R(register) => write!(fmt, "{}", register),
-            operand::Unary::M(memory) => write!(fmt, "qword ptr {}", Intel(memory)),
+            Unary::I(immediate) => write!(fmt, "{}", immediate),
+            Unary::R(register) => write!(fmt, "{}", register),
+            Unary::M(memory) => write!(fmt, "qword ptr {}", Intel(memory)),
         }
     }
 }
 
-impl<T: fmt::Display> fmt::Display for Intel<&operand::Memory<T>> {
+impl<T: fmt::Display> fmt::Display for Intel<&Memory<T>> {
     fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
         match &self.0 {
-            operand::Memory::B { base } => write!(fmt, "[{}]", base),
-            operand::Memory::O { offset } => write!(fmt, "[{}]", offset),
-            operand::Memory::BI { base, index } => {
+            Memory::B { base } => write!(fmt, "[{}]", base),
+            Memory::O { offset } => write!(fmt, "[{}]", offset),
+            Memory::BI { base, index } => {
                 write!(fmt, "[{} + {}]", base, index)
             }
-            operand::Memory::BO { base, offset } => {
+            Memory::BO { base, offset } => {
                 write!(fmt, "[{} + {}]", base, offset)
             }
-            operand::Memory::BIO {
+            Memory::BIO {
                 base,
                 index,
                 offset,
             } => {
                 write!(fmt, "[{} + {} + {}]", base, index, offset)
             }
-            operand::Memory::BIS { base, index, scale } => {
+            Memory::BIS { base, index, scale } => {
                 write!(fmt, "[{} + {} * {}]", base, index, scale)
             }
-            operand::Memory::ISO {
+            Memory::ISO {
                 index,
                 scale,
                 offset,
             } => {
                 write!(fmt, "[{} * {} + {}]", index, scale, offset)
             }
-            operand::Memory::BISO {
+            Memory::BISO {
                 base,
                 index,
                 scale,
@@ -202,18 +198,18 @@ impl<T: fmt::Display> fmt::Display for Intel<&operand::Memory<T>> {
     }
 }
 
-impl fmt::Display for asm::Directive {
+impl fmt::Display for Directive {
     fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
         match self {
-            asm::Directive::Intel => write!(fmt, ".intel_syntax noprefix"),
-            asm::Directive::Align(alignment) => write!(fmt, ".align {}", alignment),
-            asm::Directive::Visible(ir::Visibility::Local, label) => {
+            Directive::Intel => write!(fmt, ".intel_syntax noprefix"),
+            Directive::Align(alignment) => write!(fmt, ".align {}", alignment),
+            Directive::Visible(ir::Visibility::Local, label) => {
                 write!(fmt, ".local {}", label)
             }
-            asm::Directive::Visible(ir::Visibility::Global, label) => {
+            Directive::Visible(ir::Visibility::Global, label) => {
                 write!(fmt, ".global {}", label)
             }
-            asm::Directive::Quad(data) => {
+            Directive::Quad(data) => {
                 write!(fmt, ".quad")?;
 
                 let mut iter = data.iter();
@@ -228,11 +224,11 @@ impl fmt::Display for asm::Directive {
 
                 Ok(())
             }
-            asm::Directive::Space(bytes) => write!(fmt, ".space {}", bytes),
-            asm::Directive::Data => write!(fmt, ".section .data"),
-            asm::Directive::Bss => write!(fmt, ".section .bss"),
-            asm::Directive::Ctors => write!(fmt, ".section .ctors"),
-            asm::Directive::Text => write!(fmt, ".section .text"),
+            Directive::Space(bytes) => write!(fmt, ".space {}", bytes),
+            Directive::Data => write!(fmt, ".section .data"),
+            Directive::Bss => write!(fmt, ".section .bss"),
+            Directive::Ctors => write!(fmt, ".section .ctors"),
+            Directive::Text => write!(fmt, ".section .text"),
         }
     }
 }
