@@ -697,12 +697,20 @@ impl Checker {
         }: &ast::SingleDeclaration,
     ) -> Result<r#type::Expression, error::Error> {
         let r#type = self.check_type(r#type)?;
+        let scope = scope.into();
 
-        if let Some((span, _)) =
+        match (
+            scope,
             self.context
-                .insert_full(scope, name, Entry::Variable(r#type.clone()))
-        {
-            bail!(*name.span, ErrorKind::NameClash(span))
+                .insert_full(scope, name, Entry::Variable(r#type.clone())),
+        ) {
+            (_, None) => (),
+            // Note: class fields are inserted during loading, since they need
+            // to be visible everywhere.
+            (Scope::Global(GlobalScope::Class(_)), Some(_)) => (),
+            (Scope::Local | Scope::Global(GlobalScope::Global), Some((span, _))) => {
+                bail!(*name.span, ErrorKind::NameClash(span))
+            }
         }
 
         Ok(r#type)

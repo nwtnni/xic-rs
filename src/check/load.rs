@@ -170,9 +170,7 @@ impl Checker {
 
         for item in &class.items {
             match item {
-                // Note: relies on the assumption that fields can have neither length expressions
-                // in array types, nor initializer expressions, so they can be checked linearly.
-                ast::ClassItem::Field(_) => (),
+                ast::ClassItem::Field(field) => self.load_class_field(&class.name, field)?,
                 ast::ClassItem::Method(method) => {
                     self.load_function(GlobalScope::Class(class.name.symbol), method)?
                 }
@@ -235,6 +233,25 @@ impl Checker {
             .collect::<Result<Vec<_>, _>>()?;
 
         Ok((parameters, returns))
+    }
+
+    fn load_class_field(
+        &mut self,
+        class: &ast::Identifier,
+        declaration: &ast::Declaration,
+    ) -> Result<(), error::Error> {
+        for (name, r#type) in declaration.iter() {
+            let r#type = self.load_type(r#type)?;
+            if let Some((span, _)) = self.context.insert_full(
+                GlobalScope::Class(class.symbol),
+                name,
+                Entry::Variable(r#type),
+            ) {
+                bail!(*name.span, ErrorKind::NameClash(span))
+            }
+        }
+
+        Ok(())
     }
 
     fn load_type(&self, r#type: &ast::Type) -> Result<r#type::Expression, error::Error> {

@@ -4,13 +4,13 @@ assertion_line: 35
 expression: Snapshot(context)
 ---
 Error: Semantic error
-   ╭─[tests/check/bad_class_shadowing_6.xi:2:5]
+   ╭─[tests/check/bad_class_shadowing_6.xi:3:5]
    │
  2 │     a: int
    ·     ┬  
-   ·     ╰── Name already bound in environment
+   ·     ╰── Previous definition here
  3 │     a() {}
    ·     ┬  
-   ·     ╰── Previous definition here
+   ·     ╰── Name already bound in environment
 ───╯
 
