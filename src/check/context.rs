@@ -1,6 +1,7 @@
 use std::iter;
 
 use crate::data::ast::Identifier;
+use crate::data::operand::Label;
 use crate::data::r#type;
 use crate::data::span::Span;
 use crate::data::symbol::Symbol;
@@ -66,7 +67,7 @@ pub enum LocalScope {
     Block,
     If,
     Else,
-    While,
+    While(Option<Label>),
 }
 
 #[derive(Clone, Debug)]
@@ -266,6 +267,17 @@ impl Context {
             }
             _ => unreachable!(),
         }
+    }
+
+    pub fn get_scoped_while(&self) -> Option<Option<Label>> {
+        self.locals
+            .iter()
+            .rev()
+            .find_map(|scope| match scope {
+                (LocalScope::While(label), _) => Some(label),
+                _ => None,
+            })
+            .cloned()
     }
 
     pub fn is_subtype(&self, subtype: &r#type::Expression, supertype: &r#type::Expression) -> bool {

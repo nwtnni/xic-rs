@@ -358,13 +358,16 @@ impl Checker {
                     r#type => expected!(r#type::Expression::Boolean, condition.span(), r#type),
                 };
 
-                self.context.push(LocalScope::While);
+                self.context.push(LocalScope::While(None));
                 self.check_statement(body)?;
                 self.context.pop();
 
                 Ok(r#type::Statement::Unit)
             }
-            ast::Statement::Break(_) => todo!(),
+            ast::Statement::Break(span) => match self.context.get_scoped_while() {
+                None => bail!(*span, ErrorKind::NotInWhile),
+                Some(_) => Ok(r#type::Statement::Void),
+            },
         }
     }
 

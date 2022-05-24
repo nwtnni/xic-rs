@@ -374,7 +374,7 @@ impl<'env> Emitter<'env> {
                         (LABEL endif))
                 )
             }
-            While(r#do, condition, statements, _) => {
+            While(r#do, condition, statement, _) => {
                 let r#while = Label::fresh("while");
                 let r#true = Label::fresh("true");
                 let r#false = Label::fresh("false");
@@ -397,13 +397,17 @@ impl<'env> Emitter<'env> {
                         _ => unreachable!(),
                     };
 
+                self.context.push(LocalScope::While(Some(r#true)));
+                let statement = self.emit_statement(statement);
+                self.context.pop();
+
                 match r#do {
                     ast::Do::Yes => {
                         hir!(
                             (SEQ
                                 (LABEL r#while)
-                                (self.emit_statement(statements))
-                                (condition)
+                                statement
+                                condition
                                 (LABEL r#false)
                                 (JUMP r#while)
                                 (LABEL r#true))
@@ -413,16 +417,19 @@ impl<'env> Emitter<'env> {
                         hir!(
                             (SEQ
                                 (LABEL r#while)
-                                (condition)
+                                condition
                                 (LABEL r#false)
-                                (self.emit_statement(statements))
+                                statement
                                 (JUMP r#while)
                                 (LABEL r#true))
                         )
                     }
                 }
             }
-            Break(_) => todo!(),
+            Break(_) => {
+                let label = self.context.get_scoped_while().flatten().unwrap();
+                hir!((JUMP label))
+            }
         }
     }
 
