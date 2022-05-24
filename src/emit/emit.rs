@@ -31,11 +31,19 @@ pub fn emit_unit(
     context: &mut check::Context,
     ast: &ast::Program,
 ) -> ir::Unit<hir::Function> {
+    let mut classes = Map::default();
+
+    for class in context
+        .class_implementations()
+        .chain(context.class_signatures())
+    {
+        classes
+            .entry(*class)
+            .or_insert_with(|| abi::class::Layout::new(context, class));
+    }
+
     let mut emitter = Emitter {
-        classes: context
-            .class_implementations()
-            .map(|class| (*class, abi::class::Layout::new(context, class)))
-            .collect(),
+        classes,
         context,
         locals: Map::default(),
         data: Map::default(),

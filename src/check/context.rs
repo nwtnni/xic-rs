@@ -166,6 +166,10 @@ impl Context {
         }
     }
 
+    pub fn class_signatures(&self) -> impl Iterator<Item = &Symbol> + '_ {
+        self.class_signatures.keys()
+    }
+
     pub fn get_class_signature(&self, class: &Symbol) -> Option<&Span> {
         self.class_signatures.get(class)
     }
