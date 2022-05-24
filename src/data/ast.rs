@@ -413,6 +413,57 @@ impl Expression {
             Expression::Call(call) => &mut call.span,
         }
     }
+
+    /// Assumes this expression represents a Boolean, and negates it. In particular,
+    /// we assume that variables are of type Boolean--otherwise, non-boolean expressions
+    /// are left unchanged.
+    ///
+    /// Should only be called after type-checking confirms that `self` is indeed Boolean.
+    pub(crate) fn negate_logical(&self) -> Self {
+        match self {
+            Expression::Variable(variable) => {
+                Expression::Unary(Unary::Not, Box::new(self.clone()), *variable.span)
+            }
+            Expression::Boolean(bool, span) => Expression::Boolean(!bool, *span),
+            Expression::Binary(binary, left, right, span) => {
+                let binary = match binary.get() {
+                    Binary::Mul
+                    | Binary::Hul
+                    | Binary::Div
+                    | Binary::Mod
+                    | Binary::Add
+                    | Binary::Cat
+                    | Binary::Sub => return self.clone(),
+                    Binary::Lt => Binary::Ge,
+                    Binary::Le => Binary::Gt,
+                    Binary::Ge => Binary::Lt,
+                    Binary::Gt => Binary::Le,
+                    Binary::Eq => Binary::Ne,
+                    Binary::Ne => Binary::Eq,
+                    Binary::And | Binary::Or => {
+                        // Alternatively, could use De Morgan's laws, but that would require
+                        // recursing on `left` and `right`.
+                        return Expression::Unary(Unary::Not, Box::new(self.clone()), *span);
+                    }
+                };
+
+                Expression::Binary(Cell::new(binary), left.clone(), right.clone(), *span)
+            }
+            Expression::Unary(Unary::Not, expression, _) => (**expression).clone(),
+            Expression::Unary(Unary::Neg, _, _)
+            | Expression::Character(_, _)
+            | Expression::String(_, _)
+            | Expression::Integer(_, _)
+            | Expression::Null(_)
+            | Expression::This(_)
+            | Expression::Array(_, _)
+            | Expression::Index(_, _, _)
+            | Expression::Length(_, _)
+            | Expression::Call(_)
+            | Expression::Dot(_, _, _, _)
+            | Expression::New(_, _) => self.clone(),
+        }
+    }
 }
 
 impl fmt::Display for Expression {

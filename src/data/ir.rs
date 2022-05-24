@@ -100,20 +100,6 @@ pub enum Condition {
     Ae,
 }
 
-impl Condition {
-    pub fn negate(&self) -> Self {
-        match self {
-            Condition::Lt => Condition::Ge,
-            Condition::Le => Condition::Gt,
-            Condition::Ge => Condition::Lt,
-            Condition::Gt => Condition::Ge,
-            Condition::Ne => Condition::Eq,
-            Condition::Eq => Condition::Ne,
-            Condition::Ae => unreachable!(),
-        }
-    }
-}
-
 impl From<ast::Binary> for Condition {
     fn from(binary: ast::Binary) -> Self {
         match binary {

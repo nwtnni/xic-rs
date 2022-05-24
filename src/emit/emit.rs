@@ -379,23 +379,14 @@ impl<'env> Emitter<'env> {
                 let r#true = Label::fresh("true");
                 let r#false = Label::fresh("false");
 
-                let condition =
-                    match hir::Condition::from(self.emit_expression(condition))(r#true, r#false) {
-                        hir::Statement::CJump {
-                            condition,
-                            left,
-                            right,
-                            r#true,
-                            r#false,
-                        } => hir::Statement::CJump {
-                            condition: condition.negate(),
-                            left,
-                            right,
-                            r#true,
-                            r#false,
-                        },
-                        _ => unreachable!(),
-                    };
+                // Note: we negate `condition` here as an optimization, so that the main body of the
+                // loop is the fallthrough (false) branch after the conditional jump. CFG destruction
+                // tries to trace the false branch first, so this will keep the loop body closer in
+                // the final assembly. IF we placed the loop body in the true branch, then we would
+                // trace the rest of the program in the false branch before outputting the loop body.
+                let condition = hir::Condition::from(
+                    self.emit_expression(&condition.negate_logical()),
+                )(r#true, r#false);
 
                 self.context.push(LocalScope::While(Some(r#true)));
                 let statement = self.emit_statement(statement);
