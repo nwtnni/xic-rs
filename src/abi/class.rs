@@ -40,7 +40,6 @@ impl Layout {
         let mut methods = Map::default();
         let mut offset = 0;
 
-        #[allow(clippy::explicit_counter_loop)]
         for superclass in context
             .ancestors_inclusive(class)
             .collect::<Vec<_>>()
@@ -59,15 +58,12 @@ impl Layout {
                     Entry::Variable(_) => {
                         fields.insert(*symbol);
                     }
-                    Entry::Function(_, _) => {
+                    Entry::Function(_, _) | Entry::Signature(_, _) => {
                         methods.entry(*symbol).or_insert_with(|| {
                             let index = offset;
                             offset += 1;
                             index
                         });
-                    }
-                    Entry::Signature(_, _) => {
-                        unreachable!("[TYPE ERROR]: unimplemented signature")
                     }
                 }
             }
