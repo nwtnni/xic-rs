@@ -85,7 +85,7 @@ impl Layout {
     }
 
     pub fn method(&self, method: &Symbol) -> Option<usize> {
-        self.methods.get_index_of(method)
+        self.methods.get(method).copied()
     }
 
     pub fn size(&self) -> usize {
