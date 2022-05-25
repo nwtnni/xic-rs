@@ -276,7 +276,7 @@ impl<'env> Emitter<'env> {
         };
 
         let returns = returns.to_vec();
-        let offset = match scope {
+        let argument_offset = match scope {
             GlobalScope::Global => 0,
             GlobalScope::Class(_) => 1,
         };
@@ -286,7 +286,7 @@ impl<'env> Emitter<'env> {
             statements.push(hir!(
                 (MOVE
                     (self.emit_single_declaration(Scope::Local, &parameter.name, &parameter.r#type))
-                    (TEMP (Temporary::Argument(index + offset))))
+                    (TEMP (Temporary::Argument(index + argument_offset))))
             ));
         }
 
@@ -306,7 +306,7 @@ impl<'env> Emitter<'env> {
             hir::Function {
                 name,
                 statement: hir::Statement::Sequence(statements),
-                arguments: function.parameters.len(),
+                arguments: function.parameters.len() + argument_offset,
                 returns: function.returns.len(),
                 visibility,
             },
