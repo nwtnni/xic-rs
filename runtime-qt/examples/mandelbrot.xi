@@ -42,7 +42,7 @@ plots: int[2][][]
 
 mkMatrix(d: int): int[][] {
     arr: int[d][]
-    c: int
+    c: int = 0
     while (c < d) {
         row: int[d]
         arr[c] = row
