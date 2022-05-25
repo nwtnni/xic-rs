@@ -66,11 +66,19 @@ impl<T: lir::Target> Analysis<lir::Function<T>> for PostponableExpressions<T> {
                 }
             }
             lir::Statement::Move {
-                destination: _,
+                destination: lir::Expression::Temporary(_),
                 source,
             } => {
                 Self::remove(output, source);
             }
+            lir::Statement::Move {
+                destination: lir::Expression::Memory(address),
+                source,
+            } => {
+                Self::remove(output, address);
+                Self::remove(output, source);
+            }
+            lir::Statement::Move { .. } => unreachable!(),
             lir::Statement::Return(returns) => {
                 for r#return in returns {
                     Self::remove(output, r#return);
@@ -97,8 +105,7 @@ impl<T: lir::Target> PostponableExpressions<T> {
         output.remove(kill);
 
         match kill {
-            lir::Expression::Immediate(_)
-            | lir::Expression::Temporary(_) => (),
+            lir::Expression::Immediate(_) | lir::Expression::Temporary(_) => (),
             lir::Expression::Memory(address) => Self::remove(output, address),
             lir::Expression::Binary(_, left, right) => {
                 Self::remove(output, left);

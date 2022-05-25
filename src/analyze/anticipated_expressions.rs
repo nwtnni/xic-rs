@@ -45,12 +45,21 @@ impl<T: lir::Target> Analysis<lir::Function<T>> for AnticipatedExpressions {
                 }
             }
             lir::Statement::Move {
-                destination,
+                destination: destination @ lir::Expression::Temporary(_),
                 source,
             } => {
                 Self::remove(output, destination);
                 Self::insert(output, source);
             }
+            lir::Statement::Move {
+                destination: destination @ lir::Expression::Memory(address),
+                source,
+            } => {
+                Self::remove(output, destination);
+                Self::insert(output, address);
+                Self::insert(output, source);
+            }
+            lir::Statement::Move { .. } => unreachable!(),
             lir::Statement::Return(returns) => {
                 for r#return in returns {
                     Self::insert(output, r#return);
@@ -94,8 +103,6 @@ impl AnticipatedExpressions {
         }
     }
 
-    // FIXME: conservatively handle memory aliasing (i.e. writing to any memory location
-    // could prevent reading from any other memory location)
     pub(super) fn remove(output: &mut Set<lir::Expression>, kill: &lir::Expression) {
         output.remove(kill);
 
@@ -116,7 +123,10 @@ impl AnticipatedExpressions {
     pub(super) fn contains(expression: &lir::Expression, killed: &lir::Expression) -> bool {
         match expression {
             lir::Expression::Immediate(_) | lir::Expression::Temporary(_) => expression == killed,
-            lir::Expression::Memory(address) => Self::contains(&*address, killed),
+            // Conservatively kill all memory expressions
+            lir::Expression::Memory(address) => {
+                matches!(killed, lir::Expression::Memory(_)) | Self::contains(&*address, killed)
+            }
             lir::Expression::Binary(_, left, right) => {
                 Self::contains(&*left, killed) || Self::contains(&*right, killed)
             }

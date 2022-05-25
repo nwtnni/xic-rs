@@ -6,6 +6,7 @@ use crate::analyze::AnticipatedExpressions;
 use crate::data::lir;
 use crate::data::operand::Label;
 use crate::data::operand::Temporary;
+use crate::data::symbol;
 use crate::Map;
 use crate::Set;
 
@@ -77,6 +78,14 @@ impl<T: lir::Target> Analysis<lir::Function<T>> for AvailableExpressions<T> {
                         &lir::Expression::Temporary(Temporary::Return(r#return)),
                     );
                 }
+
+                // Conservatively assume all memory is overwritten by call
+                AnticipatedExpressions::remove(
+                    output,
+                    &lir::Expression::Memory(Box::new(lir::Expression::from(Temporary::Fixed(
+                        symbol::intern_static("clobber"),
+                    )))),
+                )
             }
             lir::Statement::Move {
                 destination,

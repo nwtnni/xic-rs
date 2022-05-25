@@ -64,11 +64,19 @@ impl<T: lir::Target> Analysis<lir::Function<T>> for UsedExpressions<T> {
                 }
             }
             lir::Statement::Move {
-                destination: _,
+                destination: lir::Expression::Temporary(_),
                 source,
             } => {
                 AnticipatedExpressions::insert(output, source);
             }
+            lir::Statement::Move {
+                destination: lir::Expression::Memory(address),
+                source,
+            } => {
+                AnticipatedExpressions::insert(output, address);
+                AnticipatedExpressions::insert(output, source);
+            }
+            lir::Statement::Move { .. } => unreachable!(),
             lir::Statement::Return(returns) => {
                 for r#return in returns {
                     AnticipatedExpressions::insert(output, r#return);
