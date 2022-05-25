@@ -179,12 +179,21 @@ impl<T: lir::Target> Transformer<T> {
                 statements.push(lir::Statement::Call(function, arguments, returns));
             }
             lir::Statement::Move {
-                destination,
+                destination: destination @ lir::Expression::Temporary(_),
                 source,
             } => {
                 let source = self.eliminate_expression(label, index, source);
                 statements.push(lir!((MOVE destination source)));
             }
+            lir::Statement::Move {
+                destination: lir::Expression::Memory(address),
+                source,
+            } => {
+                let address = self.eliminate_expression(label, index, *address);
+                let source = self.eliminate_expression(label, index, source);
+                statements.push(lir!((MOVE (lir::Expression::Memory(Box::new(address))) source)));
+            }
+            lir::Statement::Move { .. } => unreachable!(),
             lir::Statement::Return(returns) => {
                 let returns = returns
                     .into_iter()
