@@ -23,7 +23,12 @@ pub fn interpret_hir<'io, R: io::BufRead + 'io, W: io::Write + 'io>(
 ) -> anyhow::Result<()> {
     let unit = unit.map_ref(Postorder::traverse_hir);
 
-    let mut global = Global::new(&unit.data, stdin, stdout);
+    let mut global = Global::new(&unit.data, &unit.bss, stdin, stdout);
+
+    let mut init = Local::new(&unit, &abi::mangle::init(), &[]);
+
+    assert!(init.interpret_hir(&unit, &mut global)?.is_empty());
+
     let mut local = Local::new(
         &unit,
         &symbol::intern_static(abi::XI_MAIN),
@@ -73,7 +78,7 @@ impl<'a> Local<'a, postorder::Hir<'a>> {
                 self.push(Operand::Integer(*integer))
             }
             hir::Expression::Immediate(Immediate::Label(label)) => {
-                self.push(Operand::Label(*label, 8))
+                self.push(Operand::Label(*label, 0))
             }
             hir::Expression::Temporary(temporary) => self.push(Operand::Temporary(*temporary)),
             hir::Expression::Memory(_) => {

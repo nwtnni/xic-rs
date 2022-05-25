@@ -60,7 +60,7 @@ impl<'a, T: 'a> Local<'a, T> {
 
     pub fn pop_name(&mut self, global: &Global) -> Symbol {
         match self.pop(global) {
-            Value::Label(Label::Fixed(name), 8) => name,
+            Value::Label(Label::Fixed(name), 0) => name,
             Value::Label(Label::Fixed(_), _) => panic!("calling label offset"),
             Value::Label(Label::Fresh(_, _), _) => panic!("calling fresh function name"),
             Value::Integer(_) => panic!("calling integer"),

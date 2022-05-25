@@ -1,12 +1,14 @@
 use std::io::BufRead;
 use std::io::Read;
 use std::io::Write;
+use std::iter;
 
 use anyhow::anyhow;
 use rand::rngs::ThreadRng;
 use rand::Rng as _;
 
 use crate::abi;
+use crate::data::ir::Visibility;
 use crate::data::operand::Label;
 use crate::data::symbol;
 use crate::data::symbol::Symbol;
@@ -26,22 +28,27 @@ pub struct Global<'io> {
 impl<'io> Global<'io> {
     pub fn new<R: BufRead + 'io, W: Write + 'io>(
         data: &Map<Symbol, Label>,
+        bss: &Map<Symbol, (Visibility, usize)>,
         stdin: R,
         stdout: W,
     ) -> Self {
+        let mut r#static = Map::default();
+
+        for (symbol, label) in data {
+            let string = symbol::resolve(*symbol);
+            let string = iter::once(string.len() as i64)
+                .chain(string.bytes().map(|byte| byte as i64))
+                .map(Value::Integer)
+                .collect::<Vec<_>>();
+            r#static.insert(*label, string);
+        }
+
+        for (symbol, (_, size)) in bss {
+            r#static.insert(Label::Fixed(*symbol), vec![Value::Integer(0); *size]);
+        }
+
         Global {
-            data: data
-                .iter()
-                .map(|(symbol, label)| {
-                    let mut string = symbol::resolve(*symbol)
-                        .bytes()
-                        .map(|byte| byte as i64)
-                        .map(Value::Integer)
-                        .collect::<Vec<_>>();
-                    string.insert(0, Value::Integer(string.len() as i64));
-                    (*label, string)
-                })
-                .collect(),
+            data: r#static,
             heap: Vec::new(),
             rng: rand::thread_rng(),
             stdin: Box::new(stdin),
