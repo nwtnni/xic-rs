@@ -1,0 +1,11 @@
+---
+source: tests/suite/emit.rs
+assertion_line: 10
+expression: lir_stdout
+---
+A
+A
+C
+C
+E
+
