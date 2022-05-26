@@ -73,14 +73,14 @@ impl<T: lir::Target> Analysis<lir::Function<T>> for AvailableExpressions<T> {
             | lir::Statement::Return(_) => (),
             lir::Statement::Call(_, _, returns) => {
                 for r#return in 0..*returns {
-                    AnticipatedExpressions::remove(
+                    Self::remove(
                         output,
                         &lir::Expression::Temporary(Temporary::Return(r#return)),
                     );
                 }
 
                 // Conservatively assume all memory is overwritten by call
-                AnticipatedExpressions::remove(
+                Self::remove(
                     output,
                     &lir::Expression::Memory(Box::new(lir::Expression::from(Temporary::Fixed(
                         symbol::intern_static("clobber"),
@@ -91,7 +91,7 @@ impl<T: lir::Target> Analysis<lir::Function<T>> for AvailableExpressions<T> {
                 destination,
                 source: _,
             } => {
-                AnticipatedExpressions::remove(output, destination);
+                Self::remove(output, destination);
             }
         }
     }
@@ -106,5 +106,37 @@ impl<T: lir::Target> Analysis<lir::Function<T>> for AvailableExpressions<T> {
             outputs,
             input,
         );
+    }
+}
+
+impl<T: lir::Target> AvailableExpressions<T> {
+    fn remove(output: &mut Set<lir::Expression>, kill: &lir::Expression) {
+        output.remove(kill);
+
+        let mut stack = vec![kill.clone()];
+
+        while let Some(killed) = stack.pop() {
+            output.retain(|kill| match Self::contains(kill, &killed) {
+                false => true,
+                true => {
+                    stack.push(kill.clone());
+                    false
+                }
+            })
+        }
+    }
+
+    fn contains(expression: &lir::Expression, killed: &lir::Expression) -> bool {
+        match expression {
+            lir::Expression::Immediate(_) => false,
+            lir::Expression::Temporary(_) => expression == killed,
+            lir::Expression::Memory(address) => {
+                // Conservatively clobber all memory expressions
+                matches!(killed, lir::Expression::Memory(_)) || Self::contains(&*address, killed)
+            }
+            lir::Expression::Binary(_, left, right) => {
+                Self::contains(&*left, killed) || Self::contains(&*right, killed)
+            }
+        }
     }
 }

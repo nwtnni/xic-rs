@@ -103,30 +103,27 @@ impl AnticipatedExpressions {
         }
     }
 
-    pub(super) fn remove(output: &mut Set<lir::Expression>, kill: &lir::Expression) {
+    fn remove(output: &mut Set<lir::Expression>, kill: &lir::Expression) {
         output.remove(kill);
 
         let mut stack = vec![kill.clone()];
 
         while let Some(killed) = stack.pop() {
-            output.retain(|kill| {
-                if !Self::contains(kill, &killed) {
-                    return true;
+            output.retain(|kill| match Self::contains(kill, &killed) {
+                false => true,
+                true => {
+                    stack.push(kill.clone());
+                    false
                 }
-
-                stack.push(kill.clone());
-                false
             })
         }
     }
 
-    pub(super) fn contains(expression: &lir::Expression, killed: &lir::Expression) -> bool {
+    fn contains(expression: &lir::Expression, killed: &lir::Expression) -> bool {
         match expression {
-            lir::Expression::Immediate(_) | lir::Expression::Temporary(_) => expression == killed,
-            // Conservatively kill all memory expressions
-            lir::Expression::Memory(address) => {
-                matches!(killed, lir::Expression::Memory(_)) | Self::contains(&*address, killed)
-            }
+            lir::Expression::Immediate(_) => false,
+            lir::Expression::Temporary(_) => expression == killed,
+            lir::Expression::Memory(address) => Self::contains(&*address, killed),
             lir::Expression::Binary(_, left, right) => {
                 Self::contains(&*left, killed) || Self::contains(&*right, killed)
             }
