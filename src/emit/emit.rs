@@ -441,6 +441,7 @@ impl<'env> Emitter<'env> {
             )),
             Null(_) => hir!((MEM (CONST 0))).into(),
             This(_) => hir!((TEMP Temporary::Argument(0))).into(),
+            Super(_) => todo!(),
             Variable(variable) => {
                 if let Some(temporary) = self.locals.get(&variable.symbol).copied() {
                     return hir!((TEMP temporary)).into();

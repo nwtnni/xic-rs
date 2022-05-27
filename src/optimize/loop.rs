@@ -74,6 +74,7 @@ fn effectful(expression: &ast::Expression) -> bool {
         | ast::Expression::Integer(_, _)
         | ast::Expression::Variable(_)
         | ast::Expression::This(_)
+        | ast::Expression::Super(_)
         | ast::Expression::Null(_) => false,
 
         // Recomputing these shouldn't be observable, but it _is_ inefficient.

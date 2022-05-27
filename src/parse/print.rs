@@ -200,6 +200,7 @@ impl Serialize for ast::Expression {
             Integer(integer, _) => integer.to_string().sexp_move(),
             Null(_) => "null".sexp(),
             This(_) => "this".sexp(),
+            Super(_) => "super".sexp(),
             Variable(variable) => variable.sexp(),
             Array(expressions, _) => expressions.sexp(),
             Binary(binary, left, right, _) => {

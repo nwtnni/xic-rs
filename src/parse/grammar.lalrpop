@@ -218,6 +218,7 @@ LValue: Expression = {
 NoCallLValue: Expression = {
     <l: @L> "null" <r: @R> => Expression::Null(Span::new(l, r)),
     <l: @L> "this" <r: @R> => Expression::This(Span::new(l, r)),
+    <l: @L> "super" <r: @R> => Expression::Super(Span::new(l, r)),
     <l: @L> "new" <class: Identifier> <r: @R> => Expression::New(class, Span::new(l, r)),
     <variable: Identifier> => Expression::Variable(variable),
     <l: @L> <array: LValue> "[" <index: Expression> "]" <r: @R> => {

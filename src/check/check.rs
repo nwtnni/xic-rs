@@ -388,6 +388,7 @@ impl Checker {
                     Some(class) => Ok(r#type::Expression::Class(class)),
                 }
             }
+            ast::Expression::Super(_) => todo!(),
             ast::Expression::Variable(variable) => {
                 match self.context.get(Scope::Local, &variable.symbol) {
                     Some(Entry::Variable(r#type)) => Ok(r#type.clone()),

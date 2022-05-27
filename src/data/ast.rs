@@ -345,6 +345,9 @@ pub enum Expression {
     /// Class reference
     This(Span),
 
+    /// Superclass reference
+    Super(Span),
+
     /// Variable
     Variable(Identifier),
 
@@ -382,6 +385,7 @@ impl Expression {
             | Expression::Integer(_, span)
             | Expression::Null(span)
             | Expression::This(span)
+            | Expression::Super(span)
             | Expression::Array(_, span)
             | Expression::Binary(_, _, _, span)
             | Expression::Unary(_, _, span)
@@ -402,6 +406,7 @@ impl Expression {
             | Expression::Integer(_, span)
             | Expression::Null(span)
             | Expression::This(span)
+            | Expression::Super(span)
             | Expression::Array(_, span)
             | Expression::Binary(_, _, _, span)
             | Expression::Unary(_, _, span)
@@ -456,6 +461,7 @@ impl Expression {
             | Expression::Integer(_, _)
             | Expression::Null(_)
             | Expression::This(_)
+            | Expression::Super(_)
             | Expression::Array(_, _)
             | Expression::Index(_, _, _)
             | Expression::Length(_, _)
