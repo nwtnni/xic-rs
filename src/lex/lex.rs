@@ -149,6 +149,7 @@ impl<'source> Lexer<'source> {
             "use" => Use,
             "class" => Class,
             "this" => This,
+            "super" => Super,
             "new" => New,
             "extends" => Extends,
             "null" => Null,

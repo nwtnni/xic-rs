@@ -487,6 +487,7 @@ extern {
         "use" => Token::Use,
         "class" => Token::Class,
         "this" => Token::This,
+        "super" => Token::Super,
         "new" => Token::New,
         "extends" => Token::Extends,
         "null" => Token::Null,

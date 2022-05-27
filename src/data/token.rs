@@ -60,6 +60,9 @@ pub enum Token {
     /// `this` keyword
     This,
 
+    /// `super` keyword
+    Super,
+
     /// `new` keyword
     New,
 
@@ -197,6 +200,7 @@ impl std::fmt::Display for Token {
             Token::Use => write!(fmt, "use"),
             Token::Class => write!(fmt, "class"),
             Token::This => write!(fmt, "this"),
+            Token::Super => write!(fmt, "super"),
             Token::New => write!(fmt, "new"),
             Token::Extends => write!(fmt, "extends"),
             Token::Null => write!(fmt, "null"),
