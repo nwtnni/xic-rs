@@ -1,0 +1,13 @@
+---
+source: tests/suite/check.rs
+assertion_line: 35
+expression: Snapshot(context)
+---
+Error: Semantic error
+   ╭─[tests/check/bad_super_1.xi:2:5]
+   │
+ 2 │     super.x = 1
+   ·     ──┬──  
+   ·       ╰──── Not inside a class implementation
+───╯
+

@@ -36,6 +36,7 @@ pub enum ErrorKind {
     NotInClass(Option<Symbol>),
     NotInClassModule(Symbol),
     NotInWhile,
+    NoSuperclass(Symbol),
     ClassCycle(Symbol),
     ClassIncomplete(Symbol, Span),
     IndexEmpty,
@@ -86,6 +87,9 @@ impl ErrorKind {
                 Cow::Owned(format!("Not inside module that defines class {}", class))
             }
             ErrorKind::NotInWhile => Cow::Borrowed("Not inside while loop"),
+            ErrorKind::NoSuperclass(class) => {
+                Cow::Owned(format!("Class {} has no superclass", class))
+            }
             ErrorKind::ClassCycle(class) => {
                 Cow::Owned(format!("Class hierarchy for class {} forms a cycle", class))
             }

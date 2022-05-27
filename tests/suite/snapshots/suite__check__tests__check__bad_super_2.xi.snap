@@ -1,0 +1,13 @@
+---
+source: tests/suite/check.rs
+assertion_line: 35
+expression: Snapshot(context)
+---
+Error: Semantic error
+   ╭─[tests/check/bad_super_2.xi:3:9]
+   │
+ 3 │         super.x = 1
+   ·         ──┬──  
+   ·           ╰──── Class A has no superclass
+───╯
+

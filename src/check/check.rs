@@ -388,7 +388,18 @@ impl Checker {
                     Some(class) => Ok(r#type::Expression::Class(class)),
                 }
             }
-            ast::Expression::Super(_) => todo!(),
+            ast::Expression::Super(span) => self
+                .context
+                .get_scoped_class()
+                .ok_or(ErrorKind::NotInClass(None))
+                .and_then(|class| {
+                    self.context
+                        .get_superclass(&class)
+                        .ok_or(ErrorKind::NoSuperclass(class))
+                })
+                .map(r#type::Expression::Class)
+                .map_err(|kind| Error::new(*span, kind))
+                .map_err(error::Error::from),
             ast::Expression::Variable(variable) => {
                 match self.context.get(Scope::Local, &variable.symbol) {
                     Some(Entry::Variable(r#type)) => Ok(r#type.clone()),
