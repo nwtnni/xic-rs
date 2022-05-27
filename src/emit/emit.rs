@@ -181,14 +181,16 @@ impl<'env> Emitter<'env> {
         }
 
         // Initialize class size
-        let size_class = self.classes[class].field_len() as i64 * abi::WORD;
-        let size_superclass = superclass
-            .map(|superclass| hir!((MEM (NAME Label::Fixed(abi::mangle::class_size(&superclass))))))
-            .unwrap_or_else(|| hir!((CONST abi::WORD)));
+        let fields = self.classes[class].field_len() as i64;
+        #[rustfmt::skip]
+        let interface = self.classes[class]
+            .interface()
+            .map(|superclass| hir!((MEM (NAME (Label::Fixed(abi::mangle::class_size(&superclass)))))))
+            .unwrap_or_else(|| hir!((CONST 0)));
 
-        statements.push(
-            hir!((MOVE (MEM (NAME Label::Fixed(size))) (ADD size_superclass (CONST size_class)))),
-        );
+        // Extra +1 for virtual table pointer
+        statements
+            .push(hir!((MOVE (MEM (NAME Label::Fixed(size))) (ADD interface (CONST (fields + 1) * abi::WORD)))));
 
         // Initialize class virtual table
         let virtual_table_class = abi::mangle::class_virtual_table(class);
@@ -228,7 +230,7 @@ impl<'env> Emitter<'env> {
                 Entry::Function(parameters, returns) => (parameters, returns),
             };
 
-            let offset = self.classes[class].method(symbol).unwrap();
+            let offset = self.classes[class].method_index(symbol).unwrap();
             let method = Label::Fixed(abi::mangle::method(class, symbol, parameters, returns));
 
             statements.push(hir!(
@@ -722,8 +724,18 @@ impl<'env> Emitter<'env> {
         arguments: &[ast::Expression],
     ) -> hir::Expression {
         let instance = Temporary::fresh("instance");
-        let receiver = self.emit_expression(receiver).into();
 
+        // Special case: if the receiver is `this` or `super`, then we know its
+        // virtual table statically, since these keywords can only be used inside
+        // the methods of a class definition.
+        let virtual_table = match receiver {
+            ast::Expression::This(_) | ast::Expression::Super(_) => {
+                hir!((NAME Label::Fixed(abi::mangle::class_virtual_table(class))))
+            }
+            _ => hir!((MEM (TEMP instance))),
+        };
+
+        let receiver = self.emit_expression(receiver).into();
         let mut arguments = arguments
             .iter()
             .map(|argument| self.emit_expression(argument).into())
@@ -735,12 +747,8 @@ impl<'env> Emitter<'env> {
 
         arguments.insert(0, hir!((TEMP instance)));
 
-        let method = hir!(
-            (MEM (ADD
-                (MEM (TEMP instance))
-                (CONST self.classes[class].method(&method.symbol).unwrap() as i64 * abi::WORD)))
-        );
-
+        let index = self.classes[class].method_index(&method.symbol).unwrap() as i64;
+        let method = hir!((MEM (ADD virtual_table (CONST index * abi::WORD))));
         let call = hir::Expression::Call(Box::new(method), arguments, returns);
 
         hir!((ESEQ (MOVE (TEMP instance) receiver) call))
@@ -752,23 +760,18 @@ impl<'env> Emitter<'env> {
         receiver: &ast::Expression,
         field: &Symbol,
     ) -> hir::Expression {
-        let base = match self.context.get_superclass(class) {
-            // 8-byte offset for virtual table pointer
-            None => hir!((CONST abi::WORD)),
-            Some(superclass) => {
-                let superclass_size = Label::Fixed(abi::mangle::class_size(&superclass));
-                hir!((MEM (NAME superclass_size)))
-            }
-        };
+        #[rustfmt::skip]
+        let base = self.classes[class]
+            .interface()
+            .map(|superclass| hir!((MEM (NAME (Label::Fixed(abi::mangle::class_size(&superclass)))))))
+            .unwrap_or_else(|| hir!((CONST 0)));
 
-        let offset = self.classes[class]
-            .field(field)
-            .map(|index| hir!((CONST index as i64 * abi::WORD)))
+        let index = self.classes[class]
+            .field_index(class, field)
+            .map(|index| index as i64)
             .expect("[TYPE ERROR]: unbound field in class");
 
-        let receiver = self.emit_expression(receiver).into();
-
-        hir!((MEM (ADD receiver (ADD base offset))))
+        hir!((MEM (ADD (self.emit_expression(receiver).into()) (ADD base (CONST index * abi::WORD)))))
     }
 
     fn emit_initialization(

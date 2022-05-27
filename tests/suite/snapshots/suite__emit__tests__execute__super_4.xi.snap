@@ -1,0 +1,10 @@
+---
+source: tests/suite/emit.rs
+assertion_line: 10
+expression: lir_stdout
+---
+0 = 0
+1 = 1
+3 = 3
+6 = 6
+

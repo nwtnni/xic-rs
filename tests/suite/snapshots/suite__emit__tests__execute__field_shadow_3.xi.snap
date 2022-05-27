@@ -1,0 +1,10 @@
+---
+source: tests/suite/emit.rs
+assertion_line: 10
+expression: lir_stdout
+---
+123 = 123
+213 = 213
+132 = 132
+321 = 321
+
