@@ -1,0 +1,7 @@
+---
+source: tests/suite/end_to_end.rs
+assertion_line: 28
+expression: stdout
+---
+1 = 1
+
