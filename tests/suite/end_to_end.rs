@@ -1,3 +1,4 @@
+use std::iter;
 use std::process::Command;
 
 #[test_generator::test_resources("tests/execute/*.xi")]
@@ -12,7 +13,10 @@ pub fn end_to_end(path: &str) {
         .arg(path)
         .output()
         .unwrap();
-    let stdout = String::from_utf8(xic.stdout).map(super::execute).unwrap();
+    let stdout = String::from_utf8(xic.stdout)
+        .map(iter::once)
+        .map(super::execute)
+        .unwrap();
 
     pretty_assertions::assert_eq!(expected_stdout, stdout);
 }

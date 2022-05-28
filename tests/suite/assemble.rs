@@ -1,9 +1,11 @@
+use std::iter;
+
 #[test_generator::test_resources("tests/execute/*.xi")]
 pub fn tile(path: &str) {
     let expected_stdout = super::execute_expected(path);
 
     let assembly = super::tile(path).map_ref(xic::api::allocate_trivial);
-    let assembly_stdout = super::execute(&assembly);
+    let assembly_stdout = super::execute(iter::once(&assembly));
 
     pretty_assertions::assert_eq!(expected_stdout, assembly_stdout);
 }
@@ -18,7 +20,7 @@ pub fn reorder(path: &str) {
         .clone()
         .map(xic::api::destruct_cfg)
         .map_ref(xic::api::allocate_trivial);
-    let reordered_stdout = super::execute(&reordered);
+    let reordered_stdout = super::execute(iter::once(&reordered));
 
     pretty_assertions::assert_eq!(expected_stdout, reordered_stdout);
 
@@ -26,7 +28,7 @@ pub fn reorder(path: &str) {
         .map_mut(xic::api::clean_cfg)
         .map(xic::api::destruct_cfg)
         .map_ref(xic::api::allocate_trivial);
-    let cleaned_stdout = super::execute(&cleaned);
+    let cleaned_stdout = super::execute(iter::once(&cleaned));
 
     pretty_assertions::assert_eq!(expected_stdout, cleaned_stdout);
 }
@@ -39,7 +41,7 @@ pub fn allocate(path: &str) {
         .map(xic::api::construct_cfg)
         .map(xic::api::allocate_linear);
 
-    let linear_stdout = super::execute(&linear);
+    let linear_stdout = super::execute(iter::once(&linear));
 
     pretty_assertions::assert_eq!(expected_stdout, linear_stdout);
 }

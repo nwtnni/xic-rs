@@ -98,38 +98,55 @@ pub fn execute_expected(path: &str) -> String {
     String::from(stdout.strip_suffix('\n').unwrap())
 }
 
-pub fn execute<T: Display>(assembly: T) -> String {
+pub fn execute<I, T>(objects: I) -> String
+where
+    I: IntoIterator<Item = T>,
+    T: Display,
+{
+    let paths = objects
+        .into_iter()
+        .map(|object| {
+            let mut file = NamedTempFile::new().unwrap();
+            write!(&mut file, "{}", object).unwrap();
+            file.flush().unwrap();
+            file.into_temp_path()
+        })
+        .collect::<Vec<_>>();
+
     let path = NamedTempFile::new().unwrap().into_temp_path();
 
-    let mut cc = Command::new("cc")
-        .stdin(Stdio::piped())
+    let success = Command::new("cc")
         .arg("-xassembler")
-        .arg("-")
         .arg("-L")
         .arg(concat!(env!("CARGO_MANIFEST_DIR"), "/runtime"))
+        .arg("-Wl,--start-group")
+        .args(&paths)
         .arg("-lxi")
+        .arg("-Wl,--end-group")
         .arg("-lpthread")
         .arg("-o")
         .arg(&path)
         .spawn()
-        .unwrap();
+        .unwrap()
+        .wait()
+        .unwrap()
+        .success();
 
-    let mut stdin = cc.stdin.take().unwrap();
-
-    write!(&mut stdin, "{}", assembly).unwrap();
-    stdin.flush().unwrap();
-    drop(stdin);
-
-    if !cc.wait().unwrap().success() {
+    if !success {
         panic!("Assembly compilation failed");
     }
 
-    Command::new(&path)
+    let stdout = Command::new(&path)
         .output()
         .map(|output| output.stdout)
         .map(String::from_utf8)
         .unwrap()
-        .unwrap()
+        .unwrap();
+
+    drop(paths);
+    drop(path);
+
+    stdout
 }
 
 pub fn graph<T: Display>(dot: T) -> String {

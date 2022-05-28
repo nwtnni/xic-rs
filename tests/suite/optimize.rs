@@ -1,3 +1,4 @@
+use std::iter;
 use std::path::Path;
 
 use xic::analyze::analyze;
@@ -36,7 +37,7 @@ pub fn eliminate_dead_code_assembly(path: &str) {
         })
         .map(xic::api::destruct_cfg)
         .map_ref(xic::api::allocate_trivial);
-    let optimized_stdout = super::execute(&optimized);
+    let optimized_stdout = super::execute(iter::once(&optimized));
 
     pretty_assertions::assert_eq!(expected_stdout, optimized_stdout);
 }
@@ -63,7 +64,7 @@ pub fn propagate_copies_assembly(path: &str) {
         .map_mut(optimize::propagate_copies_assembly)
         .map(xic::api::destruct_cfg)
         .map_ref(xic::api::allocate_trivial);
-    let optimized_stdout = super::execute(&optimized);
+    let optimized_stdout = super::execute(iter::once(&optimized));
 
     pretty_assertions::assert_eq!(expected_stdout, optimized_stdout);
 }
@@ -77,7 +78,7 @@ pub fn propagate_constants_assembly(path: &str) {
         .map_mut(optimize::propagate_constants_assembly)
         .map(xic::api::destruct_cfg)
         .map_ref(xic::api::allocate_trivial);
-    let optimized_stdout = super::execute(&optimized);
+    let optimized_stdout = super::execute(iter::once(&optimized));
 
     pretty_assertions::assert_eq!(expected_stdout, optimized_stdout);
 }
@@ -112,8 +113,7 @@ pub fn invert_loops_ast(path: &str) {
 
     let mut program = super::parse(path);
     optimize::invert_loops_ast(&mut program);
-    let mut context =
-        xic::api::check(None, Path::new(path), &program).unwrap();
+    let mut context = xic::api::check(None, Path::new(path), &program).unwrap();
     let optimized = xic::api::emit_hir(Path::new(path), &program, &mut context);
     let optimized_stdout = super::interpret_hir(&optimized);
 
