@@ -103,14 +103,14 @@ pub fn execute<T: Display>(assembly: T) -> String {
 
     let mut cc = Command::new("cc")
         .stdin(Stdio::piped())
+        .arg("-xassembler")
+        .arg("-")
         .arg("-L")
         .arg(concat!(env!("CARGO_MANIFEST_DIR"), "/runtime"))
         .arg("-lxi")
         .arg("-lpthread")
-        .arg("-xassembler")
         .arg("-o")
         .arg(&path)
-        .arg("-")
         .spawn()
         .unwrap();
 
