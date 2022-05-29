@@ -1,0 +1,9 @@
+---
+source: tests/suite/end_to_end.rs
+assertion_line: 56
+expression: stdout
+---
+Calling foo
+Calling bar
+Calling baz
+

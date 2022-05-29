@@ -47,4 +47,12 @@ mod separate {
         let stdout = super::super::execute([cycle_function_1, cycle_function_2]);
         insta::assert_display_snapshot!(stdout);
     }
+
+    #[test]
+    fn out_of_order() {
+        let out_of_order_1 = super::compile("tests/separate/out_of_order_1.xi");
+        let out_of_order_2 = super::compile("tests/separate/out_of_order_2.xi");
+        let stdout = super::super::execute([out_of_order_1, out_of_order_2]);
+        insta::assert_display_snapshot!(stdout);
+    }
 }

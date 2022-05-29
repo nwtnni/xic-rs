@@ -1,0 +1,7 @@
+class A {
+    bar()
+    baz()
+    foo()
+}
+
+newA(): A
