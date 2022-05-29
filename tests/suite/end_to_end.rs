@@ -39,4 +39,12 @@ mod separate {
         let stdout = super::super::execute([smoke_1, smoke_2]);
         insta::assert_display_snapshot!(stdout);
     }
+
+    #[test]
+    fn cycle_function() {
+        let cycle_function_1 = super::compile("tests/separate/cycle_function_1.xi");
+        let cycle_function_2 = super::compile("tests/separate/cycle_function_2.xi");
+        let stdout = super::super::execute([cycle_function_1, cycle_function_2]);
+        insta::assert_display_snapshot!(stdout);
+    }
 }
