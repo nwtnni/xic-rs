@@ -428,42 +428,30 @@ impl Checker {
             }
 
             ast::Expression::Binary(binary, left, right, _) => {
-                match binary.get() {
-                    ast::Binary::Add | ast::Binary::Cat => (),
-                    ast::Binary::Mul
+                let left_span = left.span();
+                let right_span = right.span();
+
+                let left = self.check_expression(left)?;
+                let right = self.check_expression(right)?;
+
+                let (parameter, r#return) = match binary.get() {
+                    // Note: array concatenation handled specially below
+                    ast::Binary::Cat
+                    | ast::Binary::Add
+                    | ast::Binary::Mul
                     | ast::Binary::Hul
                     | ast::Binary::Div
                     | ast::Binary::Mod
                     | ast::Binary::Sub => {
-                        return self.check_binary(
-                            left,
-                            right,
-                            r#type::Expression::Integer,
-                            r#type::Expression::Integer,
-                        )
+                        (r#type::Expression::Integer, r#type::Expression::Integer)
                     }
                     ast::Binary::Lt | ast::Binary::Le | ast::Binary::Ge | ast::Binary::Gt => {
-                        return self.check_binary(
-                            left,
-                            right,
-                            r#type::Expression::Integer,
-                            r#type::Expression::Boolean,
-                        )
+                        (r#type::Expression::Integer, r#type::Expression::Boolean)
                     }
                     ast::Binary::And | ast::Binary::Or => {
-                        return self.check_binary(
-                            left,
-                            right,
-                            r#type::Expression::Boolean,
-                            r#type::Expression::Boolean,
-                        )
+                        (r#type::Expression::Boolean, r#type::Expression::Boolean)
                     }
                     ast::Binary::Ne | ast::Binary::Eq => {
-                        let left_span = left.span();
-                        let right_span = right.span();
-
-                        let left = self.check_expression(left)?;
-                        let right = self.check_expression(right)?;
                         let class = self.context.get_scoped_class();
 
                         match (&left, &right) {
@@ -489,13 +477,13 @@ impl Checker {
                             expected!(left_span, left, right_span, right);
                         }
                     }
-                }
+                };
 
-                let left_span = left.span();
-                let right_span = right.span();
-
-                if let (left @ r#type::Expression::Array(_), right @ r#type::Expression::Array(_)) =
-                    (self.check_expression(left)?, self.check_expression(right)?)
+                if let (
+                    ast::Binary::Add | ast::Binary::Cat,
+                    r#type::Expression::Array(_),
+                    r#type::Expression::Array(_),
+                ) = (binary.get(), &left, &right)
                 {
                     return match self.context.least_upper_bound(&left, &right) {
                         None => expected!(left_span, left, right_span, right),
@@ -506,12 +494,15 @@ impl Checker {
                     };
                 }
 
-                self.check_binary(
-                    left,
-                    right,
-                    r#type::Expression::Integer,
-                    r#type::Expression::Integer,
-                )
+                if self.context.is_subtype(&left, &parameter)
+                    && self.context.is_subtype(&right, &parameter)
+                {
+                    Ok(r#return)
+                } else if self.context.is_subtype(&left, &parameter) {
+                    expected!(parameter, right_span, right)
+                } else {
+                    expected!(parameter, left_span, left)
+                }
             }
 
             ast::Expression::Unary(ast::Unary::Neg, expression, _) => {
@@ -729,26 +720,5 @@ impl Checker {
         }
 
         Ok(r#type)
-    }
-
-    fn check_binary(
-        &self,
-        left: &ast::Expression,
-        right: &ast::Expression,
-        parameter: r#type::Expression,
-        r#return: r#type::Expression,
-    ) -> Result<r#type::Expression, error::Error> {
-        match (self.check_expression(left)?, self.check_expression(right)?) {
-            (left, right)
-                if self.context.is_subtype(&left, &parameter)
-                    && self.context.is_subtype(&right, &parameter) =>
-            {
-                Ok(r#return)
-            }
-            (left, mismatch) if self.context.is_subtype(&left, &parameter) => {
-                expected!(parameter, right.span(), mismatch)
-            }
-            (mismatch, _) => expected!(parameter, left.span(), mismatch),
-        }
     }
 }
