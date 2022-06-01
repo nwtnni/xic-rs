@@ -237,7 +237,7 @@ impl Tiler {
         if let (ir::Binary::Sub, lir::Expression::Immediate(Immediate::Integer(0))) =
             (binary, destination)
         {
-            return self.tile_unary(asm::Unary::Neg, destination, Mutate::No);
+            return self.tile_unary(asm::Unary::Neg, source, Mutate::No);
         }
 
         match binary {
