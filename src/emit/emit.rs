@@ -116,6 +116,8 @@ impl<'env> Emitter<'env> {
     fn emit_global(&mut self, global: &ast::Global) -> Option<(Symbol, hir::Function)> {
         let (name, statement) = match global {
             ast::Global::Declaration(declaration) => {
+                // Note: we don't need to push a `LocalScope::Function` as of now because
+                // emitting IR for declarations can't read from or write to the local scope.
                 let statement = self.emit_declaration(GlobalScope::Global, declaration)?;
                 let name =
                     abi::mangle::global_initialization(declaration.iter().map(|(name, _)| {
@@ -127,8 +129,13 @@ impl<'env> Emitter<'env> {
                 (name, statement)
             }
             ast::Global::Initialization(initialization) => {
+                self.context.push(LocalScope::Function {
+                    returns: Vec::new(),
+                });
                 let statement =
                     self.emit_initialization(Scope::Global(GlobalScope::Global), initialization);
+                self.context.pop();
+
                 let name = abi::mangle::global_initialization(
                     initialization
                         .declarations
