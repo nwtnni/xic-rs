@@ -1,0 +1,7 @@
+---
+source: tests/suite/emit.rs
+assertion_line: 10
+expression: lir_stdout
+---
+25325181320 = 25325181320
+

@@ -143,44 +143,17 @@ impl Tiler {
             lir::Statement::Move {
                 destination,
                 source,
-            } => {
-                use ir::Binary::Add;
-                use ir::Binary::And;
-                use ir::Binary::Mul;
-                use ir::Binary::Or;
-                use ir::Binary::Sub;
-                use ir::Binary::Xor;
-
-                let (binary, source) = match source {
-                    lir::Expression::Binary(binary @ (Add | Mul | And | Or | Xor), left, right)
-                        if &**left == destination =>
-                    {
-                        (asm::Binary::from(*binary), &**right)
+            } => match source {
+                lir::Expression::Binary(binary, left, right) => {
+                    let (mutate, source) =
+                        self.tile_binary_expression(binary, left, right, Some(destination));
+                    match mutate {
+                        Mutate::Yes => (),
+                        Mutate::No => self.tile_binary(asm::Binary::Mov, destination, source),
                     }
-
-                    lir::Expression::Binary(binary @ (Add | Mul | And | Or | Xor), left, right)
-                        if &**right == destination =>
-                    {
-                        (asm::Binary::from(*binary), &**left)
-                    }
-
-                    lir::Expression::Binary(Sub, left, right) if &**left == destination => {
-                        (asm::Binary::Sub, &**right)
-                    }
-
-                    lir::Expression::Binary(Sub, left, right)
-                        if **left == lir::Expression::from(0) && &**right == destination =>
-                    {
-                        let operand = self.tile_expression(destination);
-                        self.push(asm!((neg operand)));
-                        return;
-                    }
-
-                    _ => (asm::Binary::Mov, source),
-                };
-
-                self.tile_binary(binary, destination, source);
-            }
+                }
+                source => self.tile_binary(asm::Binary::Mov, destination, source),
+            },
             lir::Statement::Call(function, arguments, returns) => {
                 let offset = if *returns > 2 {
                     self.tile_binary(
@@ -220,7 +193,7 @@ impl Tiler {
     }
 
     fn tile_expression(&mut self, expression: &lir::Expression) -> operand::Unary<Temporary> {
-        let (binary, destination, source) = match expression {
+        let (binary, left, right) = match expression {
             lir::Expression::Immediate(immediate) => {
                 // Only `mov r64, i64` statements can use 64-bit immediates (handled above).
                 return match immediate.is_64_bit() {
@@ -233,12 +206,52 @@ impl Tiler {
             lir::Expression::Binary(binary, left, right) => (binary, &**left, &**right),
         };
 
+        let (_, destination) = self.tile_binary_expression(binary, left, right, None);
+        destination
+    }
+
+    // Binary expressions can reuse the same destination for destructive assembly statements.
+    fn tile_binary_expression(
+        &mut self,
+        binary: &ir::Binary,
+        left: &lir::Expression,
+        right: &lir::Expression,
+        destination: Option<&lir::Expression>,
+    ) -> (Mutate, operand::Unary<Temporary>) {
         // Special-case unary operator
-        if let (ir::Binary::Sub, lir::Expression::Immediate(Immediate::Integer(0))) =
-            (binary, destination)
+        if let (ir::Binary::Sub, lir::Expression::Immediate(Immediate::Integer(0))) = (binary, left)
         {
-            return self.tile_unary(asm::Unary::Neg, source, Mutate::No);
+            let (mutate, destination) = match right {
+                lir::Expression::Binary(binary, left, right) => {
+                    self.tile_binary_expression(binary, left, right, destination)
+                }
+                expression if Some(expression) == destination => {
+                    (Mutate::Yes, self.tile_expression(expression))
+                }
+                expression => {
+                    let fresh = Temporary::fresh("tile");
+                    self.tile_binary(asm::Binary::Mov, fresh, expression);
+                    (Mutate::No, operand::Unary::R(fresh))
+                }
+            };
+
+            self.tile_unary(asm::Unary::Neg, destination);
+            return (mutate, destination);
         }
+
+        let (mutate, destination) = match left {
+            lir::Expression::Binary(binary, left, right) => {
+                self.tile_binary_expression(binary, left, right, destination)
+            }
+            expression if Some(expression) == destination => {
+                (Mutate::Yes, self.tile_expression(expression))
+            }
+            expression => {
+                let fresh = Temporary::fresh("tile");
+                self.tile_binary(asm::Binary::Mov, fresh, expression);
+                (Mutate::No, operand::Unary::R(fresh))
+            }
+        };
 
         match binary {
             ir::Binary::Add
@@ -247,10 +260,7 @@ impl Tiler {
             | ir::Binary::Mul
             | ir::Binary::Or
             | ir::Binary::Xor => {
-                let fresh = Temporary::fresh("tile");
-                self.tile_binary(asm::Binary::Mov, fresh, destination);
-                self.tile_binary(asm::Binary::from(*binary), fresh, source);
-                operand::Unary::R(fresh)
+                self.tile_binary(asm::Binary::from(*binary), destination, right);
             }
             ir::Binary::Hul | ir::Binary::Div | ir::Binary::Mod => {
                 let (cqo, unary, register) = match binary {
@@ -260,22 +270,21 @@ impl Tiler {
                     _ => unreachable!(),
                 };
 
-                let left = Temporary::fresh("tile");
-                let right = Temporary::fresh("tile");
-                let fresh = Temporary::fresh("tile");
+                // Tile source before moving `destination` into `rax`, because
+                // it could clobber `rax` or `rdx`.
+                let source = self.tile_expression(right);
+                let source = self.shuttle(source);
 
-                self.tile_binary(asm::Binary::Mov, left, destination);
-                self.tile_binary(asm::Binary::Mov, right, source);
-                self.tile_binary(asm::Binary::Mov, Register::Rax, left);
+                self.tile_binary(asm::Binary::Mov, Register::Rax, destination);
                 if cqo {
                     self.push(asm!((cqo)));
                 }
-                self.tile_unary(unary, &lir::Expression::Temporary(right), Mutate::Yes);
-                self.tile_binary(asm::Binary::Mov, fresh, register);
-
-                operand::Unary::R(fresh)
+                self.tile_unary(unary, source);
+                self.tile_binary(asm::Binary::Mov, destination, register);
             }
         }
+
+        (mutate, destination)
     }
 
     // ```text
@@ -352,25 +361,14 @@ impl Tiler {
         self.push(asm::Statement::Binary(binary, operands));
     }
 
-    /// Assumes `unary` operates only on register and memory operands. Immediates will be shuttled.
-    fn tile_unary(
+    fn tile_unary<'a>(
         &mut self,
         unary: asm::Unary,
-        destination: &lir::Expression,
-        mutate: Mutate,
+        destination: impl Into<Or<&'a lir::Expression, operand::Unary<Temporary>>>,
     ) -> operand::Unary<Temporary> {
-        let destination = match (self.tile_expression(destination), mutate) {
-            (destination @ operand::Unary::I(_), _) => operand::Unary::R(self.shuttle(destination)),
-            (destination @ operand::Unary::M(_), Mutate::Yes) => destination,
-            (destination @ operand::Unary::R(_), Mutate::Yes) => destination,
-            (destination @ operand::Unary::M(_), Mutate::No) => {
-                operand::Unary::R(self.shuttle(destination))
-            }
-            (operand::Unary::R(destination), Mutate::No) => {
-                let fresh = Temporary::fresh("tile");
-                self.push(asm!((mov fresh, destination)));
-                operand::Unary::R(fresh)
-            }
+        let destination = match destination.into() {
+            Or::L(expression) => self.tile_expression(expression),
+            Or::R(operand) => operand,
         };
 
         self.push(asm::Statement::Unary(unary, destination));

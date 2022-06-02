@@ -1,0 +1,7 @@
+---
+source: tests/suite/emit.rs
+assertion_line: 10
+expression: lir_stdout
+---
+-3404234798343695241 = -3404234798343695241
+
