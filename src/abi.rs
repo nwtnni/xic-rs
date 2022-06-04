@@ -30,8 +30,8 @@
 //!   TOP (lower memory address)
 //! ```
 
-pub mod mangle;
 pub mod class;
+pub mod mangle;
 
 use crate::data::operand::Immediate;
 use crate::data::operand::Memory;
@@ -87,19 +87,31 @@ pub const ARGUMENT: &[Register] = &[
 pub const RETURN: &[Register] = &[Register::Rax, Register::Rdx];
 
 /// Total stack size. Guaranteed to align to 16 bytes.
-pub fn stack_size(callee_arguments: usize, callee_returns: usize, spilled: usize) -> usize {
-    let unaligned = callee_arguments.saturating_sub(6) + callee_returns.saturating_sub(2) + spilled;
+pub fn stack_size(
+    callee_arguments: Option<usize>,
+    callee_returns: Option<usize>,
+    spilled: usize,
+) -> usize {
+    let unaligned = callee_arguments.unwrap_or(0).saturating_sub(6)
+        + callee_returns.unwrap_or(0).saturating_sub(2)
+        + spilled;
 
-    // The stack must be aligned to 16 bytes (for the `call` statement), but it starts off
-    // unaligned because the caller's `call` statement pushes `rip` onto the stack.
-    //
-    // So we need an extra word of padding here.
-    (unaligned | 1) * WORD as usize
+    // The stack must be aligned to 16 bytes (if there is a `call` statement),
+    // but it starts off unaligned because the caller's `call` statement
+    // pushes `rip` onto the stack, so we need an extra word of padding here.
+    (unaligned | (callee_arguments.is_some() || callee_returns.is_some()) as usize) * WORD as usize
 }
 
 /// Offset of spilled temporary `index` from the stack pointer.
-pub fn stack_offset(callee_arguments: usize, callee_returns: usize, index: usize) -> usize {
-    WORD as usize * (callee_arguments.saturating_sub(6) + callee_returns.saturating_sub(2) + index)
+pub fn stack_offset(
+    callee_arguments: Option<usize>,
+    callee_returns: Option<usize>,
+    index: usize,
+) -> usize {
+    WORD as usize
+        * (callee_arguments.unwrap_or(0).saturating_sub(6)
+            + callee_returns.unwrap_or(0).saturating_sub(2)
+            + index)
 }
 
 /// Retrieve `argument` from calling function.

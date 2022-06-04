@@ -28,8 +28,8 @@ pub fn allocate_linear(function: Cfg<asm::Function<Temporary>>) -> asm::Function
 }
 
 struct Allocator {
-    callee_arguments: usize,
-    callee_returns: usize,
+    callee_arguments: Option<usize>,
+    callee_returns: Option<usize>,
     allocated: Map<Temporary, Register>,
     spilled: Map<Temporary, usize>,
     statements: Vec<asm::Statement<Register>>,
@@ -64,8 +64,8 @@ fn allocate(
     spilled: Map<Temporary, usize>,
 ) -> asm::Function<Register> {
     let mut allocator = Allocator {
-        callee_arguments: function.callee_arguments().unwrap_or(0),
-        callee_returns: function.callee_returns().unwrap_or(0),
+        callee_arguments: function.callee_arguments(),
+        callee_returns: function.callee_returns(),
         allocated,
         spilled,
         statements: Vec::new(),
