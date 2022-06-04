@@ -1,5 +1,7 @@
 #![allow(unused_parens)]
 
+use std::cell::Cell;
+
 use crate::abi;
 use crate::check;
 use crate::check::Entry;
@@ -25,6 +27,7 @@ struct Emitter<'env> {
     locals: Map<Symbol, Temporary>,
     data: Map<Symbol, Vec<Immediate>>,
     bss: Map<Symbol, (ir::Visibility, usize)>,
+    out_of_bounds: Cell<Option<Label>>,
 }
 
 pub fn emit_unit(
@@ -49,6 +52,7 @@ pub fn emit_unit(
         locals: Map::default(),
         data: Map::default(),
         bss: Map::default(),
+        out_of_bounds: Cell::new(None),
     };
 
     let mut functions = Map::default();
@@ -282,6 +286,7 @@ impl<'env> Emitter<'env> {
         function: &ast::Function,
     ) -> (Symbol, hir::Function) {
         self.locals.clear();
+        self.out_of_bounds.take();
 
         let mut statements = Vec::new();
 
@@ -640,17 +645,14 @@ impl<'env> Emitter<'env> {
                 let index = Temporary::fresh("index");
 
                 let high = Label::fresh("high");
-                let out = Label::fresh("out");
                 let r#in = Label::fresh("in");
 
-                hir!(
-                    (ESEQ
-                        (SEQ
-                            (MOVE (TEMP base) (self.emit_expression(&*array).into()))
-                            (MOVE (TEMP index) (self.emit_expression(&*array_index).into()))
-                            (CJUMP (AE (TEMP index) (MEM (SUB (TEMP base) (CONST abi::WORD)))) out high)
-                            (LABEL high)
-                            (JUMP r#in)
+                // Ensure we only emit one out of bounds block per function
+                let (out, bail) = match self.out_of_bounds.get() {
+                    Some(out) => (out, hir!((JUMP out))),
+                    None => {
+                        let out = Label::fresh("out");
+                        let bail = hir!((SEQ
                             (LABEL out)
                             (EXP (CALL (NAME (Label::Fixed(symbol::intern_static(abi::XI_OUT_OF_BOUNDS)))) 0))
                             // In order to (1) minimize special logic for `XI_OUT_OF_BOUNDS` and (2) still
@@ -660,6 +662,22 @@ impl<'env> Emitter<'env> {
                             // The number of returns must match the rest of the function, so return values
                             // are defined along all paths to the exit.
                             (hir::Statement::Return(vec![hir!((CONST 0)); self.context.get_scoped_returns().unwrap().len()]))
+                        ));
+
+                        self.out_of_bounds.set(Some(out));
+                        (out, bail)
+                    }
+                };
+
+                hir!(
+                    (ESEQ
+                        (SEQ
+                            (MOVE (TEMP base) (self.emit_expression(&*array).into()))
+                            (MOVE (TEMP index) (self.emit_expression(&*array_index).into()))
+                            (CJUMP (AE (TEMP index) (MEM (SUB (TEMP base) (CONST abi::WORD)))) out high)
+                            (LABEL high)
+                            (JUMP r#in)
+                            bail
                             (LABEL r#in))
                         (MEM (ADD (TEMP base) (MUL (TEMP index) (CONST abi::WORD)))))
                 ).into()
