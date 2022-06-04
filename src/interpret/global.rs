@@ -1,7 +1,6 @@
 use std::io::BufRead;
 use std::io::Read;
 use std::io::Write;
-use std::iter;
 
 use anyhow::anyhow;
 use rand::rngs::ThreadRng;
@@ -9,6 +8,7 @@ use rand::Rng as _;
 
 use crate::abi;
 use crate::data::ir::Visibility;
+use crate::data::operand::Immediate;
 use crate::data::operand::Label;
 use crate::data::symbol;
 use crate::data::symbol::Symbol;
@@ -27,20 +27,23 @@ pub struct Global<'io> {
 
 impl<'io> Global<'io> {
     pub fn new<R: BufRead + 'io, W: Write + 'io>(
-        data: &Map<Symbol, Label>,
+        data: &Map<Symbol, Vec<Immediate>>,
         bss: &Map<Symbol, (Visibility, usize)>,
         stdin: R,
         stdout: W,
     ) -> Self {
         let mut r#static = Map::default();
 
-        for (symbol, label) in data {
-            let string = symbol::resolve(*symbol);
-            let string = iter::once(string.len() as i64)
-                .chain(string.bytes().map(|byte| byte as i64))
-                .map(Value::Integer)
-                .collect::<Vec<_>>();
-            r#static.insert(*label, string);
+        for (symbol, data) in data {
+            r#static.insert(
+                Label::Fixed(*symbol),
+                data.iter()
+                    .map(|immediate| match immediate {
+                        Immediate::Integer(integer) => Value::Integer(*integer),
+                        Immediate::Label(label) => Value::Label(*label, 0),
+                    })
+                    .collect(),
+            );
         }
 
         for (symbol, (_, size)) in bss {

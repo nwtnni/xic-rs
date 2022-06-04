@@ -9,6 +9,7 @@ use crate::check::Scope;
 use crate::data::ast;
 use crate::data::hir;
 use crate::data::ir;
+use crate::data::operand::Immediate;
 use crate::data::operand::Label;
 use crate::data::operand::Temporary;
 use crate::data::r#type;
@@ -22,7 +23,7 @@ struct Emitter<'env> {
     context: &'env mut check::Context,
     classes: Map<Symbol, abi::class::Layout>,
     locals: Map<Symbol, Temporary>,
-    data: Map<Symbol, Label>,
+    data: Map<Symbol, Vec<Immediate>>,
     bss: Map<Symbol, (ir::Visibility, usize)>,
 }
 
@@ -129,6 +130,17 @@ impl<'env> Emitter<'env> {
                 (name, statement)
             }
             ast::Global::Initialization(initialization) => {
+                if let ast::Expression::Integer(integer, _) = &*initialization.expression {
+                    assert_eq!(initialization.declarations.len(), 1);
+                    let name = initialization.declarations[0].as_ref().unwrap().name.symbol;
+                    let r#type = r#type::Expression::Integer;
+                    self.data.insert(
+                        abi::mangle::global(&name, &r#type),
+                        vec![Immediate::Integer(*integer)],
+                    );
+                    return None;
+                }
+
                 self.context.push(LocalScope::Function {
                     returns: Vec::new(),
                 });

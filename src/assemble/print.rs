@@ -10,7 +10,6 @@ use crate::data::operand::Immediate;
 use crate::data::operand::Label;
 use crate::data::operand::Memory;
 use crate::data::operand::Unary;
-use crate::data::symbol;
 
 pub struct Intel<T>(pub T);
 
@@ -20,28 +19,19 @@ impl<T: fmt::Display> fmt::Display for Intel<&asm::Unit<T>> {
 
         writeln!(fmt, "{}\n", Directive::Data)?;
 
-        for (symbol, label) in &self.0.data {
-            let string = symbol::resolve(*symbol);
-
-            writeln!(fmt, "{}", Directive::Visible(ir::Visibility::Local, *label))?;
+        for (symbol, data) in &self.0.data {
+            writeln!(
+                fmt,
+                "{}",
+                Directive::Visible(ir::Visibility::Local, Label::Fixed(*symbol))
+            )?;
             writeln!(fmt, "{}", Directive::Align(abi::WORD as usize))?;
             writeln!(
                 fmt,
                 "{}",
-                Directive::Quad(vec![Immediate::Integer(string.len() as i64)])
+                Intel(&Statement::<T>::Label(Label::Fixed(*symbol)))
             )?;
-            writeln!(fmt, "{}", Intel(&Statement::<T>::Label(*label)))?;
-            writeln!(
-                fmt,
-                "{}\n",
-                Directive::Quad(
-                    string
-                        .bytes()
-                        .map(|byte| byte as i64)
-                        .map(Immediate::Integer)
-                        .collect()
-                )
-            )?;
+            writeln!(fmt, "{}\n", Directive::Quad(data.clone()))?;
         }
 
         writeln!(fmt, "{}\n", Directive::Bss)?;
