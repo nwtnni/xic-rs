@@ -1,5 +1,5 @@
 use crate::analyze::analyze;
-use crate::analyze::Analysis as _;
+use crate::analyze::Analysis;
 use crate::analyze::CopyPropagation;
 use crate::cfg::Cfg;
 use crate::data::asm;
@@ -72,7 +72,11 @@ pub fn propagate_assembly(cfg: &mut Cfg<asm::Function<Temporary>>) {
                 | Statement::Jcc(_, _) => (),
             };
 
-            solution.analysis.transfer(&save, &mut output);
+            <CopyPropagation as Analysis<asm::Function<Temporary>>>::transfer(
+                &solution.analysis,
+                &save,
+                &mut output,
+            );
         }
     }
 }

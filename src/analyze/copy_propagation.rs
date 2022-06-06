@@ -1,6 +1,7 @@
 use crate::abi;
 use crate::analyze::Analysis;
 use crate::data::asm;
+use crate::data::lir;
 use crate::data::operand;
 use crate::data::operand::Register;
 use crate::data::operand::Temporary;
@@ -8,6 +9,60 @@ use crate::util;
 use crate::Map;
 
 pub struct CopyPropagation;
+
+impl<T: lir::Target> Analysis<lir::Function<T>> for CopyPropagation {
+    const BACKWARD: bool = false;
+
+    type Data = Map<Temporary, Temporary>;
+
+    fn new() -> Self {
+        Self
+    }
+
+    fn default(&self) -> Self::Data {
+        Map::default()
+    }
+
+    fn transfer(
+        &self,
+        statement: &<lir::Function<T> as crate::cfg::Function>::Statement,
+        output: &mut Self::Data,
+    ) {
+        match statement {
+            lir::Statement::Jump(_)
+            | lir::Statement::CJump { .. }
+            | lir::Statement::Label(_)
+            | lir::Statement::Return(_) => (),
+            lir::Statement::Call(_, _, returns) => {
+                for r#return in 0..*returns {
+                    remove(output, &Temporary::Return(r#return));
+                }
+            }
+            lir::Statement::Move {
+                destination: lir::Expression::Temporary(destination),
+                source: lir::Expression::Temporary(source),
+            } => {
+                remove(output, destination);
+                output.insert(*destination, *source);
+            }
+            lir::Statement::Move {
+                destination: lir::Expression::Temporary(destination),
+                source: _,
+            } => {
+                remove(output, destination);
+            }
+            lir::Statement::Move { .. } => (),
+        }
+    }
+
+    fn merge<'a, I>(&self, outputs: I, input: &mut Self::Data)
+    where
+        I: Iterator<Item = Option<&'a Self::Data>>,
+        Self::Data: 'a,
+    {
+        <Self as Analysis<asm::Function<Temporary>>>::merge(self, outputs, input)
+    }
+}
 
 impl Analysis<asm::Function<Temporary>> for CopyPropagation {
     const BACKWARD: bool = false;
