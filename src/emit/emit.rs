@@ -58,6 +58,17 @@ pub fn emit_unit(
     let mut functions = Map::default();
     let mut initialize = Vec::new();
 
+    for class in emitter
+        .context
+        .class_implementations()
+        .copied()
+        .collect::<Vec<_>>()
+    {
+        let (name, function) = emitter.emit_class_initialization(&class);
+        functions.insert(name, function);
+        initialize.push(hir!((EXP (CALL (NAME Label::Fixed(name)) 0))));
+    }
+
     for item in &ast.items {
         match item {
             ast::Item::Global(global) => {
@@ -84,17 +95,6 @@ pub fn emit_unit(
                 functions.insert(name, function);
             }
         }
-    }
-
-    for class in emitter
-        .context
-        .class_implementations()
-        .copied()
-        .collect::<Vec<_>>()
-    {
-        let (name, function) = emitter.emit_class_initialization(&class);
-        functions.insert(name, function);
-        initialize.push(hir!((EXP (CALL (NAME Label::Fixed(name)) 0))));
     }
 
     initialize.push(hir!((RETURN)));
