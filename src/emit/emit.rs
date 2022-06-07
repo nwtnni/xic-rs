@@ -119,6 +119,9 @@ pub fn emit_unit(
 
 impl<'env> Emitter<'env> {
     fn emit_global(&mut self, global: &ast::Global) -> Option<(Symbol, hir::Function)> {
+        self.locals.clear();
+        self.out_of_bounds.take();
+
         let (name, statement) = match global {
             ast::Global::Declaration(declaration) => {
                 // Note: we don't need to push a `LocalScope::Function` as of now because
@@ -644,43 +647,47 @@ impl<'env> Emitter<'env> {
                 let base = Temporary::fresh("base");
                 let index = Temporary::fresh("index");
 
-                let high = Label::fresh("high");
                 let r#in = Label::fresh("in");
 
+                let mut statements = vec![
+                    hir!((MOVE (TEMP base) (self.emit_expression(&*array).into()))),
+                    hir!((MOVE (TEMP index) (self.emit_expression(&*array_index).into()))),
+                ];
+
                 // Ensure we only emit one out of bounds block per function
-                let (out, bail) = match self.out_of_bounds.get() {
-                    Some(out) => (out, hir!((JUMP out))),
+                match self.out_of_bounds.get() {
+                    Some(out) => {
+                        statements.extend([
+                            hir!((CJUMP (AE (TEMP index) (MEM (SUB (TEMP base) (CONST abi::WORD)))) out r#in)),
+                        ]);
+                    }
                     None => {
                         let out = Label::fresh("out");
-                        let bail = hir!((SEQ
-                            (LABEL out)
-                            (EXP (CALL (NAME (Label::Fixed(symbol::intern_static(abi::XI_OUT_OF_BOUNDS)))) 0))
+                        self.out_of_bounds.set(Some(out));
+
+                        statements.extend([
+                            hir!((CJUMP (AE (TEMP index) (MEM (SUB (TEMP base) (CONST abi::WORD)))) out r#in)),
+                            hir!((LABEL out)),
+                            hir!((EXP (CALL (NAME (Label::Fixed(symbol::intern_static(abi::XI_OUT_OF_BOUNDS)))) 0))),
                             // In order to (1) minimize special logic for `XI_OUT_OF_BOUNDS` and (2) still
                             // treat it correctly in dataflow analyses as an exit site, we put this dummy
                             // return statement here.
                             //
                             // The number of returns must match the rest of the function, so return values
                             // are defined along all paths to the exit.
-                            (hir::Statement::Return(vec![hir!((CONST 0)); self.context.get_scoped_returns().unwrap().len()]))
-                        ));
-
-                        self.out_of_bounds.set(Some(out));
-                        (out, bail)
+                            hir!((hir::Statement::Return(vec![hir!((CONST 0)); self.context.get_scoped_returns().unwrap().len()]))),
+                        ]);
                     }
                 };
 
+                statements.push(hir!((LABEL r#in)));
+
                 hir!(
                     (ESEQ
-                        (SEQ
-                            (MOVE (TEMP base) (self.emit_expression(&*array).into()))
-                            (MOVE (TEMP index) (self.emit_expression(&*array_index).into()))
-                            (CJUMP (AE (TEMP index) (MEM (SUB (TEMP base) (CONST abi::WORD)))) out high)
-                            (LABEL high)
-                            (JUMP r#in)
-                            bail
-                            (LABEL r#in))
+                        (hir::Statement::Sequence(statements))
                         (MEM (ADD (TEMP base) (MUL (TEMP index) (CONST abi::WORD)))))
-                ).into()
+                )
+                .into()
             }
             Length(array, _) => {
                 let address = self.emit_expression(array).into();
