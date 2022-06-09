@@ -66,6 +66,10 @@ fn is_ident(c: char) -> bool {
     matches!(c, 'a'..='z' | 'A'..='Z' | '0'..='9' | '_' | '\'')
 }
 
+fn is_whitespace(c: char) -> bool {
+    matches!(c, '\n' | '\t' | '\r' | ' ')
+}
+
 impl<'source> Lexer<'source> {
     /// Construct a new lexer
     pub fn new(path: &Symbol, source: &'source str) -> Self {
@@ -259,12 +263,23 @@ impl<'source> Lexer<'source> {
     /// Lex a single string literal
     fn lex_string(&mut self, start: span::Point) -> token::Spanned {
         let mut buffer = String::new();
+        let mut skip = false;
         while let Some(ch) = self.peek() {
-            if ch == '\"' {
-                self.skip();
-                return Ok((start, token::Token::String(buffer), self.point()));
-            } else {
-                buffer.push(self.lex_char(start, true)?);
+            match (skip, ch) {
+                (true, ch) if is_whitespace(ch) => self.skip(),
+                (true, _) => skip = false,
+
+                (false, '\\') if self.peeeek().map_or(false, is_whitespace) => {
+                    self.skip();
+                    skip = true;
+                }
+                (false, '\"') => {
+                    self.skip();
+                    return Ok((start, token::Token::String(buffer), self.point()));
+                }
+                (false, _) => {
+                    buffer.push(self.lex_char(start, true)?);
+                }
             }
         }
         let span = span::Span::new(start, self.point());
