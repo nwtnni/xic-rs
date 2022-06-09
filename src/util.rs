@@ -1,5 +1,3 @@
-use std::time::Instant;
-
 /// Convenience trait for method-chaining functions.
 pub trait Tap: Sized {
     fn tap<F, T>(self, f: F) -> T
@@ -76,38 +74,36 @@ where
     }
 }
 
-pub(crate) struct Timer {
-    start: Instant,
-    message: String,
-}
-
-impl Timer {
-    pub(crate) fn new(message: String) -> Self {
-        Timer {
-            start: Instant::now(),
-            message,
-        }
-    }
-}
-
-impl Drop for Timer {
-    fn drop(&mut self) {
-        let duration = self.start.elapsed();
-        log::info!(
-            "{} (took {}.{:03}s)",
-            self.message,
-            duration.as_secs(),
-            duration.subsec_millis()
-        );
-    }
-}
-
+// Note: the struct definition is inside the macro so that `log::info` will have
+// the correct module attached to it (i.e. the module of the macro invocation,
+// and not `xic::util`). Seems like there should be a better alternative,
+// but this works for now?
 macro_rules! time {
     ($($arg:tt)*) => {
-        // FIXME: is it possible to avoid heap allocation here?
-        // The `format_args` macro returns a temporary with too short a lifetime :(
-        let message = format!($($arg)*);
-        let _timer = $crate::util::Timer::new(message);
+        struct Timer {
+            start: ::std::time::Instant,
+            message: String,
+        }
+
+        impl Drop for Timer {
+            fn drop(&mut self) {
+                let duration = self.start.elapsed();
+                log::info!(
+                    "{} (took {}.{:03}s)",
+                    self.message,
+                    duration.as_secs(),
+                    duration.subsec_millis()
+                );
+            }
+        }
+
+        let _timer = Timer {
+            start: ::std::time::Instant::now(),
+
+            // FIXME: is it possible to avoid heap allocation here?
+            // The `format_args` macro returns a temporary with too short a lifetime :(
+            message: format!($($arg)*),
+        };
     }
 }
 
