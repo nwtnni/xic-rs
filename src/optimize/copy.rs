@@ -6,9 +6,21 @@ use crate::data::asm;
 use crate::data::asm::Statement;
 use crate::data::operand;
 use crate::data::operand::Temporary;
+use crate::util;
 use crate::Map;
 
 pub fn propagate_assembly(cfg: &mut Cfg<asm::Function<Temporary>>) {
+    log::info!(
+        "[{}] Propagating copies in {}...",
+        std::any::type_name::<Cfg<asm::Function<Temporary>>>(),
+        cfg.name()
+    );
+    util::time!(
+        "[{}] Done propagating copies in {}",
+        std::any::type_name::<Cfg<asm::Function<Temporary>>>(),
+        cfg.name()
+    );
+
     let mut solution = analyze::<CopyPropagation, _>(cfg);
 
     for (label, statements) in cfg.blocks_mut() {

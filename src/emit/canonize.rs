@@ -5,8 +5,20 @@ use crate::data::operand::Immediate;
 use crate::data::operand::Label;
 use crate::data::operand::Temporary;
 use crate::data::symbol;
+use crate::util;
 
 pub fn canonize_function(function: &hir::Function) -> lir::Function<Label> {
+    log::info!(
+        "[{}] Emitting LIR for {}...",
+        std::any::type_name::<hir::Function>(),
+        function.name,
+    );
+    util::time!(
+        "[{}] Done emitting LIR for {}",
+        std::any::type_name::<hir::Function>(),
+        function.name,
+    );
+
     let mut canonizer = Canonizer::default();
 
     canonizer.canonize_statement(&function.statement);

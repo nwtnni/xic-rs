@@ -7,9 +7,20 @@ use crate::cfg::Edge;
 use crate::cfg::Function;
 use crate::cfg::Terminator;
 use crate::data::operand::Label;
+use crate::util;
 use crate::Map;
 
 pub fn construct_cfg<T: Function>(function: T) -> Cfg<T> {
+    log::info!(
+        "[{}] Constructing CFG for {}...",
+        std::any::type_name::<T>(),
+        function.name(),
+    );
+    util::time!(
+        "[{}] Done constructing CFG for {}",
+        std::any::type_name::<T>(),
+        function.name(),
+    );
     Walker::new(&function).walk(function)
 }
 

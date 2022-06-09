@@ -8,6 +8,7 @@ use crate::data::operand::Immediate;
 use crate::data::operand::Memory;
 use crate::data::operand::Register;
 use crate::data::operand::Temporary;
+use crate::util;
 use crate::util::Or;
 
 struct Tiler {
@@ -22,6 +23,17 @@ enum Mutate {
 }
 
 pub fn tile(function: &lir::Function<lir::Fallthrough>) -> asm::Function<Temporary> {
+    log::info!(
+        "[{}] Tiling {}...",
+        std::any::type_name::<lir::Function<lir::Fallthrough>>(),
+        function.name,
+    );
+    util::time!(
+        "[{}] Done tiling {}",
+        std::any::type_name::<lir::Function<lir::Fallthrough>>(),
+        function.name,
+    );
+
     let caller_returns = match function.returns > abi::RETURN.len() {
         true => Some(Temporary::fresh("return")),
         false => None,

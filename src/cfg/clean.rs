@@ -8,9 +8,21 @@ use crate::cfg::Function;
 use crate::cfg::Terminator;
 use crate::cfg::TerminatorMut;
 use crate::data::operand::Label;
+use crate::util;
 use crate::Set;
 
 pub fn clean_cfg<T: Function>(cfg: &mut Cfg<T>) {
+    log::info!(
+        "[{}] Cleaning {}...",
+        std::any::type_name::<Cfg<T>>(),
+        cfg.name(),
+    );
+    util::time!(
+        "[{}] Done cleaning {}",
+        std::any::type_name::<Cfg<T>>(),
+        cfg.name(),
+    );
+
     let mut stack = Vec::new();
     let mut order = Vec::new();
     let mut visited = Set::default();

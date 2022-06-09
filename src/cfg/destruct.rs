@@ -2,6 +2,7 @@ use crate::cfg::Cfg;
 use crate::cfg::Edge;
 use crate::cfg::Function;
 use crate::cfg::Terminator;
+use crate::util;
 
 /// After linearization, guarantees that `function.enter` is at the beginning of the
 /// list, and that `function.exit` is at the end. This property is useful for tiling
@@ -9,6 +10,17 @@ use crate::cfg::Terminator;
 ///
 /// Also guarantees that conditional jumps are immediately followed by their false branch.
 pub fn destruct_cfg<T: Function>(mut function: Cfg<T>) -> T::Fallthrough {
+    log::info!(
+        "[{}] Destructing CFG for {}...",
+        std::any::type_name::<Cfg<T>>(),
+        function.name(),
+    );
+    util::time!(
+        "[{}] Done destructing CFG for {}",
+        std::any::type_name::<Cfg<T>>(),
+        function.name(),
+    );
+
     let mut dfs = vec![function.enter];
     let mut statements = Vec::new();
 

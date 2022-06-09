@@ -45,7 +45,7 @@ pub fn lex(path: &str) -> Tokens {
 }
 
 pub fn parse(path: &str) -> ast::Program {
-    xic::api::parse(lex(path)).unwrap()
+    xic::api::parse(Path::new(path), lex(path)).unwrap()
 }
 
 pub fn emit_hir(path: &str) -> hir::Unit {

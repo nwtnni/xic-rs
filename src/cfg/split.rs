@@ -5,10 +5,22 @@ use crate::cfg::Edge;
 use crate::cfg::Function;
 use crate::cfg::TerminatorMut;
 use crate::data::operand::Label;
+use crate::util;
 
 /// Split critical edges, which are edges from a block with multiple successors to a block with
 /// multiple predecessors.
 pub fn split_cfg<T: Function>(cfg: &mut Cfg<T>) {
+    log::info!(
+        "[{}] Splitting critical edges in {}...",
+        std::any::type_name::<Cfg<T>>(),
+        cfg.name(),
+    );
+    util::time!(
+        "[{}] Done splitting critical edges in {}",
+        std::any::type_name::<Cfg<T>>(),
+        cfg.name(),
+    );
+
     let split = cfg
         .graph
         .all_edges()

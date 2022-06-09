@@ -1,3 +1,5 @@
+use std::time::Instant;
+
 /// Convenience trait for method-chaining functions.
 pub trait Tap: Sized {
     fn tap<F, T>(self, f: F) -> T
@@ -73,3 +75,42 @@ where
         }
     }
 }
+
+pub(crate) struct Timer {
+    start: Instant,
+    message: String,
+}
+
+impl Timer {
+    pub(crate) fn new(message: String) -> Self {
+        Timer {
+            start: Instant::now(),
+            message,
+        }
+    }
+}
+
+impl Drop for Timer {
+    fn drop(&mut self) {
+        let duration = self.start.elapsed();
+        log::info!(
+            "{} (took {}.{:03}s)",
+            self.message,
+            duration.as_secs(),
+            duration.subsec_millis()
+        );
+    }
+}
+
+macro_rules! time {
+    ($($arg:tt)*) => {
+        // FIXME: is it possible to avoid heap allocation here?
+        // The `format_args` macro returns a temporary with too short a lifetime :(
+        let message = format!($($arg)*);
+        let _timer = $crate::util::Timer::new(message);
+    }
+}
+
+// https://github.com/rust-lang/rust/pull/52234#issuecomment-976702997
+#[doc(hidden)]
+pub(crate) use time;

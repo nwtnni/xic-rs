@@ -2,6 +2,7 @@ use crate::data::hir;
 use crate::data::ir;
 use crate::data::lir;
 use crate::data::operand;
+use crate::util;
 
 pub trait Foldable {
     fn fold(self) -> Self;
@@ -13,6 +14,17 @@ pub fn fold<T: Foldable>(foldable: T) -> T {
 
 impl Foldable for hir::Function {
     fn fold(self) -> Self {
+        log::info!(
+            "[{}] Folding constants in {}...",
+            std::any::type_name::<hir::Function>(),
+            self.name
+        );
+        util::time!(
+            "[{}] Done folding constants in {}",
+            std::any::type_name::<hir::Function>(),
+            self.name,
+        );
+
         hir::Function {
             name: self.name,
             statement: self.statement.fold(),
@@ -25,6 +37,17 @@ impl Foldable for hir::Function {
 
 impl<T: lir::Target> Foldable for lir::Function<T> {
     fn fold(self) -> Self {
+        log::info!(
+            "[{}] Folding constants in {}...",
+            std::any::type_name::<lir::Function<T>>(),
+            self.name,
+        );
+        util::time!(
+            "[{}] Done folding constants in {}",
+            std::any::type_name::<lir::Function<T>>(),
+            self.name,
+        );
+
         lir::Function {
             name: self.name,
             statements: self.statements.fold(),

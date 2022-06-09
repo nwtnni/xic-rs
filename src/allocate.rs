@@ -13,16 +13,37 @@ use crate::data::operand::Memory;
 use crate::data::operand::Register;
 use crate::data::operand::Scale;
 use crate::data::operand::Temporary;
+use crate::util;
 use crate::util::Or;
 use crate::Map;
 
 pub fn allocate_trivial(function: &asm::Function<Temporary>) -> asm::Function<Register> {
+    log::info!(
+        "[{}] Allocating {} using trivial algorithm...",
+        std::any::type_name::<asm::Function<Temporary>>(),
+        function.name,
+    );
+    util::time!(
+        "[{}] Done allocating {}",
+        std::any::type_name::<asm::Function<Temporary>>(),
+        function.name,
+    );
     let allocated = Map::default();
     let spilled = trivial::allocate(function);
     allocate(function, allocated, spilled)
 }
 
 pub fn allocate_linear(function: Cfg<asm::Function<Temporary>>) -> asm::Function<Register> {
+    log::info!(
+        "[{}] Allocating {} using linear algorithm...",
+        std::any::type_name::<Cfg<asm::Function<Temporary>>>(),
+        function.name(),
+    );
+    util::time!(
+        "[{}] Done allocating {}",
+        std::any::type_name::<Cfg<asm::Function<Temporary>>>(),
+        function.name(),
+    );
     let (function, allocated, spilled) = linear::allocate(function);
     allocate(&function, allocated, spilled)
 }

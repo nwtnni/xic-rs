@@ -14,6 +14,7 @@ use crate::data::span::Span;
 use crate::data::symbol;
 use crate::data::symbol::Symbol;
 use crate::error;
+use crate::util;
 use crate::Set;
 
 macro_rules! bail {
@@ -47,6 +48,16 @@ pub fn check(
     path: &Path,
     program: &ast::Program,
 ) -> Result<Context, crate::Error> {
+    log::info!(
+        "[{}] Type checking {}...",
+        std::any::type_name::<ast::Program>(),
+        path.display(),
+    );
+    util::time!(
+        "[{}] Done type checking {}",
+        std::any::type_name::<ast::Program>(),
+        path.display(),
+    );
     Checker::new().check_program(directory_library, path, program)
 }
 

@@ -1,6 +1,20 @@
-use crate::data::ast;
+use std::path::Path;
 
-pub fn invert_ast(program: &mut ast::Program) {
+use crate::data::ast;
+use crate::util;
+
+pub fn invert_ast(path: &Path, program: &mut ast::Program) {
+    log::info!(
+        "[{}] Inverting loops in {}...",
+        std::any::type_name::<ast::Program>(),
+        path.display()
+    );
+    util::time!(
+        "[{}] Done inverting loops in {}",
+        std::any::type_name::<ast::Program>(),
+        path.display()
+    );
+
     for item in &mut program.items {
         match item {
             ast::Item::Global(_) => (),

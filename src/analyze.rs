@@ -37,6 +37,7 @@ use crate::cfg;
 use crate::cfg::Cfg;
 use crate::cfg::Function;
 use crate::data::operand::Label;
+use crate::util;
 use crate::Map;
 use crate::Set;
 
@@ -90,6 +91,19 @@ pub struct Solution<A: Analysis<T>, T: Function> {
 }
 
 pub fn analyze<A: Analysis<T>, T: Function>(cfg: &Cfg<T>) -> Solution<A, T> {
+    log::info!(
+        "[{}] Running {} analysis on {}...",
+        std::any::type_name::<Cfg<T>>(),
+        std::any::type_name::<A>(),
+        cfg.name(),
+    );
+    util::time!(
+        "[{}] Done running {} analysis on {}",
+        std::any::type_name::<Cfg<T>>(),
+        std::any::type_name::<A>(),
+        cfg.name(),
+    );
+
     let analysis = A::new_with_metadata(cfg);
 
     let strongly_connected_components = cfg.strongly_connected_components(A::BACKWARD);

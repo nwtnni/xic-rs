@@ -10,10 +10,22 @@ use crate::data::lir;
 use crate::data::operand::Label;
 use crate::data::operand::Temporary;
 use crate::lir;
+use crate::util;
 use crate::Map;
 use crate::Set;
 
 pub fn eliminate_lir<T: lir::Target>(cfg: &mut Cfg<lir::Function<T>>) {
+    log::info!(
+        "[{}] Eliminating partial redundancy in {}",
+        std::any::type_name::<Cfg<lir::Function<T>>>(),
+        cfg.name()
+    );
+    util::time!(
+        "[{}] Done eliminating partial redundancy in {}",
+        std::any::type_name::<Cfg<lir::Function<T>>>(),
+        cfg.name()
+    );
+
     split_cfg(cfg);
 
     let mut transformer = Transformer::new(cfg);

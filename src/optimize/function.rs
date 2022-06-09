@@ -10,10 +10,22 @@ use crate::data::operand::Label;
 use crate::data::operand::Temporary;
 use crate::data::symbol;
 use crate::lir;
+use crate::util;
 use crate::util::Or;
 use crate::Map;
 
 pub fn inline_lir(lir: &mut lir::Unit<lir::Fallthrough>) {
+    log::info!(
+        "[{}] Inlining in {}...",
+        std::any::type_name::<lir::Unit<lir::Fallthrough>>(),
+        lir.name
+    );
+    util::time!(
+        "[{}] Done inlining in {}",
+        std::any::type_name::<lir::Unit<lir::Fallthrough>>(),
+        lir.name
+    );
+
     let call_graph = CallGraph::new(lir);
 
     let start = if lir

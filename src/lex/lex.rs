@@ -7,10 +7,22 @@ use crate::data::token;
 use crate::error;
 use crate::lex::Error;
 use crate::lex::ErrorKind;
+use crate::util;
 use crate::util::TakeUntil as _;
 use crate::util::Tap as _;
 
 pub fn lex(path: &Path) -> Result<token::Tokens, crate::Error> {
+    log::info!(
+        "[{}] Lexing {}...",
+        std::any::type_name::<Path>(),
+        path.display()
+    );
+    util::time!(
+        "[{}] Done lexing {}",
+        std::any::type_name::<Path>(),
+        path.display()
+    );
+
     let source = std::fs::read_to_string(path)?;
     let path = symbol::intern(path.to_str().unwrap());
     let tokens = Lexer::new(&path, &source).lex();

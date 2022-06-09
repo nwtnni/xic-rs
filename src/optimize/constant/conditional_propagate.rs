@@ -8,8 +8,20 @@ use crate::analyze::Reachable;
 use crate::cfg::Cfg;
 use crate::cfg::Edge;
 use crate::data::lir;
+use crate::util;
 
 pub fn conditional_propagate_lir<T: lir::Target>(cfg: &mut Cfg<lir::Function<T>>) {
+    log::info!(
+        "[{}] Conditionally propagating constants in {}...",
+        std::any::type_name::<Cfg<lir::Function<T>>>(),
+        cfg.name(),
+    );
+    util::time!(
+        "[{}] Done conditionally propagating constants in {}",
+        std::any::type_name::<Cfg<lir::Function<T>>>(),
+        cfg.name(),
+    );
+
     let mut solution = analyze::<ConditionalConstantPropagation, _>(cfg);
 
     for label in cfg.blocks.keys().copied().collect::<Vec<_>>() {

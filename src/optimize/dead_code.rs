@@ -8,12 +8,24 @@ use crate::data::lir;
 use crate::data::operand;
 use crate::data::operand::Register;
 use crate::data::operand::Temporary;
+use crate::util;
 use crate::util::Or;
 
 pub fn eliminate_assembly(
     live_variables: &Solution<LiveVariables<asm::Function<Temporary>>, asm::Function<Temporary>>,
     cfg: &mut Cfg<asm::Function<Temporary>>,
 ) {
+    log::info!(
+        "[{}] Eliminating dead code in {}...",
+        std::any::type_name::<Cfg<asm::Function<Temporary>>>(),
+        cfg.name()
+    );
+    util::time!(
+        "[{}] Done eliminating dead code in {}",
+        std::any::type_name::<Cfg<asm::Function<Temporary>>>(),
+        cfg.name()
+    );
+
     for (label, statements) in cfg.blocks_mut() {
         let mut output = live_variables.inputs[label].clone();
 
@@ -69,6 +81,17 @@ pub fn eliminate_assembly(
 }
 
 pub fn eliminate_lir<T: lir::Target>(cfg: &mut Cfg<lir::Function<T>>) {
+    log::info!(
+        "[{}] Eliminating dead code in {}...",
+        std::any::type_name::<Cfg<lir::Function<T>>>(),
+        cfg.name()
+    );
+    util::time!(
+        "[{}] Done eliminating dead code in {}",
+        std::any::type_name::<Cfg<lir::Function<T>>>(),
+        cfg.name()
+    );
+
     let mut live_variables = analyze::<LiveVariables<_>, _>(cfg);
     let mut buffer = Vec::new();
 

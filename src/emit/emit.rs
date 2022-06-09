@@ -19,6 +19,7 @@ use crate::data::span::Span;
 use crate::data::symbol;
 use crate::data::symbol::Symbol;
 use crate::hir;
+use crate::util;
 use crate::Map;
 
 struct Emitter<'env> {
@@ -35,6 +36,17 @@ pub fn emit_unit(
     context: &mut check::Context,
     ast: &ast::Program,
 ) -> ir::Unit<hir::Function> {
+    log::info!(
+        "[{}] Emitting HIR for {}...",
+        std::any::type_name::<ast::Program>(),
+        path.display()
+    );
+    util::time!(
+        "[{}] Done emitting HIR for {}",
+        std::any::type_name::<ast::Program>(),
+        path.display()
+    );
+
     let mut classes = Map::default();
 
     for class in context

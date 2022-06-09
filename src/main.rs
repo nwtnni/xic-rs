@@ -388,7 +388,7 @@ fn run() -> anyhow::Result<()> {
             command.debug(&path, "lexed", &tokens)?;
         }
 
-        let mut program = api::parse(tokens)?;
+        let mut program = api::parse(&path, tokens)?;
 
         if command.debug_parse {
             command.debug(&path, "parsed", &program)?;
@@ -408,7 +408,7 @@ fn run() -> anyhow::Result<()> {
         }
 
         if command.optimize(Opt::LoopInversion) {
-            optimize::invert_loops_ast(&mut program);
+            optimize::invert_loops_ast(&path, &mut program);
         }
 
         let mut hir = api::emit_hir(&path, &program, &mut context?);
