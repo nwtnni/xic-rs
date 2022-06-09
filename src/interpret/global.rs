@@ -27,16 +27,16 @@ pub struct Global<'io> {
 
 impl<'io> Global<'io> {
     pub fn new<R: BufRead + 'io, W: Write + 'io>(
-        data: &Map<Symbol, Vec<Immediate>>,
+        data: &Map<Label, Vec<Immediate>>,
         bss: &Map<Symbol, (Visibility, usize)>,
         stdin: R,
         stdout: W,
     ) -> Self {
         let mut r#static = Map::default();
 
-        for (symbol, data) in data {
+        for (label, data) in data {
             r#static.insert(
-                Label::Fixed(*symbol),
+                *label,
                 data.iter()
                     .map(|immediate| match immediate {
                         Immediate::Integer(integer) => Value::Integer(*integer),

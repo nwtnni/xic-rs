@@ -1,5 +1,6 @@
 use crate::data::ast;
 use crate::data::operand::Immediate;
+use crate::data::operand::Label;
 use crate::data::symbol::Symbol;
 use crate::Map;
 
@@ -7,7 +8,7 @@ use crate::Map;
 pub struct Unit<T> {
     pub name: Symbol,
     pub functions: Map<Symbol, T>,
-    pub data: Map<Symbol, Vec<Immediate>>,
+    pub data: Map<Label, Vec<Immediate>>,
     pub bss: Map<Symbol, (Visibility, usize)>,
 }
 

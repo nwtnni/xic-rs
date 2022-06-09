@@ -1,6 +1,7 @@
 #![allow(unused_parens)]
 
 use std::cell::Cell;
+use std::iter;
 
 use crate::abi;
 use crate::check;
@@ -26,8 +27,9 @@ struct Emitter<'env> {
     context: &'env mut check::Context,
     classes: Map<Symbol, abi::class::Layout>,
     locals: Map<Symbol, Temporary>,
-    data: Map<Symbol, Vec<Immediate>>,
+    data: Map<Label, Vec<Immediate>>,
     bss: Map<Symbol, (ir::Visibility, usize)>,
+    strings: Map<String, Label>,
     out_of_bounds: Cell<Option<Label>>,
 }
 
@@ -64,6 +66,7 @@ pub fn emit_unit(
         locals: Map::default(),
         data: Map::default(),
         bss: Map::default(),
+        strings: Map::default(),
         out_of_bounds: Cell::new(None),
     };
 
@@ -121,6 +124,11 @@ pub fn emit_unit(
         },
     );
 
+    if !emitter.strings.is_empty() {
+        let memdup = Emitter::emit_memdup();
+        functions.insert(memdup.name, memdup);
+    }
+
     ir::Unit {
         name: symbol::intern(path.to_string_lossy().trim_start_matches("./")),
         functions,
@@ -154,7 +162,7 @@ impl<'env> Emitter<'env> {
                     let name = initialization.declarations[0].as_ref().unwrap().name.symbol;
                     let r#type = r#type::Expression::Integer;
                     self.data.insert(
-                        abi::mangle::global(&name, &r#type),
+                        Label::Fixed(abi::mangle::global(&name, &r#type)),
                         vec![Immediate::Integer(*integer)],
                     );
                     return None;
@@ -465,21 +473,36 @@ impl<'env> Emitter<'env> {
         }
     }
 
-    fn emit_expression(&self, expression: &ast::Expression) -> hir::Tree {
+    fn emit_expression(&mut self, expression: &ast::Expression) -> hir::Tree {
         use ast::Expression::*;
         match expression {
             Boolean(false, _) => hir!((CONST 0)).into(),
             Boolean(true, _) => hir!((CONST 1)).into(),
             &Integer(integer, _) => hir!((CONST integer)).into(),
             &Character(character, _) => hir!((CONST character as i64)).into(),
-            String(string, span) => self.emit_expression(&ast::Expression::Array(
-                string
-                    .bytes()
-                    .map(|byte| byte as i64)
-                    .map(|byte| ast::Expression::Integer(byte, Span::default()))
-                    .collect::<Vec<_>>(),
-                *span,
-            )),
+            String(string, _) => {
+                let label = *self.strings.entry(string.clone()).or_insert_with(|| {
+                    let label = Label::fresh("string");
+                    self.data.insert(
+                        label,
+                        iter::once(string.len() as i64)
+                            .chain(string.bytes().map(|byte| byte as i64))
+                            .map(Immediate::Integer)
+                            .collect(),
+                    );
+                    label
+                });
+
+                hir!(
+                    (ADD
+                        (CALL
+                            (NAME Label::Fixed(symbol::intern_static(abi::XI_MEMDUP)))
+                            1
+                            (NAME label))
+                        (CONST abi::WORD))
+                )
+                .into()
+            }
             Null(_) => hir!((MEM (CONST 0))).into(),
             This(_) | Super(_) => hir!((TEMP Temporary::Argument(0))).into(),
             Variable(variable) => {
@@ -729,7 +752,7 @@ impl<'env> Emitter<'env> {
         }
     }
 
-    fn emit_call(&self, call: &ast::Call) -> hir::Expression {
+    fn emit_call(&mut self, call: &ast::Call) -> hir::Expression {
         match &*call.function {
             ast::Expression::Variable(variable) => self
                 .emit_function_call(variable, &call.arguments)
@@ -752,7 +775,7 @@ impl<'env> Emitter<'env> {
     }
 
     fn emit_function_call(
-        &self,
+        &mut self,
         function: &ast::Identifier,
         arguments: &[ast::Expression],
     ) -> Option<hir::Expression> {
@@ -773,7 +796,7 @@ impl<'env> Emitter<'env> {
     }
 
     fn emit_class_method_call(
-        &self,
+        &mut self,
         class: &Symbol,
         receiver: &ast::Expression,
         method: &ast::Identifier,
@@ -811,7 +834,7 @@ impl<'env> Emitter<'env> {
     }
 
     fn emit_class_field(
-        &self,
+        &mut self,
         class: &Symbol,
         receiver: &ast::Expression,
         field: &Symbol,
@@ -982,6 +1005,40 @@ impl<'env> Emitter<'env> {
                 (hir::Statement::Sequence(statements))
                 (ADD (TEMP array) (CONST abi::WORD)))
         )
+    }
+
+    fn emit_memdup() -> hir::Function {
+        let address = Temporary::fresh("address");
+        let offset = Temporary::fresh("offset");
+        let bound = Temporary::fresh("bound");
+
+        let r#while = Label::fresh("while");
+        let done = Label::fresh("done");
+
+        hir::Function {
+            name: symbol::intern_static(abi::XI_MEMDUP),
+            arguments: 1,
+            returns: 1,
+            visibility: ir::Visibility::Local,
+            statement: hir!(
+                (SEQ
+                    (MOVE
+                        (TEMP bound)
+                        (ADD (MUL (MEM (TEMP Temporary::Argument(0))) (CONST abi::WORD)) (CONST abi::WORD)))
+                    (MOVE
+                        (TEMP address)
+                        (CALL (NAME Label::Fixed(symbol::intern_static(abi::XI_ALLOC))) 1 (TEMP bound)))
+                    (MOVE (TEMP offset) (CONST 0))
+                    (LABEL r#while)
+                    (MOVE
+                        (MEM (ADD (TEMP address) (TEMP offset)))
+                        (MEM (ADD (TEMP (Temporary::Argument(0))) (TEMP offset))))
+                    (MOVE (TEMP offset) (ADD (TEMP offset) (CONST abi::WORD)))
+                    (CJUMP (GE (TEMP offset) (TEMP bound)) done r#while)
+                    (LABEL done)
+                    (RETURN (TEMP address)))
+            ),
+        }
     }
 
     fn get_signature(

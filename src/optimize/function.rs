@@ -196,9 +196,9 @@ impl Rewriter {
 
     fn rewrite_expression(&self, expression: &lir::Expression) -> lir::Expression {
         match expression {
-            lir::Expression::Immediate(immediate) => {
-                lir::Expression::Immediate(self.rewrite_immediate(immediate))
-            }
+            // Note: assumes any labels used as expressions are globally visible, e.g.
+            // function names, globals, static strings.
+            lir::Expression::Immediate(immediate) => lir::Expression::Immediate(*immediate),
             lir::Expression::Temporary(temporary) => {
                 lir::Expression::Temporary(self.rewrite_temporary(temporary))
             }
@@ -210,13 +210,6 @@ impl Rewriter {
                 Box::new(self.rewrite_expression(left)),
                 Box::new(self.rewrite_expression(right)),
             ),
-        }
-    }
-
-    fn rewrite_immediate(&self, immediate: &Immediate) -> Immediate {
-        match immediate {
-            Immediate::Integer(integer) => Immediate::Integer(*integer),
-            Immediate::Label(label) => Immediate::Label(self.rewrite_label(label)),
         }
     }
 

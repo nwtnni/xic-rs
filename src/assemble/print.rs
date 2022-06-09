@@ -19,18 +19,10 @@ impl<T: fmt::Display> fmt::Display for Intel<&asm::Unit<T>> {
 
         writeln!(fmt, "{}\n", Directive::Data)?;
 
-        for (symbol, data) in &self.0.data {
-            writeln!(
-                fmt,
-                "{}",
-                Directive::Visible(ir::Visibility::Local, Label::Fixed(*symbol))
-            )?;
+        for (label, data) in &self.0.data {
+            writeln!(fmt, "{}", Directive::Visible(ir::Visibility::Local, *label))?;
             writeln!(fmt, "{}", Directive::Align(abi::WORD as usize))?;
-            writeln!(
-                fmt,
-                "{}",
-                Intel(&Statement::<T>::Label(Label::Fixed(*symbol)))
-            )?;
+            writeln!(fmt, "{}", Intel(&Statement::<T>::Label(*label)))?;
             writeln!(fmt, "{}\n", Directive::Quad(data.clone()))?;
         }
 
