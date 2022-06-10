@@ -23,7 +23,30 @@ Use: Use = {
 
 ItemSignature: ItemSignature = {
     <class: ClassSignature> => ItemSignature::Class(class),
+    <class: ClassTemplate> => ItemSignature::ClassTemplate(class),
     <function: FunctionSignature> => ItemSignature::Function(function),
+    <function: FunctionTemplate> => ItemSignature::FunctionTemplate(function),
+}
+
+ClassTemplate: ClassTemplate = {
+    <l: @L>
+        "template"
+        "class"
+        <name: Identifier>
+        "<"
+        <generics: CommaPlus<Identifier>>
+        ">"
+        "{"
+        <items: ClassItem*>
+        "}"
+    <r: @R> => {
+        ClassTemplate {
+            name,
+            generics,
+            items,
+            span: Span::new(l, r),
+        }
+    }
 }
 
 ClassSignature: ClassSignature = {
@@ -35,6 +58,30 @@ ClassSignature: ClassSignature = {
             span: Span::new(l, r),
         }
     },
+}
+
+FunctionTemplate: FunctionTemplate = {
+    <l: @L>
+        "template"
+        <name: Identifier>
+        "<"
+        <generics: CommaPlus<Identifier>>
+        ">"
+        "("
+        <parameters: Comma<NoLength<SingleDeclaration>>>
+        ")"
+        <returns: (":" <CommaPlus<NoLength<Type>>>)?>
+        <statements: Block>
+    <r: @R> => {
+        FunctionTemplate {
+            name,
+            generics,
+            parameters,
+            returns: returns.unwrap_or_default(),
+            statements,
+            span: Span::new(l, r)
+        }
+    }
 }
 
 FunctionSignature: FunctionSignature = {
@@ -64,7 +111,9 @@ pub Program: Program = {
 Item: Item = {
     <global: Global> => Item::Global(global),
     <class: Class> => Item::Class(class),
+    <class: ClassTemplate> => Item::ClassTemplate(class),
     <function: Function> => Item::Function(function),
+    <function: FunctionTemplate> => Item::FunctionTemplate(function),
 }
 
 Global: Global = {
