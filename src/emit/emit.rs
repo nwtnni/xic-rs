@@ -1,6 +1,7 @@
 #![allow(unused_parens)]
 
 use std::cell::Cell;
+use std::iter;
 
 use crate::abi;
 use crate::check;
@@ -1004,18 +1005,15 @@ impl<'env> Emitter<'env> {
     }
 
     fn emit_static_array(&mut self, expressions: &[ast::Expression]) -> Option<Label> {
-        let mut array = expressions
-            .iter()
-            .map(|expression| match expression {
+        let array = iter::once(expressions.len() as i64)
+            .map(Option::Some)
+            .chain(expressions.iter().map(|expression| match expression {
                 ast::Expression::Integer(integer, _) => Some(*integer),
                 ast::Expression::Character(character, _) => Some(*character as i64),
                 _ => None,
-            })
+            }))
             .map(|integer| integer.map(Immediate::Integer))
             .collect::<Option<Vec<_>>>()?;
-
-        let length = array.len();
-        array.insert(0, Immediate::Integer(length as i64));
 
         // Duplicate already exists
         if let Some(label) = self.statics.get(&array) {
