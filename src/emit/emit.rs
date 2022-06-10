@@ -493,19 +493,21 @@ impl<'env> Emitter<'env> {
             Null(_) => hir!((MEM (CONST 0))).into(),
             This(_) | Super(_) => hir!((TEMP Temporary::Argument(0))).into(),
             Variable(variable) => {
-                if let Some(temporary) = self.locals.get(&variable.symbol).copied() {
+                assert!(variable.generics.is_none());
+
+                if let Some(temporary) = self.locals.get(&variable.name.symbol).copied() {
                     return hir!((TEMP temporary)).into();
                 }
 
-                if let Some(r#type) = self.get_variable(GlobalScope::Global, variable) {
-                    let address = Label::Fixed(abi::mangle::global(&variable.symbol, r#type));
+                if let Some(r#type) = self.get_variable(GlobalScope::Global, &variable.name) {
+                    let address = Label::Fixed(abi::mangle::global(&variable.name.symbol, r#type));
                     return hir!((MEM (NAME address))).into();
                 }
 
                 self.emit_class_field(
                     &self.context.get_scoped_class().unwrap(),
                     &ast::Expression::This(Span::default()),
-                    &variable.symbol,
+                    &variable.name.symbol,
                 )
                 .into()
             }
@@ -730,11 +732,13 @@ impl<'env> Emitter<'env> {
             Dot(class, receiver, field, _) => self
                 .emit_class_field(&class.get().unwrap(), receiver, &field.symbol)
                 .into(),
-            New(class, _) => {
+            New(variable, _) => {
+                assert!(variable.generics.is_none());
+
                 let xi_alloc = Label::Fixed(symbol::intern_static(abi::XI_ALLOC));
-                let class_size = Label::Fixed(abi::mangle::class_size(&class.symbol));
+                let class_size = Label::Fixed(abi::mangle::class_size(&variable.name.symbol));
                 let class_virtual_table =
-                    Label::Fixed(abi::mangle::class_virtual_table(&class.symbol));
+                    Label::Fixed(abi::mangle::class_virtual_table(&variable.name.symbol));
 
                 let new = Temporary::fresh("new");
 
@@ -753,16 +757,19 @@ impl<'env> Emitter<'env> {
 
     fn emit_call(&mut self, call: &ast::Call) -> hir::Expression {
         match &*call.function {
-            ast::Expression::Variable(variable) => self
-                .emit_function_call(variable, &call.arguments)
-                .unwrap_or_else(|| {
-                    self.emit_class_method_call(
-                        &self.context.get_scoped_class().unwrap(),
-                        &ast::Expression::This(Span::default()),
-                        variable,
-                        &call.arguments,
-                    )
-                }),
+            ast::Expression::Variable(variable) => {
+                assert!(variable.generics.is_none());
+
+                self.emit_function_call(variable, &call.arguments)
+                    .unwrap_or_else(|| {
+                        self.emit_class_method_call(
+                            &self.context.get_scoped_class().unwrap(),
+                            &ast::Expression::This(Span::default()),
+                            &variable.name,
+                            &call.arguments,
+                        )
+                    })
+            }
             ast::Expression::Dot(class, receiver, method, _) => self.emit_class_method_call(
                 &class.get().unwrap(),
                 receiver,
@@ -775,12 +782,12 @@ impl<'env> Emitter<'env> {
 
     fn emit_function_call(
         &mut self,
-        function: &ast::Identifier,
+        function: &ast::Variable,
         arguments: &[ast::Expression],
     ) -> Option<hir::Expression> {
-        let (parameters, returns) = self.get_signature(GlobalScope::Global, function)?;
+        let (parameters, returns) = self.get_signature(GlobalScope::Global, &function.name)?;
 
-        let function = abi::mangle::function(&function.symbol, parameters, returns);
+        let function = abi::mangle::function(&function.name.symbol, parameters, returns);
         let returns = returns.len();
         let arguments = arguments
             .iter()

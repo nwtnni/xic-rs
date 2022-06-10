@@ -268,8 +268,8 @@ NoCallLValue: Expression = {
     <l: @L> "null" <r: @R> => Expression::Null(Span::new(l, r)),
     <l: @L> "this" <r: @R> => Expression::This(Span::new(l, r)),
     <l: @L> "super" <r: @R> => Expression::Super(Span::new(l, r)),
-    <l: @L> "new" <class: Identifier> <r: @R> => Expression::New(class, Span::new(l, r)),
-    <variable: Identifier> => Expression::Variable(variable),
+    <l: @L> "new" <variable: Variable> <r: @R> => Expression::New(variable, Span::new(l, r)),
+    <variable: Variable> => Expression::Variable(variable),
     <l: @L> <array: LValue> "[" <index: Expression> "]" <r: @R> => {
         Expression::Index(Box::new(array), Box::new(index), Span::new(l, r))
     },
@@ -343,11 +343,22 @@ Type: Type = {
 BaseType: Type = {
     <l: @L> "bool" <r: @R> => Type::Bool(Span::new(l, r)),
     <l: @L> "int" <r: @R> => Type::Int(Span::new(l, r)),
-    <class: Identifier> => Type::Class(class),
+    <class: Variable> => Type::Class(class),
 }
 
 ArrayType: (Option<Expression>, Point) = {
     "[" <length: Expression?> "]" <r: @R> => (length, r),
+}
+
+Variable: Variable = {
+    <l: @L>
+        <name: Identifier>
+        <generics: (":" ":" "<" <CommaPlus<NoLength<Type>>> ">")?>
+    <r: @R> => Variable {
+        name,
+        generics,
+        span: Span::new(l, r)
+    },
 }
 
 Expression: Expression = Or;

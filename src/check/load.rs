@@ -262,7 +262,16 @@ impl Checker {
         match r#type {
             ast::Type::Bool(_) => Ok(r#type::Expression::Boolean),
             ast::Type::Int(_) => Ok(r#type::Expression::Integer),
-            ast::Type::Class(class) => Ok(r#type::Expression::Class(class.symbol)),
+            ast::Type::Class(ast::Variable {
+                name,
+                generics: None,
+                span: _,
+            }) => Ok(r#type::Expression::Class(name.symbol)),
+            ast::Type::Class(ast::Variable {
+                name: _,
+                generics: Some(_),
+                span: _,
+            }) => todo!(),
             ast::Type::Array(r#type, _, _) => self
                 .load_type(r#type)
                 .map(Box::new)

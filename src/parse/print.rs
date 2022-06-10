@@ -235,7 +235,7 @@ impl Serialize for ast::Expression {
             Dot(_, expression, symbol, _) => {
                 [".".sexp(), expression.sexp(), symbol.sexp()].sexp_move()
             }
-            New(symbol, _) => ["new".sexp(), symbol.sexp()].sexp_move(),
+            New(variable, _) => ["new".sexp(), variable.sexp()].sexp_move(),
             Call(call) => call.sexp(),
         }
     }
@@ -300,6 +300,15 @@ impl Serialize for ast::Statement {
                 ["while".sexp(), condition.sexp(), body.sexp()].sexp_move()
             }
             Break(_) => "break".sexp(),
+        }
+    }
+}
+
+impl Serialize for ast::Variable {
+    fn sexp(&self) -> Sexp {
+        match self.generics.as_ref() {
+            None => self.name.sexp(),
+            Some(generics) => [self.name.sexp(), generics.sexp()].sexp_move(),
         }
     }
 }

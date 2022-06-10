@@ -1,0 +1,6 @@
+---
+source: tests/suite/parse.rs
+assertion_line: 36
+expression: Snapshot(program)
+---
+(() ((foo () () ((= (a (A (T))) (new (A (T))))))))

@@ -249,21 +249,22 @@ impl fmt::Display for Function {
     }
 }
 
-const _: [u8; 48] = [0; std::mem::size_of::<Type>()];
+const _: [u8; 72] = [0; std::mem::size_of::<Type>()];
 
 /// Represents a primitive type.
 #[derive(Clone, Debug)]
 pub enum Type {
     Bool(Span),
     Int(Span),
-    Class(Identifier),
+    Class(Variable),
     Array(Box<Type>, Option<Box<Expression>>, Span),
 }
 
 impl Type {
     pub fn has_length(&self) -> bool {
         match self {
-            Type::Bool(_) | Type::Int(_) | Type::Class(_) => false,
+            Type::Bool(_) | Type::Int(_) => false,
+            Type::Class(variable) => variable.has_length(),
             Type::Array(r#type, length, _) => length.is_some() || r#type.has_length(),
         }
     }
@@ -271,7 +272,7 @@ impl Type {
     pub fn span(&self) -> Span {
         match self {
             Type::Bool(span) | Type::Int(span) | Type::Array(_, _, span) => *span,
-            Type::Class(class) => *class.span,
+            Type::Class(variable) => variable.span,
         }
     }
 }
@@ -360,7 +361,7 @@ pub enum Do {
     No,
 }
 
-const _: [u8; 64] = [0; std::mem::size_of::<Expression>()];
+const _: [u8; 96] = [0; std::mem::size_of::<Expression>()];
 
 /// Represents an expression (i.e. a term that can be evaluated).
 #[derive(Clone, Debug)]
@@ -387,7 +388,7 @@ pub enum Expression {
     Super(Span),
 
     /// Variable
-    Variable(Identifier),
+    Variable(Variable),
 
     /// Array literal
     Array(Vec<Expression>, Span),
@@ -411,7 +412,7 @@ pub enum Expression {
     Dot(Cell<Option<Symbol>>, Box<Expression>, Identifier, Span),
 
     /// Class constructor
-    New(Identifier, Span),
+    New(Variable, Span),
 }
 
 impl Expression {
@@ -431,7 +432,7 @@ impl Expression {
             | Expression::Length(_, span)
             | Expression::Dot(_, _, _, span)
             | Expression::New(_, span) => *span,
-            Expression::Variable(variable) => *variable.span,
+            Expression::Variable(variable) => variable.span,
             Expression::Call(call) => call.span,
         }
     }
@@ -465,7 +466,7 @@ impl Expression {
     pub(crate) fn negate_logical(&self) -> Self {
         match self {
             Expression::Variable(variable) => {
-                Expression::Unary(Unary::Not, Box::new(self.clone()), *variable.span)
+                Expression::Unary(Unary::Not, Box::new(self.clone()), variable.span)
             }
             Expression::Boolean(bool, span) => Expression::Boolean(!bool, *span),
             Expression::Binary(binary, left, right, span) => {
@@ -676,6 +677,27 @@ pub enum Unary {
 }
 
 impl fmt::Display for Unary {
+    fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
+        write!(fmt, "{}", self.sexp())
+    }
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct Variable {
+    pub name: Identifier,
+    pub generics: Option<Vec<Type>>,
+    pub span: Span,
+}
+
+impl Variable {
+    pub fn has_length(&self) -> bool {
+        self.generics
+            .as_ref()
+            .map_or(false, |r#type| r#type.iter().any(Type::has_length))
+    }
+}
+
+impl fmt::Display for Variable {
     fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
         write!(fmt, "{}", self.sexp())
     }
