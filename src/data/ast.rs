@@ -46,12 +46,14 @@ impl fmt::Display for Use {
     }
 }
 
-const _: [u8; 96] = [0; std::mem::size_of::<ItemSignature>()];
+const _: [u8; 184] = [0; std::mem::size_of::<ItemSignature>()];
 
 #[derive(Clone, Debug)]
 pub enum ItemSignature {
     Class(ClassSignature),
+    ClassTemplate(ClassTemplate),
     Function(FunctionSignature),
+    FunctionTemplate(FunctionTemplate),
 }
 
 impl fmt::Display for ItemSignature {
@@ -60,13 +62,15 @@ impl fmt::Display for ItemSignature {
     }
 }
 
-const _: [u8; 160] = [0; std::mem::size_of::<Item>()];
+const _: [u8; 184] = [0; std::mem::size_of::<Item>()];
 
 #[derive(Clone, Debug)]
 pub enum Item {
     Global(Global),
     Class(Class),
+    ClassTemplate(ClassTemplate),
     Function(Function),
+    FunctionTemplate(FunctionTemplate),
 }
 
 impl fmt::Display for Item {
@@ -99,6 +103,22 @@ pub struct Initialization {
 }
 
 impl fmt::Display for Initialization {
+    fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
+        write!(fmt, "{}", self.sexp())
+    }
+}
+
+const _: [u8; 88] = [0; std::mem::size_of::<ClassTemplate>()];
+
+#[derive(Clone, Debug)]
+pub struct ClassTemplate {
+    pub name: Identifier,
+    pub generics: Vec<Identifier>,
+    pub items: Vec<ClassItem>,
+    pub span: Span,
+}
+
+impl fmt::Display for ClassTemplate {
     fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
         write!(fmt, "{}", self.sexp())
     }
@@ -170,6 +190,24 @@ macro_rules! impl_callable {
             }
         }
     };
+}
+
+const _: [u8; 176] = [0; std::mem::size_of::<FunctionTemplate>()];
+
+#[derive(Clone, Debug)]
+pub struct FunctionTemplate {
+    pub name: Identifier,
+    pub generics: Vec<Identifier>,
+    pub parameters: Vec<SingleDeclaration>,
+    pub returns: Vec<Type>,
+    pub statements: Statement,
+    pub span: Span,
+}
+
+impl fmt::Display for FunctionTemplate {
+    fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
+        write!(fmt, "{}", self.sexp())
+    }
 }
 
 const _: [u8; 88] = [0; std::mem::size_of::<FunctionSignature>()];

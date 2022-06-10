@@ -113,9 +113,11 @@ impl Checker {
                 // to other globals, since their initializers run in program order.
                 ast::Item::Global(_) => (),
                 ast::Item::Class(class) => self.load_class(class)?,
+                ast::Item::ClassTemplate(_) => todo!(),
                 ast::Item::Function(function) => {
                     self.load_function(GlobalScope::Global, function)?
                 }
+                ast::Item::FunctionTemplate(_) => todo!(),
             }
         }
 
@@ -123,9 +125,11 @@ impl Checker {
             match item {
                 ast::Item::Global(global) => self.check_global(global)?,
                 ast::Item::Class(class) => self.check_class(class)?,
+                ast::Item::ClassTemplate(_) => todo!(),
                 ast::Item::Function(function) => {
                     self.check_function(GlobalScope::Global, function)?
                 }
+                ast::Item::FunctionTemplate(_) => todo!(),
             }
         }
 

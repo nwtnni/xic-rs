@@ -26,7 +26,9 @@ impl Serialize for ast::ItemSignature {
     fn sexp(&self) -> Sexp {
         match self {
             ast::ItemSignature::Class(class) => class.sexp(),
+            ast::ItemSignature::ClassTemplate(class) => class.sexp(),
             ast::ItemSignature::Function(function) => function.sexp(),
+            ast::ItemSignature::FunctionTemplate(function) => function.sexp(),
         }
     }
 }
@@ -36,7 +38,9 @@ impl Serialize for ast::Item {
         match self {
             ast::Item::Global(global) => global.sexp(),
             ast::Item::Class(class) => class.sexp(),
+            ast::Item::ClassTemplate(class) => class.sexp(),
             ast::Item::Function(function) => function.sexp(),
+            ast::Item::FunctionTemplate(function) => function.sexp(),
         }
     }
 }
@@ -70,6 +74,12 @@ impl Serialize for ast::Initialization {
         };
 
         ["=".sexp(), declarations.sexp(), self.expression.sexp()].sexp_move()
+    }
+}
+
+impl Serialize for ast::ClassTemplate {
+    fn sexp(&self) -> Sexp {
+        [self.name.sexp(), self.generics.sexp(), self.items.sexp()].sexp_move()
     }
 }
 
@@ -108,6 +118,19 @@ impl Serialize for ast::ClassItem {
             ast::ClassItem::Field(field) => field.sexp(),
             ast::ClassItem::Method(method) => method.sexp(),
         }
+    }
+}
+
+impl Serialize for ast::FunctionTemplate {
+    fn sexp(&self) -> Sexp {
+        [
+            self.name.sexp(),
+            self.generics.sexp(),
+            self.parameters.sexp(),
+            self.returns.sexp(),
+            self.statements.sexp(),
+        ]
+        .sexp_move()
     }
 }
 

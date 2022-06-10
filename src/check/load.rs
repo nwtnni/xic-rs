@@ -48,16 +48,20 @@ impl Checker {
         for item in &interface.items {
             match item {
                 ast::ItemSignature::Class(class) => self.load_class_signature(class)?,
+                ast::ItemSignature::ClassTemplate(_) => todo!(),
                 ast::ItemSignature::Function(_) => (),
+                ast::ItemSignature::FunctionTemplate(_) => todo!(),
             }
         }
 
         for item in &interface.items {
             match item {
                 ast::ItemSignature::Class(class) => self.check_class_signature(class)?,
+                ast::ItemSignature::ClassTemplate(_) => todo!(),
                 ast::ItemSignature::Function(function) => {
                     self.check_function_signature(GlobalScope::Global, function)?;
                 }
+                ast::ItemSignature::FunctionTemplate(_) => todo!(),
             }
         }
 

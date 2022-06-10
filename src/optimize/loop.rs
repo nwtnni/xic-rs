@@ -28,9 +28,11 @@ pub fn invert_ast(path: &Path, program: &mut ast::Program) {
                     }
                 }
             }
+            ast::Item::ClassTemplate(_) => todo!(),
             ast::Item::Function(function) => {
                 invert_statement(&mut function.statements);
             }
+            ast::Item::FunctionTemplate(_) => todo!(),
         }
     }
 }
