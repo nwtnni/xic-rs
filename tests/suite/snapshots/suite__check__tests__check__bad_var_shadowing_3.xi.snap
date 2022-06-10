@@ -4,14 +4,14 @@ assertion_line: 35
 expression: Snapshot(context)
 ---
 Error: Semantic error
-   ╭─[tests/check/bad_var_shadowing_3.xi:6:21]
+   ╭─[tests/check/bad_var_shadowing_3.xi:6:31]
    │
  1 │ bar(foo: int) {
-   · ─┬─  
-   ·  ╰─── Previous definition here
+   ·     ─┬─  
+   ·      ╰─── Previous definition here
    · 
  6 │                     bar, baz, foo: int
-   ·                     ─┬─  
-   ·                      ╰─── Name already bound in environment
+   ·                               ─┬─  
+   ·                                ╰─── Name already bound in environment
 ───╯
 

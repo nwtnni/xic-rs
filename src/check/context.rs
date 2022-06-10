@@ -150,19 +150,12 @@ impl Context {
                 .expect("[INTERNAL ERROR]: missing environment")
                 .1
                 .insert(identifier.symbol, (*identifier.span, r#type))
-                // Note: inserting into local scope conflicts with names in the global
-                // scope, but does *not* conflict with names in the class scope, which
-                // can be disambiguated by the type of the receiver.
                 .or_else(|| {
                     self.locals
                         .iter_mut()
                         .rev()
                         .skip(1)
                         .find_map(|(_, types)| types.get(&identifier.symbol).cloned())
-                        .or_else(|| {
-                            self.get_full(GlobalScope::Global, &identifier.symbol)
-                                .cloned()
-                        })
                 }),
         }
     }
