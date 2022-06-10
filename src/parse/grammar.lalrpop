@@ -486,6 +486,7 @@ extern {
         INT => Token::Integer(<String>),
         STR => Token::String(<String>),
         "use" => Token::Use,
+        "template" => Token::Template,
         "class" => Token::Class,
         "this" => Token::This,
         "super" => Token::Super,

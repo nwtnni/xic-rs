@@ -54,6 +54,9 @@ pub enum Token {
     /// `use` keyword
     Use,
 
+    /// `template` keyword
+    Template,
+
     /// `class` keyword
     Class,
 
@@ -198,6 +201,7 @@ impl std::fmt::Display for Token {
             Token::Identifier(i) => write!(fmt, "id {}", symbol::resolve(*i)),
             Token::Integer(i) => write!(fmt, "integer {}", i),
             Token::Use => write!(fmt, "use"),
+            Token::Template => write!(fmt, "template"),
             Token::Class => write!(fmt, "class"),
             Token::This => write!(fmt, "this"),
             Token::Super => write!(fmt, "super"),

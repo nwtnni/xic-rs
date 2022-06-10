@@ -163,6 +163,7 @@ impl<'source> Lexer<'source> {
         let end = self.take_while(is_ident);
         let token = match &self.source[start.index()..end.index()] {
             "use" => Use,
+            "template" => Template,
             "class" => Class,
             "this" => This,
             "super" => Super,
