@@ -1,5 +1,6 @@
 use std::iter;
 
+use crate::data::ast;
 use crate::data::ast::Identifier;
 use crate::data::operand::Label;
 use crate::data::r#type;
@@ -32,6 +33,12 @@ pub struct Context {
 
     /// Set of classes in implementation module
     class_implementations: Map<Symbol, Span>,
+
+    /// Set of class templates visible to program
+    class_templates: Map<Identifier, ast::ClassTemplate>,
+
+    /// Set of function templates visible to program
+    function_templates: Map<Identifier, ast::FunctionTemplate>,
 
     /// Locally scoped variables
     locals: Vec<(LocalScope, Environment)>,
@@ -102,6 +109,8 @@ impl Context {
             classes: Map::default(),
             class_signatures: Map::default(),
             class_implementations: Map::default(),
+            class_templates: Map::default(),
+            function_templates: Map::default(),
             locals: Vec::default(),
             hierarchy: Map::default(),
         }
@@ -209,6 +218,35 @@ impl Context {
     pub fn has_cycle(&self, subtype: &Identifier) -> bool {
         self.ancestors_exclusive(&subtype.symbol)
             .any(|supertype| subtype.symbol == supertype)
+    }
+
+    // TODO: unify template namespace with rest of global namespace?
+    pub fn insert_class_template(&mut self, class: ast::ClassTemplate) -> Option<Span> {
+        match self.class_templates.entry(class.name.clone()) {
+            indexmap::map::Entry::Occupied(occupied) => Some(*occupied.key().span),
+            indexmap::map::Entry::Vacant(vacant) => {
+                vacant.insert(class);
+                None
+            }
+        }
+    }
+
+    pub fn get_class_template(&self, identifier: &Identifier) -> Option<&ast::ClassTemplate> {
+        self.class_templates.get(identifier)
+    }
+
+    pub fn insert_function_template(&mut self, function: ast::FunctionTemplate) -> Option<Span> {
+        match self.function_templates.entry(function.name.clone()) {
+            indexmap::map::Entry::Occupied(occupied) => Some(*occupied.key().span),
+            indexmap::map::Entry::Vacant(vacant) => {
+                vacant.insert(function);
+                None
+            }
+        }
+    }
+
+    pub fn get_function_template(&self, identifier: &Identifier) -> Option<&ast::FunctionTemplate> {
+        self.function_templates.get(identifier)
     }
 
     pub fn push(&mut self, scope: LocalScope) {

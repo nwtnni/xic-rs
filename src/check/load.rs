@@ -50,11 +50,13 @@ impl Checker {
                 // to other globals, since their initializers run in program order.
                 ast::Item::Global(_) => (),
                 ast::Item::Class(class) => self.load_class(class)?,
-                ast::Item::ClassTemplate(_) => todo!(),
+                ast::Item::ClassTemplate(class) => self.load_class_template(class)?,
                 ast::Item::Function(function) => {
                     self.load_function(GlobalScope::Global, function)?
                 }
-                ast::Item::FunctionTemplate(_) => todo!(),
+                ast::Item::FunctionTemplate(function) => {
+                    self.load_function_template(function)?;
+                }
             }
         }
 
@@ -92,21 +94,44 @@ impl Checker {
         for item in &interface.items {
             match item {
                 ast::ItemSignature::Class(class) => self.load_class_signature(class)?,
-                ast::ItemSignature::ClassTemplate(_) => todo!(),
+                ast::ItemSignature::ClassTemplate(class) => self.load_class_template(class)?,
                 ast::ItemSignature::Function(_) => (),
-                ast::ItemSignature::FunctionTemplate(_) => todo!(),
+                ast::ItemSignature::FunctionTemplate(function) => {
+                    self.load_function_template(function)?;
+                }
             }
         }
 
         for item in &interface.items {
             match item {
                 ast::ItemSignature::Class(class) => self.check_class_signature(class)?,
-                ast::ItemSignature::ClassTemplate(_) => todo!(),
                 ast::ItemSignature::Function(function) => {
                     self.check_function_signature(GlobalScope::Global, function)?;
                 }
-                ast::ItemSignature::FunctionTemplate(_) => todo!(),
+                // TODO: can still implement some basic type-checking before instantiation
+                // if we treat generics conservatively (i.e. as `Any` type)?
+                ast::ItemSignature::ClassTemplate(_) => (),
+                ast::ItemSignature::FunctionTemplate(_) => (),
             }
+        }
+
+        Ok(())
+    }
+
+    fn load_class_template(&mut self, class: &ast::ClassTemplate) -> Result<(), error::Error> {
+        if let Some(span) = self.context.insert_class_template(class.clone()) {
+            bail!(class.span, ErrorKind::NameClash(span))
+        }
+
+        Ok(())
+    }
+
+    fn load_function_template(
+        &mut self,
+        function: &ast::FunctionTemplate,
+    ) -> Result<(), error::Error> {
+        if let Some(span) = self.context.insert_function_template(function.clone()) {
+            bail!(function.span, ErrorKind::NameClash(span))
         }
 
         Ok(())
