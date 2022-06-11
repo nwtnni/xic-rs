@@ -10,8 +10,6 @@ use crate::check::ErrorKind;
 use crate::check::Scope;
 use crate::data::ast;
 use crate::data::r#type;
-use crate::data::span::Span;
-use crate::data::symbol;
 use crate::data::symbol::Symbol;
 use crate::error;
 use crate::util;
@@ -84,42 +82,7 @@ impl Checker {
     ) -> Result<Context, error::Error> {
         let directory_library = directory_library.unwrap_or_else(|| path.parent().unwrap());
 
-        for r#use in &program.uses {
-            self.load_use(directory_library, r#use)?;
-        }
-
-        let implicit = path
-            .file_stem()
-            .map(Path::new)
-            .map(|path| ast::Use {
-                name: ast::Identifier {
-                    symbol: symbol::intern(path.to_str().unwrap()),
-                    span: Box::new(Span::default()),
-                },
-                span: Span::default(),
-            })
-            .unwrap();
-
-        match self.load_use(directory_library, &implicit) {
-            Ok(()) => (),
-            Err(error::Error::Semantic(error))
-                if *error.kind() == ErrorKind::NotFound(implicit.name.symbol) => {}
-            Err(error) => return Err(error),
-        }
-
-        for item in &program.items {
-            match item {
-                // Note: relies on the assumption that globals cannot have forward references
-                // to other globals, since their initializers run in program order.
-                ast::Item::Global(_) => (),
-                ast::Item::Class(class) => self.load_class(class)?,
-                ast::Item::ClassTemplate(_) => todo!(),
-                ast::Item::Function(function) => {
-                    self.load_function(GlobalScope::Global, function)?
-                }
-                ast::Item::FunctionTemplate(_) => todo!(),
-            }
-        }
+        self.load_program(directory_library, path, program)?;
 
         for item in &program.items {
             match item {

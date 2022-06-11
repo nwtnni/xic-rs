@@ -8,16 +8,60 @@ use crate::check::ErrorKind;
 use crate::check::GlobalScope;
 use crate::data::ast;
 use crate::data::r#type;
+use crate::data::span::Span;
+use crate::data::symbol;
 use crate::error;
 use crate::lex;
 use crate::parse;
 
 impl Checker {
-    pub(super) fn load_use(
+    pub(super) fn load_program(
         &mut self,
         directory_library: &Path,
-        r#use: &ast::Use,
+        path: &Path,
+        program: &ast::Program,
     ) -> Result<(), error::Error> {
+        for r#use in &program.uses {
+            self.load_use(directory_library, r#use)?;
+        }
+
+        let implicit = path
+            .file_stem()
+            .map(Path::new)
+            .map(|path| ast::Use {
+                name: ast::Identifier {
+                    symbol: symbol::intern(path.to_str().unwrap()),
+                    span: Box::new(Span::default()),
+                },
+                span: Span::default(),
+            })
+            .unwrap();
+
+        match self.load_use(directory_library, &implicit) {
+            Ok(()) => (),
+            Err(error::Error::Semantic(error))
+                if *error.kind() == ErrorKind::NotFound(implicit.name.symbol) => {}
+            Err(error) => return Err(error),
+        }
+
+        for item in &program.items {
+            match item {
+                // Note: relies on the assumption that globals cannot have forward references
+                // to other globals, since their initializers run in program order.
+                ast::Item::Global(_) => (),
+                ast::Item::Class(class) => self.load_class(class)?,
+                ast::Item::ClassTemplate(_) => todo!(),
+                ast::Item::Function(function) => {
+                    self.load_function(GlobalScope::Global, function)?
+                }
+                ast::Item::FunctionTemplate(_) => todo!(),
+            }
+        }
+
+        Ok(())
+    }
+
+    fn load_use(&mut self, directory_library: &Path, r#use: &ast::Use) -> Result<(), error::Error> {
         // Load each interface exactly once
         if !self.used.insert(r#use.name.symbol) {
             return Ok(());
@@ -149,7 +193,7 @@ impl Checker {
         Ok(())
     }
 
-    pub(super) fn load_class(&mut self, class: &ast::Class) -> Result<(), error::Error> {
+    fn load_class(&mut self, class: &ast::Class) -> Result<(), error::Error> {
         if let Some(span) = self.context.insert_class_implementation(&class.name) {
             bail!(class.span, ErrorKind::NameClash(span));
         }
@@ -184,7 +228,7 @@ impl Checker {
         Ok(())
     }
 
-    pub(super) fn load_function(
+    fn load_function(
         &mut self,
         scope: GlobalScope,
         function: &ast::Function,
@@ -219,7 +263,7 @@ impl Checker {
         Ok(())
     }
 
-    pub(super) fn load_callable<C: ast::Callable>(
+    fn load_callable<C: ast::Callable>(
         &self,
         signature: &C,
     ) -> Result<(Vec<r#type::Expression>, Vec<r#type::Expression>), error::Error> {
