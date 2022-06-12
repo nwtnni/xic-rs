@@ -4,6 +4,7 @@ pub use visit::VisitorMut;
 
 use std::cell::Cell;
 use std::fmt;
+use std::hash;
 use std::iter;
 
 use crate::data::sexp::Serialize as _;
@@ -283,15 +284,30 @@ impl Type {
 
 impl PartialEq for Type {
     fn eq(&self, other: &Self) -> bool {
-        match (self, other) {
-            (Type::Bool(_), Type::Bool(_)) | (Type::Int(_), Type::Int(_)) => true,
-            (Type::Array(lhs, _, _), Type::Array(rhs, _, _)) => lhs == rhs,
-            _ => false,
+        match self {
+            Type::Bool(_) => matches!(other, Type::Bool(_)),
+            Type::Int(_) => matches!(other, Type::Int(_)),
+            Type::Class(lhs) => matches!(other, Type::Class(rhs) if lhs == rhs),
+            // Note: ignores array length expression
+            Type::Array(lhs, _, _) => matches!(other, Type::Array(rhs, _, _) if lhs == rhs),
         }
     }
 }
 
 impl Eq for Type {}
+
+impl hash::Hash for Type {
+    fn hash<H: hash::Hasher>(&self, state: &mut H) {
+        core::mem::discriminant(self).hash(state);
+
+        match self {
+            Type::Bool(_) | Type::Int(_) => (),
+            Type::Class(variable) => variable.hash(state),
+            // Note: ignores array length expression
+            Type::Array(r#type, _, _) => r#type.hash(state),
+        }
+    }
+}
 
 impl fmt::Display for Type {
     fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
@@ -686,7 +702,7 @@ impl fmt::Display for Unary {
     }
 }
 
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct Variable {
     pub name: Identifier,
     pub generics: Option<Vec<Type>>,
