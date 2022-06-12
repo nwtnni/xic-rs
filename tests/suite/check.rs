@@ -29,8 +29,8 @@ impl<T> fmt::Display for Snapshot<T> {
 
 #[test_generator::test_resources("tests/check/*.xi")]
 pub fn check(path: &str) {
-    let program = super::parse(path);
-    let context = xic::api::check(None, Path::new(path), &program);
+    let mut program = super::parse(path);
+    let context = xic::api::check(None, Path::new(path), &mut program);
 
     insta::assert_display_snapshot!(path, Snapshot(context));
 }

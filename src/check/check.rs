@@ -4,6 +4,7 @@ use crate::check::context::Entry;
 use crate::check::context::GlobalScope;
 use crate::check::context::LeastUpperBound;
 use crate::check::context::LocalScope;
+use crate::check::monomorphize::monomorphize_program;
 use crate::check::Context;
 use crate::check::Error;
 use crate::check::ErrorKind;
@@ -44,7 +45,7 @@ macro_rules! expected {
 pub fn check(
     directory_library: Option<&Path>,
     path: &Path,
-    program: &ast::Program,
+    program: &mut ast::Program,
 ) -> Result<Context, crate::Error> {
     log::info!(
         "[{}] Type checking {}...",
@@ -56,7 +57,19 @@ pub fn check(
         std::any::type_name::<ast::Program>(),
         path.display(),
     );
-    Checker::new().check_program(directory_library, path, program)
+
+    let mut checker = Checker {
+        context: Context::new(),
+        used: Set::default(),
+    };
+
+    let directory_library = directory_library.unwrap_or_else(|| path.parent().unwrap());
+
+    checker.load_program(directory_library, path, program)?;
+    monomorphize_program(&checker, program);
+    checker.check_program(program)?;
+
+    Ok(checker.context)
 }
 
 pub(super) struct Checker {
@@ -67,36 +80,20 @@ pub(super) struct Checker {
 }
 
 impl Checker {
-    fn new() -> Self {
-        Checker {
-            context: Context::new(),
-            used: Set::default(),
-        }
-    }
-
-    pub fn check_program(
-        mut self,
-        directory_library: Option<&Path>,
-        path: &Path,
-        program: &ast::Program,
-    ) -> Result<Context, error::Error> {
-        let directory_library = directory_library.unwrap_or_else(|| path.parent().unwrap());
-
-        self.load_program(directory_library, path, program)?;
-
+    fn check_program(&mut self, program: &ast::Program) -> Result<(), error::Error> {
         for item in &program.items {
             match item {
                 ast::Item::Global(global) => self.check_global(global)?,
                 ast::Item::Class(class) => self.check_class(class)?,
-                ast::Item::ClassTemplate(_) => todo!(),
+                ast::Item::ClassTemplate(_) => unreachable!(),
                 ast::Item::Function(function) => {
                     self.check_function(GlobalScope::Global, function)?
                 }
-                ast::Item::FunctionTemplate(_) => todo!(),
+                ast::Item::FunctionTemplate(_) => unreachable!(),
             }
         }
 
-        Ok(self.context)
+        Ok(())
     }
 
     fn check_type(&self, r#type: &ast::Type) -> Result<r#type::Expression, error::Error> {
@@ -105,17 +102,15 @@ impl Checker {
             ast::Type::Int(_) => Ok(r#type::Expression::Integer),
             ast::Type::Class(ast::Variable {
                 name,
-                generics: None,
+                generics,
                 span: _,
-            }) => match self.context.get_class(&name.symbol) {
-                Some(_) => Ok(r#type::Expression::Class(name.symbol)),
-                None => bail!(*name.span, ErrorKind::UnboundClass(name.symbol)),
-            },
-            ast::Type::Class(ast::Variable {
-                name: _,
-                generics: Some(_),
-                span: _,
-            }) => todo!(),
+            }) => {
+                assert!(generics.is_none());
+                match self.context.get_class(&name.symbol) {
+                    Some(_) => Ok(r#type::Expression::Class(name.symbol)),
+                    None => bail!(*name.span, ErrorKind::UnboundClass(name.symbol)),
+                }
+            }
             ast::Type::Array(r#type, None, _) => self
                 .check_type(r#type)
                 .map(Box::new)
@@ -389,18 +384,16 @@ impl Checker {
                 .map_err(error::Error::from),
             ast::Expression::Variable(ast::Variable {
                 name,
-                generics: None,
+                generics,
                 span: _,
-            }) => match self.context.get(Scope::Local, &name.symbol) {
-                Some(Entry::Variable(r#type)) => Ok(r#type.clone()),
-                Some(_) => bail!(*name.span, ErrorKind::NotVariable(name.symbol)),
-                None => bail!(*name.span, ErrorKind::UnboundVariable(name.symbol)),
-            },
-            ast::Expression::Variable(ast::Variable {
-                name: _,
-                generics: Some(_),
-                span: _,
-            }) => todo!(),
+            }) => {
+                assert!(generics.is_none());
+                match self.context.get(Scope::Local, &name.symbol) {
+                    Some(Entry::Variable(r#type)) => Ok(r#type.clone()),
+                    Some(_) => bail!(*name.span, ErrorKind::NotVariable(name.symbol)),
+                    None => bail!(*name.span, ErrorKind::UnboundVariable(name.symbol)),
+                }
+            }
 
             ast::Expression::Array(array, _) => {
                 let mut bound = r#type::Expression::Any;
@@ -558,27 +551,22 @@ impl Checker {
             ast::Expression::New(
                 ast::Variable {
                     name,
-                    generics: None,
+                    generics,
                     span: _,
                 },
                 span,
-            ) => match self.context.get_class_implementation(&name.symbol) {
-                Some(_) => Ok(r#type::Expression::Class(name.symbol)),
-                None if self.context.get_class(&name.symbol).is_some() => {
-                    bail!(*span, ErrorKind::NotInClassModule(name.symbol))
+            ) => {
+                assert!(generics.is_none());
+                match self.context.get_class_implementation(&name.symbol) {
+                    Some(_) => Ok(r#type::Expression::Class(name.symbol)),
+                    None if self.context.get_class(&name.symbol).is_some() => {
+                        bail!(*span, ErrorKind::NotInClassModule(name.symbol))
+                    }
+                    None => {
+                        bail!(*name.span, ErrorKind::UnboundClass(name.symbol))
+                    }
                 }
-                None => {
-                    bail!(*name.span, ErrorKind::UnboundClass(name.symbol))
-                }
-            },
-            ast::Expression::New(
-                ast::Variable {
-                    name: _,
-                    generics: Some(_),
-                    span: _,
-                },
-                _,
-            ) => todo!(),
+            }
             ast::Expression::Call(call) => {
                 let mut returns = self.check_call(call)?;
                 match returns.len() {
@@ -603,14 +591,12 @@ impl Checker {
         let (scope, function_span, function_name) = match &*call.function {
             ast::Expression::Variable(ast::Variable {
                 name,
-                generics: None,
+                generics,
                 span: _,
-            }) => (Scope::Local, *name.span, name.symbol),
-            ast::Expression::Variable(ast::Variable {
-                name: _,
-                generics: Some(_),
-                span: _,
-            }) => todo!(),
+            }) => {
+                assert!(generics.is_none());
+                (Scope::Local, *name.span, name.symbol)
+            }
             ast::Expression::Dot(receiver_class, receiver, name, span) => {
                 let class = match self.check_expression(receiver)? {
                     r#type::Expression::Class(class) => class,

@@ -105,12 +105,12 @@ pub fn emit_unit(
                     functions.insert(name, function);
                 }
             }
-            ast::Item::ClassTemplate(_) => todo!(),
+            ast::Item::ClassTemplate(_) => unreachable!(),
             ast::Item::Function(function) => {
                 let (name, function) = emitter.emit_function(GlobalScope::Global, function);
                 functions.insert(name, function);
             }
-            ast::Item::FunctionTemplate(_) => todo!(),
+            ast::Item::FunctionTemplate(_) => unreachable!(),
         }
     }
 

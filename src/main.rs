@@ -394,7 +394,7 @@ fn run() -> anyhow::Result<()> {
             command.debug(&path, "parsed", &program)?;
         }
 
-        let context = api::check(command.directory_library.as_deref(), &path, &program);
+        let context = api::check(command.directory_library.as_deref(), &path, &mut program);
 
         if command.debug_check {
             command.debug(

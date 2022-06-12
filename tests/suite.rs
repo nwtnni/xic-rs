@@ -49,8 +49,8 @@ pub fn parse(path: &str) -> ast::Program {
 }
 
 pub fn emit_hir(path: &str) -> hir::Unit {
-    let program = parse(path);
-    let mut context = xic::api::check(None, Path::new(path), &program).unwrap();
+    let mut program = parse(path);
+    let mut context = xic::api::check(None, Path::new(path), &mut program).unwrap();
     xic::api::emit_hir(Path::new(path), &program, &mut context)
 }
 

@@ -14,6 +14,13 @@ pub(super) fn monomorphize_program(checker: &Checker, program: &mut ast::Program
 
     program.accept_mut(&mut monomorphizer);
 
+    program.items.retain(|item| {
+        !matches!(
+            item,
+            ast::Item::ClassTemplate(_) | ast::Item::FunctionTemplate(_)
+        )
+    });
+
     program.items.extend(
         monomorphizer
             .classes
