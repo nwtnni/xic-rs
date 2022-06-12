@@ -4,7 +4,6 @@ use crate::check::context::Entry;
 use crate::check::context::GlobalScope;
 use crate::check::context::LeastUpperBound;
 use crate::check::context::LocalScope;
-use crate::check::monomorphize::monomorphize_program;
 use crate::check::Context;
 use crate::check::Error;
 use crate::check::ErrorKind;
@@ -66,7 +65,7 @@ pub fn check(
     let directory_library = directory_library.unwrap_or_else(|| path.parent().unwrap());
 
     checker.load_program(directory_library, path, program)?;
-    monomorphize_program(&checker, program);
+    checker.monomorphize_program(program);
     checker.check_program(program)?;
 
     Ok(checker.context)

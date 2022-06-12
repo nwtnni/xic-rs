@@ -218,7 +218,7 @@ impl Checker {
         Ok(())
     }
 
-    fn load_class(&mut self, class: &ast::Class) -> Result<(), error::Error> {
+    pub(super) fn load_class(&mut self, class: &ast::Class) -> Result<(), error::Error> {
         if let Some(span) = self.context.insert_class_implementation(&class.name) {
             bail!(class.span, ErrorKind::NameClash(span));
         }
@@ -253,7 +253,7 @@ impl Checker {
         Ok(())
     }
 
-    fn load_function(
+    pub(super) fn load_function(
         &mut self,
         scope: GlobalScope,
         function: &ast::Function,

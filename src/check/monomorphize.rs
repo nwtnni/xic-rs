@@ -1,50 +1,53 @@
 use crate::abi;
 use crate::check::check::Checker;
+use crate::check::GlobalScope;
 use crate::data::ast;
 use crate::Map;
 
 #[allow(unused)]
-pub(super) fn monomorphize_program(checker: &Checker, program: &mut ast::Program) {
-    let mut monomorphizer = Monomorphizer {
-        functions: Map::default(),
-        classes: Map::default(),
-        stack: Vec::new(),
-        checker,
-    };
+impl Checker {
+    pub(super) fn monomorphize_program(&mut self, program: &mut ast::Program) {
+        let mut monomorphizer = Monomorphizer {
+            functions: Map::default(),
+            classes: Map::default(),
+            stack: Vec::new(),
+            checker: self,
+        };
 
-    program.accept_mut(&mut monomorphizer);
+        program.accept_mut(&mut monomorphizer);
 
-    program.items.retain(|item| {
-        !matches!(
-            item,
-            ast::Item::ClassTemplate(_) | ast::Item::FunctionTemplate(_)
-        )
-    });
+        program.items.retain(|item| {
+            !matches!(
+                item,
+                ast::Item::ClassTemplate(_) | ast::Item::FunctionTemplate(_)
+            )
+        });
 
-    program.items.extend(
-        monomorphizer
-            .classes
-            .into_values()
-            .flat_map(Map::into_values)
-            .flatten()
-            .map(ast::Item::Class),
-    );
+        program.items.extend(
+            monomorphizer
+                .classes
+                .into_values()
+                .flat_map(Map::into_values)
+                .flatten()
+                .map(ast::Item::Class),
+        );
 
-    program.items.extend(
-        monomorphizer
-            .functions
-            .into_values()
-            .flat_map(Map::into_values)
-            .flatten()
-            .map(ast::Item::Function),
-    );
+        program.items.extend(
+            monomorphizer
+                .functions
+                .into_values()
+                .flat_map(Map::into_values)
+                .flatten()
+                .map(ast::Item::Function),
+        );
+    }
 }
 
 struct Monomorphizer<'a> {
     functions: Map<ast::Identifier, Map<Vec<ast::Type>, Option<ast::Function>>>,
     classes: Map<ast::Identifier, Map<Vec<ast::Type>, Option<ast::Class>>>,
     stack: Vec<Map<ast::Identifier, ast::Type>>,
-    checker: &'a Checker,
+    checker: &'a mut Checker,
 }
 
 impl<'a> ast::VisitorMut for Monomorphizer<'a> {
@@ -129,7 +132,7 @@ impl<'a> Monomorphizer<'a> {
         // Instantiate template
         template.accept_mut(self);
 
-        self.classes[&template.name][&*generics] = Some(ast::Class {
+        let class = ast::Class {
             name: ast::Identifier {
                 symbol: abi::mangle::template(&template.name.symbol, generics),
                 span: template.name.span.clone(),
@@ -137,7 +140,10 @@ impl<'a> Monomorphizer<'a> {
             extends: None,
             items: template.items,
             span: template.span,
-        });
+        };
+
+        self.checker.load_class(&class).unwrap();
+        self.classes[&template.name][&*generics] = Some(class);
     }
 
     fn instantiate_function_template(&mut self, name: &ast::Identifier, generics: &[ast::Type]) {
@@ -171,7 +177,7 @@ impl<'a> Monomorphizer<'a> {
         // Instantiate template
         template.accept_mut(self);
 
-        self.functions[&template.name][&*generics] = Some(ast::Function {
+        let function = ast::Function {
             name: ast::Identifier {
                 symbol: abi::mangle::template(&template.name.symbol, generics),
                 span: template.name.span.clone(),
@@ -180,6 +186,11 @@ impl<'a> Monomorphizer<'a> {
             returns: template.returns,
             statements: template.statements,
             span: template.span,
-        });
+        };
+
+        self.checker
+            .load_function(GlobalScope::Global, &function)
+            .unwrap();
+        self.functions[&template.name][&*generics] = Some(function);
     }
 }
