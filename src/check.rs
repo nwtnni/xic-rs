@@ -4,6 +4,7 @@ mod check;
 mod context;
 mod error;
 mod load;
+mod monomorphize;
 
 pub use check::check;
 pub(crate) use context::Context;
