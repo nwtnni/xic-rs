@@ -702,7 +702,7 @@ impl fmt::Display for Unary {
     }
 }
 
-#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+#[derive(Clone, Debug)]
 pub struct Variable {
     pub name: Identifier,
     pub generics: Option<Vec<Type>>,
@@ -714,6 +714,21 @@ impl Variable {
         self.generics
             .as_ref()
             .map_or(false, |r#type| r#type.iter().any(Type::has_length))
+    }
+}
+
+impl PartialEq for Variable {
+    fn eq(&self, other: &Self) -> bool {
+        self.name == other.name && self.generics == other.generics
+    }
+}
+
+impl Eq for Variable {}
+
+impl hash::Hash for Variable {
+    fn hash<H: hash::Hasher>(&self, state: &mut H) {
+        self.name.hash(state);
+        self.generics.hash(state);
     }
 }
 
