@@ -15,72 +15,37 @@ pub fn invert_ast(path: &Path, program: &mut ast::Program) {
         path.display()
     );
 
-    for item in &mut program.items {
-        match item {
-            ast::Item::Global(_) => (),
-            ast::Item::Class(class) => {
-                for item in &mut class.items {
-                    match item {
-                        ast::ClassItem::Field(_) => (),
-                        ast::ClassItem::Method(method) => {
-                            invert_statement(&mut method.statements);
-                        }
-                    }
-                }
-            }
-            ast::Item::ClassTemplate(_) => todo!(),
-            ast::Item::Function(function) => {
-                invert_statement(&mut function.statements);
-            }
-            ast::Item::FunctionTemplate(_) => todo!(),
-        }
-    }
+    program.accept_mut(&mut Inverter);
 }
 
-fn invert_statement(statement: &mut ast::Statement) {
-    let (condition, r#while, span) = match statement {
-        ast::Statement::Assignment(_, _, _)
-        | ast::Statement::Call(_)
-        | ast::Statement::Initialization(_)
-        | ast::Statement::Declaration(_, _)
-        | ast::Statement::Return(_, _)
-        | ast::Statement::Break(_) => return,
-        ast::Statement::Sequence(statements, _) => {
-            for statement in statements {
-                invert_statement(statement);
-            }
-            return;
-        }
-        ast::Statement::If(_, r#if, None, _) => return invert_statement(r#if),
-        ast::Statement::If(_, r#if, Some(r#else), _) => {
-            invert_statement(r#if);
-            invert_statement(r#else);
-            return;
-        }
-        ast::Statement::While(ast::Do::Yes, _, statement, _) => {
-            invert_statement(statement);
-            return;
-        }
-        ast::Statement::While(ast::Do::No, condition, statement, _) if effectful(condition) => {
-            invert_statement(statement);
-            return;
-        }
-        ast::Statement::While(ast::Do::No, condition, statement, span) => {
-            (condition.clone(), statement.clone(), *span)
-        }
-    };
+struct Inverter;
 
-    *statement = ast::Statement::If(
-        Box::new(condition.negate_logical()),
-        Box::new(ast::Statement::Sequence(Vec::new(), span)),
-        Some(Box::new(ast::Statement::While(
-            ast::Do::Yes,
-            condition,
-            r#while,
+impl ast::VisitorMut for Inverter {
+    fn visit_statement(&mut self, statement: &mut ast::Statement) -> ast::Recurse {
+        let (condition, r#while, span) = match statement {
+            ast::Statement::While(ast::Do::No, condition, _, _) if effectful(condition) => {
+                return ast::Recurse::Yes;
+            }
+            ast::Statement::While(ast::Do::No, condition, r#while, span) => {
+                (condition.clone(), r#while.clone(), *span)
+            }
+            _ => return ast::Recurse::Yes,
+        };
+
+        *statement = ast::Statement::If(
+            Box::new(condition.negate_logical()),
+            Box::new(ast::Statement::Sequence(Vec::new(), span)),
+            Some(Box::new(ast::Statement::While(
+                ast::Do::Yes,
+                condition,
+                r#while,
+                span,
+            ))),
             span,
-        ))),
-        span,
-    );
+        );
+
+        ast::Recurse::Yes
+    }
 }
 
 fn effectful(expression: &ast::Expression) -> bool {
