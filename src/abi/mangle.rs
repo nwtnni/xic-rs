@@ -1,11 +1,21 @@
 use std::fmt::Write as _;
 
+use crate::data::ast;
 use crate::data::r#type;
 use crate::data::symbol;
 use crate::data::symbol::Symbol;
 
 pub fn init() -> Symbol {
     symbol::intern_static("_I_init")
+}
+
+pub fn template(name: &Symbol, generics: &[ast::Type]) -> Symbol {
+    let mut mangled = format!("{}t", name);
+    write!(&mut mangled, "{}", generics.len()).unwrap();
+    for generic in generics {
+        mangle_ast_type(generic, &mut mangled);
+    }
+    symbol::intern(mangled)
 }
 
 pub fn class_size(class: &Symbol) -> Symbol {
@@ -99,6 +109,27 @@ fn mangle_type(r#type: &r#type::Expression, mangled: &mut String) {
         r#type::Expression::Array(r#type) => {
             mangled.push('a');
             mangle_type(&*r#type, mangled);
+        }
+    }
+}
+
+fn mangle_ast_type(r#type: &ast::Type, mangled: &mut String) {
+    match r#type {
+        ast::Type::Int(_) => mangled.push('i'),
+        ast::Type::Bool(_) => mangled.push('b'),
+        ast::Type::Class(ast::Variable {
+            name,
+            generics,
+            span: _,
+        }) => {
+            assert!(generics.is_none());
+            mangled.push('o');
+            write!(mangled, "{}", symbol::resolve(name.symbol).len()).unwrap();
+            write!(mangled, "{}", escape(&name.symbol)).unwrap();
+        }
+        ast::Type::Array(r#type, _, _) => {
+            mangled.push('a');
+            mangle_ast_type(&*r#type, mangled);
         }
     }
 }
