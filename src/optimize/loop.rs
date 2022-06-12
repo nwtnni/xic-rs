@@ -21,30 +21,22 @@ pub fn invert_ast(path: &Path, program: &mut ast::Program) {
 struct Inverter;
 
 impl ast::VisitorMut for Inverter {
-    fn visit_statement(&mut self, statement: &mut ast::Statement) -> ast::Recurse {
-        let (condition, r#while, span) = match statement {
-            ast::Statement::While(ast::Do::No, condition, _, _) if effectful(condition) => {
-                return ast::Recurse::Yes;
+    fn visit_statement(&mut self, statement: &mut ast::Statement) {
+        if let ast::Statement::While(ast::Do::No, condition, r#while, span) = statement {
+            if !effectful(condition) {
+                *statement = ast::Statement::If(
+                    Box::new(condition.negate_logical()),
+                    Box::new(ast::Statement::Sequence(Vec::new(), *span)),
+                    Some(Box::new(ast::Statement::While(
+                        ast::Do::Yes,
+                        condition.clone(),
+                        r#while.clone(),
+                        *span,
+                    ))),
+                    *span,
+                );
             }
-            ast::Statement::While(ast::Do::No, condition, r#while, span) => {
-                (condition.clone(), r#while.clone(), *span)
-            }
-            _ => return ast::Recurse::Yes,
-        };
-
-        *statement = ast::Statement::If(
-            Box::new(condition.negate_logical()),
-            Box::new(ast::Statement::Sequence(Vec::new(), span)),
-            Some(Box::new(ast::Statement::While(
-                ast::Do::Yes,
-                condition,
-                r#while,
-                span,
-            ))),
-            span,
-        );
-
-        ast::Recurse::Yes
+        }
     }
 }
 

@@ -1,6 +1,5 @@
 mod visit;
 
-pub use visit::Recurse;
 pub use visit::VisitorMut;
 
 use std::cell::Cell;

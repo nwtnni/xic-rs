@@ -1,165 +1,78 @@
 use crate::data::ast;
 
-#[derive(Copy, Clone, Debug, PartialEq, Eq, Hash)]
-pub enum Recurse {
-    Yes,
-    No,
-}
-
-macro_rules! visit_mut {
-    ($expr:expr) => {
-        match $expr {
-            Recurse::Yes => (),
-            Recurse::No => return,
-        }
-    };
-}
-
 pub trait VisitorMut {
-    #[must_use]
-    fn visit_interface(&mut self, _interface: &mut ast::Interface) -> Recurse {
-        Recurse::Yes
-    }
+    fn visit_interface(&mut self, _interface: &mut ast::Interface) {}
 
-    #[must_use]
-    fn visit_item_signature(&mut self, _item: &mut ast::ItemSignature) -> Recurse {
-        Recurse::Yes
-    }
+    fn visit_item_signature(&mut self, _item: &mut ast::ItemSignature) {}
 
-    #[must_use]
-    fn visit_class_signature(&mut self, _class: &mut ast::ClassSignature) -> Recurse {
-        Recurse::Yes
-    }
+    fn visit_class_signature(&mut self, _class: &mut ast::ClassSignature) {}
 
-    #[must_use]
-    fn visit_function_signature(&mut self, _function: &mut ast::FunctionSignature) -> Recurse {
-        Recurse::Yes
-    }
+    fn visit_function_signature(&mut self, _function: &mut ast::FunctionSignature) {}
 
-    #[must_use]
-    fn visit_program(&mut self, _program: &mut ast::Program) -> Recurse {
-        Recurse::Yes
-    }
+    fn visit_program(&mut self, _program: &mut ast::Program) {}
 
-    #[must_use]
-    fn visit_use(&mut self, _use: &mut ast::Use) -> Recurse {
-        Recurse::Yes
-    }
+    fn visit_use(&mut self, _use: &mut ast::Use) {}
 
-    #[must_use]
-    fn visit_item(&mut self, _item: &mut ast::Item) -> Recurse {
-        Recurse::Yes
-    }
+    fn visit_item(&mut self, _item: &mut ast::Item) {}
 
-    #[must_use]
-    fn visit_global(&mut self, _global: &mut ast::Global) -> Recurse {
-        Recurse::Yes
-    }
+    fn visit_global(&mut self, _global: &mut ast::Global) {}
 
-    #[must_use]
-    fn visit_class(&mut self, _class: &mut ast::Class) -> Recurse {
-        Recurse::Yes
-    }
+    fn visit_class(&mut self, _class: &mut ast::Class) {}
 
-    #[must_use]
-    fn visit_class_template(&mut self, _class: &mut ast::ClassTemplate) -> Recurse {
-        Recurse::Yes
-    }
+    fn visit_class_template(&mut self, _class: &mut ast::ClassTemplate) {}
 
-    #[must_use]
-    fn visit_class_item(&mut self, _item: &mut ast::ClassItem) -> Recurse {
-        Recurse::Yes
-    }
+    fn visit_class_item(&mut self, _item: &mut ast::ClassItem) {}
 
-    #[must_use]
-    fn visit_function(&mut self, _function: &mut ast::Function) -> Recurse {
-        Recurse::Yes
-    }
+    fn visit_function(&mut self, _function: &mut ast::Function) {}
 
-    #[must_use]
-    fn visit_function_template(&mut self, _function: &mut ast::FunctionTemplate) -> Recurse {
-        Recurse::Yes
-    }
+    fn visit_function_template(&mut self, _function: &mut ast::FunctionTemplate) {}
 
-    #[must_use]
-    fn visit_statement(&mut self, _statement: &mut ast::Statement) -> Recurse {
-        Recurse::Yes
-    }
+    fn visit_statement(&mut self, _statement: &mut ast::Statement) {}
 
-    #[must_use]
-    fn visit_declaration(&mut self, _declaration: &mut ast::Declaration) -> Recurse {
-        Recurse::Yes
-    }
+    fn visit_declaration(&mut self, _declaration: &mut ast::Declaration) {}
 
-    #[must_use]
-    fn visit_multiple_declaration(
-        &mut self,
-        _declaration: &mut ast::MultipleDeclaration,
-    ) -> Recurse {
-        Recurse::Yes
-    }
+    fn visit_multiple_declaration(&mut self, _declaration: &mut ast::MultipleDeclaration) {}
 
-    #[must_use]
-    fn visit_single_declaration(&mut self, _declaration: &mut ast::SingleDeclaration) -> Recurse {
-        Recurse::Yes
-    }
+    fn visit_single_declaration(&mut self, _declaration: &mut ast::SingleDeclaration) {}
 
-    #[must_use]
-    fn visit_initialization(&mut self, _initialization: &mut ast::Initialization) -> Recurse {
-        Recurse::Yes
-    }
+    fn visit_initialization(&mut self, _initialization: &mut ast::Initialization) {}
 
-    #[must_use]
-    fn visit_type(&mut self, _type: &mut ast::Type) -> Recurse {
-        Recurse::Yes
-    }
+    fn visit_type(&mut self, _type: &mut ast::Type) {}
 
-    #[must_use]
-    fn visit_expression(&mut self, _expression: &mut ast::Expression) -> Recurse {
-        Recurse::Yes
-    }
+    fn visit_expression(&mut self, _expression: &mut ast::Expression) {}
 
-    #[must_use]
-    fn visit_call(&mut self, _call: &mut ast::Call) -> Recurse {
-        Recurse::Yes
-    }
+    fn visit_call(&mut self, _call: &mut ast::Call) {}
 
-    #[must_use]
-    fn visit_variable(&mut self, _variable: &mut ast::Variable) -> Recurse {
-        Recurse::Yes
-    }
+    fn visit_variable(&mut self, _variable: &mut ast::Variable) {}
 
     fn visit_identifier(&mut self, _identifier: &mut ast::Identifier) {}
 }
 
 impl ast::Interface {
     pub fn accept_mut<V: VisitorMut>(&mut self, visitor: &mut V) {
-        visit_mut!(visitor.visit_interface(self));
-
         let ast::Interface { uses, items } = self;
-
         uses.iter_mut().for_each(|r#use| r#use.accept_mut(visitor));
         items.iter_mut().for_each(|item| item.accept_mut(visitor));
+
+        visitor.visit_interface(self);
     }
 }
 
 impl ast::ItemSignature {
     pub fn accept_mut<V: VisitorMut>(&mut self, visitor: &mut V) {
-        visit_mut!(visitor.visit_item_signature(self));
-
         match self {
             ast::ItemSignature::Class(class) => class.accept_mut(visitor),
             ast::ItemSignature::ClassTemplate(class) => class.accept_mut(visitor),
             ast::ItemSignature::Function(function) => function.accept_mut(visitor),
             ast::ItemSignature::FunctionTemplate(function) => function.accept_mut(visitor),
         }
+
+        visitor.visit_item_signature(self);
     }
 }
 
 impl ast::ClassSignature {
     pub fn accept_mut<V: VisitorMut>(&mut self, visitor: &mut V) {
-        visit_mut!(visitor.visit_class_signature(self));
-
         let ast::ClassSignature {
             name,
             extends,
@@ -173,13 +86,13 @@ impl ast::ClassSignature {
         methods
             .iter_mut()
             .for_each(|method| method.accept_mut(visitor));
+
+        visitor.visit_class_signature(self);
     }
 }
 
 impl ast::FunctionSignature {
     pub fn accept_mut<V: VisitorMut>(&mut self, visitor: &mut V) {
-        visit_mut!(visitor.visit_function_signature(self));
-
         let ast::FunctionSignature {
             name,
             parameters,
@@ -193,32 +106,32 @@ impl ast::FunctionSignature {
         returns
             .iter_mut()
             .for_each(|r#return| r#return.accept_mut(visitor));
+
+        visitor.visit_function_signature(self);
     }
 }
 
 impl ast::Program {
     pub fn accept_mut<V: VisitorMut>(&mut self, visitor: &mut V) {
-        visit_mut!(visitor.visit_program(self));
-
         let ast::Program { uses, items } = self;
         uses.iter_mut().for_each(|r#use| r#use.accept_mut(visitor));
         items.iter_mut().for_each(|item| item.accept_mut(visitor));
+
+        visitor.visit_program(self);
     }
 }
 
 impl ast::Use {
     pub fn accept_mut<V: VisitorMut>(&mut self, visitor: &mut V) {
-        visit_mut!(visitor.visit_use(self));
-
         let ast::Use { name, span: _ } = self;
         visitor.visit_identifier(name);
+
+        visitor.visit_use(self);
     }
 }
 
 impl ast::Item {
     pub fn accept_mut<V: VisitorMut>(&mut self, visitor: &mut V) {
-        visit_mut!(visitor.visit_item(self));
-
         match self {
             ast::Item::Global(global) => global.accept_mut(visitor),
             ast::Item::Class(class) => class.accept_mut(visitor),
@@ -226,24 +139,24 @@ impl ast::Item {
             ast::Item::Function(function) => function.accept_mut(visitor),
             ast::Item::FunctionTemplate(function) => function.accept_mut(visitor),
         }
+
+        visitor.visit_item(self);
     }
 }
 
 impl ast::Global {
     pub fn accept_mut<V: VisitorMut>(&mut self, visitor: &mut V) {
-        visit_mut!(visitor.visit_global(self));
-
         match self {
             ast::Global::Declaration(declaration) => declaration.accept_mut(visitor),
             ast::Global::Initialization(initialization) => initialization.accept_mut(visitor),
         }
+
+        visitor.visit_global(self);
     }
 }
 
 impl ast::Class {
     pub fn accept_mut<V: VisitorMut>(&mut self, visitor: &mut V) {
-        visit_mut!(visitor.visit_class(self));
-
         let ast::Class {
             name,
             extends,
@@ -255,13 +168,13 @@ impl ast::Class {
             .iter_mut()
             .for_each(|supertype| supertype.accept_mut(visitor));
         items.iter_mut().for_each(|item| item.accept_mut(visitor));
+
+        visitor.visit_class(self);
     }
 }
 
 impl ast::ClassTemplate {
     pub fn accept_mut<V: VisitorMut>(&mut self, visitor: &mut V) {
-        visit_mut!(visitor.visit_class_template(self));
-
         let ast::ClassTemplate {
             name,
             generics,
@@ -273,24 +186,24 @@ impl ast::ClassTemplate {
             .iter_mut()
             .for_each(|generic| generic.accept_mut(visitor));
         items.iter_mut().for_each(|item| item.accept_mut(visitor));
+
+        visitor.visit_class_template(self);
     }
 }
 
 impl ast::ClassItem {
     pub fn accept_mut<V: VisitorMut>(&mut self, visitor: &mut V) {
-        visit_mut!(visitor.visit_class_item(self));
-
         match self {
             ast::ClassItem::Field(field) => field.accept_mut(visitor),
             ast::ClassItem::Method(method) => method.accept_mut(visitor),
         }
+
+        visitor.visit_class_item(self);
     }
 }
 
 impl ast::Function {
     pub fn accept_mut<V: VisitorMut>(&mut self, visitor: &mut V) {
-        visit_mut!(visitor.visit_function(self));
-
         let ast::Function {
             name,
             parameters,
@@ -306,13 +219,13 @@ impl ast::Function {
             .iter_mut()
             .for_each(|r#return| r#return.accept_mut(visitor));
         statements.accept_mut(visitor);
+
+        visitor.visit_function(self);
     }
 }
 
 impl ast::FunctionTemplate {
     pub fn accept_mut<V: VisitorMut>(&mut self, visitor: &mut V) {
-        visit_mut!(visitor.visit_function_template(self));
-
         let ast::FunctionTemplate {
             name,
             generics,
@@ -332,13 +245,13 @@ impl ast::FunctionTemplate {
             .iter_mut()
             .for_each(|r#return| r#return.accept_mut(visitor));
         statements.accept_mut(visitor);
+
+        visitor.visit_function_template(self);
     }
 }
 
 impl ast::Statement {
     pub fn accept_mut<V: VisitorMut>(&mut self, visitor: &mut V) {
-        visit_mut!(visitor.visit_statement(self));
-
         match self {
             ast::Statement::Assignment(destination, source, _) => {
                 destination.accept_mut(visitor);
@@ -366,24 +279,24 @@ impl ast::Statement {
             }
             ast::Statement::Break(_) => (),
         }
+
+        visitor.visit_statement(self);
     }
 }
 
 impl ast::Declaration {
     pub fn accept_mut<V: VisitorMut>(&mut self, visitor: &mut V) {
-        visit_mut!(visitor.visit_declaration(self));
-
         match self {
             ast::Declaration::Multiple(declaration) => declaration.accept_mut(visitor),
             ast::Declaration::Single(declaration) => declaration.accept_mut(visitor),
         }
+
+        visitor.visit_declaration(self);
     }
 }
 
 impl ast::MultipleDeclaration {
     pub fn accept_mut<V: VisitorMut>(&mut self, visitor: &mut V) {
-        visit_mut!(visitor.visit_multiple_declaration(self));
-
         let ast::MultipleDeclaration {
             names,
             r#type,
@@ -391,13 +304,13 @@ impl ast::MultipleDeclaration {
         } = self;
         names.iter_mut().for_each(|name| name.accept_mut(visitor));
         r#type.accept_mut(visitor);
+
+        visitor.visit_multiple_declaration(self);
     }
 }
 
 impl ast::SingleDeclaration {
     pub fn accept_mut<V: VisitorMut>(&mut self, visitor: &mut V) {
-        visit_mut!(visitor.visit_single_declaration(self));
-
         let ast::SingleDeclaration {
             name,
             r#type,
@@ -405,13 +318,13 @@ impl ast::SingleDeclaration {
         } = self;
         name.accept_mut(visitor);
         r#type.accept_mut(visitor);
+
+        visitor.visit_single_declaration(self);
     }
 }
 
 impl ast::Initialization {
     pub fn accept_mut<V: VisitorMut>(&mut self, visitor: &mut V) {
-        visit_mut!(visitor.visit_initialization(self));
-
         let ast::Initialization {
             declarations,
             expression,
@@ -422,13 +335,13 @@ impl ast::Initialization {
             .flatten()
             .for_each(|declaration| declaration.accept_mut(visitor));
         expression.accept_mut(visitor);
+
+        visitor.visit_initialization(self);
     }
 }
 
 impl ast::Type {
     pub fn accept_mut<V: VisitorMut>(&mut self, visitor: &mut V) {
-        visit_mut!(visitor.visit_type(self));
-
         match self {
             ast::Type::Bool(_) => (),
             ast::Type::Int(_) => (),
@@ -440,13 +353,13 @@ impl ast::Type {
                 }
             }
         }
+
+        visitor.visit_type(self);
     }
 }
 
 impl ast::Expression {
     pub fn accept_mut<V: VisitorMut>(&mut self, visitor: &mut V) {
-        visit_mut!(visitor.visit_expression(self));
-
         match self {
             ast::Expression::Boolean(_, _)
             | ast::Expression::Character(_, _)
@@ -478,13 +391,13 @@ impl ast::Expression {
             }
             ast::Expression::New(variable, _) => variable.accept_mut(visitor),
         }
+
+        visitor.visit_expression(self);
     }
 }
 
 impl ast::Call {
     pub fn accept_mut<V: VisitorMut>(&mut self, visitor: &mut V) {
-        visit_mut!(visitor.visit_call(self));
-
         let ast::Call {
             function,
             arguments,
@@ -494,13 +407,13 @@ impl ast::Call {
         arguments
             .iter_mut()
             .for_each(|argument| argument.accept_mut(visitor));
+
+        visitor.visit_call(self);
     }
 }
 
 impl ast::Variable {
     pub fn accept_mut<V: VisitorMut>(&mut self, visitor: &mut V) {
-        visit_mut!(visitor.visit_variable(self));
-
         let ast::Variable {
             name,
             generics,
@@ -511,6 +424,8 @@ impl ast::Variable {
             .iter_mut()
             .flatten()
             .for_each(|r#type| r#type.accept_mut(visitor));
+
+        visitor.visit_variable(self);
     }
 }
 
