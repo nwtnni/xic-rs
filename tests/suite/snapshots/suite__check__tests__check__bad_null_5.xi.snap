@@ -1,0 +1,15 @@
+---
+source: tests/suite/check.rs
+assertion_line: 35
+expression: Snapshot(context)
+---
+Error: Semantic error
+   ╭─[tests/check/bad_null_5.xi:6:26]
+   │
+ 6 │     a: A[][] = {{new A}, {new B, null}}
+   ·                 ───┬───  ──────┬──────  
+   ·                    ╰──────────────────── Expected A[] because of this
+   ·                                │        
+   ·                                ╰──────── Expected A[] but found B[]
+───╯
+

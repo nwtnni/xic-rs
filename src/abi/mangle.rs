@@ -98,7 +98,9 @@ fn mangle_function(
 
 fn mangle_type(r#type: &r#type::Expression, mangled: &mut String) {
     match r#type {
-        r#type::Expression::Any => panic!("[INTERNAL ERROR]: any type in IR"),
+        r#type::Expression::Any | r#type::Expression::Null => {
+            panic!("[INTERNAL ERROR]: `{}` type in IR", r#type)
+        }
         r#type::Expression::Integer => mangled.push('i'),
         r#type::Expression::Boolean => mangled.push('b'),
         r#type::Expression::Class(class) => {

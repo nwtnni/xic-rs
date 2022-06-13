@@ -1,0 +1,15 @@
+---
+source: tests/suite/check.rs
+assertion_line: 35
+expression: Snapshot(context)
+---
+Error: Semantic error
+   ╭─[tests/check/bad_null_1.xi:2:14]
+   │
+ 2 │     i: int = null
+   ·     ───┬──   ──┬─  
+   ·        ╰─────────── Expected int because of this
+   ·                │   
+   ·                ╰─── Expected int but found null
+───╯
+

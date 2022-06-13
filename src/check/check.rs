@@ -358,12 +358,11 @@ impl Checker {
                 r#type::Expression::Integer,
             ))),
             ast::Expression::Integer(_, _) => Ok(r#type::Expression::Integer),
-            ast::Expression::This(span) | ast::Expression::Null(span) => {
-                match self.context.get_scoped_class() {
-                    None => bail!(*span, ErrorKind::NotInClass(None)),
-                    Some(class) => Ok(r#type::Expression::Class(class)),
-                }
-            }
+            ast::Expression::Null(_) => Ok(r#type::Expression::Null),
+            ast::Expression::This(span) => match self.context.get_scoped_class() {
+                None => bail!(*span, ErrorKind::NotInClass(None)),
+                Some(class) => Ok(r#type::Expression::Class(class)),
+            },
             ast::Expression::Super(span) => self
                 .context
                 .get_scoped_class()

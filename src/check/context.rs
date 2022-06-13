@@ -314,13 +314,13 @@ impl Context {
     pub fn is_subtype(&self, subtype: &r#type::Expression, supertype: &r#type::Expression) -> bool {
         use r#type::Expression::*;
         match (subtype, supertype) {
-            (Any, _) | (Integer, Integer) | (Boolean, Boolean) => true,
+            (Any, _) | (Null, Class(_)) => true,
             (Array(subtype), Array(supertype)) => self.is_subtype_array(subtype, supertype),
             (Class(subtype), Class(supertype)) if subtype == supertype => true,
             (Class(subtype), Class(supertype)) => self
                 .ancestors_exclusive(subtype)
                 .any(|r#type| r#type == *supertype),
-            (_, _) => false,
+            (_, _) => subtype == supertype,
         }
     }
 
@@ -331,7 +331,7 @@ impl Context {
     ) -> bool {
         use r#type::Expression::*;
         match (subtype, supertype) {
-            (Any, _) => true,
+            (Any, _) | (Null, Class(_)) => true,
             (Array(subtype), Array(supertype)) => self.is_subtype_array(subtype, supertype),
             (_, _) => subtype == supertype,
         }
@@ -363,8 +363,8 @@ impl Context {
         match (left, right) {
             (r#type, Any) => Some(LeastUpperBound::Left(r#type.clone())),
             (Any, r#type) => Some(LeastUpperBound::Right(r#type.clone())),
-            (Integer, Integer) => Some(LeastUpperBound::Left(Integer)),
-            (Boolean, Boolean) => Some(LeastUpperBound::Left(Boolean)),
+            (r#type @ Class(_), Null) => Some(LeastUpperBound::Left(r#type.clone())),
+            (Null, r#type @ Class(_)) => Some(LeastUpperBound::Right(r#type.clone())),
             (Array(left), Array(right)) => self
                 .least_upper_bound_array(left, right)
                 .map(LeastUpperBound::array),
@@ -377,6 +377,7 @@ impl Context {
                     None
                 }
             }
+            (left, right) if left == right => Some(LeastUpperBound::Left(left.clone())),
             (_, _) => None,
         }
     }
@@ -390,6 +391,8 @@ impl Context {
         match (left, right) {
             (r#type, Any) => Some(LeastUpperBound::Left(r#type.clone())),
             (Any, r#type) => Some(LeastUpperBound::Right(r#type.clone())),
+            (r#type @ Class(_), Null) => Some(LeastUpperBound::Left(r#type.clone())),
+            (Null, r#type @ Class(_)) => Some(LeastUpperBound::Right(r#type.clone())),
             (Array(left), Array(right)) => self
                 .least_upper_bound(left, right)
                 .map(LeastUpperBound::array),
