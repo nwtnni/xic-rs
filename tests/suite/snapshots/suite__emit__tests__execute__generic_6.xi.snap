@@ -1,0 +1,10 @@
+---
+source: tests/suite/emit.rs
+assertion_line: 10
+expression: lir_stdout
+---
+B1 = B1
+C2 = C2
+BTrue = BTrue
+CFalse = CFalse
+

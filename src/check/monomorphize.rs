@@ -65,7 +65,21 @@ impl<'a> ast::VisitorMut for Monomorphizer<'a> {
                 .and_then(|arguments| arguments.get(&variable.name))
                 .cloned()
             {
-                *r#type = substitute;
+                match (&variable.generics, substitute) {
+                    (None, substitute) => *r#type = substitute,
+                    // Forward type arguments to any functor arguments
+                    (
+                        Some(_),
+                        ast::Type::Class(ast::Variable {
+                            name,
+                            generics: None,
+                            span: _,
+                        }),
+                    ) => {
+                        variable.name = name;
+                    }
+                    (Some(_), _) => todo!("Generic arguments to non-functor"),
+                }
             }
         }
 
