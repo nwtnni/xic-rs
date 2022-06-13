@@ -13,21 +13,72 @@ template class Vector<T> {
     }
 
     pop(): T {
-        // Note: still considered reachable by GC
-        item: T = array[size' - 1]
         size' = size' - 1
+        // Note: still considered reachable by GC
+        item: T = array[size']
         return item
+    }
+
+    get(index: int): T {
+        return array[index]
     }
 
     size(): int {
         return size'
     }
 
+    insert(index: int, item: T) {
+        if size' + 1 > capacity {
+            resize()
+        }
+
+        i: int = size' - 1
+        while i >= index {
+            array[i + 1] = array[i]
+            i = i - 1
+        }
+
+        size' = size' + 1
+        array[index] = item
+    }
+
+    remove(index: int): T {
+        item: T = array[index]
+        size' = size' - 1
+
+        if index == size' {
+            return item
+        }
+
+        i: int = index
+        while i < size' {
+            array[i] = array[i + 1]
+            i = i + 1
+        }
+
+        return item
+    }
+
+    swap_remove(index: int): T {
+        swap(index, size' - 1)
+        return pop()
+    }
+
+    swap(i: int, j: int) {
+        if i == j {
+            return
+        }
+
+        swap: T = array[i]
+        array[i] = array[j]
+        array[j] = swap
+    }
+
     resize() {
         double: T[capacity * 2]
 
         i: int = 0
-        while i < length(array) {
+        while i < size' {
             double[i] = array[i]
             i = i + 1
         }
