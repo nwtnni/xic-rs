@@ -1,0 +1,50 @@
+template class Vector<T> {
+    array: T[]
+    size': int
+    capacity: int
+
+    push(item: T) {
+        if size' + 1 > capacity {
+            resize()
+        }
+
+        array[size'] = item
+        size' = size' + 1
+    }
+
+    pop(): T {
+        // Note: still considered reachable by GC
+        item: T = array[size' - 1]
+        size' = size' - 1
+        return item
+    }
+
+    size(): int {
+        return size'
+    }
+
+    resize() {
+        double: T[capacity * 2]
+
+        i: int = 0
+        while i < length(array) {
+            double[i] = array[i]
+            i = i + 1
+        }
+
+        capacity = length(double)
+        array = double
+    }
+}
+
+template newVector<T>(): Vector::<T> {
+    vector: Vector::<T> = new Vector::<T>
+
+    array: T[8]
+
+    vector.array = array
+    vector.size' = 0
+    vector.capacity = 8
+
+    return vector
+}
