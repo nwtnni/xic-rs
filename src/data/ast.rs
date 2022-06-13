@@ -51,7 +51,7 @@ impl fmt::Display for Use {
     }
 }
 
-const _: [u8; 184] = [0; std::mem::size_of::<ItemSignature>()];
+const _: [(); 184] = [(); std::mem::size_of::<ItemSignature>()];
 
 #[derive(Clone, Debug)]
 pub enum ItemSignature {
@@ -67,7 +67,7 @@ impl fmt::Display for ItemSignature {
     }
 }
 
-const _: [u8; 184] = [0; std::mem::size_of::<Item>()];
+const _: [(); 184] = [(); std::mem::size_of::<Item>()];
 
 #[derive(Clone, Debug)]
 pub enum Item {
@@ -84,7 +84,7 @@ impl fmt::Display for Item {
     }
 }
 
-const _: [u8; 72] = [0; std::mem::size_of::<Global>()];
+const _: [(); 72] = [(); std::mem::size_of::<Global>()];
 
 #[derive(Clone, Debug)]
 pub enum Global {
@@ -98,7 +98,7 @@ impl fmt::Display for Global {
     }
 }
 
-const _: [u8; 56] = [0; std::mem::size_of::<Initialization>()];
+const _: [(); 56] = [(); std::mem::size_of::<Initialization>()];
 
 #[derive(Clone, Debug)]
 pub struct Initialization {
@@ -113,7 +113,7 @@ impl fmt::Display for Initialization {
     }
 }
 
-const _: [u8; 88] = [0; std::mem::size_of::<ClassTemplate>()];
+const _: [(); 88] = [(); std::mem::size_of::<ClassTemplate>()];
 
 #[derive(Clone, Debug)]
 pub struct ClassTemplate {
@@ -143,7 +143,7 @@ impl fmt::Display for ClassSignature {
     }
 }
 
-const _: [u8; 104] = [0; std::mem::size_of::<Class>()];
+const _: [(); 104] = [(); std::mem::size_of::<Class>()];
 
 #[derive(Clone, Debug)]
 pub struct Class {
@@ -161,7 +161,7 @@ impl fmt::Display for Class {
     }
 }
 
-const _: [u8; 184] = [0; std::mem::size_of::<ClassItem>()];
+const _: [(); 184] = [(); std::mem::size_of::<ClassItem>()];
 
 #[derive(Clone, Debug)]
 pub enum ClassItem {
@@ -199,7 +199,7 @@ macro_rules! impl_callable {
     };
 }
 
-const _: [u8; 176] = [0; std::mem::size_of::<FunctionTemplate>()];
+const _: [(); 176] = [(); std::mem::size_of::<FunctionTemplate>()];
 
 #[derive(Clone, Debug)]
 pub struct FunctionTemplate {
@@ -217,7 +217,7 @@ impl fmt::Display for FunctionTemplate {
     }
 }
 
-const _: [u8; 88] = [0; std::mem::size_of::<FunctionSignature>()];
+const _: [(); 88] = [(); std::mem::size_of::<FunctionSignature>()];
 
 /// Represents a function signature (i.e. without implementation).
 #[derive(Clone, Debug)]
@@ -236,7 +236,7 @@ impl fmt::Display for FunctionSignature {
     }
 }
 
-const _: [u8; 176] = [0; std::mem::size_of::<Function>()];
+const _: [(); 176] = [(); std::mem::size_of::<Function>()];
 
 /// Represents a function definition (i.e. with implementation).
 #[derive(Clone, Debug)]
@@ -258,7 +258,7 @@ impl fmt::Display for Function {
     }
 }
 
-const _: [u8; 72] = [0; std::mem::size_of::<Type>()];
+const _: [(); 72] = [(); std::mem::size_of::<Type>()];
 
 /// Represents a primitive type.
 #[derive(Clone, Debug)]
@@ -319,7 +319,7 @@ impl fmt::Display for Type {
     }
 }
 
-const _: [u8; 64] = [0; std::mem::size_of::<Statement>()];
+const _: [(); 64] = [(); std::mem::size_of::<Statement>()];
 
 /// Represents an imperative statement.
 #[derive(Clone, Debug)]
@@ -385,7 +385,7 @@ pub enum Do {
     No,
 }
 
-const _: [u8; 96] = [0; std::mem::size_of::<Expression>()];
+const _: [(); 96] = [(); std::mem::size_of::<Expression>()];
 
 /// Represents an expression (i.e. a term that can be evaluated).
 #[derive(Clone, Debug)]
@@ -541,7 +541,7 @@ impl fmt::Display for Expression {
     }
 }
 
-const _: [u8; 56] = [0; std::mem::size_of::<Call>()];
+const _: [(); 56] = [(); std::mem::size_of::<Call>()];
 
 /// Represents a function call.
 #[derive(Clone, Debug)]
@@ -557,7 +557,7 @@ impl fmt::Display for Call {
     }
 }
 
-const _: [u8; 64] = [0; std::mem::size_of::<Declaration>()];
+const _: [(); 64] = [(); std::mem::size_of::<Declaration>()];
 
 #[derive(Clone, Debug)]
 pub enum Declaration {
@@ -601,7 +601,7 @@ impl fmt::Display for Declaration {
     }
 }
 
-const _: [u8; 56] = [0; std::mem::size_of::<MultipleDeclaration>()];
+const _: [(); 56] = [(); std::mem::size_of::<MultipleDeclaration>()];
 
 #[derive(Clone, Debug)]
 pub struct MultipleDeclaration {
@@ -634,7 +634,7 @@ impl fmt::Display for MultipleDeclaration {
     }
 }
 
-const _: [u8; 48] = [0; std::mem::size_of::<SingleDeclaration>()];
+const _: [(); 48] = [(); std::mem::size_of::<SingleDeclaration>()];
 
 #[derive(Clone, Debug)]
 pub struct SingleDeclaration {
