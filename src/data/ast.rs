@@ -143,13 +143,15 @@ impl fmt::Display for ClassSignature {
     }
 }
 
-const _: [u8; 80] = [0; std::mem::size_of::<Class>()];
+const _: [u8; 104] = [0; std::mem::size_of::<Class>()];
 
 #[derive(Clone, Debug)]
 pub struct Class {
     pub name: Identifier,
     pub extends: Option<Identifier>,
     pub items: Vec<ClassItem>,
+    // Used for tracking class template instantiation chains in diagnostics
+    pub(crate) provenance: Vec<Span>,
     pub span: Span,
 }
 
@@ -159,7 +161,7 @@ impl fmt::Display for Class {
     }
 }
 
-const _: [u8; 160] = [0; std::mem::size_of::<ClassItem>()];
+const _: [u8; 184] = [0; std::mem::size_of::<ClassItem>()];
 
 #[derive(Clone, Debug)]
 pub enum ClassItem {
@@ -234,7 +236,7 @@ impl fmt::Display for FunctionSignature {
     }
 }
 
-const _: [u8; 152] = [0; std::mem::size_of::<Function>()];
+const _: [u8; 176] = [0; std::mem::size_of::<Function>()];
 
 /// Represents a function definition (i.e. with implementation).
 #[derive(Clone, Debug)]
@@ -243,6 +245,8 @@ pub struct Function {
     pub parameters: Vec<SingleDeclaration>,
     pub returns: Vec<Type>,
     pub statements: Statement,
+    // Used for tracking function template instantiation chains in diagnostics
+    pub(crate) provenance: Vec<Span>,
     pub span: Span,
 }
 

@@ -82,11 +82,13 @@ impl Checker {
         for item in &program.items {
             match item {
                 ast::Item::Global(global) => self.check_global(global)?,
-                ast::Item::Class(class) => self.check_class(class)?,
+                ast::Item::Class(class) => self
+                    .check_class(class)
+                    .map_err(|error| error.with_provenance(class.provenance.clone()))?,
                 ast::Item::ClassTemplate(_) => unreachable!(),
-                ast::Item::Function(function) => {
-                    self.check_function(GlobalScope::Global, function)?
-                }
+                ast::Item::Function(function) => self
+                    .check_function(GlobalScope::Global, function)
+                    .map_err(|error| error.with_provenance(function.provenance.clone()))?,
                 ast::Item::FunctionTemplate(_) => unreachable!(),
             }
         }

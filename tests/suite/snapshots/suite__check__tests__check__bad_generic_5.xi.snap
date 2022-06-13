@@ -1,0 +1,19 @@
+---
+source: tests/suite/check.rs
+assertion_line: 35
+expression: Snapshot(context)
+---
+Error: Semantic error
+   ╭─[tests/check/bad_generic_5.ixi:4:16]
+   │
+ 4 │         return a.bar()
+   ·                ┬  
+   ·                ╰── Receiver of dot operator must be a class
+   │
+   ├─[tests/check/bad_generic_5.xi:9:8]
+   │
+ 9 │     b: A::<int> = new A::<int>
+   ·        ────┬───  
+   ·            ╰───── Template instantiated here
+───╯
+

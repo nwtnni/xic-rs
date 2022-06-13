@@ -157,6 +157,7 @@ impl ast::Class {
             name,
             extends,
             items,
+            provenance: _,
             span: _,
         } = self;
         name.accept_mut(visitor);
@@ -187,6 +188,7 @@ impl ast::Function {
             parameters,
             returns,
             statements,
+            provenance: _,
             span: _,
         } = self;
         name.accept_mut(visitor);

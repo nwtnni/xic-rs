@@ -1,0 +1,6 @@
+template class A<T> {
+    a: T
+    foo(): int {
+        return a.bar()
+    }
+}

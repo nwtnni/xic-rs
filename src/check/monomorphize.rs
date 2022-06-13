@@ -2,15 +2,15 @@ use crate::abi;
 use crate::check::check::Checker;
 use crate::check::GlobalScope;
 use crate::data::ast;
+use crate::data::span::Span;
 use crate::Map;
 
-#[allow(unused)]
 impl Checker {
     pub(super) fn monomorphize_program(&mut self, program: &mut ast::Program) {
         let mut monomorphizer = Monomorphizer {
             functions: Map::default(),
             classes: Map::default(),
-            stack: Vec::new(),
+            arguments: Vec::new(),
             checker: self,
         };
 
@@ -46,7 +46,7 @@ impl Checker {
 struct Monomorphizer<'a> {
     functions: Map<ast::Identifier, Map<Vec<ast::Type>, Option<ast::Function>>>,
     classes: Map<ast::Identifier, Map<Vec<ast::Type>, Option<ast::Class>>>,
-    stack: Vec<Map<ast::Identifier, ast::Type>>,
+    arguments: Vec<(Span, Map<ast::Identifier, ast::Type>)>,
     checker: &'a mut Checker,
 }
 
@@ -60,9 +60,9 @@ impl<'a> ast::VisitorMut for Monomorphizer<'a> {
     fn visit_type(&mut self, r#type: &mut ast::Type) {
         if let ast::Type::Class(variable) = r#type {
             if let Some(substitute) = self
-                .stack
+                .arguments
                 .last()
-                .and_then(|arguments| arguments.get(&variable.name))
+                .and_then(|(_, arguments)| arguments.get(&variable.name))
                 .cloned()
             {
                 match (&variable.generics, substitute) {
@@ -98,7 +98,7 @@ impl<'a> ast::VisitorMut for Monomorphizer<'a> {
 impl<'a> Monomorphizer<'a> {
     fn monomorphize(
         &mut self,
-        instantiate: fn(&mut Self, &ast::Identifier, &[ast::Type]),
+        instantiate: fn(&mut Self, &ast::Identifier, &[ast::Type], &Span),
         variable: &mut ast::Variable,
     ) {
         let generics = match &mut variable.generics {
@@ -106,13 +106,18 @@ impl<'a> Monomorphizer<'a> {
             None => return,
         };
 
-        instantiate(self, &variable.name, generics);
+        instantiate(self, &variable.name, generics, &variable.span);
 
         variable.name.symbol = abi::mangle::template(&variable.name.symbol, generics);
         variable.generics = None;
     }
 
-    fn instantiate_class_template(&mut self, name: &ast::Identifier, generics: &[ast::Type]) {
+    fn instantiate_class_template(
+        &mut self,
+        name: &ast::Identifier,
+        generics: &[ast::Type],
+        span: &Span,
+    ) {
         // Already instantiated, so just rewrite
         if self.classes.get(name).map_or(false, |instantiations| {
             instantiations.contains_key(generics)
@@ -132,6 +137,17 @@ impl<'a> Monomorphizer<'a> {
             .or_default()
             .insert(generics.to_vec(), None);
 
+        // TODO: check that (1) type parameters are unique and (2) type argument counts match
+        self.arguments.push((
+            *span,
+            template
+                .generics
+                .clone()
+                .into_iter()
+                .zip(generics.iter().cloned())
+                .collect(),
+        ));
+
         let mut instantiation = ast::Class {
             name: ast::Identifier {
                 symbol: abi::mangle::template(&template.name.symbol, generics),
@@ -139,26 +155,28 @@ impl<'a> Monomorphizer<'a> {
             },
             extends: None,
             items: template.items,
+            provenance: self
+                .arguments
+                .iter()
+                .map(|(span, _)| span)
+                .copied()
+                .collect(),
             span: template.span,
         };
 
-        // TODO: check that (1) type parameters are unique and (2) type argument counts match
-        self.stack.push(
-            template
-                .generics
-                .clone()
-                .into_iter()
-                .zip(generics.iter().cloned())
-                .collect(),
-        );
         instantiation.accept_mut(self);
-        self.stack.pop();
+        self.arguments.pop();
 
         self.checker.load_class(&instantiation).unwrap();
         self.classes[&template.name][&*generics] = Some(instantiation);
     }
 
-    fn instantiate_function_template(&mut self, name: &ast::Identifier, generics: &[ast::Type]) {
+    fn instantiate_function_template(
+        &mut self,
+        name: &ast::Identifier,
+        generics: &[ast::Type],
+        span: &Span,
+    ) {
         // Already instantiated, so just rewrite
         if self.functions.get(name).map_or(false, |instantiations| {
             instantiations.contains_key(generics)
@@ -178,6 +196,17 @@ impl<'a> Monomorphizer<'a> {
             .or_default()
             .insert(generics.to_vec(), None);
 
+        // TODO: check that (1) type parameters are unique and (2) type argument counts match
+        self.arguments.push((
+            *span,
+            template
+                .generics
+                .clone()
+                .into_iter()
+                .zip(generics.iter().cloned())
+                .collect(),
+        ));
+
         let mut instantiation = ast::Function {
             name: ast::Identifier {
                 symbol: abi::mangle::template(&template.name.symbol, generics),
@@ -186,20 +215,17 @@ impl<'a> Monomorphizer<'a> {
             parameters: template.parameters,
             returns: template.returns,
             statements: template.statements,
+            provenance: self
+                .arguments
+                .iter()
+                .map(|(span, _)| span)
+                .copied()
+                .collect(),
             span: template.span,
         };
 
-        // TODO: check that (1) type parameters are unique and (2) type argument counts match
-        self.stack.push(
-            template
-                .generics
-                .clone()
-                .into_iter()
-                .zip(generics.iter().cloned())
-                .collect(),
-        );
         instantiation.accept_mut(self);
-        self.stack.pop();
+        self.arguments.pop();
 
         self.checker
             .load_function(GlobalScope::Global, &instantiation)

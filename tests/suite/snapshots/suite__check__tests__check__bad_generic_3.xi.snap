@@ -1,0 +1,19 @@
+---
+source: tests/suite/check.rs
+assertion_line: 35
+expression: Snapshot(context)
+---
+Error: Semantic error
+    ╭─[tests/check/bad_generic_3.xi:4:15]
+    │
+  4 │         a.b = 1
+    ·         ─┬─   ┬  
+    ·          ╰─────── Expected bool because of this
+    ·               │  
+    ·               ╰── Expected bool but found int
+    · 
+ 13 │     a: A::<B> = new A::<B>
+    ·        ───┬──  
+    ·           ╰──── Template instantiated here
+────╯
+

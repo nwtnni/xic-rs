@@ -9,12 +9,23 @@ use crate::error;
 #[derive(Clone, Debug)]
 pub struct Error {
     span: Span,
+    // Tracks the chain of template instantiations to where a type error occurs.
+    provenance: Vec<Span>,
     kind: ErrorKind,
 }
 
 impl Error {
     pub fn new(span: Span, kind: ErrorKind) -> Self {
-        Error { span, kind }
+        Error {
+            span,
+            provenance: Vec::new(),
+            kind,
+        }
+    }
+
+    pub(super) fn with_provenance(mut self, provenance: Vec<Span>) -> Self {
+        self.provenance = provenance;
+        self
     }
 
     pub(super) fn kind(&self) -> &ErrorKind {
@@ -135,7 +146,7 @@ impl error::Report for Error {
         )
         .with_label(ariadne::Label::new(self.span).with_message(self.kind.message()));
 
-        match &self.kind {
+        let mut report = match &self.kind {
             ErrorKind::Mismatch {
                 expected,
                 expected_span: Some(span),
@@ -152,6 +163,15 @@ impl error::Report for Error {
             ErrorKind::SignatureMismatch(span) => report
                 .with_label(ariadne::Label::new(*span).with_message("Signature definition here")),
             _ => report,
-        }
+        };
+
+        report.add_labels(
+            self.provenance
+                .iter()
+                .rev()
+                .map(|span| ariadne::Label::new(*span).with_message("Template instantiated here")),
+        );
+
+        report
     }
 }

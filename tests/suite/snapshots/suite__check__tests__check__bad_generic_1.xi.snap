@@ -1,0 +1,17 @@
+---
+source: tests/suite/check.rs
+assertion_line: 35
+expression: Snapshot(context)
+---
+Error: Semantic error
+   ╭─[tests/check/bad_generic_1.xi:2:12]
+   │
+ 2 │     return argument + argument
+   ·            ────┬───  
+   ·                ╰───── Expected int but found bool
+   · 
+ 7 │     b: bool = foo::<bool>(true);
+   ·               ─────┬─────  
+   ·                    ╰─────── Template instantiated here
+───╯
+
