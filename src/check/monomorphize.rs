@@ -63,10 +63,9 @@ impl<'a> ast::VisitorMut for Monomorphizer<'a> {
                 .stack
                 .last()
                 .and_then(|arguments| arguments.get(&variable.name))
+                .cloned()
             {
-                *r#type = substitute.clone();
-                // FIXME: is this necessary?
-                r#type.accept_mut(self);
+                *r#type = substitute;
             }
         }
 
@@ -107,7 +106,7 @@ impl<'a> Monomorphizer<'a> {
             return;
         }
 
-        let mut template = self
+        let template = self
             .checker
             .context
             .get_class_template(name)
@@ -119,20 +118,7 @@ impl<'a> Monomorphizer<'a> {
             .or_default()
             .insert(generics.to_vec(), None);
 
-        // TODO: check that (1) type parameters are unique and (2) type argument counts match
-        self.stack.push(
-            template
-                .generics
-                .clone()
-                .into_iter()
-                .zip(generics.iter().cloned())
-                .collect(),
-        );
-
-        // Instantiate template
-        template.accept_mut(self);
-
-        let class = ast::Class {
+        let mut instantiation = ast::Class {
             name: ast::Identifier {
                 symbol: abi::mangle::template(&template.name.symbol, generics),
                 span: template.name.span.clone(),
@@ -142,8 +128,20 @@ impl<'a> Monomorphizer<'a> {
             span: template.span,
         };
 
-        self.checker.load_class(&class).unwrap();
-        self.classes[&template.name][&*generics] = Some(class);
+        // TODO: check that (1) type parameters are unique and (2) type argument counts match
+        self.stack.push(
+            template
+                .generics
+                .clone()
+                .into_iter()
+                .zip(generics.iter().cloned())
+                .collect(),
+        );
+        instantiation.accept_mut(self);
+        self.stack.pop();
+
+        self.checker.load_class(&instantiation).unwrap();
+        self.classes[&template.name][&*generics] = Some(instantiation);
     }
 
     fn instantiate_function_template(&mut self, name: &ast::Identifier, generics: &[ast::Type]) {
@@ -154,7 +152,7 @@ impl<'a> Monomorphizer<'a> {
             return;
         }
 
-        let mut template = self
+        let template = self
             .checker
             .context
             .get_function_template(name)
@@ -165,19 +163,8 @@ impl<'a> Monomorphizer<'a> {
             .entry(template.name.clone())
             .or_default()
             .insert(generics.to_vec(), None);
-        self.stack.push(
-            template
-                .generics
-                .clone()
-                .into_iter()
-                .zip(generics.iter().cloned())
-                .collect(),
-        );
 
-        // Instantiate template
-        template.accept_mut(self);
-
-        let function = ast::Function {
+        let mut instantiation = ast::Function {
             name: ast::Identifier {
                 symbol: abi::mangle::template(&template.name.symbol, generics),
                 span: template.name.span.clone(),
@@ -188,9 +175,21 @@ impl<'a> Monomorphizer<'a> {
             span: template.span,
         };
 
+        // TODO: check that (1) type parameters are unique and (2) type argument counts match
+        self.stack.push(
+            template
+                .generics
+                .clone()
+                .into_iter()
+                .zip(generics.iter().cloned())
+                .collect(),
+        );
+        instantiation.accept_mut(self);
+        self.stack.pop();
+
         self.checker
-            .load_function(GlobalScope::Global, &function)
+            .load_function(GlobalScope::Global, &instantiation)
             .unwrap();
-        self.functions[&template.name][&*generics] = Some(function);
+        self.functions[&template.name][&*generics] = Some(instantiation);
     }
 }

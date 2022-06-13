@@ -19,13 +19,9 @@ pub trait VisitorMut {
 
     fn visit_class(&mut self, _class: &mut ast::Class) {}
 
-    fn visit_class_template(&mut self, _class: &mut ast::ClassTemplate) {}
-
     fn visit_class_item(&mut self, _item: &mut ast::ClassItem) {}
 
     fn visit_function(&mut self, _function: &mut ast::Function) {}
-
-    fn visit_function_template(&mut self, _function: &mut ast::FunctionTemplate) {}
 
     fn visit_statement(&mut self, _statement: &mut ast::Statement) {}
 
@@ -62,9 +58,9 @@ impl ast::ItemSignature {
     pub fn accept_mut<V: VisitorMut>(&mut self, visitor: &mut V) {
         match self {
             ast::ItemSignature::Class(class) => class.accept_mut(visitor),
-            ast::ItemSignature::ClassTemplate(class) => class.accept_mut(visitor),
+            ast::ItemSignature::ClassTemplate(_) => (),
             ast::ItemSignature::Function(function) => function.accept_mut(visitor),
-            ast::ItemSignature::FunctionTemplate(function) => function.accept_mut(visitor),
+            ast::ItemSignature::FunctionTemplate(_) => (),
         }
 
         visitor.visit_item_signature(self);
@@ -135,9 +131,9 @@ impl ast::Item {
         match self {
             ast::Item::Global(global) => global.accept_mut(visitor),
             ast::Item::Class(class) => class.accept_mut(visitor),
-            ast::Item::ClassTemplate(class) => class.accept_mut(visitor),
+            ast::Item::ClassTemplate(_) => (),
             ast::Item::Function(function) => function.accept_mut(visitor),
-            ast::Item::FunctionTemplate(function) => function.accept_mut(visitor),
+            ast::Item::FunctionTemplate(_) => (),
         }
 
         visitor.visit_item(self);
@@ -173,24 +169,6 @@ impl ast::Class {
     }
 }
 
-impl ast::ClassTemplate {
-    pub fn accept_mut<V: VisitorMut>(&mut self, visitor: &mut V) {
-        let ast::ClassTemplate {
-            name,
-            generics,
-            items,
-            span: _,
-        } = self;
-        name.accept_mut(visitor);
-        generics
-            .iter_mut()
-            .for_each(|generic| generic.accept_mut(visitor));
-        items.iter_mut().for_each(|item| item.accept_mut(visitor));
-
-        visitor.visit_class_template(self);
-    }
-}
-
 impl ast::ClassItem {
     pub fn accept_mut<V: VisitorMut>(&mut self, visitor: &mut V) {
         match self {
@@ -221,32 +199,6 @@ impl ast::Function {
         statements.accept_mut(visitor);
 
         visitor.visit_function(self);
-    }
-}
-
-impl ast::FunctionTemplate {
-    pub fn accept_mut<V: VisitorMut>(&mut self, visitor: &mut V) {
-        let ast::FunctionTemplate {
-            name,
-            generics,
-            parameters,
-            returns,
-            statements,
-            span: _,
-        } = self;
-        name.accept_mut(visitor);
-        generics
-            .iter_mut()
-            .for_each(|generic| generic.accept_mut(visitor));
-        parameters
-            .iter_mut()
-            .for_each(|parameter| parameter.accept_mut(visitor));
-        returns
-            .iter_mut()
-            .for_each(|r#return| r#return.accept_mut(visitor));
-        statements.accept_mut(visitor);
-
-        visitor.visit_function_template(self);
     }
 }
 
