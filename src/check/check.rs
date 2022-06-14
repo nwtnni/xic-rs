@@ -432,23 +432,6 @@ impl Checker {
                         (r#type::Expression::Boolean, r#type::Expression::Boolean)
                     }
                     ast::Binary::Ne | ast::Binary::Eq => {
-                        let class = self.context.get_scoped_class();
-
-                        match (&left, &right) {
-                            (r#type::Expression::Class(left), r#type::Expression::Class(right))
-                                if class != Some(*left) && class != Some(*right) =>
-                            {
-                                bail!(left_span, ErrorKind::NotInClass(Some(*left)));
-                            }
-                            (r#type::Expression::Class(left), _) if class != Some(*left) => {
-                                bail!(left_span, ErrorKind::NotInClass(Some(*left)));
-                            }
-                            (_, r#type::Expression::Class(right)) if class != Some(*right) => {
-                                bail!(right_span, ErrorKind::NotInClass(Some(*right)));
-                            }
-                            (_, _) => (),
-                        }
-
                         if self.context.is_subtype(&left, &right)
                             || self.context.is_subtype(&right, &left)
                         {
