@@ -1,0 +1,76 @@
+use vector
+
+// Requires:
+//
+// class K {
+//     equals(other: K): bool
+// }
+//
+// class V {}
+template class VectorMap<K, V> {
+    keys: Vector::<K>
+    values: Vector::<V>
+
+    get(key: K): V {
+        i: int = index(key)
+
+        if i >= 0 {
+            return values.get(i)
+        } else {
+            return null
+        }
+    }
+
+    contains_key(key: K): bool {
+        return index(key) >= 0
+    }
+
+    size(): int {
+        return keys.size()
+    }
+
+    insert(key: K, value: V): V {
+        i: int = index(key)
+
+        if i >= 0 {
+            value': V = values.get(i)
+            values.set(i, value)
+            return value'
+        } else {
+            keys.push(key)
+            values.push(value)
+            return null
+        }
+    }
+
+    remove(key: K): V {
+        i: int = index(key)
+
+        if i >= 0 {
+            _ = keys.swap_remove(i)
+            return values.swap_remove(i)
+        } else {
+            return null
+        }
+    }
+
+    index(key: K): int {
+        i: int = 0
+
+        while i < keys.size() {
+            if keys.get(i).equals(key) {
+                return i
+            }
+            i = i + 1
+        }
+
+        return -1
+    }
+}
+
+template newVectorMap<K, V>(): VectorMap::<K, V> {
+    map: VectorMap::<K, V> = new VectorMap::<K, V>
+    map.keys = newVector::<K>()
+    map.values = newVector::<V>()
+    return map
+}

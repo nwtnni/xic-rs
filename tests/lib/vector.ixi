@@ -23,6 +23,10 @@ template class Vector<T> {
         return array[index]
     }
 
+    set(index: int, item: T) {
+        array[index] = item
+    }
+
     size(): int {
         return size'
     }
