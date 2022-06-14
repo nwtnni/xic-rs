@@ -124,7 +124,7 @@ use proc_macro::TokenStream;
 
 use self::glob::{glob, Paths};
 use quote::quote;
-use std::path::PathBuf;
+use std::path::Path;
 use syn::parse::{Parse, ParseStream, Result};
 use syn::{parse_macro_input, Expr, ExprLit, Ident, ItemFn, Lit, Token};
 
@@ -225,12 +225,12 @@ pub fn test_resources(attrs: TokenStream, func: TokenStream) -> TokenStream {
 
     let pattern = match glob_pattern {
         Lit::Str(l) => l.value(),
-        Lit::Bool(l) => panic!(format!("expected string parameter, got '{}'", &l.value)),
-        Lit::Byte(l) => panic!(format!("expected string parameter, got '{}'", &l.value())),
+        Lit::Bool(l) => panic!("expected string parameter, got '{}'", &l.value),
+        Lit::Byte(l) => panic!("expected string parameter, got '{}'", &l.value()),
         Lit::ByteStr(_) => panic!("expected string parameter, got byte-string"),
-        Lit::Char(l) => panic!(format!("expected string parameter, got '{}'", &l.value())),
-        Lit::Int(l) => panic!(format!("expected string parameter, got '{}'", &l.value())),
-        Lit::Float(l) => panic!(format!("expected string parameter, got '{}'", &l.value())),
+        Lit::Char(l) => panic!("expected string parameter, got '{}'", &l.value()),
+        Lit::Int(l) => panic!("expected string parameter, got '{}'", &l.value()),
+        Lit::Float(l) => panic!("expected string parameter, got '{}'", &l.value()),
         _ => panic!("expected string parameter"),
     };
 
@@ -240,7 +240,8 @@ pub fn test_resources(attrs: TokenStream, func: TokenStream) -> TokenStream {
 
     let func_ident = func_ast.ident;
 
-    let paths: Paths = glob(&pattern).expect(&format!("No such file or directory {}", &pattern));
+    let paths: Paths =
+        glob(&pattern).unwrap_or_else(|_| panic!("No such file or directory {}", &pattern));
 
     // for each path generate a test-function and fold them to single tokenstream
     let result = paths
@@ -250,7 +251,7 @@ pub fn test_resources(attrs: TokenStream, func: TokenStream) -> TokenStream {
                 .into_os_string()
                 .into_string()
                 .expect("bad encoding");
-            let test_name = format!("{}_{}", func_ident.to_string(), &path_as_str);
+            let test_name = format!("{}_{}", func_ident, &path_as_str);
 
             // create function name without any delimiter or special character
             let test_name = canonical_fn_name(&test_name);
@@ -272,8 +273,7 @@ pub fn test_resources(attrs: TokenStream, func: TokenStream) -> TokenStream {
 
     // panic, the pattern did not match any file or folder
     if result.0 == 0 {
-        let msg: String = format!("no resource matching the pattern {}", &pattern);
-        panic!(msg);
+        panic!("no resource matching the pattern {}", &pattern);
     }
     // transforming proc_macro2::TokenStream into proc_macro::TokenStream
     result.1.into()
@@ -344,12 +344,12 @@ pub fn bench_resources(attrs: TokenStream, func: TokenStream) -> TokenStream {
 
     let pattern = match glob_pattern {
         Lit::Str(l) => l.value(),
-        Lit::Bool(l) => panic!(format!("expected string parameter, got '{}'", &l.value)),
-        Lit::Byte(l) => panic!(format!("expected string parameter, got '{}'", &l.value())),
+        Lit::Bool(l) => panic!("expected string parameter, got '{}'", &l.value),
+        Lit::Byte(l) => panic!("expected string parameter, got '{}'", &l.value()),
         Lit::ByteStr(_) => panic!("expected string parameter, got byte-string"),
-        Lit::Char(l) => panic!(format!("expected string parameter, got '{}'", &l.value())),
-        Lit::Int(l) => panic!(format!("expected string parameter, got '{}'", &l.value())),
-        Lit::Float(l) => panic!(format!("expected string parameter, got '{}'", &l.value())),
+        Lit::Char(l) => panic!("expected string parameter, got '{}'", &l.value()),
+        Lit::Int(l) => panic!("expected string parameter, got '{}'", &l.value()),
+        Lit::Float(l) => panic!("expected string parameter, got '{}'", &l.value()),
         _ => panic!("expected string parameter"),
     };
 
@@ -359,7 +359,8 @@ pub fn bench_resources(attrs: TokenStream, func: TokenStream) -> TokenStream {
 
     let func_ident = func_ast.ident;
 
-    let paths: Paths = glob(&pattern).expect(&format!("No such file or directory {}", &pattern));
+    let paths: Paths =
+        glob(&pattern).unwrap_or_else(|_| panic!("No such file or directory {}", &pattern));
 
     // for each path generate a test-function and fold them to single tokenstream
     let result = paths
@@ -369,7 +370,7 @@ pub fn bench_resources(attrs: TokenStream, func: TokenStream) -> TokenStream {
                 .into_os_string()
                 .into_string()
                 .expect("bad encoding");
-            let test_name = format!("{}_{}", func_ident.to_string(), &path_as_str);
+            let test_name = format!("{}_{}", func_ident, &path_as_str);
 
             // create function name without any delimiter or special character
             let test_name = canonical_fn_name(&test_name);
@@ -391,8 +392,7 @@ pub fn bench_resources(attrs: TokenStream, func: TokenStream) -> TokenStream {
 
     // panic, the pattern did not match any file or folder
     if result.0 == 0 {
-        let msg: String = format!("no resource matching the pattern {}", &pattern);
-        panic!(msg);
+        panic!("no resource matching the pattern {}", &pattern);
     }
 
     // transforming proc_macro2::TokenStream into proc_macro::TokenStream
@@ -521,23 +521,17 @@ impl Parse for GlobExpand {
 const PREFIX: &str = "gen_";
 
 // Compose a new function-identifier from input
-fn fn_ident_from_path(fn_ident: &Ident, path: &PathBuf) -> Ident {
-    let path_as_str = path
-        .clone()
-        .into_os_string()
-        .into_string()
-        .expect("bad encoding");
+fn fn_ident_from_path(fn_ident: &Ident, path: &Path) -> Ident {
+    let path_as_str = path.to_str().expect("bad encoding");
 
     // prefixed name & remove delimiters and special characters
-    let stringified = format!("{}_{}", fn_ident.to_string(), &path_as_str);
+    let stringified = format!("{}_{}", fn_ident, &path_as_str);
 
     // quote! requires proc_macro2 elements
-    let gen_fn_ident = proc_macro2::Ident::new(
+    proc_macro2::Ident::new(
         &canonical_fn_name(&stringified),
         proc_macro2::Span::call_site(),
-    );
-
-    gen_fn_ident
+    )
 }
 
 // Compose a new function-identifier from input
@@ -547,24 +541,23 @@ fn fn_ident_from_string(fn_ident: &Ident, name: &str) -> Ident {
     let safe_name = &name[0..safe_len];
 
     // prefixed name & remove delimiters and special characters
-    let stringified = format!("{}_{}", fn_ident.to_string(), safe_name);
+    let stringified = format!("{}_{}", fn_ident, safe_name);
     // quote! requires proc_macro2 elements
-    let gen_fn_ident = proc_macro2::Ident::new(
+    proc_macro2::Ident::new(
         &canonical_fn_name(&stringified),
         proc_macro2::Span::call_site(),
-    );
-
-    gen_fn_ident
+    )
 }
 
 // Stringify the expression: arrays are enumerated, identifier-names are embedded
 fn expr_stringified(expr: &Expr, int_as_hex: bool) -> String {
     let stringified = match expr {
-        Expr::Lit(lit) => match lit {
-            ExprLit {
+        Expr::Lit(lit) => {
+            let ExprLit {
                 lit: litval,
                 attrs: _,
-            } => match litval {
+            } = lit;
+            match litval {
                 Lit::Int(lit) => {
                     let val = lit.value();
                     if int_as_hex {
@@ -580,34 +573,26 @@ fn expr_stringified(expr: &Expr, int_as_hex: bool) -> String {
                     }
                 }
                 Lit::Char(lit) => {
-                    let val = lit.value();
-                    format!("{}", val)
+                    format!("{}", lit.value())
                 }
-                Lit::Str(lit) => {
-                    let val = lit.value();
-                    val
-                }
+                Lit::Str(lit) => lit.value(),
                 Lit::Float(lit) => {
-                    let val = lit.value();
-                    format!("{}", val)
+                    format!("{}", lit.value())
                 }
                 _ => panic!(),
-            },
-        },
+            }
+        }
         Expr::Array(ref array_expr) => {
             let elems = &array_expr.elems;
             let mut composed = String::new();
-            // do not
-            let mut cnt: usize = 0;
             // concat as hex-numbers, group by 8
-            for expr in elems.iter() {
+            for (cnt, expr) in elems.iter().enumerate() {
                 // after 8 elements, always insert '_', do not begin with '_'
                 if cnt > 0 && cnt % 8 == 0 {
-                    composed.push_str("_");
+                    composed.push('_');
                 }
-                cnt = cnt + 1;
 
-                let expr_str = expr_stringified(&expr, true);
+                let expr_str = expr_stringified(expr, true);
                 composed.push_str(&expr_str);
             }
             composed
@@ -619,18 +604,14 @@ fn expr_stringified(expr: &Expr, int_as_hex: bool) -> String {
 
             for segment in &path.segments {
                 if !composed.is_empty() || leading_colon {
-                    composed.push_str("_")
+                    composed.push('_')
                 }
                 let ident = &segment.ident;
                 composed.push_str(&ident.to_string());
             }
             composed
         }
-        Expr::Reference(ref reference) => {
-            let ref_expr = &reference.expr;
-
-            expr_stringified(&ref_expr, int_as_hex)
-        }
+        Expr::Reference(ref reference) => expr_stringified(&reference.expr, int_as_hex),
         _ => panic!(),
     };
     stringified
@@ -640,7 +621,7 @@ fn expr_stringified(expr: &Expr, int_as_hex: bool) -> String {
 fn fn_ident_from_expr(fn_ident: &Ident, expr: &Expr) -> Ident {
     let stringified = expr_stringified(expr, false);
 
-    fn_ident_from_string(fn_ident, &format!("{}", &stringified))
+    fn_ident_from_string(fn_ident, &stringified)
 }
 
 /// **deprecated** Function-Attribute macro expanding glob-file-pattern to a list of directories
@@ -710,11 +691,11 @@ pub fn glob_expand(item: TokenStream) -> TokenStream {
 
             // remove delimiters and special characters
             let canonical_name = path_as_str
-                .replace("\"", " ")
-                .replace(" ", "_")
-                .replace("-", "_")
-                .replace("*", "_")
-                .replace("/", "_");
+                .replace('\"', " ")
+                .replace(' ', "_")
+                .replace('-', "_")
+                .replace('*', "_")
+                .replace('/', "_");
 
             // form an identifier with prefix
             let mut func_name = PREFIX.to_string();
