@@ -810,11 +810,11 @@ impl<'env> Emitter<'env> {
     ) -> hir::Expression {
         let instance = Temporary::fresh("instance");
 
-        // Special case: if the receiver is `this` or `super`, then we know its
-        // virtual table statically, since these keywords can only be used inside
-        // the methods of a class definition.
+        // Special case: if the receiver is `super`, then we know its virtual table
+        // statically, since we want to force the superclass implementation even if
+        // it is overridden by subclasses.
         let virtual_table = match receiver {
-            ast::Expression::This(_) | ast::Expression::Super(_) => {
+            ast::Expression::Super(_) => {
                 hir!((NAME Label::Fixed(abi::mangle::class_virtual_table(class))))
             }
             _ => hir!((MEM (TEMP instance))),
