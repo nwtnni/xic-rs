@@ -1,6 +1,7 @@
 use std::io;
 use std::path::Path;
 
+use crate::abi;
 use crate::check::check::Checker;
 use crate::check::Entry;
 use crate::check::Error;
@@ -328,11 +329,25 @@ impl Checker {
                 generics: None,
                 span: _,
             }) => Ok(r#type::Expression::Class(name.symbol)),
+            // There are two cases to consider here:
+            //
+            // 1) This generic type is instantiated inside the body of a function, in
+            // which case the monomorphization pass will instantiate the type later.
+            //
+            // 2) This generic type appears in a signature with no implementation, in
+            // which case we will instantiate the type when compiling the implementation,
+            // and link against it.
+            //
+            // Note: this will lead to a potentially confusing error message with the
+            // mangled templated type name.
             ast::Type::Class(ast::Variable {
-                name: _,
-                generics: Some(_),
+                name,
+                generics: Some(generics),
                 span: _,
-            }) => todo!(),
+            }) => Ok(r#type::Expression::Class(abi::mangle::template(
+                &name.symbol,
+                generics,
+            ))),
             ast::Type::Array(r#type, _, _) => self
                 .load_type(r#type)
                 .map(Box::new)
