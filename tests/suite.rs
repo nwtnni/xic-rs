@@ -42,66 +42,77 @@ use xic::data::operand::Label;
 use xic::data::operand::Temporary;
 use xic::data::token::Tokens;
 
-pub fn lex(path: &str) -> Tokens {
-    xic::api::lex(Path::new(path)).unwrap()
+pub fn lex(path: &str) -> anyhow::Result<Tokens> {
+    xic::api::lex(Path::new(path)).with_context(|| anyhow!("Lexing file: {}", path))
 }
 
-pub fn parse(path: &str) -> ast::Program {
-    xic::api::parse(Path::new(path), lex(path)).unwrap()
+pub fn parse(path: &str) -> anyhow::Result<ast::Program> {
+    xic::api::parse(Path::new(path), lex(path)?).with_context(|| anyhow!("Parsing file: {}", path))
 }
 
-pub fn emit_hir(path: &str) -> hir::Unit {
-    let mut program = parse(path);
-    let mut context = xic::api::check(None, Path::new(path), &mut program).unwrap();
-    xic::api::emit_hir(Path::new(path), &program, &mut context)
+pub fn emit_hir(path: &str) -> anyhow::Result<hir::Unit> {
+    let mut program = parse(path)?;
+    let mut context = xic::api::check(None, Path::new(path), &mut program)
+        .with_context(|| anyhow!("Type-checking file: {}", path))?;
+    Ok(xic::api::emit_hir(Path::new(path), &program, &mut context))
 }
 
-pub fn emit_lir(path: &str) -> lir::Unit<Label> {
-    emit_hir(path).map_ref(xic::api::emit_lir)
+pub fn emit_lir(path: &str) -> anyhow::Result<lir::Unit<Label>> {
+    Ok(emit_hir(path)
+        .with_context(|| anyhow!("Emitting LIR for file: {}", path))?
+        .map_ref(xic::api::emit_lir))
 }
 
-pub fn reorder(path: &str) -> lir::Unit<lir::Fallthrough> {
-    emit_lir(path)
+pub fn reorder(path: &str) -> anyhow::Result<lir::Unit<lir::Fallthrough>> {
+    Ok(emit_lir(path)
+        .with_context(|| anyhow!("Reordering LIR for file: {}", path))?
         .map(xic::api::construct_cfg)
-        .map(xic::api::destruct_cfg)
+        .map(xic::api::destruct_cfg))
 }
 
-pub fn tile(path: &str) -> asm::Unit<Temporary> {
-    reorder(path).map_ref(xic::api::tile)
+pub fn tile(path: &str) -> anyhow::Result<asm::Unit<Temporary>> {
+    Ok(reorder(path)
+        .with_context(|| anyhow!("Tiling assembly for file {}", path))?
+        .map_ref(xic::api::tile))
 }
 
-pub fn interpret_hir(hir: &hir::Unit) -> String {
+pub fn interpret_hir(hir: &hir::Unit) -> anyhow::Result<String> {
     let mut stdin = Cursor::new(Vec::new());
     let mut stdout = Cursor::new(Vec::new());
-    xic::api::interpret_hir(hir, &mut stdin, &mut stdout).unwrap();
-    String::from_utf8(stdout.into_inner()).unwrap()
+    xic::api::interpret_hir(hir, &mut stdin, &mut stdout)
+        .with_context(|| anyhow!("Interpreting HIR for unit: {}", hir.name))?;
+    String::from_utf8(stdout.into_inner()).map_err(anyhow::Error::from)
 }
 
-pub fn interpret_lir<T: lir::Target>(lir: &lir::Unit<T>) -> String {
+pub fn interpret_lir<T: lir::Target>(lir: &lir::Unit<T>) -> anyhow::Result<String> {
     let mut stdin = Cursor::new(Vec::new());
     let mut stdout = Cursor::new(Vec::new());
-    xic::api::interpret_lir(lir, &mut stdin, &mut stdout).unwrap();
-    String::from_utf8(stdout.into_inner()).unwrap()
+    xic::api::interpret_lir(lir, &mut stdin, &mut stdout)
+        .with_context(|| anyhow!("Interpreting LIR for unit: {}", lir.name))?;
+    String::from_utf8(stdout.into_inner()).map_err(anyhow::Error::from)
 }
 
-pub fn execute_expected(path: &str) -> String {
+pub fn execute_expected(path: &str) -> anyhow::Result<String> {
     let path = format!(
         "{}/tests/suite/snapshots/suite__emit__tests__execute__{}.snap",
         env!("CARGO_MANIFEST_DIR"),
         Path::new(path).file_name().unwrap().to_str().unwrap(),
     );
 
-    let snap = fs::read_to_string(&path).unwrap();
-    let (_, stdout) = snap
+    let snapshot =
+        fs::read_to_string(&path).with_context(|| anyhow!("Reading snapshot from {}", path))?;
+    let (_, stdout) = snapshot
         .trim_start_matches("---\n")
         .split_once("---\n")
         .unwrap();
 
-    String::from(stdout.strip_suffix('\n').unwrap())
+    Ok(String::from(stdout.strip_suffix('\n').unwrap()))
 }
 
-pub fn execute<T: Display>(object: T) -> String {
-    let path = NamedTempFile::new().unwrap().into_temp_path();
+pub fn execute<T: Display>(object: T) -> anyhow::Result<String> {
+    let path = NamedTempFile::new()
+        .context("Creating temporary file")?
+        .into_temp_path();
 
     let mut cc = Command::new("cc");
     cc.arg("-xassembler")
@@ -113,16 +124,11 @@ pub fn execute<T: Display>(object: T) -> String {
         .arg("-o")
         .arg(&path);
 
-    let _ = stdout(cc, Some(object))
-        .context("Assembling with `cc`")
-        .unwrap();
-
-    stdout(Command::new(&path), None::<String>)
-        .context("Running assembled binary")
-        .unwrap()
+    stdout(cc, Some(object)).context("Assembling with `cc`")?;
+    stdout(Command::new(&path), None::<String>).context("Running assembled binary")
 }
 
-pub fn execute_all<I, T>(objects: I) -> String
+pub fn execute_all<I, T>(objects: I) -> anyhow::Result<String>
 where
     I: IntoIterator<Item = T>,
     T: Display,
@@ -137,7 +143,9 @@ where
         })
         .collect::<Vec<_>>();
 
-    let path = NamedTempFile::new().unwrap().into_temp_path();
+    let path = NamedTempFile::new()
+        .context("Creating temporary file")?
+        .into_temp_path();
 
     let mut cc = Command::new("cc");
     cc.arg("-xassembler")
@@ -152,21 +160,14 @@ where
         .arg("-o")
         .arg(&path);
 
-    let _ = stdout(cc, None::<String>)
-        .context("Assembling with `cc`")
-        .unwrap();
-
-    stdout(Command::new(&path), None::<String>)
-        .context("Running assembled binary")
-        .unwrap()
+    stdout(cc, None::<String>).context("Assembling with `cc`")?;
+    stdout(Command::new(&path), None::<String>).context("Running assembled binary")
 }
 
-pub fn graph<T: Display>(dot: T) -> String {
+pub fn graph<T: Display>(dot: T) -> anyhow::Result<String> {
     let mut graph = Command::new("graph-easy");
     graph.arg("-");
-    stdout(graph, Some(dot))
-        .context("Running `graph-easy` on `.dot` output")
-        .unwrap()
+    stdout(graph, Some(dot)).context("Running `graph-easy` on `.dot` output")
 }
 
 pub fn stdout<T: Display>(mut command: Command, stdin: Option<T>) -> anyhow::Result<String> {

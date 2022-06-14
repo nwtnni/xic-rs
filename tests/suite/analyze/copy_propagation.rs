@@ -7,18 +7,18 @@ use xic::data::operand::Temporary;
 macro_rules! copy_propagation {
     ($function:ident $($tt:tt)*) => {
         #[test]
-        fn $function() {
+        fn $function() -> anyhow::Result<()> {
             let function = asm_function!($function $($tt)*);
-            insta::assert_display_snapshot!(copy_propagation(function));
+            insta::assert_display_snapshot!(copy_propagation(function)?);
+            Ok(())
         }
     }
 }
 
-fn copy_propagation(function: Function<Temporary>) -> String {
+fn copy_propagation(function: Function<Temporary>) -> anyhow::Result<String> {
     let cfg = xic::api::construct_cfg(function);
     let copy_propagation = analyze::<CopyPropagation, _>(&cfg);
-    let annotated_cfg = super::super::graph(display(&copy_propagation, &cfg));
-    annotated_cfg
+    super::super::graph(display(&copy_propagation, &cfg))
 }
 
 copy_propagation! {

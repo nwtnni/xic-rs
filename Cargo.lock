@@ -848,8 +848,6 @@ dependencies = [
 [[package]]
 name = "test-generator"
 version = "0.3.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ea97be90349ab3574f6e74d1566e1c5dd3a4bc74b89f4af4cc10ca010af103c0"
 dependencies = [
  "glob",
  "proc-macro2",

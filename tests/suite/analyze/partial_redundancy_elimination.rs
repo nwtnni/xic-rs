@@ -13,43 +13,44 @@ use xic::data::operand::Temporary;
 macro_rules! partial_redundancy_elimination {
     ($function:ident $($tt:tt)*) => {
         #[test]
-        fn $function() {
+        fn $function() -> anyhow::Result<()> {
             let function = lir_function!($function $($tt)*);
-            let (anticipated, available, earliest, postponable, latest, used) = partial_redundancy_elimination(function);
+            let (anticipated, available, earliest, postponable, latest, used) = partial_redundancy_elimination(function)?;
             insta::assert_display_snapshot!(concat!(stringify!($function), "_anticipated"), anticipated);
             insta::assert_display_snapshot!(concat!(stringify!($function), "_available"), available);
             insta::assert_display_snapshot!(concat!(stringify!($function), "_earliest"), earliest);
             insta::assert_display_snapshot!(concat!(stringify!($function), "_postponable"), postponable);
             insta::assert_display_snapshot!(concat!(stringify!($function), "_latest"), latest);
             insta::assert_display_snapshot!(concat!(stringify!($function), "_used"), used);
+            Ok(())
         }
     }
 }
 
 fn partial_redundancy_elimination(
     function: Function<Fallthrough>,
-) -> (String, String, String, String, String, String) {
+) -> anyhow::Result<(String, String, String, String, String, String)> {
     let cfg = xic::api::construct_cfg(function);
 
     let solution = analyze::<AnticipatedExpressions, _>(&cfg);
-    let anticipated = super::super::graph(display(&solution, &cfg));
+    let anticipated = super::super::graph(display(&solution, &cfg))?;
 
     let solution = analyze::<AvailableExpressions<_>, _>(&cfg);
-    let available = super::super::graph(display(&solution, &cfg));
+    let available = super::super::graph(display(&solution, &cfg))?;
 
     let solution = analyze::<Earliest<_>, _>(&cfg);
-    let earliest = super::super::graph(display(&solution, &cfg));
+    let earliest = super::super::graph(display(&solution, &cfg))?;
 
     let solution = analyze::<PostponableExpressions<_>, _>(&cfg);
-    let postponable = super::super::graph(display(&solution, &cfg));
+    let postponable = super::super::graph(display(&solution, &cfg))?;
 
     let solution = analyze::<Latest<_>, _>(&cfg);
-    let latest = super::super::graph(display(&solution, &cfg));
+    let latest = super::super::graph(display(&solution, &cfg))?;
 
     let solution = analyze::<UsedExpressions<_>, _>(&cfg);
-    let used = super::super::graph(display(&solution, &cfg));
+    let used = super::super::graph(display(&solution, &cfg))?;
 
-    (anticipated, available, earliest, postponable, latest, used)
+    Ok((anticipated, available, earliest, postponable, latest, used))
 }
 
 partial_redundancy_elimination! {

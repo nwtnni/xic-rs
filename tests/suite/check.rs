@@ -7,30 +7,30 @@ impl<T> fmt::Display for Snapshot<T> {
     fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
         match &self.0 {
             Ok(_) => write!(fmt, "Valid Xi Program"),
-            Err(error) => {
-                match error.report() {
-                    None => write!(fmt, "{}", error),
-                    Some(report) => {
-                        let cache = xic::data::span::FileCache::default();
-                        let mut buffer = Vec::new();
+            Err(error) => match error.report() {
+                None => write!(fmt, "{}", error),
+                Some(report) => {
+                    let cache = xic::data::span::FileCache::default();
+                    let mut buffer = Vec::new();
 
-                        report.with_config(ariadne::Config::default().with_color(false))
-                            .finish()
-                            .write(cache, &mut buffer)
-                            .unwrap();
+                    report
+                        .with_config(ariadne::Config::default().with_color(false))
+                        .finish()
+                        .write(cache, &mut buffer)
+                        .unwrap();
 
-                        write!(fmt, "{}", String::from_utf8(buffer).unwrap())
-                    }
+                    write!(fmt, "{}", String::from_utf8(buffer).unwrap())
                 }
-            }
+            },
         }
     }
 }
 
 #[test_generator::test_resources("tests/check/*.xi")]
-pub fn check(path: &str) {
-    let mut program = super::parse(path);
+pub fn check(path: &str) -> anyhow::Result<()> {
+    let mut program = super::parse(path)?;
     let context = xic::api::check(None, Path::new(path), &mut program);
 
     insta::assert_display_snapshot!(path, Snapshot(context));
+    Ok(())
 }

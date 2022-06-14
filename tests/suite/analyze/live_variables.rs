@@ -9,21 +9,22 @@ use xic::data::operand::Temporary;
 macro_rules! live_variables {
     ($function:ident $($tt:tt)*) => {
         #[test]
-        fn $function() {
+        fn $function() -> anyhow::Result<()> {
             let function = asm_function!($function $($tt)*);
-            let (live_variables, live_ranges) = live(function);
+            let (live_variables, live_ranges) = live(function)?;
             insta::assert_display_snapshot!(live_variables);
             insta::assert_display_snapshot!(live_ranges);
+            Ok(())
         }
     }
 }
 
-fn live(function: Function<Temporary>) -> (String, String) {
+fn live(function: Function<Temporary>) -> anyhow::Result<(String, String)> {
     let cfg = xic::api::construct_cfg(function);
     let live_variables = analyze::<LiveVariables<_>, _>(&cfg);
-    let annotated_cfg = super::super::graph(display(&live_variables, &cfg));
+    let annotated_cfg = super::super::graph(display(&live_variables, &cfg))?;
     let annotated_assembly = LiveRanges::new(&live_variables, cfg).to_string();
-    (annotated_cfg, annotated_assembly)
+    Ok((annotated_cfg, annotated_assembly))
 }
 
 live_variables! {
