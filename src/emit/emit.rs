@@ -490,7 +490,7 @@ impl<'env> Emitter<'env> {
                     .collect(),
                 Span::default(),
             )),
-            Null(_) => hir!((MEM (CONST 0))).into(),
+            Null(_) => hir!((CONST 0)).into(),
             This(_) | Super(_) => hir!((TEMP Temporary::Argument(0))).into(),
             Variable(variable) => {
                 assert!(variable.generics.is_none());
