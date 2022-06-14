@@ -261,8 +261,8 @@ pub fn test_resources(attrs: TokenStream, func: TokenStream) -> TokenStream {
             let item = quote! {
                 #[test]
                 #[allow(non_snake_case)]
-                fn # test_ident () {
-                    # func_ident ( #path_as_str .into() );
+                fn # test_ident () -> anyhow::Result<()> {
+                    # func_ident ( #path_as_str .into() )
                 }
             };
 
