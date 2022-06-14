@@ -1,27 +1,16 @@
-use std::io::Read as _;
 use std::iter;
 use std::process::Command;
-use std::process::Stdio;
+
+use anyhow::Context as _;
 
 fn compile(path: &str) -> String {
-    let mut xic = Command::new(env!("CARGO_BIN_EXE_xic"))
-        .stdout(Stdio::piped())
-        .arg("-d")
-        .arg("-")
-        .arg(path)
-        .spawn()
-        .unwrap();
+    let mut xic = Command::new(env!("CARGO_BIN_EXE_xic"));
 
-    let mut stdout = xic.stdout.take().unwrap();
-    let mut buffer = Vec::new();
-    let success = xic.wait().unwrap().success();
+    xic.arg("-d").arg("-").arg(path);
 
-    if !success {
-        panic!("`xic` invocation failed");
-    }
-
-    stdout.read_to_end(&mut buffer).unwrap();
-    String::from_utf8(buffer).unwrap()
+    super::stdout(xic, None::<String>)
+        .context("Compiling with `xic`")
+        .unwrap()
 }
 
 #[test_generator::test_resources("tests/execute/*.xi")]

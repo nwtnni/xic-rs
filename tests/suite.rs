@@ -30,6 +30,8 @@ use std::path::Path;
 use std::process::Command;
 use std::process::Stdio;
 
+use anyhow::anyhow;
+use anyhow::Context as _;
 use tempfile::NamedTempFile;
 
 use xic::data::asm;
@@ -115,8 +117,8 @@ where
 
     let path = NamedTempFile::new().unwrap().into_temp_path();
 
-    let success = Command::new("cc")
-        .arg("-xassembler")
+    let mut cc = Command::new("cc");
+    cc.arg("-xassembler")
         .arg("-L")
         .arg(concat!(env!("CARGO_MANIFEST_DIR"), "/runtime"))
         .arg("-Wl,--start-group")
@@ -125,43 +127,58 @@ where
         .arg("-Wl,--end-group")
         .arg("-lpthread")
         .arg("-o")
-        .arg(&path)
-        .spawn()
-        .unwrap()
-        .wait()
-        .unwrap()
-        .success();
+        .arg(&path);
 
-    if !success {
-        panic!("Assembly compilation failed");
-    }
-
-    let stdout = Command::new(&path)
-        .output()
-        .map(|output| output.stdout)
-        .map(String::from_utf8)
-        .unwrap()
+    let _ = stdout(cc, None::<String>)
+        .context("Assembling with `cc`")
         .unwrap();
 
-    drop(paths);
-    drop(path);
-
-    stdout
+    stdout(Command::new(&path), None::<String>)
+        .context("Running assembled binary")
+        .unwrap()
 }
 
 pub fn graph<T: Display>(dot: T) -> String {
-    let mut graph = Command::new("graph-easy")
-        .stdin(Stdio::piped())
-        .stdout(Stdio::piped())
-        .arg("-")
-        .spawn()
-        .unwrap();
+    let mut graph = Command::new("graph-easy");
+    graph.arg("-");
+    stdout(graph, Some(dot))
+        .context("Running `graph-easy` on `.dot` output")
+        .unwrap()
+}
 
-    write!(&mut graph.stdin.as_mut().unwrap(), "{}", dot).unwrap();
-
-    match graph.wait_with_output() {
-        Ok(output) if !output.status.success() => panic!("Failed to process .dot output"),
-        Ok(output) => String::from_utf8(output.stdout).unwrap(),
-        Err(error) => panic!("Failed to execute `graph-easy`: {}", error),
+pub fn stdout<T: Display>(mut command: Command, stdin: Option<T>) -> anyhow::Result<String> {
+    if stdin.is_some() {
+        command.stdin(Stdio::piped());
     }
+
+    let mut child = command
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .spawn()
+        .context("Spawning process")?;
+
+    if let Some(stdin) = stdin {
+        write!(child.stdin.as_mut().unwrap(), "{}", stdin).context("Writing to `stdin`")?;
+        child
+            .stdin
+            .as_mut()
+            .unwrap()
+            .flush()
+            .context("Flushing `stdin`")?;
+    }
+
+    let output = child
+        .wait_with_output()
+        .context("Waiting for process output")?;
+
+    if !output.status.success() {
+        let stderr = String::from_utf8_lossy(&output.stderr).into_owned();
+        return Err(anyhow!(
+            "Command failed with exit code `{:?}` and stderr: `{}`",
+            output.status.code(),
+            stderr,
+        ));
+    }
+
+    Ok(String::from_utf8_lossy(&output.stdout).into_owned())
 }
