@@ -1,0 +1,1 @@
+use bad_unbound_class_6_interface

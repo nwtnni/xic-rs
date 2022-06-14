@@ -95,7 +95,9 @@ impl Checker {
             match item {
                 ast::ItemSignature::Class(class) => self.load_class_signature(class)?,
                 ast::ItemSignature::ClassTemplate(class) => self.load_class_template(class)?,
-                ast::ItemSignature::Function(_) => (),
+                ast::ItemSignature::Function(function) => {
+                    self.load_function_signature(GlobalScope::Global, function)?;
+                }
                 ast::ItemSignature::FunctionTemplate(function) => {
                     self.load_function_template(function)?;
                 }
@@ -106,7 +108,7 @@ impl Checker {
             match item {
                 ast::ItemSignature::Class(class) => self.check_class_signature(class)?,
                 ast::ItemSignature::Function(function) => {
-                    self.check_function_signature(GlobalScope::Global, function)?;
+                    self.check_callable(function)?;
                 }
                 // TODO: can still implement some basic type-checking before instantiation
                 // if we treat generics conservatively (i.e. as `Any` type)?
@@ -159,7 +161,7 @@ impl Checker {
         }
 
         for method in &class.methods {
-            self.check_function_signature(GlobalScope::Class(class.name.symbol), method)?;
+            self.load_function_signature(GlobalScope::Class(class.name.symbol), method)?;
         }
 
         let (expected_span, expected) = match expected {
@@ -188,17 +190,7 @@ impl Checker {
         Ok(())
     }
 
-    fn check_class_signature(&mut self, class: &ast::ClassSignature) -> Result<(), error::Error> {
-        if let Some(supertype) = &class.extends {
-            if self.context.get_class(&supertype.symbol).is_none() {
-                bail!(*supertype.span, ErrorKind::UnboundClass(supertype.symbol))
-            }
-        }
-
-        Ok(())
-    }
-
-    fn check_function_signature(
+    fn load_function_signature(
         &mut self,
         scope: GlobalScope,
         function: &ast::FunctionSignature,

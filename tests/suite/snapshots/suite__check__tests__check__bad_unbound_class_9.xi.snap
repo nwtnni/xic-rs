@@ -1,0 +1,13 @@
+---
+source: tests/suite/check.rs
+assertion_line: 34
+expression: Snapshot(context)
+---
+Error: Semantic error
+   ╭─[tests/check/bad_unbound_class_9.xi:1:8]
+   │
+ 1 │ foo(a: A[][][][]) {}
+   ·        ┬  
+   ·        ╰── Unbound class A
+───╯
+

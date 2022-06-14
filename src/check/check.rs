@@ -136,6 +136,23 @@ impl Checker {
         }
     }
 
+    pub(super) fn check_class_signature(
+        &mut self,
+        class: &ast::ClassSignature,
+    ) -> Result<(), Error> {
+        if let Some(supertype) = &class.extends {
+            if self.context.get_class(&supertype.symbol).is_none() {
+                bail!(*supertype.span, ErrorKind::UnboundClass(supertype.symbol))
+            }
+        }
+
+        for method in &class.methods {
+            self.check_callable(method)?;
+        }
+
+        Ok(())
+    }
+
     fn check_class(&mut self, class: &ast::Class) -> Result<(), Error> {
         if let Some(supertype) = &class.extends {
             if self.context.get_class(&supertype.symbol).is_none() {
@@ -217,6 +234,8 @@ impl Checker {
         scope: GlobalScope,
         function: &ast::Function,
     ) -> Result<(), Error> {
+        self.check_callable(function)?;
+
         let returns = match self.context.get(scope, &function.name.symbol) {
             Some(Entry::Function(_, returns)) => returns.clone(),
             _ => panic!("[INTERNAL ERROR]: functions and methods should be bound in first pass"),
@@ -241,6 +260,18 @@ impl Checker {
         }
 
         self.context.pop();
+
+        Ok(())
+    }
+
+    pub(super) fn check_callable<C: ast::Callable>(&mut self, function: &C) -> Result<(), Error> {
+        for parameter in function.parameters() {
+            self.check_type(&parameter.r#type)?;
+        }
+
+        for r#return in function.returns() {
+            self.check_type(r#return)?;
+        }
 
         Ok(())
     }
