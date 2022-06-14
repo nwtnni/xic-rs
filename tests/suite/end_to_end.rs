@@ -18,6 +18,13 @@ pub fn end_to_end(path: &str) -> anyhow::Result<()> {
     Ok(())
 }
 
+#[test_generator::test_resources("tests/advent/*.xi")]
+pub fn advent(path: &str) -> anyhow::Result<()> {
+    let stdout = super::execute(compile(path)?)?;
+    insta::assert_snapshot!(path, stdout);
+    Ok(())
+}
+
 mod separate {
     #[test]
     fn smoke() -> anyhow::Result<()> {
