@@ -100,7 +100,29 @@ pub fn execute_expected(path: &str) -> String {
     String::from(stdout.strip_suffix('\n').unwrap())
 }
 
-pub fn execute<I, T>(objects: I) -> String
+pub fn execute<T: Display>(object: T) -> String {
+    let path = NamedTempFile::new().unwrap().into_temp_path();
+
+    let mut cc = Command::new("cc");
+    cc.arg("-xassembler")
+        .arg("-")
+        .arg("-L")
+        .arg(concat!(env!("CARGO_MANIFEST_DIR"), "/runtime"))
+        .arg("-lxi")
+        .arg("-lpthread")
+        .arg("-o")
+        .arg(&path);
+
+    let _ = stdout(cc, Some(object))
+        .context("Assembling with `cc`")
+        .unwrap();
+
+    stdout(Command::new(&path), None::<String>)
+        .context("Running assembled binary")
+        .unwrap()
+}
+
+pub fn execute_all<I, T>(objects: I) -> String
 where
     I: IntoIterator<Item = T>,
     T: Display,
@@ -121,6 +143,7 @@ where
     cc.arg("-xassembler")
         .arg("-L")
         .arg(concat!(env!("CARGO_MANIFEST_DIR"), "/runtime"))
+        // See: https://stackoverflow.com/questions/5651869/what-are-the-start-group-and-end-group-command-line-options
         .arg("-Wl,--start-group")
         .args(&paths)
         .arg("-lxi")

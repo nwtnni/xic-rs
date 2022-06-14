@@ -1,4 +1,3 @@
-use std::iter;
 use std::process::Command;
 
 use anyhow::Context as _;
@@ -16,7 +15,7 @@ fn compile(path: &str) -> String {
 #[test_generator::test_resources("tests/execute/*.xi")]
 pub fn end_to_end(path: &str) {
     let expected_stdout = super::execute_expected(path);
-    let stdout = super::execute(iter::once(compile(path)));
+    let stdout = super::execute(compile(path));
     pretty_assertions::assert_eq!(expected_stdout, stdout);
 }
 
@@ -25,7 +24,7 @@ mod separate {
     fn smoke() {
         let smoke_1 = super::compile("tests/separate/smoke_1.xi");
         let smoke_2 = super::compile("tests/separate/smoke_2.xi");
-        let stdout = super::super::execute([smoke_1, smoke_2]);
+        let stdout = super::super::execute_all([smoke_1, smoke_2]);
         insta::assert_display_snapshot!(stdout);
     }
 
@@ -33,7 +32,7 @@ mod separate {
     fn cycle_function() {
         let cycle_function_1 = super::compile("tests/separate/cycle_function_1.xi");
         let cycle_function_2 = super::compile("tests/separate/cycle_function_2.xi");
-        let stdout = super::super::execute([cycle_function_1, cycle_function_2]);
+        let stdout = super::super::execute_all([cycle_function_1, cycle_function_2]);
         insta::assert_display_snapshot!(stdout);
     }
 
@@ -41,7 +40,7 @@ mod separate {
     fn out_of_order() {
         let out_of_order_1 = super::compile("tests/separate/out_of_order_1.xi");
         let out_of_order_2 = super::compile("tests/separate/out_of_order_2.xi");
-        let stdout = super::super::execute([out_of_order_1, out_of_order_2]);
+        let stdout = super::super::execute_all([out_of_order_1, out_of_order_2]);
         insta::assert_display_snapshot!(stdout);
     }
 }

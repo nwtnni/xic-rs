@@ -1,4 +1,3 @@
-use std::iter;
 use std::path::Path;
 
 use xic::analyze::analyze;
@@ -37,7 +36,7 @@ pub fn eliminate_dead_code_assembly(path: &str) {
         })
         .map(xic::api::destruct_cfg)
         .map_ref(xic::api::allocate_trivial);
-    let optimized_stdout = super::execute(iter::once(&optimized));
+    let optimized_stdout = super::execute(&optimized);
 
     pretty_assertions::assert_eq!(expected_stdout, optimized_stdout);
 }
@@ -64,7 +63,7 @@ pub fn propagate_copies_assembly(path: &str) {
         .map_mut(optimize::propagate_copies_assembly)
         .map(xic::api::destruct_cfg)
         .map_ref(xic::api::allocate_trivial);
-    let optimized_stdout = super::execute(iter::once(&optimized));
+    let optimized_stdout = super::execute(&optimized);
 
     pretty_assertions::assert_eq!(expected_stdout, optimized_stdout);
 }
@@ -78,7 +77,7 @@ pub fn propagate_constants_assembly(path: &str) {
         .map_mut(optimize::propagate_constants_assembly)
         .map(xic::api::destruct_cfg)
         .map_ref(xic::api::allocate_trivial);
-    let optimized_stdout = super::execute(iter::once(&optimized));
+    let optimized_stdout = super::execute(&optimized);
 
     pretty_assertions::assert_eq!(expected_stdout, optimized_stdout);
 }
