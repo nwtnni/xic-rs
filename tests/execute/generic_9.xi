@@ -4,11 +4,11 @@ use io
 use vector
 
 newIntVector(): Vector::<int> {
-    return newVector::<int>()
+    return new_vector::<int>()
 }
 
 newBoolVector(): Vector::<bool> {
-    return newVector::<bool>()
+    return new_vector::<bool>()
 }
 
 main(args: int[][]) {

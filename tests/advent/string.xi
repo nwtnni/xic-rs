@@ -11,8 +11,8 @@ class String {
         return buffer.get(index)
     }
 
-    getArray(): int[] {
-        return sliceArray(0, buffer.size())
+    get_array(): int[] {
+        return slice_array(0, buffer.size())
     }
 
     push(character: int) {
@@ -24,7 +24,7 @@ class String {
     }
 
     split(character: int): Vector::<String> {
-        splits: Vector::<String> = newVector::<String>()
+        splits: Vector::<String> = new_vector::<String>()
 
         i: int = 0
         j: int = 0
@@ -53,10 +53,10 @@ class String {
     }
 
     slice(low: int, high: int): String {
-        return newStringFromArray(sliceArray(low, high))
+        return new_string_from_array(slice_array(low, high))
     }
 
-    sliceArray(low: int, high: int): int[] {
+    slice_array(low: int, high: int): int[] {
         buffer': int[high - low]
         i: int = low
         while i < high {
@@ -67,17 +67,17 @@ class String {
     }
 }
 
-newString(): String {
+new_string(): String {
     string: String = new String
-    string.buffer = newVector::<int>()
+    string.buffer = new_vector::<int>()
     return string
 }
 
-newStringFromArray(buffer: int[]): String {
-    return newStringFromVector(newVectorFromArray::<int>(buffer))
+new_string_from_array(buffer: int[]): String {
+    return new_string_from_vector(new_vector_from_array::<int>(buffer))
 }
 
-newStringFromVector(buffer: Vector::<int>): String {
+new_string_from_vector(buffer: Vector::<int>): String {
     string: String = new String
     string.buffer = buffer
     return string

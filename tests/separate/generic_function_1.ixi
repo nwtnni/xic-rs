@@ -8,4 +8,4 @@ class Object {
 
 bar(): int
 
-newObject(integer: int): Object
+new_object(integer: int): Object

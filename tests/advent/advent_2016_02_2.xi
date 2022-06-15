@@ -12,7 +12,7 @@ LDUDRRDLUUDDRLLUUULURLDUDLUDLRLDRURLULRLLDDLRRUUUDDDDRDULDDUUDLRUULDRULLRDRUDDUR
 
 main(args: int[][]) {
 
-    lines: Vector::<String> = newStringFromArray(INPUT).split('\n')
+    lines: Vector::<String> = new_string_from_array(INPUT).split('\n')
 
     i: int = 0
 

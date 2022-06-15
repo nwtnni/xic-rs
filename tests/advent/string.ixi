@@ -5,7 +5,7 @@ class String {
 
     get(index: int): int
 
-    getArray(): int[]
+    get_array(): int[]
 
     push(character: int)
 
@@ -15,11 +15,11 @@ class String {
 
     slice(low: int, high: int): String
 
-    sliceArray(low: int, high: int): int[]
+    slice_array(low: int, high: int): int[]
 }
 
-newString(): String
+new_string(): String
 
-newStringFromArray(array: int[]): String
+new_string_from_array(array: int[]): String
 
-newStringFromVector(vector: Vector::<int>): String
+new_string_from_vector(vector: Vector::<int>): String

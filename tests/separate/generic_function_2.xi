@@ -4,7 +4,7 @@ use generic_function_1
 
 main(args: int[][]) {
     i: int = bar()
-    j: int = foo::<Object>(newObject(99))
+    j: int = foo::<Object>(new_object(99))
 
     print(unparseInt(i))
     print(" = ")

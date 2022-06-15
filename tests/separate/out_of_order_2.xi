@@ -14,6 +14,6 @@ class A {
     }
 }
 
-newA(): A {
+new_a(): A {
     return new A
 }

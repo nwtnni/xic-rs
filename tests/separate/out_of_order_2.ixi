@@ -4,4 +4,4 @@ class A {
     foo()
 }
 
-newA(): A
+new_a(): A

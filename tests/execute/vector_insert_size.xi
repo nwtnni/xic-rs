@@ -5,7 +5,7 @@ use vector
 
 main(args: int[][]) {
 
-    output: Vector::<int> = newVector::<int>()
+    output: Vector::<int> = new_vector::<int>()
 
     i: int = 0
     while i < 100 {

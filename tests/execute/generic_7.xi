@@ -3,7 +3,7 @@ use conv
 use vector
 
 main(args: int[][]) {
-    vector: Vector::<int> = newVector::<int>()
+    vector: Vector::<int> = new_vector::<int>()
 
     i: int = 0
     while i < 16 {

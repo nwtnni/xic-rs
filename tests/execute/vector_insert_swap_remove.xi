@@ -8,7 +8,7 @@ INPUT: int[] = {11, 41, 93, 51, 47, 53, 37, 1, 89, 92, 57, 11, 15, 17, 24, 96, 9
 
 main(args: int[][]) {
 
-    output: Vector::<int> = newVector::<int>()
+    output: Vector::<int> = new_vector::<int>()
 
     i: int = 0
     while i < 100 {

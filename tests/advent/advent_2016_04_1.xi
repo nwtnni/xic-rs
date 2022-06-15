@@ -1100,7 +1100,7 @@ INPUT: int[] = "\
     jyfvnlupj-ibuuf-svnpzapjz-851[gmsnf]"
 
 main(args: int[][]) {
-    input: Vector::<String> = newStringFromArray(INPUT).split('\n')
+    input: Vector::<String> = new_string_from_array(INPUT).split('\n')
     sum: int = 0
 
     i: int = 0
@@ -1108,7 +1108,7 @@ main(args: int[][]) {
         room: String = input.get(i)
 
         if realRoom(room) {
-            id: int, success: bool = parseInt(room.sliceArray(room.size() - 10, room.size() - 7))
+            id: int, success: bool = parseInt(room.slice_array(room.size() - 10, room.size() - 7))
             assert(success)
             sum = sum + id
         }
@@ -1120,18 +1120,18 @@ main(args: int[][]) {
 }
 
 realRoom(room: String): bool {
-    counts: VectorMap::<Integer, Integer> = newVectorMap::<Integer, Integer>()
+    counts: VectorMap::<Integer, Integer> = new_vector_map::<Integer, Integer>()
 
     i: int = 0
 
     // Count letters in name, ignoring suffix: DDD[AAAAA]
     while i < room.size() - 10 {
         if room.get(i) != '-' {
-            key: Integer = newInteger(room.get(i))
+            key: Integer = new_integer(room.get(i))
             value: Integer = counts.get(key)
 
             if value == null {
-                _ = counts.insert(key, newInteger(1))
+                _ = counts.insert(key, new_integer(1))
             } else {
                 value.value = value.value + 1
             }
@@ -1140,12 +1140,12 @@ realRoom(room: String): bool {
         i = i + 1
     }
 
-    sorted: Vector::<Letter> = newVector::<Letter>()
+    sorted: Vector::<Letter> = new_vector::<Letter>()
 
     // Collect used letters and counts for sorting
     j: int = 0
     while j < counts.size() {
-        sorted.push(newLetter(
+        sorted.push(new_letter(
             counts.keys.get(j).value,
             counts.values.get(j).value
         ))
@@ -1184,7 +1184,7 @@ class Letter {
     }
 }
 
-newLetter(letter: int, count: int): Letter {
+new_letter(letter: int, count: int): Letter {
     letter': Letter = new Letter
     letter'.letter = letter
     letter'.count = count
@@ -1198,7 +1198,7 @@ class Integer {
     }
 }
 
-newInteger(value: int): Integer {
+new_integer(value: int): Integer {
     integer: Integer = new Integer
     integer.value = value
     return integer

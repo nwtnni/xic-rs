@@ -6,10 +6,10 @@ class Object {
 }
 
 bar(): int {
-    return foo::<Object>(newObject(99))
+    return foo::<Object>(new_object(99))
 }
 
-newObject(integer: int): Object {
+new_object(integer: int): Object {
     object: Object = new Object
     object.integer = integer
     return object

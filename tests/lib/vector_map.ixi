@@ -68,9 +68,9 @@ template class VectorMap<K, V> {
     }
 }
 
-template newVectorMap<K, V>(): VectorMap::<K, V> {
+template new_vector_map<K, V>(): VectorMap::<K, V> {
     map: VectorMap::<K, V> = new VectorMap::<K, V>
-    map.keys = newVector::<K>()
-    map.values = newVector::<V>()
+    map.keys = new_vector::<K>()
+    map.values = new_vector::<V>()
     return map
 }

@@ -20,7 +20,7 @@ class Offset extends Integer {
 main(args: int[][]) {
     i: int = 0
 
-    map: VectorMap::<Integer, Integer> = newVectorMap::<Integer, Integer>()
+    map: VectorMap::<Integer, Integer> = new_vector_map::<Integer, Integer>()
 
     while i < 100 {
         value: Integer = map.insert(offset(i), integer(i))

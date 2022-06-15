@@ -79,7 +79,12 @@ template class Vector<T> {
     }
 
     resize() {
-        double: T[capacity * 2]
+        capacity': int = capacity * 2
+        if capacity' == 0 {
+            capacity' = 1
+        }
+
+        double: T[capacity']
 
         i: int = 0
         while i < size' {
@@ -87,12 +92,12 @@ template class Vector<T> {
             i = i + 1
         }
 
-        capacity = length(double)
+        capacity = capacity'
         array = double
     }
 }
 
-template newVector<T>(): Vector::<T> {
+template new_vector<T>(): Vector::<T> {
     vector: Vector::<T> = new Vector::<T>
 
     array: T[8]
@@ -104,7 +109,7 @@ template newVector<T>(): Vector::<T> {
     return vector
 }
 
-template newVectorFromArray<T>(array: T[]): Vector::<T> {
+template new_vector_from_array<T>(array: T[]): Vector::<T> {
     vector: Vector::<T> = new Vector::<T>
 
     vector.array = array

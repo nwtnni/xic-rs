@@ -7,7 +7,7 @@ template class A<T> {
 }
 
 main(args: int[][]) {
-    vector: Vector::<A::<int>> = newVector::<A::<int>>()
+    vector: Vector::<A::<int>> = new_vector::<A::<int>>()
 
     i: int = 0
     while i < 16 {
