@@ -1,0 +1,59 @@
+use vector
+
+// Requires:
+//
+// class K {
+//     equals(other: K): bool
+// }
+template class VectorSet<K> {
+    keys: Vector::<K>
+
+    contains(key: K): bool {
+        return index(key) >= 0
+    }
+
+    size(): int {
+        return keys.size()
+    }
+
+    insert(key: K): bool {
+        i: int = index(key)
+
+        if i >= 0 {
+            return false
+        } else {
+            keys.push(key)
+            return true
+        }
+    }
+
+    remove(key: K): bool {
+        i: int = index(key)
+
+        if i >= 0 {
+            _ = keys.swap_remove(i)
+            return true
+        } else {
+            return false
+        }
+    }
+
+    index(key: K): int {
+        i: int = 0
+
+        while i < keys.size() {
+            if keys.get(i).equals(key) {
+                return i
+            }
+            i = i + 1
+        }
+
+        return -1
+    }
+}
+
+template new_vector_set<K>(): VectorSet::<K> {
+    set: VectorSet::<K> = new VectorSet::<K>
+    set.keys = new_vector::<K>()
+    return set
+}
