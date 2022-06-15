@@ -49,8 +49,31 @@ impl<T> Unit<T> {
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq, Hash)]
 pub enum Visibility {
+    /// Locally scoped symbol
+    ///
+    /// - global: n
+    /// - inline: y
+    /// - discard: y
+    /// - merge: n
     Local,
+
+    /// Globally unique symbol
+    ///
+    /// - global: y
+    /// - inline: y
+    /// - discard: n
+    /// - merge: n
     Global,
+
+    /// See https://llvm.org/docs/LangRef.html#linkage-types
+    ///
+    /// Used for template instantiations and utility functions like `_xi_memdup`.
+    ///
+    /// - global: y
+    /// - inline: y
+    /// - discard: y
+    /// - merge: y
+    LinkOnceOdr,
 }
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq, Hash)]

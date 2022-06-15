@@ -73,13 +73,21 @@ pub fn emit_unit(
     let mut functions = Map::default();
     let mut initialize = Vec::new();
 
-    for class in emitter
-        .context
-        .class_implementations()
-        .copied()
-        .collect::<Vec<_>>()
-    {
-        let (name, function) = emitter.emit_class_initialization(&class);
+    // Note: class initialization functions must be emitted before
+    // global initialization functions, which can rely on the former.
+    for item in &ast.items {
+        let class = match item {
+            ast::Item::Class(class) => class,
+            _ => continue,
+        };
+
+        // TODO: set class metadata to local visibility if not exposed in interface
+        let visibility = match class.provenance.is_empty() {
+            true => ir::Visibility::Global,
+            false => ir::Visibility::LinkOnceOdr,
+        };
+
+        let (name, function) = emitter.emit_class_initialization(&class.name.symbol, visibility);
         functions.insert(name, function);
         initialize.push(hir!((EXP (CALL (NAME Label::Fixed(name)) 0))));
     }
@@ -99,15 +107,30 @@ pub fn emit_unit(
                         ast::ClassItem::Method(method) => method,
                     };
 
-                    let (name, function) =
-                        emitter.emit_function(GlobalScope::Class(class.name.symbol), method);
+                    let visibility = match class.provenance.is_empty() {
+                        true => ir::Visibility::Local,
+                        false => ir::Visibility::LinkOnceOdr,
+                    };
+
+                    let (name, function) = emitter.emit_function(
+                        GlobalScope::Class(class.name.symbol),
+                        method,
+                        visibility,
+                    );
 
                     functions.insert(name, function);
                 }
             }
             ast::Item::ClassTemplate(_) => unreachable!(),
             ast::Item::Function(function) => {
-                let (name, function) = emitter.emit_function(GlobalScope::Global, function);
+                let visibility = match function.provenance.is_empty() {
+                    // TODO: set function to local visibility if not exposed via interface
+                    true => ir::Visibility::Global,
+                    false => ir::Visibility::LinkOnceOdr,
+                };
+
+                let (name, function) =
+                    emitter.emit_function(GlobalScope::Global, function, visibility);
                 functions.insert(name, function);
             }
             ast::Item::FunctionTemplate(_) => unreachable!(),
@@ -126,10 +149,8 @@ pub fn emit_unit(
         },
     );
 
-    if !emitter.statics.is_empty() {
-        let memdup = Emitter::emit_memdup();
-        functions.insert(memdup.name, memdup);
-    }
+    let memdup = Emitter::emit_memdup();
+    functions.insert(memdup.name, memdup);
 
     ir::Unit {
         name: symbol::intern(path.to_string_lossy().trim_start_matches("./")),
@@ -206,11 +227,15 @@ impl<'env> Emitter<'env> {
         ))
     }
 
-    fn emit_class_initialization(&mut self, class: &Symbol) -> (Symbol, hir::Function) {
+    fn emit_class_initialization(
+        &mut self,
+        class: &Symbol,
+        visibility: ir::Visibility,
+    ) -> (Symbol, hir::Function) {
         let size = abi::mangle::class_size(class);
 
         // Reserve 1 word in BSS section for class size
-        self.bss.insert(size, (ir::Visibility::Global, 1));
+        self.bss.insert(size, (visibility, 1));
 
         let enter = Label::fresh("enter");
         let exit = Label::fresh("exit");
@@ -246,7 +271,7 @@ impl<'env> Emitter<'env> {
         // Reserve n words in BSS section for class virtual table
         self.bss.insert(
             virtual_table_class,
-            (ir::Visibility::Global, self.classes[class].size()),
+            (visibility, self.classes[class].size()),
         );
 
         // Copy superclass virtual table
@@ -300,7 +325,7 @@ impl<'env> Emitter<'env> {
                 statement: hir::Statement::Sequence(statements),
                 arguments: 0,
                 returns: 0,
-                visibility: ir::Visibility::Global,
+                visibility,
             },
         )
     }
@@ -309,6 +334,7 @@ impl<'env> Emitter<'env> {
         &mut self,
         scope: GlobalScope,
         function: &ast::Function,
+        visibility: ir::Visibility,
     ) -> (Symbol, hir::Function) {
         self.locals.clear();
         self.out_of_bounds.take();
@@ -341,11 +367,9 @@ impl<'env> Emitter<'env> {
             ));
         }
 
-        let (visibility, scope) = match scope {
-            GlobalScope::Global => (ir::Visibility::Global, LocalScope::Function { returns }),
-            GlobalScope::Class(class) => {
-                (ir::Visibility::Local, LocalScope::Method { class, returns })
-            }
+        let scope = match scope {
+            GlobalScope::Global => LocalScope::Function { returns },
+            GlobalScope::Class(class) => LocalScope::Method { class, returns },
         };
 
         self.context.push(scope);
@@ -1047,7 +1071,7 @@ impl<'env> Emitter<'env> {
             name: symbol::intern_static(abi::XI_MEMDUP),
             arguments: 1,
             returns: 1,
-            visibility: ir::Visibility::Local,
+            visibility: ir::Visibility::LinkOnceOdr,
             statement: hir!(
                 (SEQ
                     (MOVE

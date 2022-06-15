@@ -191,6 +191,11 @@ impl fmt::Display for Directive {
             Directive::Visible(ir::Visibility::Global, label) => {
                 write!(fmt, ".global {}", label)
             }
+            // Note: embedding a newline here is a bit ugly, but directives are
+            // currently formatted without indentation, so this should be okay for now.
+            Directive::Visible(ir::Visibility::LinkOnceOdr, label) => {
+                write!(fmt, ".weak {0}\n.global {0}", label)
+            }
             Directive::Quad(data) => {
                 write!(fmt, ".quad")?;
 

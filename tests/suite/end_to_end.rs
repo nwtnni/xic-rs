@@ -52,4 +52,22 @@ mod separate {
         insta::assert_display_snapshot!(stdout);
         Ok(())
     }
+
+    #[test]
+    fn generic_class() -> anyhow::Result<()> {
+        let generic_class_1 = super::compile("tests/separate/generic_class_1.xi")?;
+        let generic_class_2 = super::compile("tests/separate/generic_class_2.xi")?;
+        let stdout = super::super::execute_all([generic_class_1, generic_class_2])?;
+        insta::assert_display_snapshot!(stdout);
+        Ok(())
+    }
+
+    #[test]
+    fn generic_function() -> anyhow::Result<()> {
+        let generic_function_1 = super::compile("tests/separate/generic_function_1.xi")?;
+        let generic_function_2 = super::compile("tests/separate/generic_function_2.xi")?;
+        let stdout = super::super::execute_all([generic_function_1, generic_function_2])?;
+        insta::assert_display_snapshot!(stdout);
+        Ok(())
+    }
 }

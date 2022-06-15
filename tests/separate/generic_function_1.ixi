@@ -1,0 +1,11 @@
+template foo<T>(object: T): int {
+    return object.value()
+}
+
+class Object {
+    value(): int
+}
+
+bar(): int
+
+newObject(integer: int): Object

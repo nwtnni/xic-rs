@@ -1,0 +1,3 @@
+use vector
+
+foo(): Vector::<int>
