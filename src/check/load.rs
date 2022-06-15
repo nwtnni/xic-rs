@@ -196,7 +196,7 @@ impl Checker {
         scope: GlobalScope,
         function: &ast::FunctionSignature,
     ) -> Result<(), error::Error> {
-        let (parameters, returns) = self.load_callable(function)?;
+        let (parameters, returns) = self.load_callable(function);
         let signature = Entry::Signature(parameters, returns);
 
         match self.context.get_full(scope, &function.name.symbol) {
@@ -251,7 +251,7 @@ impl Checker {
         scope: GlobalScope,
         function: &ast::Function,
     ) -> Result<(), error::Error> {
-        let (new_parameters, new_returns) = self.load_callable(function)?;
+        let (new_parameters, new_returns) = self.load_callable(function);
 
         match self.context.insert_full(
             scope,
@@ -284,21 +284,21 @@ impl Checker {
     fn load_callable<C: ast::Callable>(
         &self,
         signature: &C,
-    ) -> Result<(Vec<r#type::Expression>, Vec<r#type::Expression>), error::Error> {
+    ) -> (Vec<r#type::Expression>, Vec<r#type::Expression>) {
         let parameters = signature
             .parameters()
             .iter()
             .map(|declaration| &declaration.r#type)
             .map(|r#type| self.load_type(r#type))
-            .collect::<Result<Vec<_>, _>>()?;
+            .collect::<Vec<_>>();
 
         let returns = signature
             .returns()
             .iter()
             .map(|r#type| self.load_type(r#type))
-            .collect::<Result<Vec<_>, _>>()?;
+            .collect::<Vec<_>>();
 
-        Ok((parameters, returns))
+        (parameters, returns)
     }
 
     fn load_class_field(
@@ -307,7 +307,7 @@ impl Checker {
         declaration: &ast::Declaration,
     ) -> Result<(), error::Error> {
         for (name, r#type) in declaration.iter() {
-            let r#type = self.load_type(r#type)?;
+            let r#type = self.load_type(r#type);
             if let Some((span, _)) = self.context.insert_full(
                 GlobalScope::Class(class.symbol),
                 name,
@@ -320,21 +320,19 @@ impl Checker {
         Ok(())
     }
 
-    fn load_type(&self, r#type: &ast::Type) -> Result<r#type::Expression, error::Error> {
+    fn load_type(&self, r#type: &ast::Type) -> r#type::Expression {
         match r#type {
-            ast::Type::Bool(_) => Ok(r#type::Expression::Boolean),
-            ast::Type::Int(_) => Ok(r#type::Expression::Integer),
+            ast::Type::Bool(_) => r#type::Expression::Boolean,
+            ast::Type::Int(_) => r#type::Expression::Integer,
             ast::Type::Array(r#type, length, _) => {
                 assert!(length.is_none());
-                self.load_type(r#type)
-                    .map(Box::new)
-                    .map(r#type::Expression::Array)
+                r#type::Expression::Array(Box::new(self.load_type(r#type)))
             }
             ast::Type::Class(ast::Variable {
                 name,
                 generics: None,
                 span: _,
-            }) => Ok(r#type::Expression::Class(name.symbol)),
+            }) => r#type::Expression::Class(name.symbol),
             // There are two cases to consider here:
             //
             // 1) This generic type is instantiated inside the body of a function, in
@@ -354,12 +352,9 @@ impl Checker {
                 let generics = generics
                     .iter()
                     .map(|generic| self.load_type(generic))
-                    .collect::<Result<Vec<_>, _>>()?;
+                    .collect::<Vec<_>>();
 
-                Ok(r#type::Expression::Class(abi::mangle::template(
-                    &name.symbol,
-                    &generics,
-                )))
+                r#type::Expression::Class(abi::mangle::template(&name.symbol, &generics))
             }
         }
     }
