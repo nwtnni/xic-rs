@@ -1,6 +1,7 @@
 use assert
 use conv
 use io
+use math
 use string
 use vector
 
@@ -25,13 +26,13 @@ main(args: int[][]) {
 
         while j < lines.get(i).size() {
             if lines.get(i).get(j) == 'U' {
-                y = clamp(y, -1, x)
+                y = clamp'(y, -1, x)
             } else if lines.get(i).get(j) == 'D' {
-                y = clamp(y, 1, x)
+                y = clamp'(y, 1, x)
             } else if lines.get(i).get(j) == 'L' {
-                x = clamp(x, -1, y)
+                x = clamp'(x, -1, y)
             } else if lines.get(i).get(j) == 'R' {
-                x = clamp(x, 1, y)
+                x = clamp'(x, 1, y)
             } else {
                 assert(false)
             }
@@ -76,18 +77,10 @@ main(args: int[][]) {
     println("")
 }
 
-clamp(a: int, delta: int, b: int): int {
+clamp'(a: int, delta: int, b: int): int {
     if abs(a + delta) + abs(b) > 2 {
         return a
     } else {
         return a + delta
-    }
-}
-
-abs(a: int): int {
-    if a < 0 {
-        return -a
-    } else {
-        return a
     }
 }

@@ -1,6 +1,7 @@
 use assert
 use conv
 use io
+use math
 use string
 use vector
 
@@ -44,14 +45,4 @@ main(args: int[][]) {
     }
 
     println("")
-}
-
-clamp(x: int, low: int, high: int): int {
-    if x < low {
-        return low
-    } else if x > high {
-        return high
-    } else {
-        return x
-    }
 }
