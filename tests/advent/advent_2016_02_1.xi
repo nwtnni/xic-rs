@@ -26,13 +26,13 @@ main(args: int[][]) {
 
         while j < lines.get(i).size() {
             if lines.get(i).get(j) == 'U' {
-                y = clamp(y - 1, 0, 2)
+                y = clamp::<>(y - 1, 0, 2)
             } else if lines.get(i).get(j) == 'D' {
-                y = clamp(y + 1, 0, 2)
+                y = clamp::<>(y + 1, 0, 2)
             } else if lines.get(i).get(j) == 'L' {
-                x = clamp(x - 1, 0, 2)
+                x = clamp::<>(x - 1, 0, 2)
             } else if lines.get(i).get(j) == 'R' {
-                x = clamp(x + 1, 0, 2)
+                x = clamp::<>(x + 1, 0, 2)
             } else {
                 assert(false)
             }

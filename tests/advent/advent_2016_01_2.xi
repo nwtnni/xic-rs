@@ -64,7 +64,7 @@ main(args: int[][]) {
             }
 
             if !set.insert(x, y) {
-                println(unparseInt(abs(x) + abs(y)))
+                println(unparseInt(abs::<>(x) + abs::<>(y)))
                 return
             }
 

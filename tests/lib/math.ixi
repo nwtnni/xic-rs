@@ -1,8 +1,8 @@
-clamp(a: int, low: int, high: int): int {
-    return max(min(a, high), low)
+template clamp(a: int, low: int, high: int): int {
+    return max::<>(min::<>(a, high), low)
 }
 
-max(a: int, b: int): int {
+template max(a: int, b: int): int {
     if a > b {
         return a
     } else {
@@ -10,7 +10,7 @@ max(a: int, b: int): int {
     }
 }
 
-min(a: int, b: int): int {
+template min(a: int, b: int): int {
     if a < b {
         return a
     } else {
@@ -18,7 +18,7 @@ min(a: int, b: int): int {
     }
 }
 
-abs(a: int): int {
+template abs(a: int): int {
     if a < 0 {
         return -a
     } else {

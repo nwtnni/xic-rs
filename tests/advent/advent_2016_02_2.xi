@@ -78,7 +78,7 @@ main(args: int[][]) {
 }
 
 clamp'(a: int, delta: int, b: int): int {
-    if abs(a + delta) + abs(b) > 2 {
+    if abs::<>(a + delta) + abs::<>(b) > 2 {
         return a
     } else {
         return a + delta

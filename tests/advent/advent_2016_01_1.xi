@@ -66,5 +66,5 @@ main(args: int[][]) {
         i = high + 2
     }
 
-    println(unparseInt(abs(x) + abs(y)))
+    println(unparseInt(abs::<>(x) + abs::<>(y)))
 }
