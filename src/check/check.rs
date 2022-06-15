@@ -116,6 +116,13 @@ impl Checker {
             if self.context.get_class(supertype).is_none() {
                 bail!(*supertype.span, ErrorKind::UnboundClass(supertype.symbol))
             }
+
+            if let Some(span) = self.context.get_final(supertype) {
+                bail!(
+                    *supertype.span,
+                    ErrorKind::FinalSuperclass(supertype.symbol, *span)
+                );
+            }
         }
 
         for method in &class.methods {
@@ -129,6 +136,13 @@ impl Checker {
         if let Some(supertype) = &class.extends {
             if self.context.get_class(supertype).is_none() {
                 bail!(*supertype.span, ErrorKind::UnboundClass(supertype.symbol));
+            }
+
+            if let Some(span) = self.context.get_final(supertype) {
+                bail!(
+                    *supertype.span,
+                    ErrorKind::FinalSuperclass(supertype.symbol, *span)
+                );
             }
         }
 

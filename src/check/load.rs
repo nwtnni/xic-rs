@@ -141,6 +141,19 @@ impl Checker {
     }
 
     fn load_class_signature(&mut self, class: &ast::ClassSignature) -> Result<(), error::Error> {
+        if class.r#final {
+            match self.context.insert_final(class.name.clone()) {
+                Some(_) => (),
+                None => {
+                    if let Some((span, _)) = self.context.get_class_full(&class.name) {
+                        bail!(*class.name.span, ErrorKind::FinalMismatch(*span));
+                    }
+                }
+            }
+        } else if let Some(span) = self.context.get_final(&class.name) {
+            bail!(class.span, ErrorKind::FinalMismatch(*span));
+        }
+
         let expected = self.context.insert_class_signature(class.name.clone());
 
         if let Some(supertype) = &class.extends {
@@ -212,6 +225,19 @@ impl Checker {
     }
 
     pub(super) fn load_class(&mut self, class: &ast::Class) -> Result<(), error::Error> {
+        if class.r#final {
+            match self.context.insert_final(class.name.clone()) {
+                Some(_) => (),
+                None => {
+                    if let Some((span, _)) = self.context.get_class_full(&class.name) {
+                        bail!(*class.name.span, ErrorKind::FinalMismatch(*span));
+                    }
+                }
+            }
+        } else if let Some(span) = self.context.get_final(&class.name) {
+            bail!(class.span, ErrorKind::FinalMismatch(*span));
+        }
+
         if let Some(span) = self.context.insert_class_implementation(class.name.clone()) {
             bail!(class.span, ErrorKind::NameClash(span));
         }

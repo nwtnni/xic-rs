@@ -49,6 +49,7 @@ pub enum ErrorKind {
     NotInClassModule(Symbol),
     NotInWhile,
     NoSuperclass(Symbol),
+    FinalSuperclass(Symbol, Span),
     ClassCycle(Symbol),
     ClassIncomplete(Symbol, Span),
     IndexEmpty,
@@ -59,6 +60,7 @@ pub enum ErrorKind {
     MissingReturn,
     ReturnMismatch,
     NameClash(Span),
+    FinalMismatch(Span),
     SignatureMismatch(Span),
     TemplateArgumentMismatch {
         span: Span,
@@ -110,6 +112,9 @@ impl ErrorKind {
             ErrorKind::NoSuperclass(class) => {
                 Cow::Owned(format!("Class {} has no superclass", class))
             }
+            ErrorKind::FinalSuperclass(class, _) => {
+                Cow::Owned(format!("Class {} is declared final and cannot be extended", class))
+            }
             ErrorKind::ClassCycle(class) => {
                 Cow::Owned(format!("Class hierarchy for class {} forms a cycle", class))
             }
@@ -127,6 +132,7 @@ impl ErrorKind {
             ErrorKind::MissingReturn => Cow::Borrowed("Missing return statement"),
             ErrorKind::ReturnMismatch => Cow::Borrowed("Return mismatch"),
             ErrorKind::NameClash(_) => Cow::Borrowed("Name already bound in environment"),
+            ErrorKind::FinalMismatch(_) => Cow::Borrowed("Inconsistent `final` annotation on class"),
             ErrorKind::SignatureMismatch(_) => {
                 Cow::Borrowed("Implementation does not match signature")
             }
@@ -171,10 +177,15 @@ impl error::Report for Error {
                 ariadne::Label::new(*span)
                     .with_message(format!("Expected {} because of this", expected)),
             ),
+            ErrorKind::FinalSuperclass(_, span) => {
+                report.with_label(ariadne::Label::new(*span).with_message("Class defined here"))
+            }
             ErrorKind::ClassIncomplete(_, span) => {
                 report.with_label(ariadne::Label::new(*span).with_message("Method required here"))
             }
             ErrorKind::NameClash(span) => report
+                .with_label(ariadne::Label::new(*span).with_message("Previous definition here")),
+            ErrorKind::FinalMismatch(span) => report
                 .with_label(ariadne::Label::new(*span).with_message("Previous definition here")),
             ErrorKind::SignatureMismatch(span) => report
                 .with_label(ariadne::Label::new(*span).with_message("Signature definition here")),

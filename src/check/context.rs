@@ -34,6 +34,9 @@ pub struct Context {
     /// Set of classes in implementation module
     class_implementations: Set<Identifier>,
 
+    /// Set of classes declared as final
+    class_final: Set<Identifier>,
+
     /// Set of class templates visible to program
     class_templates: Environment<ast::ClassTemplate>,
 
@@ -109,6 +112,7 @@ impl Context {
             classes: Environment::default(),
             class_signatures: Set::default(),
             class_implementations: Set::default(),
+            class_final: Set::default(),
             class_templates: Environment::default(),
             function_templates: Environment::default(),
             locals: Vec::default(),
@@ -187,7 +191,7 @@ impl Context {
         &mut self,
         class: Identifier,
     ) -> Option<(Span, Environment<Entry>)> {
-        self.class_signatures.insert(class.clone());
+        insert_set(&mut self.class_signatures, class.clone());
         self.classes.insert(class, Environment::default())
     }
 
@@ -202,13 +206,22 @@ impl Context {
     }
 
     pub fn insert_class_implementation(&mut self, class: Identifier) -> Option<Span> {
-        match self.class_implementations.insert_full(class.clone()) {
-            (index, false) => return Some(*self.class_implementations[index].span),
-            (_, true) => (),
+        if let Some(span) = insert_set(&mut self.class_implementations, class.clone()) {
+            return Some(span);
         }
 
         self.classes.initialize(class);
         None
+    }
+
+    pub fn insert_final(&mut self, class: Identifier) -> Option<Span> {
+        insert_set(&mut self.class_final, class)
+    }
+
+    pub fn get_final(&self, class: &Identifier) -> Option<&Span> {
+        self.class_final
+            .get(class)
+            .map(|identifier| &*identifier.span)
     }
 
     pub fn insert_supertype(
@@ -406,6 +419,20 @@ impl Context {
                 .map(LeastUpperBound::array),
             (_, _) if left == right => Some(LeastUpperBound::Left(left.clone())),
             (_, _) => None,
+        }
+    }
+}
+
+fn insert_set(set: &mut Set<Identifier>, identifier: Identifier) -> Option<Span> {
+    match set.swap_remove_full(&identifier) {
+        Some((old_index, old)) => {
+            let (new_index, _) = set.insert_full(identifier);
+            set.swap_indices(old_index, new_index);
+            Some(*old.span)
+        }
+        None => {
+            set.insert(identifier);
+            None
         }
     }
 }

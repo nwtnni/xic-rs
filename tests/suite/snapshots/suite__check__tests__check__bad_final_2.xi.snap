@@ -1,0 +1,19 @@
+---
+source: tests/suite/check.rs
+assertion_line: 34
+expression: Snapshot(context)
+---
+Error: Semantic error
+   ╭─[tests/check/bad_final_2.xi:1:1]
+   │
+ 1 │ class A {}
+   · ─────┬────  
+   ·      ╰────── Inconsistent `final` annotation on class
+   │
+   ├─[tests/check/bad_final_2.ixi:1:13]
+   │
+ 1 │ final class A {}
+   ·             ┬  
+   ·             ╰── Previous definition here
+───╯
+

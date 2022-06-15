@@ -1,0 +1,19 @@
+---
+source: tests/suite/check.rs
+assertion_line: 34
+expression: Snapshot(context)
+---
+Error: Semantic error
+   ╭─[tests/check/bad_final_5.xi:3:17]
+   │
+ 3 │ class B extends A {}
+   ·                 ┬  
+   ·                 ╰── Class A is declared final and cannot be extended
+   │
+   ├─[tests/check/bad_final_5_1.ixi:1:13]
+   │
+ 1 │ final class A {}
+   ·             ┬  
+   ·             ╰── Class defined here
+───╯
+
