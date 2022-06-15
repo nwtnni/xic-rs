@@ -66,17 +66,16 @@ impl Layout {
             // Reserve a slot for private use
             offset += 1;
 
-            let (_, environment) = context
+            for (identifier, entry) in context
                 .get_class(&superclass)
-                .expect("[TYPE ERROR]: unbound class");
-
-            for (symbol, (_, entry)) in environment {
+                .expect("[INTERNAL ERROR]: unbound class")
+            {
                 match entry {
                     Entry::Variable(_) => {
-                        fields.insert((superclass, *symbol));
+                        fields.insert((superclass, identifier.symbol));
                     }
                     Entry::Function(_, _) | Entry::Signature(_, _) => {
-                        methods.entry(*symbol).or_insert_with(|| {
+                        methods.entry(identifier.symbol).or_insert_with(|| {
                             let index = offset;
                             offset += 1;
                             index

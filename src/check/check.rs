@@ -113,7 +113,7 @@ impl Checker {
         class: &ast::ClassSignature,
     ) -> Result<(), Error> {
         if let Some(supertype) = &class.extends {
-            if self.context.get_class(&supertype.symbol).is_none() {
+            if self.context.get_class(supertype).is_none() {
                 bail!(*supertype.span, ErrorKind::UnboundClass(supertype.symbol))
             }
         }
@@ -127,7 +127,7 @@ impl Checker {
 
     fn check_class(&mut self, class: &ast::Class) -> Result<(), Error> {
         if let Some(supertype) = &class.extends {
-            if self.context.get_class(&supertype.symbol).is_none() {
+            if self.context.get_class(supertype).is_none() {
                 bail!(*supertype.span, ErrorKind::UnboundClass(supertype.symbol));
             }
         }
@@ -135,12 +135,11 @@ impl Checker {
         // Classes must implement at least the methods declared in its interface
         if let Some(span) = self
             .context
-            .get_class(&class.name.symbol)
+            .get_class(&class.name)
             .unwrap()
-            .1
-            .values()
-            .find_map(|(span, entry)| match entry {
-                Entry::Signature(_, _) => Some(*span),
+            .iter()
+            .find_map(|(identifier, entry)| match entry {
+                Entry::Signature(_, _) => Some(*identifier.span),
                 _ => None,
             })
         {
@@ -164,20 +163,13 @@ impl Checker {
                     )) = self
                         .context
                         .ancestors_exclusive(&class.name.symbol)
-                        .find_map(|class| {
-                            self.context
-                                .get_class(&class)
-                                .unwrap()
-                                .1
-                                .get(&method.name.symbol)
-                        })
+                        .find_map(|class| self.context.get_class(&class).unwrap().get(&method.name))
                     {
                         let (new_parameters, new_returns) = self
                             .context
-                            .get_class(&class.name.symbol)
+                            .get_class(&class.name)
                             .unwrap()
-                            .1
-                            .get(&method.name.symbol)
+                            .get(&method.name)
                             .and_then(|(_, entry)| match entry {
                                 Entry::Function(new_parameters, new_returns) => {
                                     Some((new_parameters, new_returns))
@@ -208,7 +200,7 @@ impl Checker {
     ) -> Result<(), Error> {
         self.check_callable(function)?;
 
-        let returns = match self.context.get(scope, &function.name.symbol) {
+        let returns = match self.context.get(scope, &function.name) {
             Some(Entry::Function(_, returns)) => returns.clone(),
             _ => panic!("[INTERNAL ERROR]: functions and methods should be bound in first pass"),
         };
@@ -384,7 +376,7 @@ impl Checker {
                 span: _,
             }) => {
                 assert!(generics.is_none());
-                match self.context.get(Scope::Local, &name.symbol) {
+                match self.context.get(Scope::Local, name) {
                     Some(Entry::Variable(r#type)) => Ok(r#type.clone()),
                     Some(_) => bail!(*name.span, ErrorKind::NotVariable(name.symbol)),
                     None => bail!(*name.span, ErrorKind::UnboundVariable(name.symbol)),
@@ -521,7 +513,7 @@ impl Checker {
 
                 receiver_class.set(Some(class));
 
-                match self.context.get(GlobalScope::Class(class), &field.symbol) {
+                match self.context.get(GlobalScope::Class(class), field) {
                     None => bail!(*field.span, ErrorKind::UnboundVariable(field.symbol)),
                     Some(Entry::Variable(r#type)) => Ok(r#type.clone()),
                     Some(_) => bail!(*field.span, ErrorKind::NotVariable(field.symbol)),
@@ -536,9 +528,9 @@ impl Checker {
                 span,
             ) => {
                 assert!(generics.is_none());
-                match self.context.get_class_implementation(&name.symbol) {
+                match self.context.get_class_implementation(name) {
                     Some(_) => Ok(r#type::Expression::Class(name.symbol)),
-                    None if self.context.get_class(&name.symbol).is_some() => {
+                    None if self.context.get_class(name).is_some() => {
                         bail!(*span, ErrorKind::NotInClassModule(name.symbol))
                     }
                     None => {
@@ -688,7 +680,7 @@ impl Checker {
         match (
             scope,
             self.context
-                .insert_full(scope, name, Entry::Variable(r#type.clone())),
+                .insert(scope, name.clone(), Entry::Variable(r#type.clone())),
         ) {
             (_, None) => (),
             // Note: class fields are inserted during loading, since they need
@@ -721,7 +713,7 @@ impl Checker {
                 name,
                 generics: None,
                 span: _,
-            }) => match self.context.get_class(&name.symbol) {
+            }) => match self.context.get_class(name) {
                 Some(_) => Ok(r#type::Expression::Class(name.symbol)),
                 None => bail!(*name.span, ErrorKind::UnboundClass(name.symbol)),
             },

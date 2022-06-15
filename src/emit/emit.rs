@@ -297,14 +297,21 @@ impl<'env> Emitter<'env> {
         }
 
         // Selectively override superclass entries
-        for (symbol, (_, entry)) in &self.context.get_class(class).unwrap().1 {
+        for (identifier, entry) in self.context.get_class(class).unwrap() {
             let (parameters, returns) = match entry {
                 Entry::Variable(_) | Entry::Signature(_, _) => continue,
                 Entry::Function(parameters, returns) => (parameters, returns),
             };
 
-            let offset = self.classes[class].method_index(symbol).unwrap();
-            let method = Label::Fixed(abi::mangle::method(class, symbol, parameters, returns));
+            let offset = self.classes[class]
+                .method_index(&identifier.symbol)
+                .unwrap();
+            let method = Label::Fixed(abi::mangle::method(
+                class,
+                &identifier.symbol,
+                parameters,
+                returns,
+            ));
 
             statements.push(hir!(
                 (MOVE

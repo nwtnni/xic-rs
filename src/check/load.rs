@@ -122,7 +122,7 @@ impl Checker {
     }
 
     fn load_class_template(&mut self, class: &ast::ClassTemplate) -> Result<(), error::Error> {
-        if let Some(span) = self.context.insert_class_template(class.clone()) {
+        if let Some((span, _)) = self.context.insert_class_template(class.clone()) {
             bail!(class.span, ErrorKind::NameClash(span))
         }
 
@@ -133,7 +133,7 @@ impl Checker {
         &mut self,
         function: &ast::FunctionTemplate,
     ) -> Result<(), error::Error> {
-        if let Some(span) = self.context.insert_function_template(function.clone()) {
+        if let Some((span, _)) = self.context.insert_function_template(function.clone()) {
             bail!(function.span, ErrorKind::NameClash(span))
         }
 
@@ -141,7 +141,7 @@ impl Checker {
     }
 
     fn load_class_signature(&mut self, class: &ast::ClassSignature) -> Result<(), error::Error> {
-        let expected = self.context.insert_class_signature(&class.name);
+        let expected = self.context.insert_class_signature(class.name.clone());
 
         if let Some(supertype) = &class.extends {
             if let Some(existing) = self
@@ -170,18 +170,18 @@ impl Checker {
             None => return Ok(()),
         };
 
-        let (actual_span, actual) = self.context.get_class(&class.name.symbol).unwrap();
+        let (actual_span, actual) = self.context.get_class_full(&class.name).unwrap();
 
         // New and old signatures must be exactly the same
         if expected.len() != actual.len()
-            || expected.iter().any(|(symbol, (_, expected_entry))| {
+            || expected.iter().any(|(identifier, expected_entry)| {
                 actual
-                    .get(symbol)
+                    .get(identifier)
                     .map_or(true, |(_, actual_entry)| expected_entry != actual_entry)
             })
-            || actual.iter().any(|(symbol, (_, actual_entry))| {
+            || actual.iter().any(|(identifier, actual_entry)| {
                 expected
-                    .get(symbol)
+                    .get(identifier)
                     .map_or(true, |(_, expected_entry)| actual_entry != expected_entry)
             })
         {
@@ -204,7 +204,7 @@ impl Checker {
                 bail!(*function.name.span, ErrorKind::NameClash(*span))
             }
             Some(_) | None => {
-                self.context.insert_full(scope, &function.name, signature);
+                self.context.insert(scope, function.name.clone(), signature);
             }
         }
 
@@ -212,7 +212,7 @@ impl Checker {
     }
 
     pub(super) fn load_class(&mut self, class: &ast::Class) -> Result<(), error::Error> {
-        if let Some(span) = self.context.insert_class_implementation(&class.name) {
+        if let Some(span) = self.context.insert_class_implementation(class.name.clone()) {
             bail!(class.span, ErrorKind::NameClash(span));
         }
 
@@ -253,9 +253,9 @@ impl Checker {
     ) -> Result<(), error::Error> {
         let (new_parameters, new_returns) = self.load_callable(function);
 
-        match self.context.insert_full(
+        match self.context.insert(
             scope,
-            &function.name,
+            function.name.clone(),
             Entry::Function(new_parameters.clone(), new_returns.clone()),
         ) {
             None => match scope {
@@ -308,9 +308,9 @@ impl Checker {
     ) -> Result<(), error::Error> {
         for (name, r#type) in declaration.iter() {
             let r#type = self.load_type(r#type);
-            if let Some((span, _)) = self.context.insert_full(
+            if let Some((span, _)) = self.context.insert(
                 GlobalScope::Class(class.symbol),
-                name,
+                name.clone(),
                 Entry::Variable(r#type),
             ) {
                 bail!(*name.span, ErrorKind::NameClash(span))
