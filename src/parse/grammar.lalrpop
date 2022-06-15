@@ -35,6 +35,7 @@ ClassTemplate: ClassTemplate = {
         "class"
         <name: Identifier>
         <generics: ("<" <CommaPlus<Identifier>> ">")?>
+        <extends: ("extends" <Variable>)?>
         "{"
         <items: ClassItem*>
         "}"
@@ -43,6 +44,7 @@ ClassTemplate: ClassTemplate = {
             final_,
             name,
             generics.unwrap_or_default(),
+            extends,
             items,
             Span::new(l, r),
         )
@@ -54,7 +56,7 @@ ClassSignature: ClassSignature = {
         <final_: Final>
         "class"
         <name: Identifier>
-        <extends: ("extends" <Identifier>)?>
+        <extends: ("extends" <Variable>)?>
         "{"
         <methods: FunctionSignature*>
         "}"
@@ -148,7 +150,7 @@ Class: Class = {
         <final_: Final>
         "class"
         <name: Identifier>
-        <extends: ("extends" <Identifier>)?>
+        <extends: ("extends" <Variable>)?>
         "{"
         <items: ClassItem*>
         "}"

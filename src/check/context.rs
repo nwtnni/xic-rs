@@ -218,7 +218,7 @@ impl Context {
         insert_set(&mut self.class_final, class)
     }
 
-    pub fn get_final(&self, class: &Identifier) -> Option<&Span> {
+    pub fn get_final<K: Key>(&self, class: &K) -> Option<&Span> {
         self.class_final
             .get(class)
             .map(|identifier| &*identifier.span)

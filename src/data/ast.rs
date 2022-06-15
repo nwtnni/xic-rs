@@ -113,13 +113,14 @@ impl fmt::Display for Initialization {
     }
 }
 
-const _: [(); 96] = [(); std::mem::size_of::<ClassTemplate>()];
+const _: [(); 160] = [(); std::mem::size_of::<ClassTemplate>()];
 
 #[derive(Clone, Debug)]
 pub struct ClassTemplate {
     pub r#final: bool,
     pub name: Identifier,
     pub generics: Vec<Identifier>,
+    pub extends: Option<Variable>,
     pub items: Vec<ClassItem>,
     pub span: Span,
 }
@@ -130,6 +131,7 @@ impl ClassTemplate {
         r#final: bool,
         name: Identifier,
         generics: Vec<Identifier>,
+        extends: Option<Variable>,
         items: Vec<ClassItem>,
         span: Span,
     ) -> Self {
@@ -137,6 +139,7 @@ impl ClassTemplate {
             r#final,
             name,
             generics,
+            extends,
             items,
             span,
         }
@@ -153,7 +156,7 @@ impl fmt::Display for ClassTemplate {
 pub struct ClassSignature {
     pub r#final: bool,
     pub name: Identifier,
-    pub extends: Option<Identifier>,
+    pub extends: Option<Variable>,
     pub methods: Vec<FunctionSignature>,
     pub span: Span,
 }
@@ -163,7 +166,7 @@ impl ClassSignature {
     pub fn new(
         r#final: bool,
         name: Identifier,
-        extends: Option<Identifier>,
+        extends: Option<Variable>,
         methods: Vec<FunctionSignature>,
         span: Span,
     ) -> Self {
@@ -183,13 +186,13 @@ impl fmt::Display for ClassSignature {
     }
 }
 
-const _: [(); 112] = [(); std::mem::size_of::<Class>()];
+const _: [(); 160] = [(); std::mem::size_of::<Class>()];
 
 #[derive(Clone, Debug)]
 pub struct Class {
     pub r#final: bool,
     pub name: Identifier,
-    pub extends: Option<Identifier>,
+    pub extends: Option<Variable>,
     pub items: Vec<ClassItem>,
     // Used for tracking class template instantiation chains in diagnostics
     pub(crate) provenance: Vec<Span>,
@@ -201,7 +204,7 @@ impl Class {
     pub fn new(
         r#final: bool,
         name: Identifier,
-        extends: Option<Identifier>,
+        extends: Option<Variable>,
         items: Vec<ClassItem>,
         provenance: Vec<Span>,
         span: Span,

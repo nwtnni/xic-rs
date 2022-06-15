@@ -1,0 +1,17 @@
+---
+source: tests/suite/check.rs
+assertion_line: 34
+expression: Snapshot(context)
+---
+Error: Semantic error
+   ╭─[tests/check/bad_final_6.xi:3:17]
+   │
+ 1 │ template final class A {}
+   ·                      ┬  
+   ·                      ╰── Class defined here
+   · 
+ 3 │ class B extends A::<> {}
+   ·                 ──┬──  
+   ·                   ╰──── Class At0 is declared final and cannot be extended
+───╯
+

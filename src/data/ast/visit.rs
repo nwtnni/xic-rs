@@ -77,6 +77,9 @@ impl ast::ClassSignature {
             span: _,
         } = self;
         name.accept_mut(visitor);
+        if let Some(supertype) = extends {
+            supertype.accept_mut(visitor)
+        }
         extends
             .iter_mut()
             .for_each(|supertype| supertype.accept_mut(visitor));
@@ -163,9 +166,9 @@ impl ast::Class {
             span: _,
         } = self;
         name.accept_mut(visitor);
-        extends
-            .iter_mut()
-            .for_each(|supertype| supertype.accept_mut(visitor));
+        if let Some(supertype) = extends {
+            supertype.accept_mut(visitor)
+        }
         items.iter_mut().for_each(|item| item.accept_mut(visitor));
 
         visitor.visit_class(self);

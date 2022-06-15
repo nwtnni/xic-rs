@@ -1,0 +1,21 @@
+---
+source: tests/suite/check.rs
+assertion_line: 34
+expression: Snapshot(context)
+---
+Error: Semantic error
+   ╭─[tests/check/bad_final_8.xi:3:29]
+   │
+ 1 │ template final class A<T> {}
+   ·                      ┬  
+   ·                      ╰── Class defined here
+   · 
+ 3 │ template class B<T> extends A::<T> {}
+   ·                             ───┬──  
+   ·                                ╰──── Class At1i is declared final and cannot be extended
+   · 
+ 6 │     b: B::<int> = new B::<int>
+   ·        ────┬───  
+   ·            ╰───── Template instantiated here
+───╯
+

@@ -11,6 +11,7 @@ use crate::data::ast;
 use crate::data::r#type;
 use crate::data::span::Span;
 use crate::data::symbol;
+use crate::data::symbol::Symbol;
 use crate::error;
 use crate::lex;
 use crate::parse;
@@ -157,15 +158,20 @@ impl Checker {
         let expected = self.context.insert_class_signature(class.name.clone());
 
         if let Some(supertype) = &class.extends {
-            if let Some(existing) = self
-                .context
-                .insert_supertype(class.name.clone(), supertype.clone())
-            {
+            let symbol = self.load_variable(supertype);
+
+            if let Some(existing) = self.context.insert_supertype(
+                class.name.clone(),
+                ast::Identifier {
+                    symbol,
+                    span: Box::new(supertype.span),
+                },
+            ) {
                 expected!(
                     *existing.span,
                     r#type::Expression::Class(existing.symbol),
-                    *supertype.span,
-                    r#type::Expression::Class(supertype.symbol),
+                    supertype.span,
+                    r#type::Expression::Class(symbol),
                 );
             }
 
@@ -243,15 +249,20 @@ impl Checker {
         }
 
         if let Some(supertype) = &class.extends {
-            if let Some(existing) = self
-                .context
-                .insert_supertype(class.name.clone(), supertype.clone())
-            {
+            let symbol = self.load_variable(supertype);
+
+            if let Some(existing) = self.context.insert_supertype(
+                class.name.clone(),
+                ast::Identifier {
+                    symbol,
+                    span: Box::new(supertype.span),
+                },
+            ) {
                 expected!(
                     *existing.span,
                     r#type::Expression::Class(existing.symbol),
-                    *supertype.span,
-                    r#type::Expression::Class(supertype.symbol),
+                    supertype.span,
+                    r#type::Expression::Class(symbol),
                 );
             }
 
@@ -350,37 +361,35 @@ impl Checker {
         match r#type {
             ast::Type::Bool(_) => r#type::Expression::Boolean,
             ast::Type::Int(_) => r#type::Expression::Integer,
+            ast::Type::Class(variable) => r#type::Expression::Class(self.load_variable(variable)),
             ast::Type::Array(r#type, length, _) => {
                 assert!(length.is_none());
                 r#type::Expression::Array(Box::new(self.load_type(r#type)))
             }
-            ast::Type::Class(ast::Variable {
-                name,
-                generics: None,
-                span: _,
-            }) => r#type::Expression::Class(name.symbol),
-            // There are two cases to consider here:
-            //
-            // 1) This generic type is instantiated inside the body of a function, in
-            //    which case the monomorphization pass will instantiate the type later.
-            //
-            // 2) This generic type appears in a signature with no implementation, in
-            //    which case the type will be instantiated when we compile the
-            //    implementation, and we'll link against it.
-            //
-            // Unbound type arguments or templates will be caught by `check_type` or
-            // the monomorphization pass.
-            ast::Type::Class(ast::Variable {
-                name,
-                generics: Some(generics),
-                span: _,
-            }) => {
+        }
+    }
+
+    // There are two cases to consider here:
+    //
+    // 1) This generic type is instantiated inside the body of a function, in
+    //    which case the monomorphization pass will instantiate the type later.
+    //
+    // 2) This generic type appears in a signature with no implementation, in
+    //    which case the type will be instantiated when we compile the
+    //    implementation, and we'll link against it.
+    //
+    // Unbound type arguments or templates will be caught by `check_type` or
+    // the monomorphization pass.
+    fn load_variable(&self, variable: &ast::Variable) -> Symbol {
+        match &variable.generics {
+            None => variable.name.symbol,
+            Some(generics) => {
                 let generics = generics
                     .iter()
                     .map(|generic| self.load_type(generic))
                     .collect::<Vec<_>>();
 
-                r#type::Expression::Class(abi::mangle::template(&name.symbol, &generics))
+                abi::mangle::template(&variable.name.symbol, &generics)
             }
         }
     }

@@ -51,6 +51,12 @@ struct Monomorphizer<'a> {
 }
 
 impl<'a> ast::VisitorMut for Monomorphizer<'a> {
+    fn visit_class(&mut self, class: &mut ast::Class) {
+        if let Some(supertype) = class.extends.as_mut() {
+            self.monomorphize_class(supertype);
+        }
+    }
+
     fn visit_call(&mut self, call: &mut ast::Call) {
         if let ast::Expression::Variable(variable) = &mut *call.function {
             self.monomorphize(Self::instantiate_function_template, variable);
@@ -84,18 +90,22 @@ impl<'a> ast::VisitorMut for Monomorphizer<'a> {
         }
 
         if let ast::Type::Class(variable) = r#type {
-            self.monomorphize(Self::instantiate_class_template, variable);
+            self.monomorphize_class(variable);
         }
     }
 
     fn visit_expression(&mut self, expression: &mut ast::Expression) {
         if let ast::Expression::New(variable, _) = expression {
-            self.monomorphize(Self::instantiate_class_template, variable);
+            self.monomorphize_class(variable);
         }
     }
 }
 
 impl<'a> Monomorphizer<'a> {
+    fn monomorphize_class(&mut self, variable: &mut ast::Variable) {
+        self.monomorphize(Self::instantiate_class_template, variable);
+    }
+
     fn monomorphize(
         &mut self,
         instantiate: fn(&mut Self, &ast::Identifier, &[ast::Type], &Span),
@@ -154,7 +164,7 @@ impl<'a> Monomorphizer<'a> {
                 symbol: abi::mangle::template_ast(&template.name.symbol, generics),
                 span: template.name.span.clone(),
             },
-            extends: None,
+            extends: template.extends,
             items: template.items,
             provenance: self
                 .arguments

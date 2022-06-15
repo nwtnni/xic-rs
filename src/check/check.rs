@@ -113,15 +113,9 @@ impl Checker {
         class: &ast::ClassSignature,
     ) -> Result<(), Error> {
         if let Some(supertype) = &class.extends {
-            if self.context.get_class(supertype).is_none() {
-                bail!(*supertype.span, ErrorKind::UnboundClass(supertype.symbol))
-            }
-
-            if let Some(span) = self.context.get_final(supertype) {
-                bail!(
-                    *supertype.span,
-                    ErrorKind::FinalSuperclass(supertype.symbol, *span)
-                );
+            let symbol = self.check_variable(supertype)?;
+            if let Some(span) = self.context.get_final(&symbol) {
+                bail!(supertype.span, ErrorKind::FinalSuperclass(symbol, *span));
             }
         }
 
@@ -134,15 +128,9 @@ impl Checker {
 
     fn check_class(&mut self, class: &ast::Class) -> Result<(), Error> {
         if let Some(supertype) = &class.extends {
-            if self.context.get_class(supertype).is_none() {
-                bail!(*supertype.span, ErrorKind::UnboundClass(supertype.symbol));
-            }
-
-            if let Some(span) = self.context.get_final(supertype) {
-                bail!(
-                    *supertype.span,
-                    ErrorKind::FinalSuperclass(supertype.symbol, *span)
-                );
+            let symbol = self.check_variable(supertype)?;
+            if let Some(span) = self.context.get_final(&symbol) {
+                bail!(supertype.span, ErrorKind::FinalSuperclass(symbol, *span));
             }
         }
 
@@ -716,6 +704,9 @@ impl Checker {
                 .check_type(r#type)
                 .map(Box::new)
                 .map(r#type::Expression::Array),
+            ast::Type::Class(variable) => {
+                self.check_variable(variable).map(r#type::Expression::Class)
+            }
             ast::Type::Array(r#type, Some(length), _) => {
                 let r#type = self.check_type(r#type)?;
                 match self.check_expression(length)? {
@@ -723,38 +714,43 @@ impl Checker {
                     r#type => expected!(r#type::Expression::Integer, length.span(), r#type),
                 }
             }
-            ast::Type::Class(ast::Variable {
-                name,
-                generics: None,
-                span: _,
-            }) => match self.context.get_class(name) {
-                Some(_) => Ok(r#type::Expression::Class(name.symbol)),
-                None => bail!(*name.span, ErrorKind::UnboundClass(name.symbol)),
+        }
+    }
+
+    // There are two cases where this function is called:
+    // FIXME: three cases (call during monomorphization pass)
+    //
+    // 1) Checking interfaces during the second half of the loading pass.
+    //
+    // Here, we haven't monomorphized yet, so this branch is reachable,
+    // and type arguments should be checked. But we *don't* want to check
+    // that the template instantiation exists, because its implementation
+    // may be in a separate compilation unit.
+    //
+    // 2) Checking signatures after monomorphization.
+    //
+    // Here, there are no more generics, so this branch is unreachable.
+    // Any unbound classes within the type arguments must be caught
+    // during the monomorphization pass.
+    fn check_variable(&self, variable: &ast::Variable) -> Result<Symbol, Error> {
+        match &variable.generics {
+            None => match self.context.get_class(&variable.name) {
+                Some(_) => Ok(variable.name.symbol),
+                None => bail!(
+                    *variable.name.span,
+                    ErrorKind::UnboundClass(variable.name.symbol)
+                ),
             },
-            // There are two cases where this function is called:
-            // FIXME: three cases (call during monomorphization pass)
-            //
-            // 1) Checking interfaces during the second half of the loading pass.
-            //
-            // Here, we haven't monomorphized yet, so this branch is reachable,
-            // and type arguments should be checked. But we *don't* want to check
-            // that the template instantiation exists, because its implementation
-            // may be in a separate compilation unit.
-            //
-            // 2) Checking signatures after monomorphization.
-            //
-            // Here, there are no more generics, so this branch is unreachable.
-            // Any unbound classes within the type arguments must be caught
-            // during the monomorphization pass.
-            ast::Type::Class(ast::Variable {
-                name,
-                generics: Some(generics),
-                span,
-            }) => {
-                match self.context.get_class_template(name) {
-                    None => bail!(*name.span, ErrorKind::UnboundClassTemplate(name.symbol)),
+            Some(generics) => {
+                match self.context.get_class_template(&variable.name) {
+                    None => {
+                        bail!(
+                            *variable.name.span,
+                            ErrorKind::UnboundClassTemplate(variable.name.symbol)
+                        )
+                    }
                     Some(template) if template.generics.len() != generics.len() => bail!(
-                        *span,
+                        variable.span,
                         ErrorKind::TemplateArgumentMismatch {
                             span: *template.name.span,
                             expected: template.generics.len(),
@@ -769,10 +765,7 @@ impl Checker {
                     .map(|generic| self.check_type(generic))
                     .collect::<Result<Vec<_>, _>>()?;
 
-                Ok(r#type::Expression::Class(abi::mangle::template(
-                    &name.symbol,
-                    &generics,
-                )))
+                Ok(abi::mangle::template(&variable.name.symbol, &generics))
             }
         }
     }
