@@ -550,6 +550,7 @@ extern {
         "super" => Token::Super,
         "new" => Token::New,
         "extends" => Token::Extends,
+        "final" => Token::Final,
         "null" => Token::Null,
         "break" => Token::Break,
         "if" => Token::If,

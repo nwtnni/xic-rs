@@ -169,6 +169,7 @@ impl<'source> Lexer<'source> {
             "super" => Super,
             "new" => New,
             "extends" => Extends,
+            "final" => Final,
             "null" => Null,
             "break" => Break,
             "if" => If,

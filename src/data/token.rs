@@ -72,6 +72,9 @@ pub enum Token {
     /// `extends` keyword
     Extends,
 
+    /// `final` keyword
+    Final,
+
     /// `null` keyword
     Null,
 
@@ -207,6 +210,7 @@ impl std::fmt::Display for Token {
             Token::Super => write!(fmt, "super"),
             Token::New => write!(fmt, "new"),
             Token::Extends => write!(fmt, "extends"),
+            Token::Final => write!(fmt, "final"),
             Token::Null => write!(fmt, "null"),
             Token::Break => write!(fmt, "break"),
             Token::If => write!(fmt, "if"),
