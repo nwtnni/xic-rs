@@ -79,14 +79,25 @@ impl Serialize for ast::Initialization {
 
 impl Serialize for ast::ClassTemplate {
     fn sexp(&self) -> Sexp {
-        [self.name.sexp(), self.generics.sexp(), self.items.sexp()].sexp_move()
+        [
+            match self.r#final {
+                true => ["final".sexp(), self.name.sexp()].sexp_move(),
+                false => self.name.sexp(),
+            },
+            self.generics.sexp(),
+            self.items.sexp(),
+        ]
+        .sexp_move()
     }
 }
 
 impl Serialize for ast::ClassSignature {
     fn sexp(&self) -> Sexp {
         [
-            self.name.sexp(),
+            match self.r#final {
+                true => ["final".sexp(), self.name.sexp()].sexp_move(),
+                false => self.name.sexp(),
+            },
             match &self.extends {
                 None => ["extends".sexp()].sexp_move(),
                 Some(extends) => ["extends".sexp(), extends.sexp()].sexp_move(),
@@ -100,7 +111,10 @@ impl Serialize for ast::ClassSignature {
 impl Serialize for ast::Class {
     fn sexp(&self) -> Sexp {
         [
-            self.name.sexp(),
+            match self.r#final {
+                true => ["final".sexp(), self.name.sexp()].sexp_move(),
+                false => self.name.sexp(),
+            },
             if let Some(extends) = &self.extends {
                 ["extends".sexp(), extends.sexp()].sexp_move()
             } else {

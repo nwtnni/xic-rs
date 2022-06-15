@@ -70,6 +70,7 @@ impl ast::ItemSignature {
 impl ast::ClassSignature {
     pub fn accept_mut<V: VisitorMut>(&mut self, visitor: &mut V) {
         let ast::ClassSignature {
+            r#final: _,
             name,
             extends,
             methods,
@@ -154,6 +155,7 @@ impl ast::Global {
 impl ast::Class {
     pub fn accept_mut<V: VisitorMut>(&mut self, visitor: &mut V) {
         let ast::Class {
+            r#final: _,
             name,
             extends,
             items,

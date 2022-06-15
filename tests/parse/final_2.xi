@@ -1,0 +1,1 @@
+template final class A {}

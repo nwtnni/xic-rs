@@ -149,6 +149,7 @@ impl<'a> Monomorphizer<'a> {
         ));
 
         let mut instantiation = ast::Class {
+            r#final: template.r#final,
             name: ast::Identifier {
                 symbol: abi::mangle::template_ast(&template.name.symbol, generics),
                 span: template.name.span.clone(),

@@ -31,6 +31,7 @@ ItemSignature: ItemSignature = {
 ClassTemplate: ClassTemplate = {
     <l: @L>
         "template"
+        <final_: Final>
         "class"
         <name: Identifier>
         <generics: ("<" <CommaPlus<Identifier>> ">")?>
@@ -38,23 +39,33 @@ ClassTemplate: ClassTemplate = {
         <items: ClassItem*>
         "}"
     <r: @R> => {
-        ClassTemplate {
+        ClassTemplate::new(
+            final_,
             name,
-            generics: generics.unwrap_or_default(),
+            generics.unwrap_or_default(),
             items,
-            span: Span::new(l, r),
-        }
+            Span::new(l, r),
+        )
     }
 }
 
 ClassSignature: ClassSignature = {
-    <l: @L> "class" <name: Identifier> <extends: ("extends" <Identifier>)?> "{" <methods: FunctionSignature*> "}" <r: @R> => {
-        ClassSignature {
+    <l: @L>
+        <final_: Final>
+        "class"
+        <name: Identifier>
+        <extends: ("extends" <Identifier>)?>
+        "{"
+        <methods: FunctionSignature*>
+        "}"
+    <r: @R> => {
+        ClassSignature::new(
+            final_,
             name,
             extends,
             methods,
-            span: Span::new(l, r),
-        }
+            Span::new(l, r),
+        )
     },
 }
 
@@ -134,6 +145,7 @@ Initialization: Initialization = {
 
 Class: Class = {
     <l: @L>
+        <final_: Final>
         "class"
         <name: Identifier>
         <extends: ("extends" <Identifier>)?>
@@ -141,13 +153,20 @@ Class: Class = {
         <items: ClassItem*>
         "}"
     <r: @R> => {
-        Class {
+        Class::new(
+            final_,
             name,
             extends,
             items,
-            provenance: Vec::new(),
-            span: Span::new(l, r),
-        }
+            Vec::new(),
+            Span::new(l, r),
+        )
+    }
+}
+
+Final: bool = {
+    <final_: "final"?> => {
+        final_.is_some()
     }
 }
 
