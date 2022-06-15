@@ -53,17 +53,11 @@ class String {
     }
 
     slice(low: int, high: int): String {
-        return new_string_from_array(slice_array(low, high))
+        return new_string_from_vector(buffer.slice(low, high))
     }
 
     slice_array(low: int, high: int): int[] {
-        buffer': int[high - low]
-        i: int = low
-        while i < high {
-            buffer'[i - low] = buffer.get(i)
-            i = i + 1
-        }
-        return buffer'
+        return buffer.slice_array(low, high)
     }
 }
 

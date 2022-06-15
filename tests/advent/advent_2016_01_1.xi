@@ -1,14 +1,17 @@
 use assert
-use io
 use conv
+use io
+use string
 
-input: int[] = "L5, R1, R3, L4, R3, R1, L3, L2, R3, L5, L1, L2, R5, L1, R5, R1, L4, R1, R3, L4, L1, R2, R5, R3, R1, R1, L1, R1, L1, L2, L1, R2, L5, L188, L4, R1, R4, L3, R47, R1, L1, R77, R5, L2, R1, L2, R4, L5, L1, R3, R187, L4, L3, L3, R2, L3, L5, L4, L4, R1, R5, L4, L3, L3, L3, L2, L5, R1, L2, R5, L3, L4, R4, L5, R3, R4, L2, L1, L4, R1, L3, R1, R3, L2, R1, R4, R5, L3, R5, R3, L3, R4, L2, L5, L1, L1, R3, R1, L4, R3, R3, L2, R5, R4, R1, R3, L4, R3, R3, L2, L4, L5, R1, L4, L5, R4, L2, L1, L3, L3, L5, R3, L4, L3, R5, R4, R2, L4, R2, R3, L3, R4, L1, L3, R2, R1, R5, L4, L5, L5, R4, L5, L2, L4, R4, R4, R1, L3, L2, L4, R3"
+INPUT: int[] = "L5, R1, R3, L4, R3, R1, L3, L2, R3, L5, L1, L2, R5, L1, R5, R1, L4, R1, R3, L4, L1, R2, R5, R3, R1, R1, L1, R1, L1, L2, L1, R2, L5, L188, L4, R1, R4, L3, R47, R1, L1, R77, R5, L2, R1, L2, R4, L5, L1, R3, R187, L4, L3, L3, R2, L3, L5, L4, L4, R1, R5, L4, L3, L3, L3, L2, L5, R1, L2, R5, L3, L4, R4, L5, R3, R4, L2, L1, L4, R1, L3, R1, R3, L2, R1, R4, R5, L3, R5, R3, L3, R4, L2, L5, L1, L1, R3, R1, L4, R3, R3, L2, R5, R4, R1, R3, L4, R3, R3, L2, L4, L5, R1, L4, L5, R4, L2, L1, L3, L3, L5, R3, L4, L3, R5, R4, R2, L4, R2, R3, L3, R4, L1, L3, R2, R1, R5, L4, L5, L5, R4, L5, L2, L4, R4, R4, R1, L3, L2, L4, R3"
 
-L: int = input[0]
-R: int = input[4]
-COMMA: int = input[2]
+L: int = INPUT[0]
+R: int = INPUT[4]
+COMMA: int = INPUT[2]
 
 main(args: int[][]) {
+
+    input: String = new_string_from_array(INPUT)
 
     i: int = 0
 
@@ -20,34 +23,26 @@ main(args: int[][]) {
     x: int = 0
     y: int = 0
 
-    while i < length(input) {
+    while i < input.size() {
 
-        lo: int = i + 1
-        hi: int = i + 1
+        low: int = i + 1
+        high: int = i + 1
 
         // Parse block distance
         do {
-            if input[hi] == COMMA {
+            if input.get(high) == COMMA {
                 break
             }
-            hi = hi + 1
-        } while hi < length(input)
+            high = high + 1
+        } while high < input.size()
 
-        slice: int[hi - lo]
-
-        j: int = 0
-        while j < length(slice) {
-            slice[j] = input[lo + j]
-            j = j + 1
-        }
-
-        blocks: int, valid: bool = parseInt(slice)
+        blocks: int, valid: bool = parseInt(input.slice_array(low, high))
         assert(valid)
 
         // Parse direction
-        if input[i] == L {
+        if input.get(i) == L {
             direction = (direction + 3) % 4
-        } else if input[i] == R {
+        } else if input.get(i) == R {
             direction = (direction + 1) % 4
         } else {
             assert(false)
@@ -67,7 +62,7 @@ main(args: int[][]) {
         }
 
         // Skip over comma, space
-        i = hi + 2
+        i = high + 2
     }
 
     println(unparseInt(abs(x) + abs(y)))

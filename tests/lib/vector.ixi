@@ -78,6 +78,20 @@ template class Vector<T> {
         array[j] = swap
     }
 
+    slice(low: int, high: int): Vector::<T> {
+        return new_vector_from_array::<T>(slice_array(low, high))
+    }
+
+    slice_array(low: int, high: int): T[] {
+        slice': T[high - low]
+        i: int = low
+        while i < high {
+            slice'[i - low] = array[i]
+            i = i + 1
+        }
+        return slice'
+    }
+
     resize() {
         capacity': int = capacity * 2
         if capacity' == 0 {
