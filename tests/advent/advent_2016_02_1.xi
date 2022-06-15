@@ -1,6 +1,8 @@
 use assert
-use io
 use conv
+use io
+use string
+use vector
 
 INPUT: int[] = "RLRDDRLLDLRLUDDULLDRUUULDDLRLUDDDLDRRDUDDDLLURDDDLDDDRDURUDRDRRULUUDUDDRRRLRRRRRLRULRLLRULDRUUDRLRRURDDRLRULDLDULLLRULURRUULLRLLDDDDLLDURRUDLDLURDRDRDLUUUDDRDUUDDULLUURRDRLDDULURRRUDLLULULDLLURURUDRRRRUDRLRDLRRLDDRDDLULDLLLURURDUDRRRRUULURLRDULDRLUDRRUDDUULDURUDLDDURRRDLULLUUDRLLDUUDLDRUDDRLLLLLLDUDUDDLRDLRRDRUDDRRRLLRRDLLRLDDURUURRRDDLDUULLDLDLRURDLLLDDRUUDRUDDDDULRLLDUULRUULLLULURRRLLULDLDUDLDLURUDUDULLDLLUUDRRDRLUURURURURDLURUUDLDRLUDDUUDULDULULLLDLDDULLULLDULRRDRULLURRRULLDDDULULURLRDURLLURUDDULLRUDLRURURRDRDUULDRUUDURDURDDLRDUUULDUUDRDURURDRRRURLLDDLLLURURULULUDLRDLDRDRURLRLULRDLU\n\
 UDLDURRULDRDDLDUULUDLDUULUURDDRUDRURRRUDRURLLDDRURLDLRDUUURDLLULURDDUDDDRRRURLLDLDLULRDULRLULDLUUDLLRLDLRUUULDDUURDLDDRRDLURLDUDDRURDRRURDURRRLUULURDDLRDLDRRRLDUDRLRLLRLDDUULDURUUULLLRRRRRRRDRRRDRLUULDLDDLULDRDUDLLUDRRUDRUUDULRLUURDDDDRRUUDLURULLLURDULUURDRDDURULRUDRRDLRDUUUUUDDDRDRDDRUDRDDDRLRUUDRDRDDDLUDRDRLDRDDRULURDRLDRUDUDRUULRLLUDRDRLLLLDUDRRLLURDLLLDRRUDDUDRLRLDUDRLURRUUULURDDRUURRLDRLRRRUUDLULDDDRDLDUUURLLUULDDRRUDLDDRUDUDUURURDDRDULLLLLULRRRDLRRRDDDLURDDDDLUULLLRDDURRRRLURRLDDLRUULULRDRDDDDLDUUUUUUDRRULUUUDD\n\
@@ -10,25 +12,25 @@ LDUDRRDLUUDDRLLUUULURLDUDLUDLRLDRURLULRLLDDLRRUUUDDDDRDULDDUUDLRUULDRULLRDRUDDUR
 
 main(args: int[][]) {
 
-    lines: int[][] = split(INPUT, '\n')
+    lines: Vector::<String> = newStringFromArray(INPUT).split('\n')
 
     i: int = 0
 
-    while i < length(lines) {
+    while i < lines.size() {
 
         x: int = 0
         y: int = 0
 
         j: int = 0
 
-        while j < length(lines[i]) {
-            if lines[i][j] == 'U' {
+        while j < lines.get(i).size() {
+            if lines.get(i).get(j) == 'U' {
                 y = clamp(y - 1, 0, 2)
-            } else if lines[i][j] == 'D' {
+            } else if lines.get(i).get(j) == 'D' {
                 y = clamp(y + 1, 0, 2)
-            } else if lines[i][j] == 'L' {
+            } else if lines.get(i).get(j) == 'L' {
                 x = clamp(x - 1, 0, 2)
-            } else if lines[i][j] == 'R' {
+            } else if lines.get(i).get(j) == 'R' {
                 x = clamp(x + 1, 0, 2)
             } else {
                 assert(false)
@@ -52,61 +54,4 @@ clamp(x: int, low: int, high: int): int {
     } else {
         return x
     }
-}
-
-split(string: int[], character: int): int[][] {
-    count: int = 1
-
-    // First pass: compute number of splits
-    i: int = 0
-    while i < length(string) {
-        if string[i] == character {
-            count = count + 1
-        }
-
-        i = i + 1
-    }
-
-    // Second pass: compute split indices
-    indices: int[count + 1]
-    indices[0] = 0
-    indices[count] = length(string)
-
-    i = 0
-    j: int = 1
-    while i < length(string) {
-        if string[i] == character {
-            indices[j] = i
-            j = j + 1
-        }
-        i = i + 1
-    }
-
-    // Third pass: compute splits
-    splits: int[count][]
-
-    i = 0
-
-    while i + 1 < length(indices) {
-        low: int = indices[i]
-        high: int = indices[i + 1]
-
-        // Skip split character for subsequent splits
-        if i > 0 {
-            low = low + 1
-        }
-
-        split': int[high - low]
-        j = 0
-
-        while j < length(split') {
-            split'[j] = string[low + j]
-            j = j + 1
-        }
-
-        splits[i] = split'
-        i = i + 1
-    }
-
-    return splits
 }

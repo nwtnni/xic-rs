@@ -103,3 +103,13 @@ template newVector<T>(): Vector::<T> {
 
     return vector
 }
+
+template newVectorFromArray<T>(array: T[]): Vector::<T> {
+    vector: Vector::<T> = new Vector::<T>
+
+    vector.array = array
+    vector.size' = length(array)
+    vector.capacity = vector.size'
+
+    return vector
+}

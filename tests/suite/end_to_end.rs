@@ -18,9 +18,11 @@ pub fn end_to_end(path: &str) -> anyhow::Result<()> {
     Ok(())
 }
 
-#[test_generator::test_resources("tests/advent/*.xi")]
+#[test_generator::test_resources("tests/advent/advent*.xi")]
 pub fn advent(path: &str) -> anyhow::Result<()> {
-    let stdout = super::execute(compile(path)?)?;
+    let string = compile("tests/advent/string.xi")?;
+    let advent = compile(path)?;
+    let stdout = super::execute_all([string, advent])?;
     insta::assert_snapshot!(path, stdout);
     Ok(())
 }

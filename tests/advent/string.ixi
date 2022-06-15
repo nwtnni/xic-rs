@@ -1,0 +1,25 @@
+use vector
+
+class String {
+    size(): int
+
+    get(index: int): int
+
+    getArray(): int[]
+
+    push(character: int)
+
+    pop(): int
+
+    split(character: int): Vector::<String>
+
+    slice(low: int, high: int): String
+
+    sliceArray(low: int, high: int): int[]
+}
+
+newString(): String
+
+newStringFromArray(array: int[]): String
+
+newStringFromVector(vector: Vector::<int>): String

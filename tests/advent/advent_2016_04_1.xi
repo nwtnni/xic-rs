@@ -1,6 +1,8 @@
 use assert
-use io
 use conv
+use io
+use sort
+use string
 use vector
 use vector_map
 
@@ -1098,15 +1100,15 @@ INPUT: int[] = "\
     jyfvnlupj-ibuuf-svnpzapjz-851[gmsnf]"
 
 main(args: int[][]) {
-    input: int[][] = split(INPUT, '\n')
+    input: Vector::<String> = newStringFromArray(INPUT).split('\n')
     sum: int = 0
 
     i: int = 0
-    while i < length(input) {
-        room: int[] = input[i]
+    while i < input.size() {
+        room: String = input.get(i)
 
         if realRoom(room) {
-            id: int, success: bool = parseInt(slice::<int>(room, length(room) - 10, length(room) - 7))
+            id: int, success: bool = parseInt(room.sliceArray(room.size() - 10, room.size() - 7))
             assert(success)
             sum = sum + id
         }
@@ -1117,15 +1119,15 @@ main(args: int[][]) {
     println(unparseInt(sum))
 }
 
-realRoom(room: int[]): bool {
+realRoom(room: String): bool {
     counts: VectorMap::<Integer, Integer> = newVectorMap::<Integer, Integer>()
 
     i: int = 0
 
     // Count letters in name, ignoring suffix: DDD[AAAAA]
-    while i < length(room) - 10 {
-        if room[i] != '-' {
-            key: Integer = newInteger(room[i])
+    while i < room.size() - 10 {
+        if room.get(i) != '-' {
+            key: Integer = newInteger(room.get(i))
             value: Integer = counts.get(key)
 
             if value == null {
@@ -1150,11 +1152,11 @@ realRoom(room: int[]): bool {
         j = j + 1
     }
 
-    bubble_sort::<Letter>(sorted)
+    bubbleSort::<Letter>(sorted)
 
     k: int = 0
     while k < 5 {
-        checksum: int = room[length(room) - 6 + k]
+        checksum: int = room.get(room.size() - 6 + k)
 
         if sorted.get(k).letter != checksum {
             return false
@@ -1164,41 +1166,6 @@ realRoom(room: int[]): bool {
     }
 
     return true
-}
-
-template slice<T>(input: T[], low: int, high: int): T[] {
-    output: T[high - low]
-
-    i: int = low
-    while i < high {
-        output[i - low] = input[i]
-        i = i + 1
-    }
-
-    return output
-}
-
-// Requires:
-//
-// class T {
-//   compare(other: T): int
-// }
-template bubble_sort<T>(input: Vector::<T>) {
-    swapped: bool = true
-
-    while swapped {
-        swapped = false
-
-        i: int = 0
-        while i + 1 < input.size() {
-            if input.get(i).compare(input.get(i + 1)) > 0 {
-                input.swap(i, i + 1)
-                swapped = true
-            }
-
-            i = i + 1
-        }
-    }
 }
 
 class Letter {
@@ -1235,61 +1202,4 @@ newInteger(value: int): Integer {
     integer: Integer = new Integer
     integer.value = value
     return integer
-}
-
-split(string: int[], character: int): int[][] {
-    count: int = 1
-
-    // First pass: compute number of splits
-    i: int = 0
-    while i < length(string) {
-        if string[i] == character {
-            count = count + 1
-        }
-
-        i = i + 1
-    }
-
-    // Second pass: compute split indices
-    indices: int[count + 1]
-    indices[0] = 0
-    indices[count] = length(string)
-
-    i = 0
-    j: int = 1
-    while i < length(string) {
-        if string[i] == character {
-            indices[j] = i
-            j = j + 1
-        }
-        i = i + 1
-    }
-
-    // Third pass: compute splits
-    splits: int[count][]
-
-    i = 0
-
-    while i + 1 < length(indices) {
-        low: int = indices[i]
-        high: int = indices[i + 1]
-
-        // Skip split character for subsequent splits
-        if i > 0 {
-            low = low + 1
-        }
-
-        split': int[high - low]
-        j = 0
-
-        while j < length(split') {
-            split'[j] = string[low + j]
-            j = j + 1
-        }
-
-        splits[i] = split'
-        i = i + 1
-    }
-
-    return splits
 }
