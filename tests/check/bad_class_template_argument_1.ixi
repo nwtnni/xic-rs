@@ -1,0 +1,3 @@
+template class A<T> {}
+
+foo(): A::<int, bool>

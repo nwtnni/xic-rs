@@ -108,7 +108,7 @@ impl<'a> Monomorphizer<'a> {
 
         instantiate(self, &variable.name, generics, &variable.span);
 
-        variable.name.symbol = abi::mangle::template(&variable.name.symbol, generics);
+        variable.name.symbol = abi::mangle::template_ast(&variable.name.symbol, generics);
         variable.generics = None;
     }
 
@@ -150,7 +150,7 @@ impl<'a> Monomorphizer<'a> {
 
         let mut instantiation = ast::Class {
             name: ast::Identifier {
-                symbol: abi::mangle::template(&template.name.symbol, generics),
+                symbol: abi::mangle::template_ast(&template.name.symbol, generics),
                 span: template.name.span.clone(),
             },
             extends: None,
@@ -209,7 +209,7 @@ impl<'a> Monomorphizer<'a> {
 
         let mut instantiation = ast::Function {
             name: ast::Identifier {
-                symbol: abi::mangle::template(&template.name.symbol, generics),
+                symbol: abi::mangle::template_ast(&template.name.symbol, generics),
                 span: template.name.span.clone(),
             },
             parameters: template.parameters,

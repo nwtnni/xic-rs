@@ -1,5 +1,6 @@
 use std::path::Path;
 
+use crate::abi;
 use crate::check::context::Entry;
 use crate::check::context::GlobalScope;
 use crate::check::context::LeastUpperBound;
@@ -15,7 +16,7 @@ use crate::util;
 use crate::Set;
 
 macro_rules! bail {
-    ($span:expr, $kind:expr) => {
+    ($span:expr, $kind:expr $(,)?) => {
         return Err(Error::new($span, $kind).into())
     };
 }
@@ -100,17 +101,6 @@ impl Checker {
         match r#type {
             ast::Type::Bool(_) => Ok(r#type::Expression::Boolean),
             ast::Type::Int(_) => Ok(r#type::Expression::Integer),
-            ast::Type::Class(ast::Variable {
-                name,
-                generics,
-                span: _,
-            }) => {
-                assert!(generics.is_none());
-                match self.context.get_class(&name.symbol) {
-                    Some(_) => Ok(r#type::Expression::Class(name.symbol)),
-                    None => bail!(*name.span, ErrorKind::UnboundClass(name.symbol)),
-                }
-            }
             ast::Type::Array(r#type, None, _) => self
                 .check_type(r#type)
                 .map(Box::new)
@@ -121,6 +111,57 @@ impl Checker {
                     r#type::Expression::Integer => Ok(r#type::Expression::Array(Box::new(r#type))),
                     r#type => expected!(r#type::Expression::Integer, length.span(), r#type),
                 }
+            }
+            ast::Type::Class(ast::Variable {
+                name,
+                generics: None,
+                span: _,
+            }) => match self.context.get_class(&name.symbol) {
+                Some(_) => Ok(r#type::Expression::Class(name.symbol)),
+                None => bail!(*name.span, ErrorKind::UnboundClass(name.symbol)),
+            },
+            // There are two cases where this function is called:
+            // FIXME: three cases (call during monomorphization pass)
+            //
+            // 1) Checking interfaces during the second half of the loading pass.
+            //
+            // Here, we haven't monomorphized yet, so this branch is reachable,
+            // and type arguments should be checked. But we *don't* want to check
+            // that the template instantiation exists, because its implementation
+            // may be in a separate compilation unit.
+            //
+            // 2) Checking signatures after monomorphization.
+            //
+            // Here, there are no more generics, so this branch is unreachable.
+            // Any unbound classes within the type arguments must be caught
+            // during the monomorphization pass.
+            ast::Type::Class(ast::Variable {
+                name,
+                generics: Some(generics),
+                span,
+            }) => {
+                match self.context.get_class_template(name) {
+                    None => bail!(*name.span, ErrorKind::UnboundClassTemplate(name.symbol)),
+                    Some(template) if template.generics.len() != generics.len() => bail!(
+                        *span,
+                        ErrorKind::TemplateArgumentMismatch {
+                            span: *template.name.span,
+                            expected: template.generics.len(),
+                            found: generics.len()
+                        },
+                    ),
+                    Some(_) => (),
+                }
+
+                let generics = generics
+                    .iter()
+                    .map(|generic| self.check_type(generic))
+                    .collect::<Result<Vec<_>, _>>()?;
+
+                Ok(r#type::Expression::Class(abi::mangle::template(
+                    &name.symbol,
+                    &generics,
+                )))
             }
         }
     }

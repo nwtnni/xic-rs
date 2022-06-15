@@ -1,0 +1,13 @@
+---
+source: tests/suite/check.rs
+assertion_line: 34
+expression: Snapshot(context)
+---
+Error: Semantic error
+   ╭─[tests/check/bad_unbound_class_template_5.ixi:3:16]
+   │
+ 3 │ foo(): A::<A::<B::<int>[]>[]>
+   ·                ┬  
+   ·                ╰── Unbound class template B
+───╯
+

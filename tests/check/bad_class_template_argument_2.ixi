@@ -1,0 +1,3 @@
+template class A<T, U, V> {}
+
+foo(a: A::<A::<int, bool, A::<int>>[], int[], bool>)

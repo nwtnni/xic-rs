@@ -324,6 +324,12 @@ impl Checker {
         match r#type {
             ast::Type::Bool(_) => Ok(r#type::Expression::Boolean),
             ast::Type::Int(_) => Ok(r#type::Expression::Integer),
+            ast::Type::Array(r#type, length, _) => {
+                assert!(length.is_none());
+                self.load_type(r#type)
+                    .map(Box::new)
+                    .map(r#type::Expression::Array)
+            }
             ast::Type::Class(ast::Variable {
                 name,
                 generics: None,
@@ -332,26 +338,29 @@ impl Checker {
             // There are two cases to consider here:
             //
             // 1) This generic type is instantiated inside the body of a function, in
-            // which case the monomorphization pass will instantiate the type later.
+            //    which case the monomorphization pass will instantiate the type later.
             //
             // 2) This generic type appears in a signature with no implementation, in
-            // which case we will instantiate the type when compiling the implementation,
-            // and link against it.
+            //    which case the type will be instantiated when we compile the
+            //    implementation, and we'll link against it.
             //
-            // Note: this will lead to a potentially confusing error message with the
-            // mangled templated type name.
+            // Unbound type arguments or templates will be caught by `check_type` or
+            // the monomorphization pass.
             ast::Type::Class(ast::Variable {
                 name,
                 generics: Some(generics),
                 span: _,
-            }) => Ok(r#type::Expression::Class(abi::mangle::template(
-                &name.symbol,
-                generics,
-            ))),
-            ast::Type::Array(r#type, _, _) => self
-                .load_type(r#type)
-                .map(Box::new)
-                .map(r#type::Expression::Array),
+            }) => {
+                let generics = generics
+                    .iter()
+                    .map(|generic| self.load_type(generic))
+                    .collect::<Result<Vec<_>, _>>()?;
+
+                Ok(r#type::Expression::Class(abi::mangle::template(
+                    &name.symbol,
+                    &generics,
+                )))
+            }
         }
     }
 }

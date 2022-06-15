@@ -9,11 +9,33 @@ pub fn init() -> Symbol {
     symbol::intern_static("_I_init")
 }
 
-pub fn template(name: &Symbol, generics: &[ast::Type]) -> Symbol {
-    let mut mangled = format!("{}t", name);
-    write!(&mut mangled, "{}", generics.len()).unwrap();
+pub fn template(name: &Symbol, generics: &[r#type::Expression]) -> Symbol {
+    let mut mangled = escape(name);
+    write!(&mut mangled, "t{}", generics.len()).unwrap();
     for generic in generics {
-        mangle_ast_type(generic, &mut mangled);
+        mangle_type(generic, &mut mangled);
+    }
+    symbol::intern(mangled)
+}
+
+// Note: template instantiation operates on the untyped AST in postorder,
+// so there are never nested template types in `generics`. For example:
+//
+// ```text
+// A::<B::<C>, D>
+// A::<Bt1o1C, D>
+// At2o6Bt1o1Co1D
+// ```
+//
+// This must be synchronized with the above `template` function, which is
+// used when checking generics in function signatures. The duplication is
+// unfortunate, but the former operates on the typed AST, although it still
+// processes in postorder.
+pub fn template_ast(name: &Symbol, generics: &[ast::Type]) -> Symbol {
+    let mut mangled = escape(name);
+    write!(&mut mangled, "t{}", generics.len()).unwrap();
+    for generic in generics {
+        mangle_type_ast(generic, &mut mangled);
     }
     symbol::intern(mangled)
 }
@@ -115,7 +137,7 @@ fn mangle_type(r#type: &r#type::Expression, mangled: &mut String) {
     }
 }
 
-fn mangle_ast_type(r#type: &ast::Type, mangled: &mut String) {
+fn mangle_type_ast(r#type: &ast::Type, mangled: &mut String) {
     match r#type {
         ast::Type::Int(_) => mangled.push('i'),
         ast::Type::Bool(_) => mangled.push('b'),
@@ -131,7 +153,7 @@ fn mangle_ast_type(r#type: &ast::Type, mangled: &mut String) {
         }
         ast::Type::Array(r#type, _, _) => {
             mangled.push('a');
-            mangle_ast_type(&*r#type, mangled);
+            mangle_type_ast(&*r#type, mangled);
         }
     }
 }

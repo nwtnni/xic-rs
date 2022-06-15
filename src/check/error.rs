@@ -39,6 +39,7 @@ pub enum ErrorKind {
     UnboundVariable(Symbol),
     UnboundFun(Symbol),
     UnboundClass(Symbol),
+    UnboundClassTemplate(Symbol),
     NotVariable(Symbol),
     NotFun(Option<Symbol>),
     NotExp,
@@ -59,6 +60,11 @@ pub enum ErrorKind {
     ReturnMismatch,
     NameClash(Span),
     SignatureMismatch(Span),
+    TemplateArgumentMismatch {
+        span: Span,
+        expected: usize,
+        found: usize,
+    },
     Mismatch {
         expected: r#type::Expression,
         expected_span: Option<Span>,
@@ -81,6 +87,9 @@ impl ErrorKind {
             }
             ErrorKind::UnboundClass(c) => {
                 Cow::Owned(format!("Unbound class {}", symbol::resolve(*c)))
+            }
+            ErrorKind::UnboundClassTemplate(c) => {
+                Cow::Owned(format!("Unbound class template {}", symbol::resolve(*c)))
             }
             ErrorKind::NotVariable(v) => {
                 Cow::Owned(format!("{} is not a variable type", symbol::resolve(*v)))
@@ -120,6 +129,13 @@ impl ErrorKind {
             ErrorKind::NameClash(_) => Cow::Borrowed("Name already bound in environment"),
             ErrorKind::SignatureMismatch(_) => {
                 Cow::Borrowed("Implementation does not match signature")
+            }
+            ErrorKind::TemplateArgumentMismatch { span: _, expected, found } => {
+                Cow::Owned(format!(
+                    "Template instantiated with incorrect number of type arguments: expected {}, but found {}",
+                    expected,
+                    found
+                ))
             }
             ErrorKind::Mismatch {
                 expected,
@@ -162,6 +178,8 @@ impl error::Report for Error {
                 .with_label(ariadne::Label::new(*span).with_message("Previous definition here")),
             ErrorKind::SignatureMismatch(span) => report
                 .with_label(ariadne::Label::new(*span).with_message("Signature definition here")),
+            ErrorKind::TemplateArgumentMismatch { span, .. } => report
+                .with_label(ariadne::Label::new(*span).with_message("Template definition here")),
             _ => report,
         };
 

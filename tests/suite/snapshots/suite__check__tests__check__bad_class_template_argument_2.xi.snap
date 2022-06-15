@@ -1,0 +1,17 @@
+---
+source: tests/suite/check.rs
+assertion_line: 34
+expression: Snapshot(context)
+---
+Error: Semantic error
+   ╭─[tests/check/bad_class_template_argument_2.ixi:3:27]
+   │
+ 1 │ template class A<T, U, V> {}
+   ·                ┬  
+   ·                ╰── Template definition here
+   · 
+ 3 │ foo(a: A::<A::<int, bool, A::<int>>[], int[], bool>)
+   ·                           ────┬───  
+   ·                               ╰───── Template instantiated with incorrect number of type arguments: expected 3, but found 1
+───╯
+
