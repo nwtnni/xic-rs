@@ -1,0 +1,6 @@
+template class A {
+    value: int
+    method(): int[] {
+        return "hello"
+    }
+}

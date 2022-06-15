@@ -33,16 +33,14 @@ ClassTemplate: ClassTemplate = {
         "template"
         "class"
         <name: Identifier>
-        "<"
-        <generics: CommaPlus<Identifier>>
-        ">"
+        <generics: ("<" <CommaPlus<Identifier>> ">")?>
         "{"
         <items: ClassItem*>
         "}"
     <r: @R> => {
         ClassTemplate {
             name,
-            generics,
+            generics: generics.unwrap_or_default(),
             items,
             span: Span::new(l, r),
         }
@@ -64,9 +62,7 @@ FunctionTemplate: FunctionTemplate = {
     <l: @L>
         "template"
         <name: Identifier>
-        "<"
-        <generics: CommaPlus<Identifier>>
-        ">"
+        <generics: ("<" <CommaPlus<Identifier>> ">")?>
         "("
         <parameters: Comma<NoLength<SingleDeclaration>>>
         ")"
@@ -75,7 +71,7 @@ FunctionTemplate: FunctionTemplate = {
     <r: @R> => {
         FunctionTemplate {
             name,
-            generics,
+            generics: generics.unwrap_or_default(),
             parameters,
             returns: returns.unwrap_or_default(),
             statements,
@@ -355,7 +351,7 @@ ArrayType: (Option<Expression>, Point) = {
 Variable: Variable = {
     <l: @L>
         <name: Identifier>
-        <generics: (":" ":" "<" <CommaPlus<NoLength<Type>>> ">")?>
+        <generics: (":" ":" "<" <Comma<NoLength<Type>>> ">")?>
     <r: @R> => Variable {
         name,
         generics,
