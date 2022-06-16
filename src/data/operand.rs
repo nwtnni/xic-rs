@@ -42,9 +42,9 @@ impl From<i64> for Immediate {
     }
 }
 
-impl From<Label> for Immediate {
-    fn from(label: Label) -> Self {
-        Immediate::Label(label)
+impl<T: Into<Label>> From<T> for Immediate {
+    fn from(label: T) -> Self {
+        Immediate::Label(label.into())
     }
 }
 
@@ -70,6 +70,18 @@ impl fmt::Display for Label {
                 write!(fmt, "{}{}", label, index)
             }
         }
+    }
+}
+
+impl From<Symbol> for Label {
+    fn from(label: Symbol) -> Self {
+        Label::Fixed(label)
+    }
+}
+
+impl From<&'static str> for Label {
+    fn from(label: &'static str) -> Self {
+        Label::Fixed(symbol::intern_static(label))
     }
 }
 

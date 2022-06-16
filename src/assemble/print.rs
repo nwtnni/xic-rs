@@ -10,7 +10,6 @@ use crate::data::operand::Immediate;
 use crate::data::operand::Label;
 use crate::data::operand::Memory;
 use crate::data::operand::Unary;
-use crate::data::symbol;
 
 pub struct Intel<T>(pub T);
 
@@ -49,9 +48,7 @@ impl<T: fmt::Display> fmt::Display for Intel<&asm::Unit<T>> {
         writeln!(
             fmt,
             "{}\n",
-            Directive::Quad(vec![Immediate::Label(Label::Fixed(symbol::intern_static(
-                abi::XI_INIT
-            )))])
+            Directive::Quad(vec![Immediate::from(abi::XI_INIT)]),
         )?;
 
         writeln!(fmt, "{}\n", Directive::Text)?;

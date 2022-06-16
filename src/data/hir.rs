@@ -83,15 +83,9 @@ impl From<Temporary> for Expression {
     }
 }
 
-impl From<Label> for Expression {
-    fn from(label: Label) -> Self {
-        Self::Immediate(Immediate::Label(label))
-    }
-}
-
-impl From<i64> for Expression {
-    fn from(integer: i64) -> Self {
-        Self::Immediate(Immediate::Integer(integer))
+impl<T: Into<Immediate>> From<T> for Expression {
+    fn from(immediate: T) -> Self {
+        Self::Immediate(immediate.into())
     }
 }
 

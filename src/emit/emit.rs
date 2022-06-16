@@ -75,7 +75,7 @@ pub fn emit_hir(
 
         let (name, function) = emitter.emit_class_initialization(class);
         functions.insert(name, function);
-        initialize.push(hir!((EXP (CALL (NAME Label::Fixed(name)) 0))));
+        initialize.push(hir!((EXP (CALL (NAME name) 0))));
     }
 
     for item in &ast.items {
@@ -83,7 +83,7 @@ pub fn emit_hir(
             ast::Item::Global(global) => {
                 if let Some((name, function)) = emitter.emit_global(global) {
                     functions.insert(name, function);
-                    initialize.push(hir!((EXP (CALL (NAME (Label::Fixed(name))) 0))));
+                    initialize.push(hir!((EXP (CALL (NAME name) 0))));
                 }
             }
             ast::Item::Class(class) => {
@@ -235,13 +235,13 @@ impl<'env> Emitter<'env> {
         let exit = Label::fresh("exit");
 
         let mut statements = vec![
-            hir!((CJUMP (NE (MEM (NAME Label::Fixed(size))) (CONST 0)) exit enter)),
+            hir!((CJUMP (NE (MEM (NAME size)) (CONST 0)) exit enter)),
             hir!((LABEL enter)),
         ];
 
         // Recursively initialize superclass
         if let Some(superclass) = self.context.get_superclass(&class.name.symbol) {
-            let initialize = Label::Fixed(abi::mangle::class_initialization(&superclass));
+            let initialize = abi::mangle::class_initialization(&superclass);
             statements.push(hir!((EXP (CALL (NAME initialize) 0))));
         }
 
@@ -287,13 +287,11 @@ impl<'env> Emitter<'env> {
         #[rustfmt::skip]
         let interface = self.layouts[class]
             .interface()
-            .map(|superclass| hir!((MEM (NAME (Label::Fixed(abi::mangle::class_size(&superclass)))))))
+            .map(|superclass| hir!((MEM (NAME abi::mangle::class_size(&superclass)))))
             .unwrap_or_else(|| hir!((CONST 0)));
 
         statements.push(hir!(
-            (MOVE
-                (MEM (NAME Label::Fixed(size)))
-                (ADD interface (CONST fields as i64 * abi::WORD)))
+            (MOVE (MEM (NAME size)) (ADD interface (CONST fields as i64 * abi::WORD)))
         ));
     }
 
@@ -315,9 +313,7 @@ impl<'env> Emitter<'env> {
 
         // Copy superclass virtual table
         if let Some(superclass) = self.context.get_superclass(class) {
-            let virtual_table_superclass =
-                Label::Fixed(abi::mangle::class_virtual_table(&superclass));
-
+            let virtual_table_superclass = abi::mangle::class_virtual_table(&superclass);
             let virtual_table_superclass_size = self.layouts[&superclass]
                 .virtual_table_len()
                 .expect("[TYPE ERROR]: non-`final` class must have virtual table");
@@ -330,7 +326,7 @@ impl<'env> Emitter<'env> {
                 hir!((MOVE (TEMP offset) (CONST 0))),
                 hir!((LABEL r#while)),
                 hir!((MOVE
-                    (MEM (ADD (NAME Label::Fixed(virtual_table_class)) (TEMP offset)))
+                    (MEM (ADD (NAME virtual_table_class) (TEMP offset)))
                     (MEM (ADD (NAME virtual_table_superclass) (TEMP offset))))),
                 hir!((MOVE (TEMP offset) (ADD (TEMP offset) (CONST abi::WORD)))),
                 hir!((CJUMP (LT (TEMP offset) (CONST virtual_table_superclass_size as i64 * abi::WORD)) r#while r#done)),
@@ -350,16 +346,11 @@ impl<'env> Emitter<'env> {
                 None => continue,
             };
 
-            let method = Label::Fixed(abi::mangle::method(
-                class,
-                &identifier.symbol,
-                parameters,
-                returns,
-            ));
+            let method = abi::mangle::method(class, &identifier.symbol, parameters, returns);
 
             statements.push(hir!(
                 (MOVE
-                    (MEM (ADD (NAME Label::Fixed(virtual_table_class)) (CONST index as i64 * abi::WORD)))
+                    (MEM (ADD (NAME virtual_table_class) (CONST index as i64 * abi::WORD)))
                     (NAME method))
             ));
         }
@@ -559,8 +550,8 @@ impl<'env> Emitter<'env> {
                 }
 
                 if let Some(r#type) = self.get_variable(GlobalScope::Global, &variable.name) {
-                    let address = Label::Fixed(abi::mangle::global(&variable.name.symbol, r#type));
-                    return hir!((MEM (NAME address))).into();
+                    return hir!((MEM (NAME abi::mangle::global(&variable.name.symbol, r#type))))
+                        .into();
                 }
 
                 self.emit_class_field(
@@ -572,15 +563,7 @@ impl<'env> Emitter<'env> {
             }
             Array(expressions, _) => {
                 if let Some(label) = self.emit_static_array(expressions) {
-                    return hir!(
-                        (ADD
-                            (CALL
-                                (NAME Label::Fixed(symbol::intern_static(abi::XI_MEMDUP)))
-                                1
-                                (NAME label))
-                            (CONST abi::WORD))
-                    )
-                    .into();
+                    return hir!((ADD (CALL (NAME abi::XI_MEMDUP) 1 (NAME label)) (CONST abi::WORD))).into();
                 }
 
                 let array = hir!((TEMP Temporary::fresh("array")));
@@ -589,10 +572,7 @@ impl<'env> Emitter<'env> {
                     hir!(
                         (MOVE
                             (TEMP array.clone())
-                            (CALL
-                                (NAME Label::Fixed(symbol::intern_static(abi::XI_ALLOC)))
-                                1
-                                (CONST (expressions.len() + 1) as i64 * abi::WORD)))
+                            (CALL (NAME abi::XI_ALLOC) 1 (CONST (expressions.len() + 1) as i64 * abi::WORD)))
                     ),
                     hir!((MOVE (MEM (array.clone())) (CONST expressions.len() as i64))),
                 ];
@@ -624,8 +604,6 @@ impl<'env> Emitter<'env> {
                 let length_right = Temporary::fresh("length");
                 let length = Temporary::fresh("length");
 
-                let alloc = Label::Fixed(symbol::intern_static(abi::XI_ALLOC));
-
                 let while_left = Label::fresh("while");
                 let done_left = Label::fresh("true");
                 let bound_left = Temporary::fresh("bound");
@@ -649,7 +627,7 @@ impl<'env> Emitter<'env> {
                             (MOVE (TEMP length) (ADD (TEMP length_left) (TEMP length_right)))
                             (MOVE
                                 (TEMP array)
-                                (CALL (NAME alloc) 1 (ADD (MUL (TEMP length) (CONST abi::WORD)) (CONST abi::WORD))))
+                                (CALL (NAME abi::XI_ALLOC) 1 (ADD (MUL (TEMP length) (CONST abi::WORD)) (CONST abi::WORD))))
                             (MOVE (MEM (TEMP array)) (TEMP length))
                             (MOVE (TEMP address) (ADD (TEMP array) (CONST abi::WORD)))
 
@@ -763,7 +741,7 @@ impl<'env> Emitter<'env> {
                         statements.extend([
                             hir!((CJUMP (AE (TEMP index) (MEM (SUB (TEMP base) (CONST abi::WORD)))) out r#in)),
                             hir!((LABEL out)),
-                            hir!((EXP (CALL (NAME (Label::Fixed(symbol::intern_static(abi::XI_OUT_OF_BOUNDS)))) 0))),
+                            hir!((EXP (CALL (NAME abi::XI_OUT_OF_BOUNDS) 0))),
                             // In order to (1) minimize special logic for `XI_OUT_OF_BOUNDS` and (2) still
                             // treat it correctly in dataflow analyses as an exit site, we put this dummy
                             // return statement here.
@@ -794,19 +772,17 @@ impl<'env> Emitter<'env> {
             New(variable, _) => {
                 assert!(variable.generics.is_none());
 
-                let xi_alloc = Label::Fixed(symbol::intern_static(abi::XI_ALLOC));
-                let class_size = Label::Fixed(abi::mangle::class_size(&variable.name.symbol));
+                let class_size = abi::mangle::class_size(&variable.name.symbol);
 
                 match self.layouts[&variable.name.symbol].virtual_table_len() {
-                    None => hir!((CALL (NAME xi_alloc) 1 (MEM (NAME class_size)))).into(),
+                    None => hir!((CALL (NAME abi::XI_ALLOC) 1 (MEM (NAME class_size)))).into(),
                     Some(_) => {
                         let new = Temporary::fresh("new");
-                        let virtual_table =
-                            Label::Fixed(abi::mangle::class_virtual_table(&variable.name.symbol));
+                        let virtual_table = abi::mangle::class_virtual_table(&variable.name.symbol);
                         hir!(
                             (ESEQ
                                 (SEQ
-                                    (MOVE (TEMP new) (CALL (NAME xi_alloc) 1 (MEM (NAME class_size))))
+                                    (MOVE (TEMP new) (CALL (NAME abi::XI_ALLOC) 1 (MEM (NAME class_size))))
                                     (MOVE (MEM (TEMP new)) (NAME virtual_table)))
                                 (TEMP new))
                         )
@@ -858,7 +834,7 @@ impl<'env> Emitter<'env> {
             .collect::<Vec<_>>();
 
         Some(hir::Expression::Call(
-            Box::new(hir::Expression::from(Label::Fixed(function))),
+            Box::new(hir::Expression::from(function)),
             arguments,
             returns,
         ))
@@ -893,7 +869,7 @@ impl<'env> Emitter<'env> {
                     .get_signature(GlobalScope::Class(*class), method)
                     .expect("[TYPE ERROR]: unbound method");
 
-                hir!((NAME Label::Fixed(abi::mangle::method(class, &method.symbol, parameters, returns))))
+                hir!((NAME abi::mangle::method(class, &method.symbol, parameters, returns)))
             }
             // Special case: if the receiver is `super`, then we know its virtual
             // table statically, since we want to force the superclass
@@ -901,7 +877,7 @@ impl<'env> Emitter<'env> {
             Some(index) if matches!(receiver, ast::Expression::Super(_)) => {
                 hir!(
                     (MEM (ADD
-                        (NAME Label::Fixed(abi::mangle::class_virtual_table(class)))
+                        (NAME abi::mangle::class_virtual_table(class))
                         (CONST index as i64 * abi::WORD))
                 ))
             }
@@ -926,7 +902,7 @@ impl<'env> Emitter<'env> {
         #[rustfmt::skip]
         let base = self.layouts[class]
             .interface()
-            .map(|superclass| hir!((MEM (NAME (Label::Fixed(abi::mangle::class_size(&superclass)))))))
+            .map(|superclass| hir!((MEM (NAME abi::mangle::class_size(&superclass)))))
             .unwrap_or_else(|| hir!((CONST 0)));
 
         let index = self.layouts[class]
@@ -1006,7 +982,7 @@ impl<'env> Emitter<'env> {
                 let r#type = self.get_variable(GlobalScope::Global, name).unwrap();
                 let name = abi::mangle::global(&name.symbol, r#type);
                 self.bss.insert(name, (ir::Visibility::Local, 1));
-                hir!((MEM (NAME Label::Fixed(name))))
+                hir!((MEM (NAME name)))
             }
             Scope::Local => {
                 let fresh = Temporary::fresh(symbol::resolve(name.symbol));
@@ -1043,16 +1019,11 @@ impl<'env> Emitter<'env> {
     ) -> hir::Expression {
         let length = Temporary::fresh("length");
         let array = Temporary::fresh("array");
-        let alloc = Label::Fixed(symbol::intern_static(abi::XI_ALLOC));
 
         lengths.push(hir!((MOVE (TEMP length) (self.emit_expression(len).into()))));
 
         let mut statements = vec![
-            hir!((MOVE (TEMP array)
-                (CALL
-                    (NAME alloc)
-                    1
-                    (MUL (ADD (TEMP length) (CONST 1)) (CONST abi::WORD))))),
+            hir!((MOVE (TEMP array) (CALL (NAME abi::XI_ALLOC) 1 (MUL (ADD (TEMP length) (CONST 1)) (CONST abi::WORD))))),
             hir!((MOVE (MEM (TEMP array)) (TEMP length))),
         ];
 
@@ -1130,9 +1101,7 @@ impl<'env> Emitter<'env> {
                     (MOVE
                         (TEMP bound)
                         (ADD (MUL (MEM (TEMP Temporary::Argument(0))) (CONST abi::WORD)) (CONST abi::WORD)))
-                    (MOVE
-                        (TEMP address)
-                        (CALL (NAME Label::Fixed(symbol::intern_static(abi::XI_ALLOC))) 1 (TEMP bound)))
+                    (MOVE (TEMP address) (CALL (NAME abi::XI_ALLOC) 1 (TEMP bound)))
                     (MOVE (TEMP offset) (CONST 0))
                     (LABEL r#while)
                     (MOVE

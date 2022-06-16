@@ -30,13 +30,13 @@ where
 
     assert!(init.interpret_lir(&unit, &mut global)?.is_empty());
 
-    let mut local = Local::new(
+    let mut main = Local::new(
         &unit,
         &symbol::intern_static(abi::XI_MAIN),
         &[Value::Integer(0)],
     );
 
-    assert!(local.interpret_lir(&unit, &mut global)?.is_empty());
+    assert!(main.interpret_lir(&unit, &mut global)?.is_empty());
 
     Ok(())
 }

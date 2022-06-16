@@ -28,11 +28,9 @@ pub fn inline_lir(lir: &mut lir::Unit<lir::Fallthrough>) {
 
     let call_graph = CallGraph::new(lir);
 
-    let start = if lir
-        .functions
-        .contains_key(&symbol::intern_static(abi::XI_MAIN))
-    {
-        symbol::intern_static(abi::XI_MAIN)
+    let main = symbol::intern_static(abi::XI_MAIN);
+    let start = if lir.functions.contains_key(&main) {
+        main
     } else if let Some(name) = lir.functions.keys().next() {
         *name
     } else {
