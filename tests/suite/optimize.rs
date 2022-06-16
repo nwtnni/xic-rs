@@ -5,6 +5,33 @@ use xic::analyze::LiveVariables;
 use xic::optimize;
 
 #[test_generator::test_resources("tests/execute/*.xi")]
+pub fn invert_loops_ast(path: &str) -> anyhow::Result<()> {
+    let expected_stdout = super::execute_expected(path)?;
+
+    let mut program = super::parse(path)?;
+    let mut context = xic::api::check(None, Path::new(path), &mut program).unwrap();
+    optimize::invert_loops_ast(Path::new(path), &mut program);
+    let optimized = xic::api::emit_hir(&mut context, Path::new(path), xic::Abi::Xi, &program);
+    let optimized_stdout = super::interpret_hir(&optimized)?;
+
+    pretty_assertions::assert_eq!(expected_stdout, optimized_stdout);
+    Ok(())
+}
+
+#[test_generator::test_resources("tests/execute/*.xi")]
+pub fn abi_final_class(path: &str) -> anyhow::Result<()> {
+    let expected_stdout = super::execute_expected(path)?;
+
+    let mut program = super::parse(path)?;
+    let mut context = xic::api::check(None, Path::new(path), &mut program).unwrap();
+    let optimized = xic::api::emit_hir(&mut context, Path::new(path), xic::Abi::XiFinal, &program);
+    let optimized_stdout = super::interpret_hir(&optimized)?;
+
+    pretty_assertions::assert_eq!(expected_stdout, optimized_stdout);
+    Ok(())
+}
+
+#[test_generator::test_resources("tests/execute/*.xi")]
 pub fn fold_constants_hir(path: &str) -> anyhow::Result<()> {
     let expected_stdout = super::execute_expected(path)?;
 
@@ -109,20 +136,6 @@ pub fn eliminate_partial_redundancy_lir(path: &str) -> anyhow::Result<()> {
         .map_mut(optimize::eliminate_partial_redundancy_lir)
         .map(xic::api::destruct_cfg);
     let optimized_stdout = super::interpret_lir(&optimized)?;
-
-    pretty_assertions::assert_eq!(expected_stdout, optimized_stdout);
-    Ok(())
-}
-
-#[test_generator::test_resources("tests/execute/*.xi")]
-pub fn invert_loops_ast(path: &str) -> anyhow::Result<()> {
-    let expected_stdout = super::execute_expected(path)?;
-
-    let mut program = super::parse(path)?;
-    let mut context = xic::api::check(None, Path::new(path), &mut program).unwrap();
-    optimize::invert_loops_ast(Path::new(path), &mut program);
-    let optimized = xic::api::emit_hir(Path::new(path), &program, &mut context);
-    let optimized_stdout = super::interpret_hir(&optimized)?;
 
     pretty_assertions::assert_eq!(expected_stdout, optimized_stdout);
     Ok(())

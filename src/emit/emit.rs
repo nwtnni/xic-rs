@@ -4,6 +4,7 @@ use std::cell::Cell;
 use std::iter;
 
 use crate::abi;
+use crate::abi::Abi;
 use crate::check;
 use crate::check::Entry;
 use crate::check::GlobalScope;
@@ -23,19 +24,10 @@ use crate::hir;
 use crate::util;
 use crate::Map;
 
-struct Emitter<'env> {
-    context: &'env mut check::Context,
-    layouts: Map<Symbol, abi::class::Layout>,
-    locals: Map<Symbol, Temporary>,
-    data: Map<Label, Vec<Immediate>>,
-    bss: Map<Symbol, (ir::Visibility, usize)>,
-    statics: Map<Vec<Immediate>, Label>,
-    out_of_bounds: Cell<Option<Label>>,
-}
-
-pub fn emit_unit(
-    path: &std::path::Path,
+pub fn emit_hir(
     context: &mut check::Context,
+    path: &std::path::Path,
+    abi: Abi,
     ast: &ast::Program,
 ) -> ir::Unit<hir::Function> {
     log::info!(
@@ -57,7 +49,7 @@ pub fn emit_unit(
     {
         layouts
             .entry(*class)
-            .or_insert_with(|| abi::class::Layout::new(context, class));
+            .or_insert_with(|| abi::class::Layout::new(context, abi, class));
     }
 
     let mut emitter = Emitter {
@@ -157,6 +149,16 @@ pub fn emit_unit(
         data: emitter.data,
         bss: emitter.bss,
     }
+}
+
+struct Emitter<'env> {
+    context: &'env mut check::Context,
+    layouts: Map<Symbol, abi::class::Layout>,
+    locals: Map<Symbol, Temporary>,
+    data: Map<Label, Vec<Immediate>>,
+    bss: Map<Symbol, (ir::Visibility, usize)>,
+    statics: Map<Vec<Immediate>, Label>,
+    out_of_bounds: Cell<Option<Label>>,
 }
 
 impl<'env> Emitter<'env> {

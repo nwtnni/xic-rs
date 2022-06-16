@@ -1,6 +1,7 @@
 use std::iter;
 use std::mem;
 
+use crate::abi::Abi;
 use crate::check::Context;
 use crate::check::Entry;
 use crate::data::symbol::Symbol;
@@ -71,13 +72,16 @@ pub struct Layout {
 }
 
 impl Layout {
-    pub fn new(context: &Context, class: &Symbol) -> Self {
+    pub fn new(context: &Context, abi: Abi, class: &Symbol) -> Self {
         let mut fields = Set::default();
         let mut methods = Map::default();
         let mut interface = None;
         let mut slots = 0;
 
-        let r#final = context.get_final(class).is_some();
+        let r#final = match abi {
+            Abi::Xi => false,
+            Abi::XiFinal => context.get_final(class).is_some(),
+        };
 
         for (superclass, r#final) in context
             .ancestors_inclusive(class)

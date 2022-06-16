@@ -7,7 +7,7 @@ use crate::data::operand::Temporary;
 use crate::data::symbol;
 use crate::util;
 
-pub fn canonize_function(function: &hir::Function) -> lir::Function<Label> {
+pub fn emit_lir(function: &hir::Function) -> lir::Function<Label> {
     log::info!(
         "[{}] Emitting LIR for {}...",
         std::any::type_name::<hir::Function>(),

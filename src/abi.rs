@@ -87,6 +87,15 @@ pub const ARGUMENT: &[Register] = &[
 
 pub const RETURN: &[Register] = &[Register::Rax, Register::Rdx];
 
+#[derive(Copy, Clone, Debug, PartialEq, Eq)]
+pub enum Abi {
+    /// Conform to the Xi++ specification for class layouts.
+    Xi,
+
+    /// Omit virtual table or virtual table entries for final classes.
+    XiFinal,
+}
+
 /// Total stack size. Guaranteed to align to 16 bytes.
 pub fn stack_size(
     callee_arguments: Option<usize>,

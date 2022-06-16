@@ -305,6 +305,7 @@ impl str::FromStr for DebugOpt {
 enum Opt {
     LoopInversion,
     ConstantFold,
+    FinalClass,
     CleanCfg,
     Inline,
     ConditionalConstantPropagation,
@@ -318,9 +319,10 @@ enum Opt {
 // Need something like https://doc.rust-lang.org/std/mem/fn.variant_count.html
 // to make sure array matches up with enum definition. Procedural macro options
 // seem too heavyweight for something like this.
-const OPTIMIZATIONS: [&str; 10] = [
+const OPTIMIZATIONS: [&str; 11] = [
     Opt::LoopInversion.to_static_str(),
     Opt::ConstantFold.to_static_str(),
+    Opt::FinalClass.to_static_str(),
     Opt::CleanCfg.to_static_str(),
     Opt::Inline.to_static_str(),
     Opt::ConditionalConstantPropagation.to_static_str(),
@@ -336,6 +338,7 @@ impl Opt {
         match self {
             Opt::LoopInversion => "li",
             Opt::ConstantFold => "cf",
+            Opt::FinalClass => "fc",
             Opt::CleanCfg => "clean",
             Opt::Inline => "inl",
             Opt::ConditionalConstantPropagation => "ccp",
@@ -354,6 +357,7 @@ impl str::FromStr for Opt {
         match string {
             "li" => Ok(Opt::LoopInversion),
             "cf" => Ok(Opt::ConstantFold),
+            "fc" => Ok(Opt::FinalClass),
             "clean" => Ok(Opt::CleanCfg),
             "inl" => Ok(Opt::Inline),
             "ccp" => Ok(Opt::ConditionalConstantPropagation),
@@ -411,7 +415,12 @@ fn run() -> anyhow::Result<()> {
             optimize::invert_loops_ast(&path, &mut program);
         }
 
-        let mut hir = api::emit_hir(&path, &program, &mut context?);
+        let abi = match command.optimize(Opt::FinalClass) {
+            false => xic::Abi::Xi,
+            true => xic::Abi::XiFinal,
+        };
+
+        let mut hir = api::emit_hir(&mut context?, &path, abi, &program);
 
         if command.optimize(Opt::ConstantFold) {
             hir = hir.map(optimize::fold_constants);

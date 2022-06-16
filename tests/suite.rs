@@ -54,7 +54,12 @@ pub fn emit_hir(path: &str) -> anyhow::Result<hir::Unit> {
     let mut program = parse(path)?;
     let mut context = xic::api::check(None, Path::new(path), &mut program)
         .with_context(|| anyhow!("Type-checking file: {}", path))?;
-    Ok(xic::api::emit_hir(Path::new(path), &program, &mut context))
+    Ok(xic::api::emit_hir(
+        &mut context,
+        Path::new(path),
+        xic::Abi::Xi,
+        &program,
+    ))
 }
 
 pub fn emit_lir(path: &str) -> anyhow::Result<lir::Unit<Label>> {
