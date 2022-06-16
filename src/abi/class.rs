@@ -25,6 +25,33 @@ use crate::Set;
 ///             +-------------------+    |            .            |
 ///                                      +-------------------------+
 /// ```
+///
+/// There are additional optimization opportunities available to `final` classes,
+/// depending on whether or not they have a superclass:
+///
+/// a) If final class `Class` has no superclass:
+///
+/// We can completely discard the virtual table:
+///
+/// - Dispatch all method calls as static function calls
+/// - Remove the virtual table pointer from the class layout
+/// - Remove the virtual table from the `.bss` section
+///
+/// This does violate the course Xi++ ABI specification, but only for classes
+/// marked `final`, which is itself a language extension. Regular classes will
+/// still compile and link against other Xi++ compilers' output.
+///
+/// b) If final class `Class` has superclass `Superclass`:
+///
+/// We can't remove the virtual table entirely, as we could have an assignment like:
+///
+/// ```text
+/// super: Superclass = new Class
+/// ```
+///
+/// Here, invoking methods on `super` requires there to be a virtual table.
+/// But we can still omit any methods that aren't defined in superclass(es)
+/// from the virtual table and dispatch those statically at type `Class`.
 pub struct Layout {
     /// First interface-only class in this class's inheritance hierarchy.
     ///
