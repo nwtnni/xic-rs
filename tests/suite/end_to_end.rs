@@ -28,48 +28,23 @@ pub fn advent(path: &str) -> anyhow::Result<()> {
 }
 
 mod separate {
-    #[test]
-    fn smoke() -> anyhow::Result<()> {
-        let smoke_1 = super::compile("tests/separate/smoke_1.xi")?;
-        let smoke_2 = super::compile("tests/separate/smoke_2.xi")?;
-        let stdout = super::super::execute_all([smoke_1, smoke_2])?;
-        insta::assert_display_snapshot!(stdout);
-        Ok(())
+    macro_rules! test {
+        ($name:ident, $($file:ident),* $(,)?) => {
+            #[test]
+            fn $name() -> anyhow::Result<()> {
+                $(
+                    let $file = super::compile(concat!("tests/separate/", stringify!($file), ".xi"))?;
+                )*
+                let stdout = super::super::execute_all([$($file),*])?;
+                insta::assert_display_snapshot!(stdout);
+                Ok(())
+            }
+        }
     }
 
-    #[test]
-    fn cycle_function() -> anyhow::Result<()> {
-        let cycle_function_1 = super::compile("tests/separate/cycle_function_1.xi")?;
-        let cycle_function_2 = super::compile("tests/separate/cycle_function_2.xi")?;
-        let stdout = super::super::execute_all([cycle_function_1, cycle_function_2])?;
-        insta::assert_display_snapshot!(stdout);
-        Ok(())
-    }
-
-    #[test]
-    fn out_of_order() -> anyhow::Result<()> {
-        let out_of_order_1 = super::compile("tests/separate/out_of_order_1.xi")?;
-        let out_of_order_2 = super::compile("tests/separate/out_of_order_2.xi")?;
-        let stdout = super::super::execute_all([out_of_order_1, out_of_order_2])?;
-        insta::assert_display_snapshot!(stdout);
-        Ok(())
-    }
-
-    #[test]
-    fn generic_class() -> anyhow::Result<()> {
-        let generic_class_1 = super::compile("tests/separate/generic_class_1.xi")?;
-        let generic_class_2 = super::compile("tests/separate/generic_class_2.xi")?;
-        let stdout = super::super::execute_all([generic_class_1, generic_class_2])?;
-        insta::assert_display_snapshot!(stdout);
-        Ok(())
-    }
-
-    #[test]
-    fn generic_function() -> anyhow::Result<()> {
-        let generic_function_1 = super::compile("tests/separate/generic_function_1.xi")?;
-        let generic_function_2 = super::compile("tests/separate/generic_function_2.xi")?;
-        let stdout = super::super::execute_all([generic_function_1, generic_function_2])?;
-        insta::assert_display_snapshot!(stdout);
-        Ok(())
-    }
+    test!(smoke, smoke_1, smoke_2);
+    test!(cycle_function, cycle_function_1, cycle_function_2);
+    test!(out_of_order, out_of_order_1, out_of_order_2);
+    test!(generic_class, generic_class_1, generic_class_2);
+    test!(generic_function, generic_function_1, generic_function_2);
 }
