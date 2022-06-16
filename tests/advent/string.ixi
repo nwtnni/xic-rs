@@ -1,6 +1,6 @@
 use vector
 
-class String {
+final class String {
     size(): int
 
     get(index: int): int

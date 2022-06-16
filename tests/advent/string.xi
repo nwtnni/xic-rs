@@ -1,6 +1,6 @@
 use vector
 
-class String {
+final class String {
     buffer: Vector::<int>
 
     size(): int {

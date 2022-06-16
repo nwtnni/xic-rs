@@ -7,7 +7,7 @@ use vector
 // }
 //
 // class V {}
-template class VectorMap<K, V> {
+template final class VectorMap<K, V> {
     keys: Vector::<K>
     values: Vector::<V>
 

@@ -1,4 +1,4 @@
-template class Vector<T> {
+template final class Vector<T> {
     array: T[]
     size': int
     capacity: int

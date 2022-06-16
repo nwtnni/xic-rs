@@ -1168,7 +1168,7 @@ realRoom(room: String): bool {
     return true
 }
 
-class Letter {
+final class Letter {
     count, letter: int
 
     compare(other: Letter): int {
@@ -1191,7 +1191,7 @@ new_letter(letter: int, count: int): Letter {
     return letter'
 }
 
-class Integer {
+final class Integer {
     value: int
     equals(other: Integer): bool {
         return value == other.value

@@ -5,7 +5,7 @@ use vector
 // class K {
 //     equals(other: K): bool
 // }
-template class VectorSet<K> {
+template final class VectorSet<K> {
     keys: Vector::<K>
 
     contains(key: K): bool {
