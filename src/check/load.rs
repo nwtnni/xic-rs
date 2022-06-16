@@ -244,6 +244,10 @@ impl Checker {
             bail!(class.span, ErrorKind::FinalMismatch(*span));
         }
 
+        class
+            .declared
+            .set(self.context.get_class_signature(&class.name).is_some());
+
         if let Some(span) = self.context.insert_class_implementation(class.name.clone()) {
             bail!(class.span, ErrorKind::NameClash(span));
         }
@@ -311,6 +315,8 @@ impl Checker {
                     || !self.context.all_subtype(&new_returns, &old_returns)
                 {
                     bail!(*function.name.span, ErrorKind::SignatureMismatch(span))
+                } else {
+                    function.declared.set(true);
                 }
             }
         }

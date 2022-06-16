@@ -67,7 +67,7 @@ impl fmt::Display for ItemSignature {
     }
 }
 
-const _: [(); 184] = [(); std::mem::size_of::<Item>()];
+const _: [(); 192] = [(); std::mem::size_of::<Item>()];
 
 #[derive(Clone, Debug)]
 pub enum Item {
@@ -196,6 +196,8 @@ pub struct Class {
     pub items: Vec<ClassItem>,
     // Used for tracking class template instantiation chains in diagnostics
     pub(crate) provenance: Vec<Span>,
+    /// Whether this class is declared in an interface
+    pub(crate) declared: Cell<bool>,
     pub span: Span,
 }
 
@@ -215,6 +217,7 @@ impl Class {
             extends,
             items,
             provenance,
+            declared: Cell::new(false),
             span,
         }
     }
@@ -226,7 +229,7 @@ impl fmt::Display for Class {
     }
 }
 
-const _: [(); 184] = [(); std::mem::size_of::<ClassItem>()];
+const _: [(); 192] = [(); std::mem::size_of::<ClassItem>()];
 
 #[derive(Clone, Debug)]
 pub enum ClassItem {
@@ -301,7 +304,7 @@ impl fmt::Display for FunctionSignature {
     }
 }
 
-const _: [(); 176] = [(); std::mem::size_of::<Function>()];
+const _: [(); 184] = [(); std::mem::size_of::<Function>()];
 
 /// Represents a function definition (i.e. with implementation).
 #[derive(Clone, Debug)]
@@ -312,6 +315,8 @@ pub struct Function {
     pub statements: Statement,
     // Used for tracking function template instantiation chains in diagnostics
     pub(crate) provenance: Vec<Span>,
+    /// Whether this function is declared in an interface
+    pub(crate) declared: Cell<bool>,
     pub span: Span,
 }
 

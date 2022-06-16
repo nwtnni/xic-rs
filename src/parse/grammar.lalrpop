@@ -192,6 +192,7 @@ Function: Function = {
             returns: returns.unwrap_or_default(),
             statements,
             provenance: Vec::new(),
+            declared: Cell::new(false),
             span: Span::new(l, r),
         }
     }

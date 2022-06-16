@@ -1,3 +1,5 @@
+use std::cell::Cell;
+
 use crate::abi;
 use crate::check::check::Checker;
 use crate::check::GlobalScope;
@@ -172,6 +174,7 @@ impl<'a> Monomorphizer<'a> {
                 .map(|(span, _)| span)
                 .copied()
                 .collect(),
+            declared: Cell::new(false),
             span: template.span,
         };
 
@@ -232,6 +235,7 @@ impl<'a> Monomorphizer<'a> {
                 .map(|(span, _)| span)
                 .copied()
                 .collect(),
+            declared: Cell::new(false),
             span: template.span,
         };
 
