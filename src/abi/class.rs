@@ -1,3 +1,5 @@
+use std::mem;
+
 use crate::check::Context;
 use crate::check::Entry;
 use crate::data::symbol::Symbol;
@@ -36,7 +38,7 @@ pub struct Layout {
     methods: Map<Symbol, usize>,
 
     /// Size of this class's virtual table in words.
-    size: usize,
+    slots: usize,
 }
 
 impl Layout {
@@ -44,7 +46,7 @@ impl Layout {
         let mut fields = Set::default();
         let mut methods = Map::default();
         let mut interface = None;
-        let mut offset = 0;
+        let mut slots = 0;
 
         for superclass in context
             .ancestors_inclusive(class)
@@ -64,7 +66,7 @@ impl Layout {
             }
 
             // Reserve a slot for private use
-            offset += 1;
+            slots += 1;
 
             for (identifier, entry) in context
                 .get_class(&superclass)
@@ -76,9 +78,8 @@ impl Layout {
                     }
                     Entry::Function(_, _) | Entry::Signature(_, _) => {
                         methods.entry(identifier.symbol).or_insert_with(|| {
-                            let index = offset;
-                            offset += 1;
-                            index
+                            let increment = slots + 1;
+                            mem::replace(&mut slots, increment)
                         });
                     }
                 }
@@ -89,14 +90,20 @@ impl Layout {
             interface,
             fields,
             methods,
-            size: offset,
+            slots,
         }
     }
 
+    /// Name of this class's first ancestor with a signature and no implementation, if it exists.
+    ///
+    /// Field accesses and class size must be computed relative to this ancestor's class size,
+    /// which is unknown at compile time.
     pub fn interface(&self) -> Option<Symbol> {
         self.interface
     }
 
+    /// Index of field relative to superclass, accounting for virtual table pointer
+    /// if there is no superclass.
     pub fn field_index(&self, class: &Symbol, field: &Symbol) -> Option<usize> {
         self.fields
             .get_index_of(&(*class, *field))
@@ -107,15 +114,19 @@ impl Layout {
             .map(|index| index + self.interface.map(|_| 0).unwrap_or(1))
     }
 
+    /// Number of fields relative to superclass, accounting for virtual table pointer
+    /// if there is no superclass.
     pub fn field_len(&self) -> usize {
-        self.fields.len()
+        self.fields.len() + self.interface.map(|_| 0).unwrap_or(1)
     }
 
+    /// Index of method in virtual table, accounting for reserved slots per class.
     pub fn method_index(&self, method: &Symbol) -> Option<usize> {
         self.methods.get(method).copied()
     }
 
-    pub fn size(&self) -> usize {
-        self.size
+    /// Size of virtual table in words, accounting for reserved slots per class.
+    pub fn virtual_table_len(&self) -> usize {
+        self.slots
     }
 }

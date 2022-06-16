@@ -25,7 +25,7 @@ use crate::Map;
 
 struct Emitter<'env> {
     context: &'env mut check::Context,
-    classes: Map<Symbol, abi::class::Layout>,
+    layouts: Map<Symbol, abi::class::Layout>,
     locals: Map<Symbol, Temporary>,
     data: Map<Label, Vec<Immediate>>,
     bss: Map<Symbol, (ir::Visibility, usize)>,
@@ -49,19 +49,19 @@ pub fn emit_unit(
         path.display()
     );
 
-    let mut classes = Map::default();
+    let mut layouts = Map::default();
 
     for class in context
         .class_implementations()
         .chain(context.class_signatures())
     {
-        classes
+        layouts
             .entry(*class)
             .or_insert_with(|| abi::class::Layout::new(context, class));
     }
 
     let mut emitter = Emitter {
-        classes,
+        layouts,
         context,
         locals: Map::default(),
         data: Map::default(),
@@ -275,10 +275,10 @@ impl<'env> Emitter<'env> {
         // Reserve 1 word in BSS section for class size
         self.bss.insert(size, (visibility, 1));
 
-        let fields = self.classes[class].field_len() as i64;
+        let fields = self.layouts[class].field_len();
 
         #[rustfmt::skip]
-        let interface = self.classes[class]
+        let interface = self.layouts[class]
             .interface()
             .map(|superclass| hir!((MEM (NAME (Label::Fixed(abi::mangle::class_size(&superclass)))))))
             .unwrap_or_else(|| hir!((CONST 0)));
@@ -287,7 +287,7 @@ impl<'env> Emitter<'env> {
         statements.push(hir!(
             (MOVE
                 (MEM (NAME Label::Fixed(size)))
-                (ADD interface (CONST (fields + 1) * abi::WORD)))
+                (ADD interface (CONST fields as i64 * abi::WORD)))
         ));
     }
 
@@ -302,12 +302,12 @@ impl<'env> Emitter<'env> {
         // Reserve n words in BSS section for class virtual table
         self.bss.insert(
             virtual_table_class,
-            (visibility, self.classes[class].size()),
+            (visibility, self.layouts[class].virtual_table_len()),
         );
 
         // Copy superclass virtual table
         if let Some(superclass) = self.context.get_superclass(class) {
-            let size_superclass = self.classes[&superclass].size();
+            let size_superclass = self.layouts[&superclass].virtual_table_len();
             let virtual_table_superclass =
                 Label::Fixed(abi::mangle::class_virtual_table(&superclass));
 
@@ -334,9 +334,10 @@ impl<'env> Emitter<'env> {
                 Entry::Function(parameters, returns) => (parameters, returns),
             };
 
-            let offset = self.classes[class]
+            let index = self.layouts[class]
                 .method_index(&identifier.symbol)
-                .unwrap();
+                .expect("[TYPE ERROR]: unbound method");
+
             let method = Label::Fixed(abi::mangle::method(
                 class,
                 &identifier.symbol,
@@ -346,7 +347,7 @@ impl<'env> Emitter<'env> {
 
             statements.push(hir!(
                 (MOVE
-                    (MEM (ADD (NAME Label::Fixed(virtual_table_class)) (CONST offset as i64 * abi::WORD)))
+                    (MEM (ADD (NAME Label::Fixed(virtual_table_class)) (CONST index as i64 * abi::WORD)))
                     (NAME method))
             ));
         }
@@ -866,7 +867,6 @@ impl<'env> Emitter<'env> {
             _ => hir!((MEM (TEMP instance))),
         };
 
-        let receiver = self.emit_expression(receiver).into();
         let mut arguments = arguments
             .iter()
             .map(|argument| self.emit_expression(argument).into())
@@ -878,11 +878,19 @@ impl<'env> Emitter<'env> {
 
         arguments.insert(0, hir!((TEMP instance)));
 
-        let index = self.classes[class].method_index(&method.symbol).unwrap() as i64;
-        let method = hir!((MEM (ADD virtual_table (CONST index * abi::WORD))));
-        let call = hir::Expression::Call(Box::new(method), arguments, returns);
+        let index = self.layouts[class]
+            .method_index(&method.symbol)
+            .expect("[TYPE ERROR]: unbound method in class");
 
-        hir!((ESEQ (MOVE (TEMP instance) receiver) call))
+        hir!(
+            (ESEQ
+                (MOVE (TEMP instance) (self.emit_expression(receiver).into()))
+                (hir::Expression::Call(
+                    Box::new(hir!((MEM (ADD virtual_table (CONST index as i64 * abi::WORD))))),
+                    arguments,
+                    returns,
+                )))
+        )
     }
 
     fn emit_class_field(
@@ -892,17 +900,16 @@ impl<'env> Emitter<'env> {
         field: &Symbol,
     ) -> hir::Expression {
         #[rustfmt::skip]
-        let base = self.classes[class]
+        let base = self.layouts[class]
             .interface()
             .map(|superclass| hir!((MEM (NAME (Label::Fixed(abi::mangle::class_size(&superclass)))))))
             .unwrap_or_else(|| hir!((CONST 0)));
 
-        let index = self.classes[class]
+        let index = self.layouts[class]
             .field_index(class, field)
-            .map(|index| index as i64)
             .expect("[TYPE ERROR]: unbound field in class");
 
-        hir!((MEM (ADD (self.emit_expression(receiver).into()) (ADD base (CONST index * abi::WORD)))))
+        hir!((MEM (ADD (self.emit_expression(receiver).into()) (ADD base (CONST index as i64 * abi::WORD)))))
     }
 
     fn emit_initialization(
