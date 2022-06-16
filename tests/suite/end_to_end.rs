@@ -47,4 +47,8 @@ mod separate {
     test!(out_of_order, out_of_order_1, out_of_order_2);
     test!(generic_class, generic_class_1, generic_class_2);
     test!(generic_function, generic_function_1, generic_function_2);
+    test!(final_1, final_1_1, final_1_2);
+    test!(final_2, final_2_1, final_2_2);
+    test!(final_3, final_3_1, final_3_2);
+    test!(final_4, final_4_1, final_4_2);
 }

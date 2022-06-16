@@ -1,0 +1,13 @@
+---
+source: tests/suite/end_to_end.rs
+assertion_line: 53
+expression: stdout
+---
+1 = 1
+4 = 4
+3 = 3
+4 = 4
+A = A
+B = B
+B = B
+

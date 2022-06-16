@@ -1,0 +1,9 @@
+---
+source: tests/suite/emit.rs
+assertion_line: 10
+expression: lir_stdout
+---
+in class A: foo
+in class B: foo
+in class B: bar
+

@@ -1,0 +1,6 @@
+class A {
+    get(): int
+    set(field: int)
+}
+
+new_a(): A

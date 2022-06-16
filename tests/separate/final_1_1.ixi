@@ -1,0 +1,5 @@
+final class A {
+    foo(): int[]
+}
+
+new_a(): A

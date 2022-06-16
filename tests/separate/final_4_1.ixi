@@ -1,0 +1,14 @@
+new_a(): A
+new_b(): B
+
+class A {
+    get(): int
+    set(field: int)
+    overridden(): int[]
+}
+
+final class B extends A {
+    get'(): int
+    set'(field: int)
+    overridden(): int[]
+}

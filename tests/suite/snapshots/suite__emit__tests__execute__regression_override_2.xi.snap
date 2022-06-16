@@ -1,0 +1,9 @@
+---
+source: tests/suite/emit.rs
+assertion_line: 10
+expression: lir_stdout
+---
+C, A = C, A
+A = A
+A = A
+

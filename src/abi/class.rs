@@ -1,3 +1,4 @@
+use std::iter;
 use std::mem;
 
 use crate::check::Context;
@@ -64,8 +65,9 @@ pub struct Layout {
     /// Map from this class's methods to their index in the virtual table.
     methods: Map<Symbol, usize>,
 
-    /// Size of this class's virtual table in words.
-    slots: usize,
+    /// `Some(size)` of this class's virtual table in words, or `None` if
+    /// it does not need a virtual table.
+    slots: Option<usize>,
 }
 
 impl Layout {
@@ -75,8 +77,11 @@ impl Layout {
         let mut interface = None;
         let mut slots = 0;
 
-        for superclass in context
+        let r#final = context.get_final(class).is_some();
+
+        for (superclass, r#final) in context
             .ancestors_inclusive(class)
+            .zip(iter::once(Some(r#final)).chain(iter::once(None).cycle()))
             .collect::<Vec<_>>()
             .into_iter()
             .rev()
@@ -99,11 +104,13 @@ impl Layout {
                 .get_class(&superclass)
                 .expect("[INTERNAL ERROR]: unbound class")
             {
+                use Entry::*;
                 match entry {
-                    Entry::Variable(_) => {
+                    Variable(_) => {
                         fields.insert((superclass, identifier.symbol));
                     }
-                    Entry::Function(_, _) | Entry::Signature(_, _) => {
+                    Function(_, _) | Signature(_, _) if matches!(r#final, Some(true)) => continue,
+                    Function(_, _) | Signature(_, _) => {
                         methods.entry(identifier.symbol).or_insert_with(|| {
                             let increment = slots + 1;
                             mem::replace(&mut slots, increment)
@@ -117,7 +124,11 @@ impl Layout {
             interface,
             fields,
             methods,
-            slots,
+            slots: if r#final && slots == 1 {
+                None
+            } else {
+                Some(slots)
+            },
         }
     }
 
@@ -136,15 +147,24 @@ impl Layout {
             .get_index_of(&(*class, *field))
             // Search for latest field override if no exact match
             .or_else(|| self.fields.iter().rposition(|(_, name)| name == field))
-            // 0th index reserved for virtual table pointer, but only if there
-            // is no interface carrying its own virtual table pointer
-            .map(|index| index + self.interface.map(|_| 0).unwrap_or(1))
+            .map(|index| index + self.virtual_table_field_offset())
     }
 
     /// Number of fields relative to superclass, accounting for virtual table pointer
     /// if there is no superclass.
     pub fn field_len(&self) -> usize {
-        self.fields.len() + self.interface.map(|_| 0).unwrap_or(1)
+        self.fields.len() + self.virtual_table_field_offset()
+    }
+
+    /// The 0th index is reserved for the virtual table pointer, but only if:
+    /// a) there is no superclass interface carrying its own virtual table pointer,
+    /// b) the virtual table exists.
+    fn virtual_table_field_offset(&self) -> usize {
+        match (self.interface, self.slots) {
+            (Some(_), _) => 0,
+            (None, Some(_)) => 1,
+            (None, None) => 0,
+        }
     }
 
     /// Index of method in virtual table, accounting for reserved slots per class.
@@ -153,7 +173,7 @@ impl Layout {
     }
 
     /// Size of virtual table in words, accounting for reserved slots per class.
-    pub fn virtual_table_len(&self) -> usize {
+    pub fn virtual_table_len(&self) -> Option<usize> {
         self.slots
     }
 }

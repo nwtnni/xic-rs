@@ -1,0 +1,10 @@
+---
+source: tests/suite/end_to_end.rs
+assertion_line: 51
+expression: stdout
+---
+1 = 1
+2 = 2
+3 = 3
+4 = 4
+

@@ -1,0 +1,8 @@
+final class A {
+    set_a(a: int)
+    set_b(b: int)
+    get_sum(): int
+}
+
+new_a(): A
+

@@ -101,9 +101,14 @@ pub fn emit_unit(
                         ast::ClassItem::Method(method) => method,
                     };
 
-                    let visibility = match class.provenance.is_empty() {
-                        true => ir::Visibility::Local,
-                        false => ir::Visibility::LinkOnceOdr,
+                    let visibility = match (
+                        emitter.layouts[&class.name.symbol].method_index(&method.name.symbol),
+                        class.provenance.is_empty(),
+                    ) {
+                        // TODO: set method to local visibility if not exposed via interface
+                        (None, true) => ir::Visibility::Global,
+                        (Some(_), true) => ir::Visibility::Local,
+                        (_, false) => ir::Visibility::LinkOnceOdr,
                     };
 
                     let (name, function) = emitter.emit_function(
@@ -283,7 +288,6 @@ impl<'env> Emitter<'env> {
             .map(|superclass| hir!((MEM (NAME (Label::Fixed(abi::mangle::class_size(&superclass)))))))
             .unwrap_or_else(|| hir!((CONST 0)));
 
-        // Extra +1 for virtual table pointer
         statements.push(hir!(
             (MOVE
                 (MEM (NAME Label::Fixed(size)))
@@ -298,18 +302,23 @@ impl<'env> Emitter<'env> {
         statements: &mut Vec<hir::Statement>,
     ) {
         let virtual_table_class = abi::mangle::class_virtual_table(class);
+        let virtual_table_class_size = match self.layouts[class].virtual_table_len() {
+            Some(size) => size,
+            None => return,
+        };
 
         // Reserve n words in BSS section for class virtual table
-        self.bss.insert(
-            virtual_table_class,
-            (visibility, self.layouts[class].virtual_table_len()),
-        );
+        self.bss
+            .insert(virtual_table_class, (visibility, virtual_table_class_size));
 
         // Copy superclass virtual table
         if let Some(superclass) = self.context.get_superclass(class) {
-            let size_superclass = self.layouts[&superclass].virtual_table_len();
             let virtual_table_superclass =
                 Label::Fixed(abi::mangle::class_virtual_table(&superclass));
+
+            let virtual_table_superclass_size = self.layouts[&superclass]
+                .virtual_table_len()
+                .expect("[TYPE ERROR]: non-`final` class must have virtual table");
 
             let offset = Temporary::fresh("offset");
             let r#while = Label::fresh("while");
@@ -322,7 +331,7 @@ impl<'env> Emitter<'env> {
                     (MEM (ADD (NAME Label::Fixed(virtual_table_class)) (TEMP offset)))
                     (MEM (ADD (NAME virtual_table_superclass) (TEMP offset))))),
                 hir!((MOVE (TEMP offset) (ADD (TEMP offset) (CONST abi::WORD)))),
-                hir!((CJUMP (LT (TEMP offset) (CONST size_superclass as i64 * abi::WORD)) r#while r#done)),
+                hir!((CJUMP (LT (TEMP offset) (CONST virtual_table_superclass_size as i64 * abi::WORD)) r#while r#done)),
                 hir!((LABEL r#done)),
             ]);
         }
@@ -330,13 +339,14 @@ impl<'env> Emitter<'env> {
         // Selectively override superclass entries
         for (identifier, entry) in self.context.get_class(class).unwrap() {
             let (parameters, returns) = match entry {
-                Entry::Variable(_) | Entry::Signature(_, _) => continue,
                 Entry::Function(parameters, returns) => (parameters, returns),
+                Entry::Variable(_) | Entry::Signature(_, _) => continue,
             };
 
-            let index = self.layouts[class]
-                .method_index(&identifier.symbol)
-                .expect("[TYPE ERROR]: unbound method");
+            let index = match self.layouts[class].method_index(&identifier.symbol) {
+                Some(index) => index,
+                None => continue,
+            };
 
             let method = Label::Fixed(abi::mangle::method(
                 class,
@@ -784,19 +794,23 @@ impl<'env> Emitter<'env> {
 
                 let xi_alloc = Label::Fixed(symbol::intern_static(abi::XI_ALLOC));
                 let class_size = Label::Fixed(abi::mangle::class_size(&variable.name.symbol));
-                let class_virtual_table =
-                    Label::Fixed(abi::mangle::class_virtual_table(&variable.name.symbol));
 
-                let new = Temporary::fresh("new");
-
-                hir!(
-                (ESEQ
-                    (SEQ
-                        (MOVE (TEMP new) (CALL (NAME xi_alloc) 1 (MEM (NAME class_size))))
-                        (MOVE (MEM (TEMP new)) (NAME class_virtual_table)))
-                    (TEMP new))
-                )
-                .into()
+                match self.layouts[&variable.name.symbol].virtual_table_len() {
+                    None => hir!((CALL (NAME xi_alloc) 1 (MEM (NAME class_size)))).into(),
+                    Some(_) => {
+                        let new = Temporary::fresh("new");
+                        let virtual_table =
+                            Label::Fixed(abi::mangle::class_virtual_table(&variable.name.symbol));
+                        hir!(
+                            (ESEQ
+                                (SEQ
+                                    (MOVE (TEMP new) (CALL (NAME xi_alloc) 1 (MEM (NAME class_size))))
+                                    (MOVE (MEM (TEMP new)) (NAME virtual_table)))
+                                (TEMP new))
+                        )
+                        .into()
+                    }
+                }
             }
             Call(call) => self.emit_call(call).into(),
         }
@@ -857,16 +871,6 @@ impl<'env> Emitter<'env> {
     ) -> hir::Expression {
         let instance = Temporary::fresh("instance");
 
-        // Special case: if the receiver is `super`, then we know its virtual table
-        // statically, since we want to force the superclass implementation even if
-        // it is overridden by subclasses.
-        let virtual_table = match receiver {
-            ast::Expression::Super(_) => {
-                hir!((NAME Label::Fixed(abi::mangle::class_virtual_table(class))))
-            }
-            _ => hir!((MEM (TEMP instance))),
-        };
-
         let mut arguments = arguments
             .iter()
             .map(|argument| self.emit_expression(argument).into())
@@ -878,18 +882,36 @@ impl<'env> Emitter<'env> {
 
         arguments.insert(0, hir!((TEMP instance)));
 
-        let index = self.layouts[class]
-            .method_index(&method.symbol)
-            .expect("[TYPE ERROR]: unbound method in class");
+        let method = match self.layouts[class].method_index(&method.symbol) {
+            // Special case: if `method_index` returns `None`, then this method
+            // does not have a virtual table entry (see `crate::abi::class`
+            // for details), and we should call the method as a static function.
+            None => {
+                let (parameters, returns) = self
+                    .get_signature(GlobalScope::Class(*class), method)
+                    .expect("[TYPE ERROR]: unbound method");
+
+                hir!((NAME Label::Fixed(abi::mangle::method(class, &method.symbol, parameters, returns))))
+            }
+            // Special case: if the receiver is `super`, then we know its virtual
+            // table statically, since we want to force the superclass
+            // implementation even if it is overridden by subclasses.
+            Some(index) if matches!(receiver, ast::Expression::Super(_)) => {
+                hir!(
+                    (MEM (ADD
+                        (NAME Label::Fixed(abi::mangle::class_virtual_table(class)))
+                        (CONST index as i64 * abi::WORD))
+                ))
+            }
+            Some(index) => {
+                hir!((MEM (ADD (MEM (TEMP instance)) (CONST index as i64 * abi::WORD))))
+            }
+        };
 
         hir!(
             (ESEQ
                 (MOVE (TEMP instance) (self.emit_expression(receiver).into()))
-                (hir::Expression::Call(
-                    Box::new(hir!((MEM (ADD virtual_table (CONST index as i64 * abi::WORD))))),
-                    arguments,
-                    returns,
-                )))
+                (hir::Expression::Call(Box::new(method), arguments, returns)))
         )
     }
 
