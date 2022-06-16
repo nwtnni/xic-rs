@@ -81,13 +81,7 @@ pub fn emit_unit(
             _ => continue,
         };
 
-        // TODO: set class metadata to local visibility if not exposed in interface
-        let visibility = match class.provenance.is_empty() {
-            true => ir::Visibility::Global,
-            false => ir::Visibility::LinkOnceOdr,
-        };
-
-        let (name, function) = emitter.emit_class_initialization(&class.name.symbol, visibility);
+        let (name, function) = emitter.emit_class_initialization(class);
         functions.insert(name, function);
         initialize.push(hir!((EXP (CALL (NAME Label::Fixed(name)) 0))));
     }
@@ -96,8 +90,8 @@ pub fn emit_unit(
         match item {
             ast::Item::Global(global) => {
                 if let Some((name, function)) = emitter.emit_global(global) {
-                    initialize.push(hir!((EXP (CALL (NAME (Label::Fixed(name))) 0))));
                     functions.insert(name, function);
+                    initialize.push(hir!((EXP (CALL (NAME (Label::Fixed(name))) 0))));
                 }
             }
             ast::Item::Class(class) => {
@@ -227,15 +221,8 @@ impl<'env> Emitter<'env> {
         ))
     }
 
-    fn emit_class_initialization(
-        &mut self,
-        class: &Symbol,
-        visibility: ir::Visibility,
-    ) -> (Symbol, hir::Function) {
-        let size = abi::mangle::class_size(class);
-
-        // Reserve 1 word in BSS section for class size
-        self.bss.insert(size, (visibility, 1));
+    fn emit_class_initialization(&mut self, class: &ast::Class) -> (Symbol, hir::Function) {
+        let size = abi::mangle::class_size(&class.name.symbol);
 
         let enter = Label::fresh("enter");
         let exit = Label::fresh("exit");
@@ -245,16 +232,51 @@ impl<'env> Emitter<'env> {
             hir!((LABEL enter)),
         ];
 
-        let superclass = self.context.get_superclass(class);
-
         // Recursively initialize superclass
-        if let Some(superclass) = superclass {
+        if let Some(superclass) = self.context.get_superclass(&class.name.symbol) {
             let initialize = Label::Fixed(abi::mangle::class_initialization(&superclass));
             statements.push(hir!((EXP (CALL (NAME initialize) 0))));
         }
 
-        // Initialize class size
+        // TODO: set class metadata to local visibility if not exposed in interface
+        let visibility = match class.provenance.is_empty() {
+            true => ir::Visibility::Global,
+            false => ir::Visibility::LinkOnceOdr,
+        };
+
+        self.emit_class_size(&class.name.symbol, visibility, &mut statements);
+        self.emit_class_virtual_table(&class.name.symbol, visibility, &mut statements);
+
+        statements.push(hir!((LABEL exit)));
+        statements.push(hir!((RETURN)));
+
+        let name = abi::mangle::class_initialization(&class.name.symbol);
+
+        (
+            name,
+            hir::Function {
+                name,
+                statement: hir::Statement::Sequence(statements),
+                arguments: 0,
+                returns: 0,
+                visibility,
+            },
+        )
+    }
+
+    fn emit_class_size(
+        &mut self,
+        class: &Symbol,
+        visibility: ir::Visibility,
+        statements: &mut Vec<hir::Statement>,
+    ) {
+        let size = abi::mangle::class_size(class);
+
+        // Reserve 1 word in BSS section for class size
+        self.bss.insert(size, (visibility, 1));
+
         let fields = self.classes[class].field_len() as i64;
+
         #[rustfmt::skip]
         let interface = self.classes[class]
             .interface()
@@ -262,10 +284,19 @@ impl<'env> Emitter<'env> {
             .unwrap_or_else(|| hir!((CONST 0)));
 
         // Extra +1 for virtual table pointer
-        statements
-            .push(hir!((MOVE (MEM (NAME Label::Fixed(size))) (ADD interface (CONST (fields + 1) * abi::WORD)))));
+        statements.push(hir!(
+            (MOVE
+                (MEM (NAME Label::Fixed(size)))
+                (ADD interface (CONST (fields + 1) * abi::WORD)))
+        ));
+    }
 
-        // Initialize class virtual table
+    fn emit_class_virtual_table(
+        &mut self,
+        class: &Symbol,
+        visibility: ir::Visibility,
+        statements: &mut Vec<hir::Statement>,
+    ) {
         let virtual_table_class = abi::mangle::class_virtual_table(class);
 
         // Reserve n words in BSS section for class virtual table
@@ -275,7 +306,7 @@ impl<'env> Emitter<'env> {
         );
 
         // Copy superclass virtual table
-        if let Some(superclass) = superclass {
+        if let Some(superclass) = self.context.get_superclass(class) {
             let size_superclass = self.classes[&superclass].size();
             let virtual_table_superclass =
                 Label::Fixed(abi::mangle::class_virtual_table(&superclass));
@@ -319,22 +350,6 @@ impl<'env> Emitter<'env> {
                     (NAME method))
             ));
         }
-
-        statements.push(hir!((LABEL exit)));
-        statements.push(hir!((RETURN)));
-
-        let name = abi::mangle::class_initialization(class);
-
-        (
-            name,
-            hir::Function {
-                name,
-                statement: hir::Statement::Sequence(statements),
-                arguments: 0,
-                returns: 0,
-                visibility,
-            },
-        )
     }
 
     fn emit_function(
