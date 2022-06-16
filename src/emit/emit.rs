@@ -130,9 +130,9 @@ pub fn emit_hir(
 
     initialize.push(hir!((RETURN)));
     functions.insert(
-        abi::mangle::init(),
+        symbol::intern_static(abi::XI_INIT),
         hir::Function {
-            name: abi::mangle::init(),
+            name: symbol::intern_static(abi::XI_INIT),
             statement: hir::Statement::Sequence(initialize),
             arguments: 0,
             returns: 0,

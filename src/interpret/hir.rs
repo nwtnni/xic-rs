@@ -25,7 +25,7 @@ pub fn interpret_hir<'io, R: io::BufRead + 'io, W: io::Write + 'io>(
 
     let mut global = Global::new(&unit.data, &unit.bss, stdin, stdout);
 
-    let mut init = Local::new(&unit, &abi::mangle::init(), &[]);
+    let mut init = Local::new(&unit, &symbol::intern_static(abi::XI_INIT), &[]);
 
     assert!(init.interpret_hir(&unit, &mut global)?.is_empty());
 

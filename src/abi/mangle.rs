@@ -5,10 +5,6 @@ use crate::data::r#type;
 use crate::data::symbol;
 use crate::data::symbol::Symbol;
 
-pub fn init() -> Symbol {
-    symbol::intern_static("_I_init")
-}
-
 pub fn template(name: &Symbol, generics: &[r#type::Expression]) -> Symbol {
     let mut mangled = escape(name);
     write!(&mut mangled, "t{}", generics.len()).unwrap();
