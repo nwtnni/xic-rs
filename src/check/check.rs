@@ -120,7 +120,7 @@ impl Checker {
         }
 
         for method in &class.methods {
-            self.check_callable(method)?;
+            self.check_function_like(method)?;
         }
 
         Ok(())
@@ -200,7 +200,7 @@ impl Checker {
         scope: GlobalScope,
         function: &ast::Function,
     ) -> Result<(), Error> {
-        self.check_callable(function)?;
+        self.check_function_like(function)?;
 
         let returns = match self.context.get(scope, &function.name) {
             Some(Entry::Function(_, returns)) => returns.clone(),
@@ -230,7 +230,10 @@ impl Checker {
         Ok(())
     }
 
-    pub(super) fn check_callable<C: ast::Callable>(&mut self, function: &C) -> Result<(), Error> {
+    pub(super) fn check_function_like<C: ast::FunctionLike>(
+        &mut self,
+        function: &C,
+    ) -> Result<(), Error> {
         for parameter in function.parameters() {
             self.check_type(&parameter.r#type)?;
         }

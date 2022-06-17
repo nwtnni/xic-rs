@@ -110,7 +110,7 @@ impl Checker {
             match item {
                 ast::ItemSignature::Class(class) => self.check_class_signature(class)?,
                 ast::ItemSignature::Function(function) => {
-                    self.check_callable(function)?;
+                    self.check_function_like(function)?;
                 }
                 // TODO: can still implement some basic type-checking before instantiation
                 // if we treat generics conservatively (i.e. as `Any` type)?
@@ -215,7 +215,7 @@ impl Checker {
         scope: GlobalScope,
         function: &ast::FunctionSignature,
     ) -> Result<(), error::Error> {
-        let (parameters, returns) = self.load_callable(function);
+        let (parameters, returns) = self.load_function_like(function);
         let signature = Entry::Signature(parameters, returns);
 
         match self.context.get_full(scope, &function.name.symbol) {
@@ -292,7 +292,7 @@ impl Checker {
         scope: GlobalScope,
         function: &ast::Function,
     ) -> Result<(), error::Error> {
-        let (new_parameters, new_returns) = self.load_callable(function);
+        let (new_parameters, new_returns) = self.load_function_like(function);
 
         match self.context.insert(
             scope,
@@ -324,18 +324,18 @@ impl Checker {
         Ok(())
     }
 
-    fn load_callable<C: ast::Callable>(
+    fn load_function_like<C: ast::FunctionLike>(
         &self,
-        signature: &C,
+        function: &C,
     ) -> (Vec<r#type::Expression>, Vec<r#type::Expression>) {
-        let parameters = signature
+        let parameters = function
             .parameters()
             .iter()
             .map(|declaration| &declaration.r#type)
             .map(|r#type| self.load_type(r#type))
             .collect::<Vec<_>>();
 
-        let returns = signature
+        let returns = function
             .returns()
             .iter()
             .map(|r#type| self.load_type(r#type))

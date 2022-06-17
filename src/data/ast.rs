@@ -243,15 +243,15 @@ impl fmt::Display for ClassItem {
     }
 }
 
-pub trait Callable {
+pub trait FunctionLike {
     fn name(&self) -> &Identifier;
     fn parameters(&self) -> &[SingleDeclaration];
     fn returns(&self) -> &[Type];
 }
 
-macro_rules! impl_callable {
+macro_rules! impl_function_like {
     ($type:ty) => {
-        impl Callable for $type {
+        impl FunctionLike for $type {
             fn name(&self) -> &Identifier {
                 &self.name
             }
@@ -296,7 +296,7 @@ pub struct FunctionSignature {
     pub span: Span,
 }
 
-impl_callable!(FunctionSignature);
+impl_function_like!(FunctionSignature);
 
 impl fmt::Display for FunctionSignature {
     fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
@@ -320,7 +320,7 @@ pub struct Function {
     pub span: Span,
 }
 
-impl_callable!(Function);
+impl_function_like!(Function);
 
 impl fmt::Display for Function {
     fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
