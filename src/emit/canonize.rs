@@ -25,11 +25,11 @@ pub fn emit_lir(function: &hir::Function) -> lir::Function<Label> {
     let mut canonized = std::mem::take(&mut canonizer.canonized);
 
     match canonized.last() {
-        None => unreachable!(),
         Some(
             lir::Statement::Return(_) | lir::Statement::Jump(_) | lir::Statement::CJump { .. },
         ) => (),
-        Some(
+        None
+        | Some(
             lir::Statement::Call(_, _, _) | lir::Statement::Move { .. } | lir::Statement::Label(_),
         ) => {
             // Guaranteed valid by type-checker
