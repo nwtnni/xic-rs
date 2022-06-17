@@ -54,6 +54,64 @@ pub fn eliminate_functions<T: lir::Target>(lir: &mut ir::Unit<Cfg<lir::Function<
     log::debug!("Eliminated {} dead functions!", eliminated);
 }
 
+pub fn eliminate_lir<T: lir::Target>(cfg: &mut Cfg<lir::Function<T>>) {
+    log::info!(
+        "[{}] Eliminating dead code in {}...",
+        std::any::type_name::<Cfg<lir::Function<T>>>(),
+        cfg.name()
+    );
+    util::time!(
+        "[{}] Done eliminating dead code in {}",
+        std::any::type_name::<Cfg<lir::Function<T>>>(),
+        cfg.name()
+    );
+
+    let mut live_variables = analyze::<LiveVariables<_>, _>(cfg);
+    let mut eliminated = 0;
+    let mut buffer = Vec::new();
+
+    for (label, statements) in cfg.blocks_mut() {
+        let mut output = live_variables.inputs.remove(label).unwrap();
+
+        buffer.append(statements);
+
+        // Reverse order is necessary for backward analysis
+        for statement in buffer.drain(..).rev() {
+            let destination = match &statement {
+                lir::Statement::Jump(_)
+                | lir::Statement::CJump { .. }
+                | lir::Statement::Call(_, _, _)
+                | lir::Statement::Label(_)
+                | lir::Statement::Return(_) => None,
+                lir::Statement::Move {
+                    destination: lir::Expression::Memory(_),
+                    source: _,
+                } => None,
+                lir::Statement::Move {
+                    destination: lir::Expression::Temporary(temporary),
+                    source: _,
+                } => Some(temporary),
+                lir::Statement::Move { .. } => unreachable!(),
+            };
+
+            let live = destination.map_or(true, |destination| output.contains(destination));
+
+            live_variables.analysis.transfer(&statement, &mut output);
+
+            if live {
+                statements.push(statement);
+            } else {
+                log::trace!("Eliminated dead LIR statement: {}", statement);
+                eliminated += 1;
+            }
+        }
+
+        statements.reverse();
+    }
+
+    log::debug!("Eliminated {} dead LIR statements!", eliminated);
+}
+
 pub fn eliminate_assembly(
     live_variables: &Solution<LiveVariables<asm::Function<Temporary>>, asm::Function<Temporary>>,
     cfg: &mut Cfg<asm::Function<Temporary>>,
@@ -127,62 +185,4 @@ pub fn eliminate_assembly(
     }
 
     log::debug!("Eliminated {} dead assembly statements!", eliminated);
-}
-
-pub fn eliminate_lir<T: lir::Target>(cfg: &mut Cfg<lir::Function<T>>) {
-    log::info!(
-        "[{}] Eliminating dead code in {}...",
-        std::any::type_name::<Cfg<lir::Function<T>>>(),
-        cfg.name()
-    );
-    util::time!(
-        "[{}] Done eliminating dead code in {}",
-        std::any::type_name::<Cfg<lir::Function<T>>>(),
-        cfg.name()
-    );
-
-    let mut live_variables = analyze::<LiveVariables<_>, _>(cfg);
-    let mut eliminated = 0;
-    let mut buffer = Vec::new();
-
-    for (label, statements) in cfg.blocks_mut() {
-        let mut output = live_variables.inputs.remove(label).unwrap();
-
-        buffer.append(statements);
-
-        // Reverse order is necessary for backward analysis
-        for statement in buffer.drain(..).rev() {
-            let destination = match &statement {
-                lir::Statement::Jump(_)
-                | lir::Statement::CJump { .. }
-                | lir::Statement::Call(_, _, _)
-                | lir::Statement::Label(_)
-                | lir::Statement::Return(_) => None,
-                lir::Statement::Move {
-                    destination: lir::Expression::Memory(_),
-                    source: _,
-                } => None,
-                lir::Statement::Move {
-                    destination: lir::Expression::Temporary(temporary),
-                    source: _,
-                } => Some(temporary),
-                lir::Statement::Move { .. } => unreachable!(),
-            };
-
-            let live = destination.map_or(true, |destination| output.contains(destination));
-
-            live_variables.analysis.transfer(&statement, &mut output);
-
-            if live {
-                statements.push(statement);
-            } else {
-                log::trace!("Eliminated dead LIR statement: {}", statement);
-                eliminated += 1;
-            }
-        }
-
-        statements.reverse();
-    }
-
-    log::debug!("Eliminated {} dead LIR statements!", eliminated);
 }
