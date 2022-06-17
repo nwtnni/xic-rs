@@ -119,8 +119,8 @@ pub fn propagate_constants_assembly(path: &str) -> anyhow::Result<()> {
 pub fn inline_functions_lir(path: &str) -> anyhow::Result<()> {
     let expected_stdout = super::execute_expected(path)?;
 
-    let mut optimized = super::reorder(path)?;
-    optimize::inline_functions_lir(&mut optimized);
+    let optimized = super::emit_lir(path)?.map(xic::api::construct_cfg);
+    let optimized = optimize::inline_functions_lir(optimized);
     let optimized_stdout = super::interpret_lir(&optimized)?;
 
     pretty_assertions::assert_eq!(expected_stdout, optimized_stdout);

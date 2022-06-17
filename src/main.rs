@@ -445,13 +445,12 @@ fn run() -> anyhow::Result<()> {
             command.debug_optimize_lir(&path, DebugOpt::Opt(Opt::CleanCfg), &cfg)?;
         }
 
-        let mut lir = cfg.map(api::destruct_cfg);
-
-        if command.optimize(Opt::Inline) {
-            optimize::inline_functions_lir(&mut lir);
+        let mut cfg = if command.optimize(Opt::Inline) {
+            optimize::inline_functions_lir(cfg)
+        } else {
+            cfg.map(api::destruct_cfg)
         }
-
-        let mut cfg = lir.map(api::construct_cfg);
+        .map(api::construct_cfg);
 
         if command.optimize(Opt::Inline) {
             command.debug_optimize_lir(&path, DebugOpt::Opt(Opt::Inline), &cfg)?;
@@ -468,6 +467,7 @@ fn run() -> anyhow::Result<()> {
 
         if command.optimize(Opt::DeadCodeElimination) {
             cfg = cfg.map_mut(optimize::eliminate_dead_code_lir);
+            optimize::eliminate_dead_code_functions(&mut cfg);
             command.debug_optimize_lir(&path, DebugOpt::Opt(Opt::DeadCodeElimination), &cfg)?;
         }
 

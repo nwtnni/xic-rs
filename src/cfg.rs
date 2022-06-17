@@ -56,6 +56,10 @@ impl<T: Function> Cfg<T> {
         &self.exit
     }
 
+    pub(crate) fn metadata(&self) -> &T::Metadata {
+        &self.metadata
+    }
+
     /// Computes the strongly connected components (SCCs) of this (`reverse`d) control flow graph.
     ///
     /// The list of SCCs is in reverse topological order. Moreover, the list of labels in each

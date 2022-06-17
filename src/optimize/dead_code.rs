@@ -1,15 +1,49 @@
+use crate::abi;
 use crate::analyze::analyze;
 use crate::analyze::Analysis as _;
+use crate::analyze::CallGraph;
 use crate::analyze::LiveVariables;
 use crate::analyze::Solution;
 use crate::cfg::Cfg;
 use crate::data::asm;
+use crate::data::ir;
 use crate::data::lir;
 use crate::data::operand;
 use crate::data::operand::Register;
 use crate::data::operand::Temporary;
+use crate::data::symbol;
 use crate::util;
 use crate::util::Or;
+use crate::Set;
+
+pub fn eliminate_functions<T: lir::Target>(lir: &mut ir::Unit<Cfg<lir::Function<T>>>) {
+    let call_graph = CallGraph::new(lir);
+
+    // A function is reachable if it is reachable from `init` or a globally visible function.
+    // We enforce that `main` is always globally visible.
+    let reachable = call_graph
+        .postorder(&symbol::intern_static(abi::XI_INIT))
+        .chain(
+            lir.functions
+                .values()
+                .filter(|cfg| match cfg.metadata() {
+                    (_, _, ir::Visibility::Global) => true,
+                    (_, _, ir::Visibility::Local | ir::Visibility::LinkOnceOdr) => false,
+                })
+                .flat_map(|cfg| call_graph.postorder(cfg.name())),
+        )
+        .collect::<Set<_>>();
+
+    lir.functions.retain(|_, function| {
+        let (_, _, visibility) = function.metadata();
+        match visibility {
+            ir::Visibility::Global => true,
+            ir::Visibility::Local | ir::Visibility::LinkOnceOdr => {
+                reachable.contains(function.name())
+            }
+        }
+    })
+}
 
 pub fn eliminate_assembly(
     live_variables: &Solution<LiveVariables<asm::Function<Temporary>>, asm::Function<Temporary>>,

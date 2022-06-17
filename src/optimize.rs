@@ -12,6 +12,7 @@ pub(crate) use constant::fold_condition;
 pub use constant::propagate_assembly as propagate_constants_assembly;
 pub use copy::propagate_assembly as propagate_copies_assembly;
 pub use dead_code::eliminate_assembly as eliminate_dead_code_assembly;
+pub use dead_code::eliminate_functions as eliminate_dead_code_functions;
 pub use dead_code::eliminate_lir as eliminate_dead_code_lir;
 pub use function::inline_lir as inline_functions_lir;
 pub use partial_redundancy::eliminate_lir as eliminate_partial_redundancy_lir;

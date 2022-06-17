@@ -4,6 +4,9 @@ use std::mem;
 
 use crate::abi;
 use crate::analyze::CallGraph;
+use crate::cfg;
+use crate::cfg::Cfg;
+use crate::data::ir;
 use crate::data::lir;
 use crate::data::operand::Immediate;
 use crate::data::operand::Label;
@@ -14,7 +17,9 @@ use crate::util;
 use crate::util::Or;
 use crate::Map;
 
-pub fn inline_lir(lir: &mut lir::Unit<lir::Fallthrough>) {
+pub fn inline_lir<T: lir::Target>(
+    lir: ir::Unit<Cfg<lir::Function<T>>>,
+) -> lir::Unit<lir::Fallthrough> {
     log::info!(
         "[{}] Inlining in {}...",
         std::any::type_name::<lir::Unit<lir::Fallthrough>>(),
@@ -26,7 +31,8 @@ pub fn inline_lir(lir: &mut lir::Unit<lir::Fallthrough>) {
         lir.name
     );
 
-    let call_graph = CallGraph::new(lir);
+    let call_graph = CallGraph::new(&lir);
+    let mut lir = lir.map(cfg::destruct_cfg);
 
     let main = symbol::intern_static(abi::XI_MAIN);
     let start = if lir.functions.contains_key(&main) {
@@ -34,17 +40,11 @@ pub fn inline_lir(lir: &mut lir::Unit<lir::Fallthrough>) {
     } else if let Some(name) = lir.functions.keys().next() {
         *name
     } else {
-        return;
+        return lir;
     };
 
-    // We can only inline within our compilation unit.
-    let postorder = call_graph
-        .postorder(&start)
-        .filter(|name| lir.functions.contains_key(name))
-        .collect::<Vec<_>>();
-
-    for name in &postorder {
-        let mut function = lir.functions.remove(name).unwrap();
+    for name in call_graph.postorder(&start) {
+        let mut function = lir.functions.remove(&name).unwrap();
 
         function.statements = mem::take(&mut function.statements)
             .into_iter()
@@ -92,8 +92,10 @@ pub fn inline_lir(lir: &mut lir::Unit<lir::Fallthrough>) {
             })
             .collect();
 
-        lir.functions.insert(*name, function);
+        lir.functions.insert(name, function);
     }
+
+    lir
 }
 
 fn rewrite(function: &lir::Function<lir::Fallthrough>) -> Rewritten {
