@@ -155,5 +155,7 @@ fn mangle_type_ast(r#type: &ast::Type, mangled: &mut String) {
 }
 
 fn escape(symbol: &Symbol) -> String {
-    symbol::resolve(*symbol).replace('_', "__")
+    symbol::resolve(*symbol)
+        .replace('\'', "_")
+        .replace('_', "__")
 }
