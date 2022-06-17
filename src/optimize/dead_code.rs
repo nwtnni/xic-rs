@@ -27,20 +27,18 @@ pub fn eliminate_functions<T: lir::Target>(lir: &mut ir::Unit<Cfg<lir::Function<
             lir.functions
                 .values()
                 .filter(|cfg| match cfg.metadata() {
-                    (_, _, ir::Visibility::Global) => true,
-                    (_, _, ir::Visibility::Local | ir::Visibility::LinkOnceOdr) => false,
+                    (_, _, ir::Linkage::Global) => true,
+                    (_, _, ir::Linkage::Local | ir::Linkage::LinkOnceOdr) => false,
                 })
                 .flat_map(|cfg| call_graph.postorder(cfg.name())),
         )
         .collect::<Set<_>>();
 
     lir.functions.retain(|_, function| {
-        let (_, _, visibility) = function.metadata();
-        match visibility {
-            ir::Visibility::Global => true,
-            ir::Visibility::Local | ir::Visibility::LinkOnceOdr => {
-                reachable.contains(function.name())
-            }
+        let (_, _, linkage) = function.metadata();
+        match linkage {
+            ir::Linkage::Global => true,
+            ir::Linkage::Local | ir::Linkage::LinkOnceOdr => reachable.contains(function.name()),
         }
     })
 }

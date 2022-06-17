@@ -9,7 +9,7 @@ pub struct Unit<T> {
     pub name: Symbol,
     pub functions: Map<Symbol, T>,
     pub data: Map<Label, Vec<Immediate>>,
-    pub bss: Map<Symbol, (Visibility, usize)>,
+    pub bss: Map<Symbol, (Linkage, usize)>,
 }
 
 impl<T> Unit<T> {
@@ -48,7 +48,7 @@ impl<T> Unit<T> {
 }
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq, Hash)]
-pub enum Visibility {
+pub enum Linkage {
     /// Locally scoped symbol
     ///
     /// - global: n

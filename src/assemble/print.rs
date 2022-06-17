@@ -20,7 +20,7 @@ impl<T: fmt::Display> fmt::Display for Intel<&asm::Unit<T>> {
         writeln!(fmt, "{}\n", Directive::Data)?;
 
         for (label, data) in &self.0.data {
-            writeln!(fmt, "{}", Directive::Visible(ir::Visibility::Local, *label))?;
+            writeln!(fmt, "{}", Directive::Linkage(ir::Linkage::Local, *label))?;
             writeln!(fmt, "{}", Directive::Align(abi::WORD as usize))?;
             writeln!(fmt, "{}", Intel(&Statement::<T>::Label(*label)))?;
             writeln!(fmt, "{}\n", Directive::Quad(data.clone()))?;
@@ -28,11 +28,11 @@ impl<T: fmt::Display> fmt::Display for Intel<&asm::Unit<T>> {
 
         writeln!(fmt, "{}\n", Directive::Bss)?;
 
-        for (symbol, (visibility, size)) in &self.0.bss {
+        for (symbol, (linkage, size)) in &self.0.bss {
             writeln!(
                 fmt,
                 "{}",
-                Directive::Visible(*visibility, Label::Fixed(*symbol))
+                Directive::Linkage(*linkage, Label::Fixed(*symbol))
             )?;
             writeln!(fmt, "{}", Directive::Align(abi::WORD as usize))?;
             writeln!(
@@ -57,7 +57,7 @@ impl<T: fmt::Display> fmt::Display for Intel<&asm::Unit<T>> {
             writeln!(
                 fmt,
                 "{}",
-                Directive::Visible(function.visibility, Label::Fixed(*name))
+                Directive::Linkage(function.linkage, Label::Fixed(*name))
             )?;
             writeln!(fmt, "{}", Intel(function))?;
         }
@@ -185,15 +185,15 @@ impl fmt::Display for Directive {
         match self {
             Directive::Intel => write!(fmt, ".intel_syntax noprefix"),
             Directive::Align(alignment) => write!(fmt, ".align {}", alignment),
-            Directive::Visible(ir::Visibility::Local, label) => {
+            Directive::Linkage(ir::Linkage::Local, label) => {
                 write!(fmt, ".local {}", label)
             }
-            Directive::Visible(ir::Visibility::Global, label) => {
+            Directive::Linkage(ir::Linkage::Global, label) => {
                 write!(fmt, ".global {}", label)
             }
             // Note: embedding a newline here is a bit ugly, but directives are
             // currently formatted without indentation, so this should be okay for now.
-            Directive::Visible(ir::Visibility::LinkOnceOdr, label) => {
+            Directive::Linkage(ir::Linkage::LinkOnceOdr, label) => {
                 write!(fmt, ".weak {0}\n.global {0}", label)
             }
             Directive::Quad(data) => {

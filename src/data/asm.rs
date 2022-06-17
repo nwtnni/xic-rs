@@ -26,7 +26,7 @@ pub struct Function<T> {
     pub statements: Vec<Statement<T>>,
     pub arguments: usize,
     pub returns: usize,
-    pub visibility: ir::Visibility,
+    pub linkage: ir::Linkage,
     pub enter: Label,
     pub exit: Label,
 }
@@ -91,7 +91,7 @@ impl<T: fmt::Display> fmt::Display for Statement<T> {
 pub enum Directive {
     Intel,
     Align(usize),
-    Visible(ir::Visibility, Label),
+    Linkage(ir::Linkage, Label),
     Quad(Vec<Immediate>),
     Space(usize),
     Data,

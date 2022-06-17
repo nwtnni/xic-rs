@@ -14,7 +14,7 @@ macro_rules! lir_function {
                 statements,
                 arguments: $arguments,
                 returns: $returns,
-                visibility: xic::data::ir::Visibility::Global,
+                linkage: xic::data::ir::Linkage::Global,
                 enter,
                 exit,
             }
@@ -66,7 +66,7 @@ macro_rules! asm_function {
                 statements,
                 arguments: $arguments,
                 returns: $returns,
-                visibility: xic::data::ir::Visibility::Global,
+                linkage: xic::data::ir::Linkage::Global,
                 enter,
                 exit,
             }

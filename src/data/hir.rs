@@ -24,7 +24,7 @@ pub struct Function {
     pub statement: Statement,
     pub arguments: usize,
     pub returns: usize,
-    pub visibility: ir::Visibility,
+    pub linkage: ir::Linkage,
 }
 
 impl fmt::Display for Function {

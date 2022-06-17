@@ -93,21 +93,21 @@ pub fn emit_hir(
                         ast::ClassItem::Method(method) => method,
                     };
 
-                    let visibility = match (
+                    let linkage = match (
                         emitter.layouts[&class.name.symbol].method_index(&method.name.symbol),
                         class.provenance.is_empty(),
                         method.declared.get(),
                     ) {
-                        (None, true, false) => ir::Visibility::Local,
-                        (None, true, true) => ir::Visibility::Global,
-                        (Some(_), true, _) => ir::Visibility::Local,
-                        (_, false, _) => ir::Visibility::LinkOnceOdr,
+                        (None, true, false) => ir::Linkage::Local,
+                        (None, true, true) => ir::Linkage::Global,
+                        (Some(_), true, _) => ir::Linkage::Local,
+                        (_, false, _) => ir::Linkage::LinkOnceOdr,
                     };
 
                     let (name, function) = emitter.emit_function(
                         GlobalScope::Class(class.name.symbol),
                         method,
-                        visibility,
+                        linkage,
                     );
 
                     functions.insert(name, function);
@@ -115,14 +115,14 @@ pub fn emit_hir(
             }
             ast::Item::ClassTemplate(_) => unreachable!(),
             ast::Item::Function(function) => {
-                let visibility = match (function.provenance.is_empty(), function.declared.get()) {
-                    (true, false) => ir::Visibility::Local,
-                    (true, true) => ir::Visibility::Global,
-                    (false, _) => ir::Visibility::LinkOnceOdr,
+                let linkage = match (function.provenance.is_empty(), function.declared.get()) {
+                    (true, false) => ir::Linkage::Local,
+                    (true, true) => ir::Linkage::Global,
+                    (false, _) => ir::Linkage::LinkOnceOdr,
                 };
 
                 let (name, function) =
-                    emitter.emit_function(GlobalScope::Global, function, visibility);
+                    emitter.emit_function(GlobalScope::Global, function, linkage);
                 functions.insert(name, function);
             }
             ast::Item::FunctionTemplate(_) => unreachable!(),
@@ -137,7 +137,7 @@ pub fn emit_hir(
             statement: hir::Statement::Sequence(initialize),
             arguments: 0,
             returns: 0,
-            visibility: ir::Visibility::Local,
+            linkage: ir::Linkage::Local,
         },
     );
 
@@ -157,7 +157,7 @@ struct Emitter<'env> {
     layouts: Map<Symbol, abi::class::Layout>,
     locals: Map<Symbol, Temporary>,
     data: Map<Label, Vec<Immediate>>,
-    bss: Map<Symbol, (ir::Visibility, usize)>,
+    bss: Map<Symbol, (ir::Linkage, usize)>,
     statics: Map<Vec<Immediate>, Label>,
     out_of_bounds: Cell<Option<Label>>,
 }
@@ -224,7 +224,7 @@ impl<'env> Emitter<'env> {
                 statement,
                 arguments: 0,
                 returns: 0,
-                visibility: ir::Visibility::Local,
+                linkage: ir::Linkage::Local,
             },
         ))
     }
@@ -246,14 +246,14 @@ impl<'env> Emitter<'env> {
             statements.push(hir!((EXP (CALL (NAME initialize) 0))));
         }
 
-        let visibility = match (class.provenance.is_empty(), class.declared.get()) {
-            (true, false) => ir::Visibility::Local,
-            (true, true) => ir::Visibility::Global,
-            (false, _) => ir::Visibility::LinkOnceOdr,
+        let linkage = match (class.provenance.is_empty(), class.declared.get()) {
+            (true, false) => ir::Linkage::Local,
+            (true, true) => ir::Linkage::Global,
+            (false, _) => ir::Linkage::LinkOnceOdr,
         };
 
-        self.emit_class_size(&class.name.symbol, visibility, &mut statements);
-        self.emit_class_virtual_table(&class.name.symbol, visibility, &mut statements);
+        self.emit_class_size(&class.name.symbol, linkage, &mut statements);
+        self.emit_class_virtual_table(&class.name.symbol, linkage, &mut statements);
 
         statements.push(hir!((LABEL exit)));
         statements.push(hir!((RETURN)));
@@ -267,7 +267,7 @@ impl<'env> Emitter<'env> {
                 statement: hir::Statement::Sequence(statements),
                 arguments: 0,
                 returns: 0,
-                visibility,
+                linkage,
             },
         )
     }
@@ -275,13 +275,13 @@ impl<'env> Emitter<'env> {
     fn emit_class_size(
         &mut self,
         class: &Symbol,
-        visibility: ir::Visibility,
+        linkage: ir::Linkage,
         statements: &mut Vec<hir::Statement>,
     ) {
         let size = abi::mangle::class_size(class);
 
         // Reserve 1 word in BSS section for class size
-        self.bss.insert(size, (visibility, 1));
+        self.bss.insert(size, (linkage, 1));
 
         let fields = self.layouts[class].field_len();
 
@@ -299,7 +299,7 @@ impl<'env> Emitter<'env> {
     fn emit_class_virtual_table(
         &mut self,
         class: &Symbol,
-        visibility: ir::Visibility,
+        linkage: ir::Linkage,
         statements: &mut Vec<hir::Statement>,
     ) {
         let virtual_table_class = abi::mangle::class_virtual_table(class);
@@ -310,7 +310,7 @@ impl<'env> Emitter<'env> {
 
         // Reserve n words in BSS section for class virtual table
         self.bss
-            .insert(virtual_table_class, (visibility, virtual_table_class_size));
+            .insert(virtual_table_class, (linkage, virtual_table_class_size));
 
         // Copy superclass virtual table
         if let Some(superclass) = self.context.get_superclass(class) {
@@ -361,7 +361,7 @@ impl<'env> Emitter<'env> {
         &mut self,
         scope: GlobalScope,
         function: &ast::Function,
-        visibility: ir::Visibility,
+        linkage: ir::Linkage,
     ) -> (Symbol, hir::Function) {
         self.locals.clear();
         self.out_of_bounds.take();
@@ -410,10 +410,10 @@ impl<'env> Emitter<'env> {
                 statement: hir::Statement::Sequence(statements),
                 arguments: function.parameters.len() + argument_offset,
                 returns: function.returns.len(),
-                visibility: if name == symbol::intern_static(abi::XI_MAIN) {
-                    ir::Visibility::Global
+                linkage: if name == symbol::intern_static(abi::XI_MAIN) {
+                    ir::Linkage::Global
                 } else {
-                    visibility
+                    linkage
                 },
             },
         )
@@ -986,7 +986,7 @@ impl<'env> Emitter<'env> {
             Scope::Global(GlobalScope::Global) => {
                 let r#type = self.get_variable(GlobalScope::Global, name).unwrap();
                 let name = abi::mangle::global(&name.symbol, r#type);
-                self.bss.insert(name, (ir::Visibility::Local, 1));
+                self.bss.insert(name, (ir::Linkage::Local, 1));
                 hir!((MEM (NAME name)))
             }
             Scope::Local => {
@@ -1100,7 +1100,7 @@ impl<'env> Emitter<'env> {
             name: symbol::intern_static(abi::XI_MEMDUP),
             arguments: 1,
             returns: 1,
-            visibility: ir::Visibility::LinkOnceOdr,
+            linkage: ir::Linkage::LinkOnceOdr,
             statement: hir!(
                 (SEQ
                     (MOVE

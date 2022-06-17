@@ -42,7 +42,7 @@ pub fn emit_lir(function: &hir::Function) -> lir::Function<Label> {
         statements: canonized,
         arguments: function.arguments,
         returns: function.returns,
-        visibility: function.visibility,
+        linkage: function.linkage,
         enter: (),
         exit: (),
     }

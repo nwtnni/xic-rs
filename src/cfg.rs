@@ -243,13 +243,13 @@ pub enum TerminatorMut<'a> {
 
 impl<T: lir::Target> Function for lir::Function<T> {
     type Statement = lir::Statement<T>;
-    type Metadata = (usize, usize, ir::Visibility);
+    type Metadata = (usize, usize, ir::Linkage);
     type Fallthrough = lir::Function<lir::Fallthrough>;
 
     fn new(
         name: Symbol,
         statements: Vec<Self::Statement>,
-        (arguments, returns, visibility): Self::Metadata,
+        (arguments, returns, linkage): Self::Metadata,
         enter: Label,
         exit: Label,
     ) -> Self::Fallthrough {
@@ -288,7 +288,7 @@ impl<T: lir::Target> Function for lir::Function<T> {
                 .collect(),
             arguments,
             returns,
-            visibility,
+            linkage,
             enter,
             exit,
         }
@@ -299,7 +299,7 @@ impl<T: lir::Target> Function for lir::Function<T> {
     }
 
     fn metadata(&self) -> Self::Metadata {
-        (self.arguments, self.returns, self.visibility)
+        (self.arguments, self.returns, self.linkage)
     }
 
     fn statements(&mut self) -> Vec<Self::Statement> {
@@ -365,13 +365,13 @@ impl<T: lir::Target> Function for lir::Function<T> {
 
 impl Function for asm::Function<Temporary> {
     type Statement = asm::Statement<Temporary>;
-    type Metadata = (usize, usize, ir::Visibility);
+    type Metadata = (usize, usize, ir::Linkage);
     type Fallthrough = asm::Function<Temporary>;
 
     fn new(
         name: Symbol,
         statements: Vec<Self::Statement>,
-        (arguments, returns, visibility): Self::Metadata,
+        (arguments, returns, linkage): Self::Metadata,
         enter: Label,
         exit: Label,
     ) -> Self {
@@ -380,7 +380,7 @@ impl Function for asm::Function<Temporary> {
             statements,
             arguments,
             returns,
-            visibility,
+            linkage,
             enter,
             exit,
         }
@@ -391,7 +391,7 @@ impl Function for asm::Function<Temporary> {
     }
 
     fn metadata(&self) -> Self::Metadata {
-        (self.arguments, self.returns, self.visibility)
+        (self.arguments, self.returns, self.linkage)
     }
 
     fn statements(&mut self) -> Vec<Self::Statement> {

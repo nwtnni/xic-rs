@@ -131,7 +131,7 @@ fn allocate(
         arguments: function.arguments,
         returns: function.returns,
         statements: allocator.statements,
-        visibility: function.visibility,
+        linkage: function.linkage,
         enter: function.enter,
         exit: function.exit,
     }

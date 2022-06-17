@@ -7,7 +7,7 @@ use rand::rngs::ThreadRng;
 use rand::Rng as _;
 
 use crate::abi;
-use crate::data::ir::Visibility;
+use crate::data::ir::Linkage;
 use crate::data::operand::Immediate;
 use crate::data::operand::Label;
 use crate::data::symbol;
@@ -28,7 +28,7 @@ pub struct Global<'io> {
 impl<'io> Global<'io> {
     pub fn new<R: BufRead + 'io, W: Write + 'io>(
         data: &Map<Label, Vec<Immediate>>,
-        bss: &Map<Symbol, (Visibility, usize)>,
+        bss: &Map<Symbol, (Linkage, usize)>,
         stdin: R,
         stdout: W,
     ) -> Self {
