@@ -33,6 +33,11 @@ pub fn eliminate_lir<T: lir::Target>(cfg: &mut Cfg<lir::Function<T>>) {
     for (label, statements) in cfg.blocks_mut() {
         transformer.eliminate_block(label, statements);
     }
+
+    log::debug!(
+        "Eliminated {} partial redundancies!",
+        transformer.eliminated
+    );
 }
 
 /// Implements the lazy code motion algorithm for partial redundancy elimination,
@@ -64,6 +69,7 @@ struct Transformer<T> {
     latest: Map<Label, Vec<Set<lir::Expression>>>,
     used: Map<Label, Vec<Set<lir::Expression>>>,
     redundant: Map<lir::Expression, Temporary>,
+    eliminated: usize,
     marker: PhantomData<T>,
 }
 
@@ -92,6 +98,7 @@ impl<T: lir::Target> Transformer<T> {
             latest: solution.analysis.latest,
             used,
             redundant: Map::default(),
+            eliminated: 0,
             marker: PhantomData,
         }
     }
@@ -278,9 +285,14 @@ impl<T: lir::Target> Transformer<T> {
     }
 
     fn rewrite(&mut self, expression: lir::Expression) -> Temporary {
-        *self
-            .redundant
-            .entry(expression)
-            .or_insert_with(|| Temporary::fresh("pre"))
+        match self.redundant.entry(expression) {
+            indexmap::map::Entry::Occupied(entry) => *entry.get(),
+            indexmap::map::Entry::Vacant(entry) => {
+                let pre = Temporary::fresh("pre");
+                log::trace!("Replaced {} with {}", entry.key(), pre);
+                self.eliminated += 1;
+                *entry.insert(pre)
+            }
+        }
     }
 }

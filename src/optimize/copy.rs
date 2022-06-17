@@ -7,7 +7,6 @@ use crate::data::asm::Statement;
 use crate::data::operand;
 use crate::data::operand::Temporary;
 use crate::util;
-use crate::Map;
 
 pub fn propagate_assembly(cfg: &mut Cfg<asm::Function<Temporary>>) {
     log::info!(
@@ -22,6 +21,7 @@ pub fn propagate_assembly(cfg: &mut Cfg<asm::Function<Temporary>>) {
     );
 
     let mut solution = analyze::<CopyPropagation, _>(cfg);
+    let mut propagated = 0;
 
     for (label, statements) in cfg.blocks_mut() {
         let mut output = solution.inputs.remove(label).unwrap();
@@ -32,6 +32,26 @@ pub fn propagate_assembly(cfg: &mut Cfg<asm::Function<Temporary>>) {
             use asm::Unary::*;
 
             let save = statement.clone();
+
+            let mut traverse = |temporary| {
+                let mut previous = temporary;
+                loop {
+                    match output.get(&previous) {
+                        Some(next) => previous = *next,
+                        None if previous == temporary => return previous,
+                        None => {
+                            log::trace!(
+                                "Replaced {} with {} in statement: {}",
+                                temporary,
+                                previous,
+                                save
+                            );
+                            propagated += 1;
+                            return previous;
+                        }
+                    }
+                }
+            };
 
             match statement {
                 // `cmp` is a bit special because it doesn't modify its destination.
@@ -49,31 +69,31 @@ pub fn propagate_assembly(cfg: &mut Cfg<asm::Function<Temporary>>) {
                         source,
                     },
                 ) => {
-                    *destination = traverse(&output, destination);
-                    *source = traverse(&output, source);
+                    *destination = traverse(*destination);
+                    *source = traverse(*source);
                 }
                 asm::Statement::Binary(Cmp, operand::Binary::RM { destination, .. }) => {
-                    *destination = traverse(&output, destination);
+                    *destination = traverse(*destination);
                 }
                 asm::Statement::Binary(Cmp, operand::Binary::RI { destination, .. }) => {
-                    *destination = traverse(&output, destination);
+                    *destination = traverse(*destination);
                 }
 
                 Statement::Binary(
                     Mov | Lea | Add | Sub | Shl | Mul | And | Or | Xor,
                     operand::Binary::RR { source, .. },
                 ) => {
-                    *source = traverse(&output, source);
+                    *source = traverse(*source);
                 }
                 Statement::Binary(
                     Cmp | Mov | Lea | Add | Sub | Shl | And | Or | Xor,
                     operand::Binary::MR { source, .. },
                 ) => {
-                    *source = traverse(&output, source);
+                    *source = traverse(*source);
                 }
 
                 Statement::Unary(Hul | Div | Mod | Call { .. }, operand::Unary::R(source)) => {
-                    *source = traverse(&output, source);
+                    *source = traverse(*source);
                 }
 
                 Statement::Binary(Cmp | Mov | Lea | Add | Sub | Shl | Mul | And | Or | Xor, _)
@@ -91,11 +111,6 @@ pub fn propagate_assembly(cfg: &mut Cfg<asm::Function<Temporary>>) {
             );
         }
     }
-}
 
-fn traverse(output: &Map<Temporary, Temporary>, temporary: &Temporary) -> Temporary {
-    match output.get(temporary) {
-        None => *temporary,
-        Some(temporary) => traverse(output, temporary),
-    }
+    log::debug!("Propagated {} copies!", propagated);
 }

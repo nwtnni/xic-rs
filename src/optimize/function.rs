@@ -1,3 +1,4 @@
+use std::borrow::Cow;
 use std::cell::RefCell;
 use std::iter;
 use std::mem;
@@ -17,6 +18,8 @@ use crate::util;
 use crate::util::Or;
 use crate::Map;
 
+const THRESHOLD: usize = 30;
+
 pub fn inline_lir<T: lir::Target>(
     lir: ir::Unit<Cfg<lir::Function<T>>>,
 ) -> lir::Unit<lir::Fallthrough> {
@@ -33,6 +36,7 @@ pub fn inline_lir<T: lir::Target>(
 
     let call_graph = CallGraph::new(&lir);
     let mut lir = lir.map(cfg::destruct_cfg);
+    let mut inlined = 0;
 
     let main = symbol::intern_static(abi::XI_MAIN);
     let start = if lir.functions.contains_key(&main) {
@@ -61,7 +65,7 @@ pub fn inline_lir<T: lir::Target>(
                         call_graph.is_leaf(&label)
 
                         // Short function body
-                        || lir.functions[&label].statements.len() < 30
+                        || lir.functions[&label].statements.len() < THRESHOLD
 
                         // Constant arguments
                         || caller_arguments.iter().all(|expression| {
@@ -86,6 +90,26 @@ pub fn inline_lir<T: lir::Target>(
                         .zip(callee_returns)
                         .map(|(destination, source)| lir!((MOVE (TEMP destination) (TEMP source))));
 
+                    // Note: code duplication here is unfortunate, but if we move the
+                    // conditions out of the match guard, we won't fall through and
+                    // we'll have to reassemble the call if we decide not to inline.
+                    log::trace!(
+                        "Inlined callee {} ({}) into caller {}",
+                        label,
+                        if call_graph.is_leaf(&label) {
+                            Cow::Borrowed("leaf function")
+                        } else if lir.functions[&label].statements.len() < THRESHOLD {
+                            Cow::Owned(format!(
+                                "{} statements",
+                                lir.functions[&label].statements.len()
+                            ))
+                        } else {
+                            Cow::Borrowed("constant arguments")
+                        },
+                        function.name,
+                    );
+                    inlined += 1;
+
                     Or::L(arguments.chain(statements).chain(returns))
                 }
                 statement => Or::R(iter::once(statement)),
@@ -94,6 +118,8 @@ pub fn inline_lir<T: lir::Target>(
 
         lir.functions.insert(name, function);
     }
+
+    log::debug!("Inlined {} call sites!", inlined);
 
     lir
 }

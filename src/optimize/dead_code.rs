@@ -18,6 +18,7 @@ use crate::Set;
 
 pub fn eliminate_functions<T: lir::Target>(lir: &mut ir::Unit<Cfg<lir::Function<T>>>) {
     let call_graph = CallGraph::new(lir);
+    let mut eliminated = 0;
 
     // A function is reachable if it is reachable from `init` or a globally visible function.
     // We enforce that `main` is always globally visible.
@@ -37,10 +38,20 @@ pub fn eliminate_functions<T: lir::Target>(lir: &mut ir::Unit<Cfg<lir::Function<
     lir.functions.retain(|_, function| {
         let (_, _, linkage) = function.metadata();
         match linkage {
-            ir::Linkage::Global => true,
-            ir::Linkage::Local | ir::Linkage::LinkOnceOdr => reachable.contains(function.name()),
+            ir::Linkage::Global => return true,
+            ir::Linkage::Local | ir::Linkage::LinkOnceOdr => (),
         }
-    })
+
+        if reachable.contains(function.name()) {
+            return true;
+        }
+
+        log::trace!("Eliminated dead function: {}", function.name());
+        eliminated += 1;
+        false
+    });
+
+    log::debug!("Eliminated {} dead functions!", eliminated);
 }
 
 pub fn eliminate_assembly(
@@ -57,6 +68,8 @@ pub fn eliminate_assembly(
         std::any::type_name::<Cfg<asm::Function<Temporary>>>(),
         cfg.name()
     );
+
+    let mut eliminated = 0;
 
     for (label, statements) in cfg.blocks_mut() {
         let mut output = live_variables.inputs[label].clone();
@@ -106,10 +119,14 @@ pub fn eliminate_assembly(
             live_variables.analysis.transfer(statement, &mut output);
 
             if !live {
+                log::trace!("Eliminated dead assembly statement: {}", statement);
+                eliminated += 1;
                 *statement = asm::Statement::Nullary(asm::Nullary::Nop);
             }
         }
     }
+
+    log::debug!("Eliminated {} dead assembly statements!", eliminated);
 }
 
 pub fn eliminate_lir<T: lir::Target>(cfg: &mut Cfg<lir::Function<T>>) {
@@ -125,6 +142,7 @@ pub fn eliminate_lir<T: lir::Target>(cfg: &mut Cfg<lir::Function<T>>) {
     );
 
     let mut live_variables = analyze::<LiveVariables<_>, _>(cfg);
+    let mut eliminated = 0;
     let mut buffer = Vec::new();
 
     for (label, statements) in cfg.blocks_mut() {
@@ -132,6 +150,7 @@ pub fn eliminate_lir<T: lir::Target>(cfg: &mut Cfg<lir::Function<T>>) {
 
         buffer.append(statements);
 
+        // Reverse order is necessary for backward analysis
         for statement in buffer.drain(..).rev() {
             let destination = match &statement {
                 lir::Statement::Jump(_)
@@ -156,9 +175,14 @@ pub fn eliminate_lir<T: lir::Target>(cfg: &mut Cfg<lir::Function<T>>) {
 
             if live {
                 statements.push(statement);
+            } else {
+                log::trace!("Eliminated dead LIR statement: {}", statement);
+                eliminated += 1;
             }
         }
 
         statements.reverse();
     }
+
+    log::debug!("Eliminated {} dead LIR statements!", eliminated);
 }

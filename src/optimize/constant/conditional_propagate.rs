@@ -23,6 +23,8 @@ pub fn conditional_propagate_lir<T: lir::Target>(cfg: &mut Cfg<lir::Function<T>>
     );
 
     let mut solution = analyze::<ConditionalConstantPropagation, _>(cfg);
+    let mut propagated = 0;
+    let mut rewritten = 0;
 
     for label in cfg.blocks.keys().copied().collect::<Vec<_>>() {
         let mut output = solution.inputs.remove(&label).unwrap();
@@ -62,8 +64,8 @@ pub fn conditional_propagate_lir<T: lir::Target>(cfg: &mut Cfg<lir::Function<T>>
 
                     match output.evaluate_condition(condition, left, right) {
                         None => {
-                            propagate::<T>(left, &output);
-                            propagate::<T>(right, &output);
+                            propagate::<T>(&output, &mut propagated, left);
+                            propagate::<T>(&output, &mut propagated, right);
                             None
                         }
                         Some(true) => {
@@ -87,9 +89,9 @@ pub fn conditional_propagate_lir<T: lir::Target>(cfg: &mut Cfg<lir::Function<T>>
                     }
                 }
                 lir::Statement::Call(function, arguments, _) => {
-                    propagate::<T>(function, &output);
+                    propagate::<T>(&output, &mut propagated, function);
                     for argument in arguments {
-                        propagate::<T>(argument, &output);
+                        propagate::<T>(&output, &mut propagated, argument);
                     }
                     None
                 }
@@ -97,21 +99,21 @@ pub fn conditional_propagate_lir<T: lir::Target>(cfg: &mut Cfg<lir::Function<T>>
                     destination: lir::Expression::Temporary(_),
                     source,
                 } => {
-                    propagate::<T>(source, &output);
+                    propagate::<T>(&output, &mut propagated, source);
                     None
                 }
                 lir::Statement::Move {
                     destination: lir::Expression::Memory(address),
                     source,
                 } => {
-                    propagate::<T>(address, &output);
-                    propagate::<T>(source, &output);
+                    propagate::<T>(&output, &mut propagated, address);
+                    propagate::<T>(&output, &mut propagated, source);
                     None
                 }
                 lir::Statement::Move { .. } => unreachable!(),
                 lir::Statement::Return(returns) => {
                     for r#return in returns {
-                        propagate::<T>(r#return, &output);
+                        propagate::<T>(&output, &mut propagated, r#return);
                     }
                     None
                 }
@@ -120,29 +122,43 @@ pub fn conditional_propagate_lir<T: lir::Target>(cfg: &mut Cfg<lir::Function<T>>
             solution.analysis.transfer(&transfer, &mut output);
 
             if let Some(rewrite) = rewrite {
+                log::trace!("Rewrote {} into {}", statement, rewrite);
+                rewritten += 1;
                 *statement = rewrite;
             }
         }
     }
+
+    log::debug!(
+        "Propagated {} LIR constants and rewrote {} LIR branches!",
+        propagated,
+        rewritten,
+    );
 }
 
 fn propagate<T: lir::Target>(
-    expression: &mut lir::Expression,
     output: &<ConditionalConstantPropagation as Analysis<lir::Function<T>>>::Data,
+    propagated: &mut usize,
+    expression: &mut lir::Expression,
 ) {
     if let Some(Constant::Defined(immediate)) = output.evaluate_expression(expression) {
-        *expression = lir::Expression::Immediate(immediate);
-        return;
+        if !matches!(expression, lir::Expression::Immediate(expression) if *expression == immediate)
+        {
+            log::trace!("Replaced {} with {}", expression, immediate);
+            *propagated += 1;
+            *expression = lir::Expression::Immediate(immediate);
+            return;
+        }
     }
 
     match expression {
         lir::Expression::Immediate(_) | lir::Expression::Temporary(_) => (),
         lir::Expression::Memory(address) => {
-            propagate::<T>(address, output);
+            propagate::<T>(output, propagated, address);
         }
         lir::Expression::Binary(_, left, right) => {
-            propagate::<T>(left, output);
-            propagate::<T>(right, output);
+            propagate::<T>(output, propagated, left);
+            propagate::<T>(output, propagated, right);
         }
     }
 }

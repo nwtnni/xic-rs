@@ -113,7 +113,14 @@ impl Layout {
                     Variable(_) => {
                         fields.insert((superclass, identifier.symbol));
                     }
-                    Function(_, _) | Signature(_, _) if matches!(r#final, Some(true)) => continue,
+                    Function(_, _) | Signature(_, _) if matches!(r#final, Some(true)) => {
+                        log::debug!(
+                            "Omitted virtual table entry for method {} in class {}",
+                            identifier,
+                            class
+                        );
+                        continue;
+                    }
                     Function(_, _) | Signature(_, _) => {
                         methods.entry(identifier.symbol).or_insert_with(|| {
                             let increment = slots + 1;
@@ -129,6 +136,7 @@ impl Layout {
             fields,
             methods,
             slots: if r#final && slots == 1 {
+                log::debug!("Omitted virtual table for class {}", class);
                 None
             } else {
                 Some(slots)

@@ -23,6 +23,7 @@ pub fn propagate_assembly(cfg: &mut Cfg<asm::Function<Temporary>>) {
     );
 
     let mut solution = analyze::<ConstantPropagation, _>(cfg);
+    let mut propagated = 0;
 
     for (label, statements) in cfg.blocks_mut() {
         let mut output = solution.inputs.remove(label).unwrap();
@@ -37,6 +38,7 @@ pub fn propagate_assembly(cfg: &mut Cfg<asm::Function<Temporary>>) {
                     binary @ (Cmp | Mov | Lea | Add | Sub | Shl | Mul | And | Or | Xor),
                     operands,
                 ) => {
+                    // TODO: propagate constants to temporaries inside memory operands
                     let propagate = match operands {
                         operand::Binary::RI { .. }
                         | operand::Binary::MI { .. }
@@ -70,12 +72,14 @@ pub fn propagate_assembly(cfg: &mut Cfg<asm::Function<Temporary>>) {
                     };
 
                     match propagate {
-                        None => Cow::Borrowed(statement),
-                        Some(propagate) => {
-                            let owned = Statement::Binary(*binary, *operands);
+                        Some(propagate) if *operands != propagate => {
+                            let transfer = Statement::Binary(*binary, *operands);
+                            propagated += 1;
                             *operands = propagate;
-                            Cow::Owned(owned)
+                            log::trace!("Replaced {} with {}", transfer, statement);
+                            Cow::Owned(transfer)
                         }
+                        None | Some(_) => Cow::Borrowed(statement),
                     }
                 }
                 Statement::Unary(Neg | Hul | Div | Mod | Call { .. }, _)
@@ -88,4 +92,6 @@ pub fn propagate_assembly(cfg: &mut Cfg<asm::Function<Temporary>>) {
             solution.analysis.transfer(&statement, &mut output);
         }
     }
+
+    log::debug!("Propagated {} assembly constants!", propagated);
 }

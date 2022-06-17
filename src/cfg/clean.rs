@@ -27,6 +27,8 @@ pub fn clean_cfg<T: Function>(cfg: &mut Cfg<T>) {
     let mut order = Vec::new();
     let mut visited = Set::default();
     let mut dirty = true;
+    let mut merged = 0;
+    let mut removed = 0;
 
     let mut buffer = Vec::new();
 
@@ -53,6 +55,9 @@ pub fn clean_cfg<T: Function>(cfg: &mut Cfg<T>) {
 
             // Block is empty: rewrite predecessors to jump directly to `target`
             if cfg.blocks[&label].len() == 1 {
+                log::trace!("Removed empty block: {}", label);
+                removed += 1;
+
                 buffer.extend(cfg.incoming(&label));
 
                 for predecessor in buffer.drain(..) {
@@ -88,6 +93,9 @@ pub fn clean_cfg<T: Function>(cfg: &mut Cfg<T>) {
 
             // Combine block with successor
             if cfg.incoming(&target).count() == 1 && target != cfg.exit {
+                log::info!("Merged block {} with {}", label, target);
+                merged += 1;
+
                 cfg.get_mut(&label).and_then(|block| block.pop());
 
                 let mut block = cfg.blocks.remove(&target).unwrap();
@@ -105,6 +113,8 @@ pub fn clean_cfg<T: Function>(cfg: &mut Cfg<T>) {
             }
         }
     }
+
+    log::debug!("Merged {} blocks and removed {} blocks", merged, removed);
 }
 
 enum Event {

@@ -78,7 +78,18 @@ pub fn destruct_cfg<T: Function>(mut function: Cfg<T>) -> T::Fallthrough {
     }
 
     statements.push(T::label(function.exit));
-    statements.append(&mut function.blocks.remove(&function.exit).unwrap());
+    statements.append(
+        &mut function
+            .blocks
+            .remove(&function.exit)
+            .expect("Unreachable exit label: program does not terminate"),
+    );
+
+    for (label, _) in function.blocks() {
+        log::trace!("Removed unreachable block {}", label);
+    }
+
+    log::debug!("Removed {} unreachable blocks", function.blocks.len());
 
     T::new(
         function.name,

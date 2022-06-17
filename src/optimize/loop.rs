@@ -15,15 +15,20 @@ pub fn invert_ast(path: &Path, program: &mut ast::Program) {
         path.display()
     );
 
-    program.accept_mut(&mut Inverter);
+    let mut inverter = Inverter(0);
+    program.accept_mut(&mut inverter);
+    log::debug!("Inverted {} loops!", inverter.0);
 }
 
-struct Inverter;
+struct Inverter(usize);
 
 impl ast::VisitorMut for Inverter {
     fn visit_statement(&mut self, statement: &mut ast::Statement) {
         if let ast::Statement::While(ast::Do::No, condition, r#while, span) = statement {
             if !effectful(condition) {
+                log::trace!("Inverted loop at {}", span);
+                self.0 += 1;
+
                 *statement = ast::Statement::If(
                     Box::new(condition.negate_logical()),
                     Box::new(ast::Statement::Sequence(Vec::new(), *span)),
