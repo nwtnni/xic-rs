@@ -1,0 +1,14 @@
+---
+source: tests/suite/end_to_end.rs
+assertion_line: 57
+expression: stdout
+---
+10 = 10
+11 = 11
+6 = 6
+11 = 11
+-1 = -1
+11 = 11
+false = false
+true = true
+

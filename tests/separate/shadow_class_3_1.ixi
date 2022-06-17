@@ -1,0 +1,8 @@
+class Super {
+    method'(): int
+    method(): int
+    set(field: int)
+}
+
+new_super(): Super
+new_foo(): Super

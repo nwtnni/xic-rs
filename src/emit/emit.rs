@@ -96,11 +96,12 @@ pub fn emit_hir(
                     let visibility = match (
                         emitter.layouts[&class.name.symbol].method_index(&method.name.symbol),
                         class.provenance.is_empty(),
+                        method.declared.get(),
                     ) {
-                        // TODO: set method to local visibility if not exposed via interface
-                        (None, true) => ir::Visibility::Global,
-                        (Some(_), true) => ir::Visibility::Local,
-                        (_, false) => ir::Visibility::LinkOnceOdr,
+                        (None, true, false) => ir::Visibility::Local,
+                        (None, true, true) => ir::Visibility::Global,
+                        (Some(_), true, _) => ir::Visibility::Local,
+                        (_, false, _) => ir::Visibility::LinkOnceOdr,
                     };
 
                     let (name, function) = emitter.emit_function(
@@ -114,10 +115,10 @@ pub fn emit_hir(
             }
             ast::Item::ClassTemplate(_) => unreachable!(),
             ast::Item::Function(function) => {
-                let visibility = match function.provenance.is_empty() {
-                    // TODO: set function to local visibility if not exposed via interface
-                    true => ir::Visibility::Global,
-                    false => ir::Visibility::LinkOnceOdr,
+                let visibility = match (function.provenance.is_empty(), function.declared.get()) {
+                    (true, false) => ir::Visibility::Local,
+                    (true, true) => ir::Visibility::Global,
+                    (false, _) => ir::Visibility::LinkOnceOdr,
                 };
 
                 let (name, function) =
@@ -245,10 +246,10 @@ impl<'env> Emitter<'env> {
             statements.push(hir!((EXP (CALL (NAME initialize) 0))));
         }
 
-        // TODO: set class metadata to local visibility if not exposed in interface
-        let visibility = match class.provenance.is_empty() {
-            true => ir::Visibility::Global,
-            false => ir::Visibility::LinkOnceOdr,
+        let visibility = match (class.provenance.is_empty(), class.declared.get()) {
+            (true, false) => ir::Visibility::Local,
+            (true, true) => ir::Visibility::Global,
+            (false, _) => ir::Visibility::LinkOnceOdr,
         };
 
         self.emit_class_size(&class.name.symbol, visibility, &mut statements);
@@ -409,7 +410,11 @@ impl<'env> Emitter<'env> {
                 statement: hir::Statement::Sequence(statements),
                 arguments: function.parameters.len() + argument_offset,
                 returns: function.returns.len(),
-                visibility,
+                visibility: if name == symbol::intern_static(abi::XI_MAIN) {
+                    ir::Visibility::Global
+                } else {
+                    visibility
+                },
             },
         )
     }

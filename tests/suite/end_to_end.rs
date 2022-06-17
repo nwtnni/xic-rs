@@ -51,4 +51,9 @@ mod separate {
     test!(final_2, final_2_1, final_2_2);
     test!(final_3, final_3_1, final_3_2);
     test!(final_4, final_4_1, final_4_2);
+    test!(shadow_function, shadow_function_1, shadow_function_2);
+    test!(shadow_class_1, shadow_class_1_1, shadow_class_1_2);
+    test!(shadow_class_2, shadow_class_2_1, shadow_class_2_2);
+    test!(shadow_class_3, shadow_class_3_1, shadow_class_3_2);
+    test!(shadow_class_4, shadow_class_4_1, shadow_class_4_2);
 }
