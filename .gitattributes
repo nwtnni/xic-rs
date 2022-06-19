@@ -1,3 +1,5 @@
-runtime/* linguist-vendored
-tests/*   linguist-vendored
-xth/*     linguist-vendored
+runtime/** linguist-vendored
+runtime-qt/** linguist-vendored
+vendor/** linguist-vendored
+*.xi linguist-language=Xi++
+*.ixi linguist-language=Xi++
