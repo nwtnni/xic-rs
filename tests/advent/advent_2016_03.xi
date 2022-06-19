@@ -1908,6 +1908,31 @@ INPUT: int[] = {
 }
 
 main(args: int[][]) {
+    println(unparseInt(one()))
+    println(unparseInt(two()))
+}
+
+one(): int {
+    possible: int = 0
+    i: int = 0
+
+    while i < length(INPUT) {
+
+        a: int = INPUT[i]
+        b: int = INPUT[i + 1]
+        c: int = INPUT[i + 2]
+
+        if a + b > c & b + c > a & a + c > b {
+            possible = possible + 1
+        }
+
+        i = i + 3
+    }
+
+    return possible
+}
+
+two(): int {
     possible: int = 0
     i: int = 0
 
@@ -1929,5 +1954,5 @@ main(args: int[][]) {
         i = i + 9
     }
 
-    println(unparseInt(possible))
+    return possible
 }
