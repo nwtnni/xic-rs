@@ -24,7 +24,6 @@ use crate::data::asm;
 use crate::data::ir;
 use crate::data::lir;
 use crate::data::operand::Label;
-use crate::data::operand::Temporary;
 use crate::data::symbol::Symbol;
 use crate::Map;
 
@@ -363,10 +362,10 @@ impl<T: lir::Target> Function for lir::Function<T> {
     }
 }
 
-impl Function for asm::Function<Temporary> {
-    type Statement = asm::Statement<Temporary>;
+impl<T: Clone> Function for asm::Function<T> {
+    type Statement = asm::Statement<T>;
     type Metadata = (usize, usize, ir::Linkage);
-    type Fallthrough = asm::Function<Temporary>;
+    type Fallthrough = asm::Function<T>;
 
     fn new(
         name: Symbol,
