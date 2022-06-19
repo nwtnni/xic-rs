@@ -12,27 +12,45 @@ URDRDLLRDDDLLLDDLURLRURUURRRLUURURDURRLLUDURRLRLDLUURDLULRRDRUDDLULDLDRLDLRLRRLL
 LDUDRRDLUUDDRLLUUULURLDUDLUDLRLDRURLULRLLDDLRRUUUDDDDRDULDDUUDLRUULDRULLRDRUDDURLDUUURRUDUDRDRDURRDLURRRDRLDLRRRLLLRLURUURRDLLRDLDDLLRDUDDRDUULRULRRURLUDDUDDDUULLUURDULDULLLLRUUUDDRRRLDDDLDLRRDRDRDLUULRLULDRULDLRDRRUDULUDLLUDUULRDLRRUUDDLLDUDDRULURRLULDLDRRULDDRUUDDLURDLRDRLULRRLURRULDUURDLUDLLDRLDULLULDLLRDRDLLLUDLRULLRLDRDDDLDDDLRULDLULLRUUURRLLDUURRLRLDUUULDUURDURRULULRUUURULLLRULLURDDLDRLLRDULLUDLDRRRLLLLDUULRRLDURDURDULULDUURLDUDRLRURRDLUUULURRUDRUUUDRUR"
 
 main(args: int[][]) {
+    input: Vector::<String> = new_string_from_array(INPUT).split('\n')
 
-    lines: Vector::<String> = new_string_from_array(INPUT).split('\n')
+    output: Vector::<int> = new_vector::<int>()
 
+    run(input, new Clamper, new Decoder, output)
+
+    println(output.slice_array(0, output.size()))
+
+    output.clear()
+
+    run(input, new Clamper', new Decoder', output)
+
+    println(output.slice_array(0, output.size()))
+}
+
+run(
+    input: Vector::<String>,
+    clamper: Clamper,
+    decoder: Decoder,
+    output: Vector::<int>
+) {
     i: int = 0
 
-    while i < lines.size() {
+    while i < input.size() {
 
         x: int = 0
         y: int = 0
 
         j: int = 0
 
-        while j < lines.get(i).size() {
-            if lines.get(i).get(j) == 'U' {
-                y = clamp::<>(y - 1, 0, 2)
-            } else if lines.get(i).get(j) == 'D' {
-                y = clamp::<>(y + 1, 0, 2)
-            } else if lines.get(i).get(j) == 'L' {
-                x = clamp::<>(x - 1, 0, 2)
-            } else if lines.get(i).get(j) == 'R' {
-                x = clamp::<>(x + 1, 0, 2)
+        while j < input.get(i).size() {
+            if input.get(i).get(j) == 'U' {
+                y = clamper.clamp(y, -1, x)
+            } else if input.get(i).get(j) == 'D' {
+                y = clamper.clamp(y, 1, x)
+            } else if input.get(i).get(j) == 'L' {
+                x = clamper.clamp(x, -1, y)
+            } else if input.get(i).get(j) == 'R' {
+                x = clamper.clamp(x, 1, y)
             } else {
                 assert(false)
             }
@@ -40,9 +58,65 @@ main(args: int[][]) {
             j = j + 1
         }
 
-        print(unparseInt(y * 3 + x + 1))
+        output.push(decoder.decode(x, y))
+
         i = i + 1
     }
+}
 
-    println("")
+class Clamper {
+    clamp(change: int, delta: int, unchanged: int): int {
+        return clamp::<>(change + delta, 0, 2)
+    }
+}
+
+final class Clamper' extends Clamper {
+    clamp(change: int, delta: int, unchanged: int): int {
+        if abs::<>(change + delta) + abs::<>(unchanged) > 2 {
+            return change
+        } else {
+            return change + delta
+        }
+    }
+}
+
+class Decoder {
+    decode(x: int, y: int): int {
+        return unparseInt(y * 3 + x + 1)[0]
+    }
+}
+
+final class Decoder' extends Decoder {
+    decode(x: int, y: int): int {
+        if y == -2 & x == 0 {
+            return '1'
+        } else if y == -1 & x == -1 {
+            return '2'
+        } else if y == -1 & x == 0 {
+            return '3'
+        } else if y == -1 & x == 1 {
+            return '4'
+        } else if y == 0 & x == -2 {
+            return '5'
+        } else if y == 0 & x == -1 {
+            return '6'
+        } else if y == 0 & x == 0 {
+            return '7'
+        } else if y == 0 & x == 1 {
+            return '8'
+        } else if y == 0 & x == 2 {
+            return '9'
+        } else if y == 1 & x == -1 {
+            return 'A'
+        } else if y == 1 & x == 0 {
+            return 'B'
+        } else if y == 1 & x == 1 {
+            return 'C'
+        } else if y == 2 & x == 0 {
+            return 'D'
+        } else {
+            assert(false)
+            return -1
+        }
+    }
 }

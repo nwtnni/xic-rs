@@ -31,6 +31,10 @@ template final class Vector<T> {
         return size'
     }
 
+    clear() {
+        size' = 0
+    }
+
     insert(index: int, item: T) {
         if size' + 1 > capacity {
             resize()

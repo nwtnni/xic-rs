@@ -1,7 +1,8 @@
 ---
 source: tests/suite/end_to_end.rs
-assertion_line: 24
+assertion_line: 26
 expression: stdout
 ---
+18843
 67BB9
 
