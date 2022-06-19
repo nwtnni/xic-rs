@@ -1,5 +1,6 @@
 #[allow(clippy::module_inception)]
 mod emit;
+mod library;
 mod lower;
 mod print;
 

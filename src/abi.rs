@@ -45,6 +45,7 @@ pub const XI_INIT: &str = "_Iinit";
 pub const XI_MAIN: &str = "_Imain_paai";
 pub const XI_ALLOC: &str = "_xi_alloc";
 pub const XI_OUT_OF_BOUNDS: &str = "_xi_out_of_bounds";
+pub const XI_CONCAT: &str = "_xi_concat";
 pub const XI_MEMDUP: &str = "_xi_memdup";
 pub const XI_PRINT: &str = "_Iprint_pai";
 pub const XI_PRINTLN: &str = "_Iprintln_pai";
