@@ -124,6 +124,7 @@ struct Command {
             DebugOpt::Initial.to_static_str(),
             Opt::CleanCfg.to_static_str(),
             Opt::Inline.to_static_str(),
+            Opt::CopyPropagation.to_static_str(),
             Opt::ConditionalConstantPropagation.to_static_str(),
             Opt::DeadCodeElimination.to_static_str(),
             Opt::PartialRedundancyElimination.to_static_str(),
@@ -454,6 +455,11 @@ fn run() -> anyhow::Result<()> {
 
         if command.optimize(Opt::Inline) {
             command.debug_optimize_lir(&path, DebugOpt::Opt(Opt::Inline), &cfg)?;
+        }
+
+        if command.optimize(Opt::CopyPropagation) {
+            cfg = cfg.map_mut(optimize::propagate_copies_lir);
+            command.debug_optimize_lir(&path, DebugOpt::Opt(Opt::CopyPropagation), &cfg)?;
         }
 
         if command.optimize(Opt::ConditionalConstantPropagation) {
