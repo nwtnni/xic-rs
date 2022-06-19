@@ -86,6 +86,20 @@ pub fn eliminate_dead_code_lir(path: &str) -> anyhow::Result<()> {
 }
 
 #[test_generator::test_resources("tests/execute/*.xi")]
+pub fn propagate_copies_lir(path: &str) -> anyhow::Result<()> {
+    let expected_stdout = super::execute_expected(path)?;
+
+    let optimized = super::emit_lir(path)?
+        .map(xic::api::construct_cfg)
+        .map_mut(optimize::propagate_copies_lir)
+        .map(xic::api::destruct_cfg);
+    let optimized_stdout = super::interpret_lir(&optimized)?;
+
+    pretty_assertions::assert_eq!(expected_stdout, optimized_stdout);
+    Ok(())
+}
+
+#[test_generator::test_resources("tests/execute/*.xi")]
 pub fn propagate_copies_assembly(path: &str) -> anyhow::Result<()> {
     let expected_stdout = super::execute_expected(path)?;
 
