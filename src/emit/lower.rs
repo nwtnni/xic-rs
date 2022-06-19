@@ -19,12 +19,12 @@ pub fn emit_lir(function: &hir::Function) -> lir::Function<Label> {
         function.name,
     );
 
-    let mut canonizer = Canonizer::default();
+    let mut lowerer = Lowerer::default();
 
-    canonizer.canonize_statement(&function.statement);
-    let mut canonized = std::mem::take(&mut canonizer.canonized);
+    lowerer.lower_statement(&function.statement);
+    let mut lowered = std::mem::take(&mut lowerer.lowered);
 
-    match canonized.last() {
+    match lowered.last() {
         Some(
             lir::Statement::Return(_) | lir::Statement::Jump(_) | lir::Statement::CJump { .. },
         ) => (),
@@ -33,13 +33,13 @@ pub fn emit_lir(function: &hir::Function) -> lir::Function<Label> {
             lir::Statement::Call(_, _, _) | lir::Statement::Move { .. } | lir::Statement::Label(_),
         ) => {
             // Guaranteed valid by type-checker
-            canonized.push(lir::Statement::Return(Vec::new()));
+            lowered.push(lir::Statement::Return(Vec::new()));
         }
     }
 
     lir::Function {
         name: function.name,
-        statements: canonized,
+        statements: lowered,
         arguments: function.arguments,
         returns: function.returns,
         linkage: function.linkage,
@@ -49,42 +49,42 @@ pub fn emit_lir(function: &hir::Function) -> lir::Function<Label> {
 }
 
 #[derive(Debug, Default)]
-struct Canonizer {
-    canonized: Vec<lir::Statement<Label>>,
+struct Lowerer {
+    lowered: Vec<lir::Statement<Label>>,
 }
 
-impl Canonizer {
-    fn canonize_expression(&mut self, exp: &hir::Expression) -> lir::Expression {
+impl Lowerer {
+    fn lower_expression(&mut self, exp: &hir::Expression) -> lir::Expression {
         match exp {
             hir::Expression::Immediate(immediate) => lir::Expression::Immediate(*immediate),
             hir::Expression::Memory(memory) => {
-                lir::Expression::Memory(Box::new(self.canonize_expression(memory)))
+                lir::Expression::Memory(Box::new(self.lower_expression(memory)))
             }
             hir::Expression::Temporary(temporary) => lir::Expression::Temporary(*temporary),
             hir::Expression::Sequence(statements, expression) => {
-                self.canonize_statement(statements);
-                self.canonize_expression(expression)
+                self.lower_statement(statements);
+                self.lower_expression(expression)
             }
             hir::Expression::Binary(binary, left, right) => {
-                let (left, right) = self.canonize_pair(left, right);
+                let (left, right) = self.lower_pair(left, right);
                 lir::Expression::Binary(*binary, Box::new(left), Box::new(right))
             }
             hir::Expression::Call(function, arguments, returns) => {
                 let function = if arguments.iter().all(|argument| commute(function, argument)) {
-                    self.canonize_expression(function)
+                    self.lower_expression(function)
                 } else {
                     let save = Temporary::fresh("save");
-                    let function = self.canonize_expression(function);
-                    self.canonized.push(lir::Statement::Move {
+                    let function = self.lower_expression(function);
+                    self.lowered.push(lir::Statement::Move {
                         destination: lir::Expression::Temporary(save),
                         source: function,
                     });
                     lir::Expression::Temporary(save)
                 };
 
-                let arguments = self.canonize_list(arguments);
+                let arguments = self.lower_list(arguments);
 
-                self.canonized
+                self.lowered
                     .push(lir::Statement::Call(function, arguments, *returns));
 
                 // Note: this return must not be used if `returns` is 0. This property
@@ -95,18 +95,18 @@ impl Canonizer {
         }
     }
 
-    fn canonize_statement(&mut self, statement: &hir::Statement) {
+    fn lower_statement(&mut self, statement: &hir::Statement) {
         match statement {
             hir::Statement::Expression(expression) => {
-                self.canonize_expression(expression);
+                self.lower_expression(expression);
             }
-            hir::Statement::Label(label) => self.canonized.push(lir::Statement::Label(*label)),
+            hir::Statement::Label(label) => self.lowered.push(lir::Statement::Label(*label)),
             hir::Statement::Sequence(statements) => {
                 for statement in statements {
-                    self.canonize_statement(statement);
+                    self.lower_statement(statement);
                 }
             }
-            hir::Statement::Jump(label) => self.canonized.push(lir::Statement::Jump(*label)),
+            hir::Statement::Jump(label) => self.lowered.push(lir::Statement::Jump(*label)),
             hir::Statement::CJump {
                 condition,
                 left,
@@ -114,7 +114,7 @@ impl Canonizer {
                 r#true,
                 r#false,
             } => {
-                let (left, right) = self.canonize_pair(left, right);
+                let (left, right) = self.lower_pair(left, right);
                 let cjump = lir::Statement::CJump {
                     condition: *condition,
                     left,
@@ -122,22 +122,22 @@ impl Canonizer {
                     r#true: *r#true,
                     r#false: *r#false,
                 };
-                self.canonized.push(cjump);
+                self.lowered.push(cjump);
             }
             hir::Statement::Move {
                 destination,
                 source,
-            } => match self.canonize_expression(destination) {
+            } => match self.lower_expression(destination) {
                 lir::Expression::Temporary(destination) => {
-                    let source = self.canonize_expression(source);
-                    self.canonized.push(lir::Statement::Move {
+                    let source = self.lower_expression(source);
+                    self.lowered.push(lir::Statement::Move {
                         destination: lir::Expression::Temporary(destination),
                         source,
                     });
                 }
                 lir::Expression::Memory(destination) if pure_expression(source) => {
-                    let source = self.canonize_expression(source);
-                    self.canonized.push(lir::Statement::Move {
+                    let source = self.lower_expression(source);
+                    self.lowered.push(lir::Statement::Move {
                         destination: lir::Expression::Memory(Box::new(*destination)),
                         source,
                     });
@@ -145,13 +145,13 @@ impl Canonizer {
                 lir::Expression::Memory(destination) => {
                     let save = lir::Expression::Temporary(Temporary::fresh("save"));
 
-                    self.canonized.push(lir::Statement::Move {
+                    self.lowered.push(lir::Statement::Move {
                         destination: save.clone(),
                         source: *destination,
                     });
 
-                    let source = self.canonize_expression(source);
-                    self.canonized.push(lir::Statement::Move {
+                    let source = self.lower_expression(source);
+                    self.lowered.push(lir::Statement::Move {
                         destination: lir::Expression::Memory(Box::new(save)),
                         source,
                     });
@@ -159,17 +159,17 @@ impl Canonizer {
                 _ => unimplemented!(),
             },
             hir::Statement::Return(returns) => {
-                let returns = self.canonize_list(returns);
-                self.canonized.push(lir::Statement::Return(returns));
+                let returns = self.lower_list(returns);
+                self.lowered.push(lir::Statement::Return(returns));
             }
         }
     }
 
-    fn canonize_list(&mut self, expressions: &[hir::Expression]) -> Vec<lir::Expression> {
+    fn lower_list(&mut self, expressions: &[hir::Expression]) -> Vec<lir::Expression> {
         if expressions.iter().all(pure_expression) {
             return expressions
                 .iter()
-                .map(|expression| self.canonize_expression(expression))
+                .map(|expression| self.lower_expression(expression))
                 .collect();
         }
 
@@ -177,8 +177,8 @@ impl Canonizer {
             .iter()
             .map(|expression| {
                 let save = lir::Expression::Temporary(Temporary::fresh("save"));
-                let expression = self.canonize_expression(expression);
-                self.canonized.push(lir::Statement::Move {
+                let expression = self.lower_expression(expression);
+                self.lowered.push(lir::Statement::Move {
                     destination: save.clone(),
                     source: expression,
                 });
@@ -187,27 +187,24 @@ impl Canonizer {
             .collect()
     }
 
-    fn canonize_pair(
+    fn lower_pair(
         &mut self,
         left: &hir::Expression,
         right: &hir::Expression,
     ) -> (lir::Expression, lir::Expression) {
         if commute(left, right) {
-            return (
-                self.canonize_expression(left),
-                self.canonize_expression(right),
-            );
+            return (self.lower_expression(left), self.lower_expression(right));
         }
 
         let save = lir::Expression::Temporary(Temporary::fresh("save"));
-        let left = self.canonize_expression(left);
+        let left = self.lower_expression(left);
 
-        self.canonized.push(lir::Statement::Move {
+        self.lowered.push(lir::Statement::Move {
             destination: save.clone(),
             source: left,
         });
 
-        let right = self.canonize_expression(right);
+        let right = self.lower_expression(right);
         (save, right)
     }
 }

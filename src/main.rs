@@ -108,7 +108,7 @@ struct Command {
     #[clap(short = 't', long = "typecheck", display_order = 8)]
     debug_check: bool,
 
-    /// Generate output from emitted IR, before canonization, reordering, and CFG optimization
+    /// Generate output from emitted HIR, before lowering, reordering, and CFG optimization
     #[clap(short = 'h', long = "hirgen", display_order = 9)]
     debug_hir: bool,
 
@@ -133,7 +133,7 @@ struct Command {
     )]
     debug_optimize_lir: Vec<DebugOpt>,
 
-    /// Generate output from emitted IR, after canonization, reordering, and CFG optimization
+    /// Generate output from emitted LIR, after lowering, reordering, and CFG optimization
     #[clap(short = 'g', long = "irgen", alias = "lirgen", display_order = 11)]
     debug_lir: bool,
 
