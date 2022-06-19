@@ -539,10 +539,17 @@ fn run() -> anyhow::Result<()> {
 
         command.debug_optimize_assembly(&path, DebugOpt::Final, &cfg)?;
 
-        let assembly = if command.optimize(Opt::RegisterAllocation) {
+        let mut assembly = if command.optimize(Opt::RegisterAllocation) {
             cfg.map(api::allocate_linear)
         } else {
             cfg.map(api::destruct_cfg).map_ref(api::allocate_trivial)
+        };
+
+        if command.optimize(Opt::CleanCfg) {
+            assembly = assembly
+                .map(api::construct_cfg)
+                .map_mut(api::clean_cfg)
+                .map(api::destruct_cfg)
         };
 
         command.output(&path, "S", assembly.intel())?;
