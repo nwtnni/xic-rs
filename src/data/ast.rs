@@ -115,6 +115,30 @@ impl fmt::Display for Initialization {
 
 const _: [(); 160] = [(); std::mem::size_of::<ClassTemplate>()];
 
+pub trait ClassLike {
+    fn r#final(&self) -> bool;
+    fn name(&self) -> &Identifier;
+    fn extends(&self) -> Option<&Variable>;
+}
+
+macro_rules! impl_class_like {
+    ($type:ty) => {
+        impl ClassLike for $type {
+            fn r#final(&self) -> bool {
+                self.r#final
+            }
+
+            fn name(&self) -> &Identifier {
+                &self.name
+            }
+
+            fn extends(&self) -> Option<&Variable> {
+                self.extends.as_ref()
+            }
+        }
+    };
+}
+
 #[derive(Clone, Debug)]
 pub struct ClassTemplate {
     pub r#final: bool,
@@ -161,6 +185,8 @@ pub struct ClassSignature {
     pub span: Span,
 }
 
+impl_class_like!(ClassSignature);
+
 impl ClassSignature {
     #[must_use]
     pub fn new(
@@ -200,6 +226,8 @@ pub struct Class {
     pub(crate) declared: Cell<bool>,
     pub span: Span,
 }
+
+impl_class_like!(Class);
 
 impl Class {
     #[must_use]
