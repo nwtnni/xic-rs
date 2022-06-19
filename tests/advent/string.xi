@@ -23,6 +23,30 @@ final class String {
         return buffer.pop()
     }
 
+    contains(substring: String): bool {
+        i: int = 0
+
+        while i + substring.size() < size() {
+            j: int = 0
+
+            while j < substring.size() {
+                if get(i + j) != substring.get(j) {
+                    break
+                }
+
+                j = j + 1
+            }
+
+            if j == substring.size() {
+                return true
+            }
+
+            i = i + 1
+        }
+
+        return false
+    }
+
     split(character: int): Vector::<String> {
         splits: Vector::<String> = new_vector::<String>()
 

@@ -11,6 +11,8 @@ final class String {
 
     pop(): int
 
+    contains(substring: String): bool
+
     split(character: int): Vector::<String>
 
     slice(low: int, high: int): String

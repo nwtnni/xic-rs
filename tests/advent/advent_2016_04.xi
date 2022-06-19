@@ -1099,27 +1099,33 @@ INPUT: int[] = "\
     xjinphzm-bmvyz-hvbizodx-xviyt-xjvodib-ozxcijgjbt-343[ixbjv]\n\
     jyfvnlupj-ibuuf-svnpzapjz-851[gmsnf]"
 
+NORTH_POLE: String = new_string_from_array("northpole")
+
 main(args: int[][]) {
     input: Vector::<String> = new_string_from_array(INPUT).split('\n')
     sum: int = 0
+    north_pole: int = 0
 
     i: int = 0
     while i < input.size() {
-        room: String = input.get(i)
+        room: Room = realRoom(input.get(i))
 
-        if realRoom(room) {
-            id: int, success: bool = parseInt(room.slice_array(room.size() - 10, room.size() - 7))
-            assert(success)
-            sum = sum + id
+        if room != null {
+            sum = sum + room.id
+            decrypted: String = decrypt(room.name, room.id)
+            if decrypted.contains(NORTH_POLE) {
+                north_pole = room.id
+            }
         }
 
         i = i + 1
     }
 
     println(unparseInt(sum))
+    println(unparseInt(north_pole))
 }
 
-realRoom(room: String): bool {
+realRoom(room: String): Room {
     counts: VectorMap::<Integer, Integer> = new_vector_map::<Integer, Integer>()
 
     i: int = 0
@@ -1159,13 +1165,44 @@ realRoom(room: String): bool {
         checksum: int = room.get(room.size() - 6 + k)
 
         if sorted.get(k).letter != checksum {
-            return false
+            return null
         }
 
         k = k + 1
     }
 
-    return true
+    return new Room.init(room)
+}
+
+decrypt(string: String, rotate: int): String {
+
+    decrypted: String = new_string()
+
+    i: int = 0
+    while i < string.size() {
+        if string.get(i) == '-' {
+            decrypted.push(' ')
+        } else {
+            decrypted.push((((string.get(i) - 'a') + rotate) % 26) + 'a')
+        }
+
+        i = i + 1
+    }
+
+    return decrypted
+}
+
+final class Room {
+    name: String
+    id: int
+
+    init(room: String): Room {
+        id: int, success: bool = parseInt(room.slice_array(room.size() - 10, room.size() - 7))
+        assert(success)
+        this.id = id
+        this.name = new_string_from_array(room.slice_array(0, room.size() - 10))
+        return this
+    }
 }
 
 final class Letter {
