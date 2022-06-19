@@ -112,12 +112,7 @@ impl Checker {
         &mut self,
         class: &ast::ClassSignature,
     ) -> Result<(), Error> {
-        if let Some(supertype) = &class.extends {
-            let symbol = self.check_variable(supertype)?;
-            if let Some(span) = self.context.get_final(&symbol) {
-                bail!(supertype.span, ErrorKind::FinalSuperclass(symbol, *span));
-            }
-        }
+        self.check_class_like(class)?;
 
         for method in &class.methods {
             self.check_function_like(method)?;
@@ -127,12 +122,7 @@ impl Checker {
     }
 
     fn check_class(&mut self, class: &ast::Class) -> Result<(), Error> {
-        if let Some(supertype) = &class.extends {
-            let symbol = self.check_variable(supertype)?;
-            if let Some(span) = self.context.get_final(&symbol) {
-                bail!(supertype.span, ErrorKind::FinalSuperclass(symbol, *span));
-            }
-        }
+        self.check_class_like(class)?;
 
         // Classes must implement at least the methods declared in its interface
         if let Some(span) = self
@@ -189,6 +179,17 @@ impl Checker {
 
                     self.check_function(GlobalScope::Class(class.name.symbol), method)?
                 }
+            }
+        }
+
+        Ok(())
+    }
+
+    fn check_class_like<C: ast::ClassLike>(&mut self, class: &C) -> Result<(), Error> {
+        if let Some(supertype) = class.extends() {
+            let symbol = self.check_variable(supertype)?;
+            if let Some(span) = self.context.get_final(&symbol) {
+                bail!(supertype.span, ErrorKind::FinalSuperclass(symbol, *span));
             }
         }
 

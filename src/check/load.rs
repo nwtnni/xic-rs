@@ -142,43 +142,9 @@ impl Checker {
     }
 
     fn load_class_signature(&mut self, class: &ast::ClassSignature) -> Result<(), error::Error> {
-        if class.r#final {
-            match self.context.insert_final(class.name.clone()) {
-                Some(_) => (),
-                None => {
-                    if let Some((span, _)) = self.context.get_class_full(&class.name) {
-                        bail!(*class.name.span, ErrorKind::FinalMismatch(*span));
-                    }
-                }
-            }
-        } else if let Some(span) = self.context.get_final(&class.name) {
-            bail!(class.span, ErrorKind::FinalMismatch(*span));
-        }
+        self.load_class_like(class)?;
 
         let expected = self.context.insert_class_signature(class.name.clone());
-
-        if let Some(supertype) = &class.extends {
-            let symbol = self.load_variable(supertype);
-
-            if let Some(existing) = self.context.insert_supertype(
-                class.name.clone(),
-                ast::Identifier {
-                    symbol,
-                    span: Box::new(supertype.span),
-                },
-            ) {
-                expected!(
-                    *existing.span,
-                    r#type::Expression::Class(existing.symbol),
-                    supertype.span,
-                    r#type::Expression::Class(symbol),
-                );
-            }
-
-            if self.context.has_cycle(&class.name) {
-                bail!(*class.name.span, ErrorKind::ClassCycle(class.name.symbol));
-            }
-        }
 
         for method in &class.methods {
             self.load_function_signature(GlobalScope::Class(class.name.symbol), method)?;
@@ -231,18 +197,7 @@ impl Checker {
     }
 
     pub(super) fn load_class(&mut self, class: &ast::Class) -> Result<(), error::Error> {
-        if class.r#final {
-            match self.context.insert_final(class.name.clone()) {
-                Some(_) => (),
-                None => {
-                    if let Some((span, _)) = self.context.get_class_full(&class.name) {
-                        bail!(*class.name.span, ErrorKind::FinalMismatch(*span));
-                    }
-                }
-            }
-        } else if let Some(span) = self.context.get_final(&class.name) {
-            bail!(class.span, ErrorKind::FinalMismatch(*span));
-        }
+        self.load_class_like(class)?;
 
         class
             .declared
@@ -252,11 +207,37 @@ impl Checker {
             bail!(class.span, ErrorKind::NameClash(span));
         }
 
-        if let Some(supertype) = &class.extends {
+        for item in &class.items {
+            match item {
+                ast::ClassItem::Field(field) => self.load_class_field(&class.name, field)?,
+                ast::ClassItem::Method(method) => {
+                    self.load_function(GlobalScope::Class(class.name.symbol), method)?
+                }
+            }
+        }
+
+        Ok(())
+    }
+
+    fn load_class_like<C: ast::ClassLike>(&mut self, class: &C) -> Result<(), error::Error> {
+        if class.r#final() {
+            match self.context.insert_final(class.name().clone()) {
+                Some(_) => (),
+                None => {
+                    if let Some((span, _)) = self.context.get_class_full(class.name()) {
+                        bail!(*class.name().span, ErrorKind::FinalMismatch(*span));
+                    }
+                }
+            }
+        } else if let Some(span) = self.context.get_final(class.name()) {
+            bail!(*class.name().span, ErrorKind::FinalMismatch(*span));
+        }
+
+        if let Some(supertype) = class.extends() {
             let symbol = self.load_variable(supertype);
 
             if let Some(existing) = self.context.insert_supertype(
-                class.name.clone(),
+                class.name().clone(),
                 ast::Identifier {
                     symbol,
                     span: Box::new(supertype.span),
@@ -270,17 +251,11 @@ impl Checker {
                 );
             }
 
-            if self.context.has_cycle(&class.name) {
-                bail!(*class.name.span, ErrorKind::ClassCycle(class.name.symbol));
-            }
-        }
-
-        for item in &class.items {
-            match item {
-                ast::ClassItem::Field(field) => self.load_class_field(&class.name, field)?,
-                ast::ClassItem::Method(method) => {
-                    self.load_function(GlobalScope::Class(class.name.symbol), method)?
-                }
+            if self.context.has_cycle(class.name()) {
+                bail!(
+                    *class.name().span,
+                    ErrorKind::ClassCycle(class.name().symbol)
+                );
             }
         }
 
