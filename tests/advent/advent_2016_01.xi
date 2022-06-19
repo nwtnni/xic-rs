@@ -3,12 +3,31 @@ use conv
 use io
 use math
 use string
+use vector_set
 
 INPUT: int[] = "L5, R1, R3, L4, R3, R1, L3, L2, R3, L5, L1, L2, R5, L1, R5, R1, L4, R1, R3, L4, L1, R2, R5, R3, R1, R1, L1, R1, L1, L2, L1, R2, L5, L188, L4, R1, R4, L3, R47, R1, L1, R77, R5, L2, R1, L2, R4, L5, L1, R3, R187, L4, L3, L3, R2, L3, L5, L4, L4, R1, R5, L4, L3, L3, L3, L2, L5, R1, L2, R5, L3, L4, R4, L5, R3, R4, L2, L1, L4, R1, L3, R1, R3, L2, R1, R4, R5, L3, R5, R3, L3, R4, L2, L5, L1, L1, R3, R1, L4, R3, R3, L2, R5, R4, R1, R3, L4, R3, R3, L2, L4, L5, R1, L4, L5, R4, L2, L1, L3, L3, L5, R3, L4, L3, R5, R4, R2, L4, R2, R3, L3, R4, L1, L3, R2, R1, R5, L4, L5, L5, R4, L5, L2, L4, R4, R4, R1, L3, L2, L4, R3"
 
-main(args: int[][]) {
+L: int = INPUT[0]
+R: int = INPUT[4]
+COMMA: int = INPUT[2]
 
+main(args: int[][]) {
     input: String = new_string_from_array(INPUT)
+
+    one: Done = new Done
+
+    x: int, y: int = run(input, one)
+
+    println(unparseInt(abs::<>(x) + abs::<>(y)))
+
+    two: Done = new Done'.init()
+
+    x': int, y': int = run(input, two)
+
+    println(unparseInt(abs::<>(x') + abs::<>(y')))
+}
+
+run(input: String, done: Done): int, int {
 
     i: int = 0
 
@@ -20,8 +39,6 @@ main(args: int[][]) {
     x: int = 0
     y: int = 0
 
-    set: Set = new Set.init()
-
     while i < input.size() {
 
         low: int = i + 1
@@ -29,7 +46,7 @@ main(args: int[][]) {
 
         // Parse block distance
         do {
-            if input.get(high) == ',' {
+            if input.get(high) == COMMA {
                 break
             }
             high = high + 1
@@ -39,17 +56,17 @@ main(args: int[][]) {
         assert(valid)
 
         // Parse direction
-        if input.get(i) == 'L' {
+        if input.get(i) == L {
             direction = (direction + 3) % 4
-        } else if input.get(i) == 'R' {
+        } else if input.get(i) == R {
             direction = (direction + 1) % 4
         } else {
             assert(false)
         }
 
-        k: int = 0
+        block: int = 0
 
-        while k < blocks {
+        while block < blocks {
             // Travel in direction
             if direction == 0 {
                 y = y + 1
@@ -63,81 +80,49 @@ main(args: int[][]) {
                 assert(false)
             }
 
-            if !set.insert(x, y) {
-                println(unparseInt(abs::<>(x) + abs::<>(y)))
-                return
+            if done.done(new Point.init(x, y)) {
+                return x, y
             }
 
-            k = k + 1
+            block = block + 1
         }
 
         // Skip over comma, space
         i = high + 2
     }
+
+    return x, y
 }
 
-class Set {
-    arr: int[]
-    len: int
-    cap: int
+class Done {
+    done(point: Point): bool {
+        return false
+    }
+}
 
-    init(): Set {
-        array: int[8]
-        arr = array
-        len = 0
-        cap = 8
+final class Done' extends Done {
+    visited: VectorSet::<Point>
+
+    done(point: Point): bool {
+        return !visited.insert(point)
+    }
+
+    init(): Done' {
+        this.visited = new_vector_set::<Point>()
         return this
     }
+}
 
-    insert(x: int, y: int): bool {
-        if len + 2 > cap {
-            resize()
-        }
+final class Point {
+    x, y: int
 
-        i: int = 0
-        while i + 1 < len {
-            if arr[i] == x & arr[i + 1] == y {
-                return false
-            }
-
-            i = i + 2
-        }
-
-        arr[len] = x
-        arr[len + 1] = y
-        len = len + 2
-        return true
+    equals(other: Point): bool {
+        return this.x == other.x & this.y == other.y
     }
 
-    resize() {
-        double: int[cap * 2]
-
-        assert(length(arr) == cap)
-
-        i: int = 0
-        while i < length(arr) {
-            double[i] = arr[i]
-            i = i + 1
-        }
-
-        cap = length(double)
-        arr = double
-    }
-
-    debug() {
-        i: int = 0
-
-        print("{")
-
-        while i < len {
-            print("(")
-            print(unparseInt(arr[i]))
-            print(", ")
-            print(unparseInt(arr[i + 1]))
-            print("), ")
-            i = i + 2
-        }
-
-        println("}")
+    init(x: int, y: int): Point {
+        this.x = x
+        this.y = y
+        return this
     }
 }
