@@ -2,6 +2,7 @@
 #![allow(clippy::too_many_arguments)]
 #![allow(clippy::try_err)]
 #![allow(clippy::just_underscores_and_digits)]
+#![allow(unused_imports)]
 
 mod error;
 mod grammar;

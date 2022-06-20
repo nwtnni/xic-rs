@@ -99,8 +99,8 @@ pub enum Token {
     /// `length` keyword
     Length,
 
-    /// `int` keyword
-    Int,
+    /// `int` type keywords
+    Int { signed: bool, size: Size },
 
     /// `bool` keyword
     Bool,
@@ -193,8 +193,29 @@ pub enum Token {
     Period,
 }
 
-impl std::fmt::Display for Token {
-    fn fmt(&self, fmt: &mut std::fmt::Formatter) -> std::fmt::Result {
+#[derive(Copy, Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub enum Size {
+    _8,
+    _16,
+    _32,
+    _64,
+}
+
+impl fmt::Display for Size {
+    fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
+        let size = match self {
+            Size::_8 => "8",
+            Size::_16 => "16",
+            Size::_32 => "32",
+            Size::_64 => "64",
+        };
+
+        write!(fmt, "{}", size)
+    }
+}
+
+impl fmt::Display for Token {
+    fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
         match self {
             Token::Character(c) => match unescape_char(*c) {
                 Some(s) => write!(fmt, "character {}", s),
@@ -219,7 +240,19 @@ impl std::fmt::Display for Token {
             Token::Else => write!(fmt, "else"),
             Token::Return => write!(fmt, "return"),
             Token::Length => write!(fmt, "length"),
-            Token::Int => write!(fmt, "int"),
+            Token::Int { signed, size } => {
+                if !signed {
+                    write!(fmt, "u")?;
+                }
+
+                write!(fmt, "int")?;
+
+                if *size < Size::_64 {
+                    write!(fmt, "{}", size)?;
+                }
+
+                Ok(())
+            }
             Token::Bool => write!(fmt, "bool"),
             Token::True => write!(fmt, "true"),
             Token::False => write!(fmt, "false"),

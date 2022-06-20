@@ -178,7 +178,22 @@ impl<'source> Lexer<'source> {
             "else" => Else,
             "return" => Return,
             "length" => Length,
-            "int" => Int,
+            r#type @ ("int" | "int64" | "uint" | "uint64") => Int {
+                signed: r#type.starts_with('i'),
+                size: token::Size::_64,
+            },
+            r#type @ ("int32" | "uint32") => Int {
+                signed: r#type.starts_with('i'),
+                size: token::Size::_32,
+            },
+            r#type @ ("int16" | "uint16") => Int {
+                signed: r#type.starts_with('i'),
+                size: token::Size::_16,
+            },
+            r#type @ ("int8" | "uint8") => Int {
+                signed: r#type.starts_with('i'),
+                size: token::Size::_8,
+            },
             "bool" => Bool,
             "true" => True,
             "false" => False,

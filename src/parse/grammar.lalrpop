@@ -1,6 +1,7 @@
 use std::cell::Cell;
 
 use crate::data::ast::*;
+use crate::data::token::Size;
 use crate::data::token::Token;
 use crate::error::Error;
 use crate::parse;
@@ -581,7 +582,16 @@ extern {
         "else" => Token::Else,
         "length" => Token::Length,
         "return" => Token::Return,
-        "int" => Token::Int,
+        "int" => Token::Int { signed: true, size: Size::_64 },
+        "int64" => Token::Int { signed: true, size: Size::_64 },
+        "int32" => Token::Int { signed: true, size: Size::_32 },
+        "int16" => Token::Int { signed: true, size: Size::_16 },
+        "int8" => Token::Int { signed: true, size: Size::_8 },
+        "uint" => Token::Int { signed: false, size: Size::_64 },
+        "uint64" => Token::Int { signed: false, size: Size::_64 },
+        "uint32" => Token::Int { signed: true, size: Size::_32 },
+        "uint16" => Token::Int { signed: true, size: Size::_16 },
+        "uint8" => Token::Int { signed: true, size: Size::_8 },
         "bool" => Token::Bool,
         "true" => Token::True,
         "false" => Token::False,
