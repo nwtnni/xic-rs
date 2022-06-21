@@ -616,6 +616,9 @@ impl Expression {
                 Expression::Binary(Cell::new(binary), left.clone(), right.clone(), *span)
             }
             Expression::Unary(Unary::Not, expression, _) => (**expression).clone(),
+            Expression::Index(_, _, _) | Expression::Call(_) | Expression::Dot(_, _, _, _) => {
+                Expression::Unary(Unary::Not, Box::new(self.clone()), self.span())
+            }
             Expression::Unary(Unary::Neg, _, _)
             | Expression::Character(_, _)
             | Expression::String(_, _)
@@ -624,10 +627,7 @@ impl Expression {
             | Expression::This(_)
             | Expression::Super(_)
             | Expression::Array(_, _)
-            | Expression::Index(_, _, _)
             | Expression::Length(_, _)
-            | Expression::Call(_)
-            | Expression::Dot(_, _, _, _)
             | Expression::New(_, _) => self.clone(),
         }
     }
