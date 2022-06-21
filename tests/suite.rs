@@ -46,7 +46,7 @@ pub fn lex(path: &str) -> anyhow::Result<Tokens> {
     xic::api::lex(Path::new(path)).with_context(|| anyhow!("Lexing file: {}", path))
 }
 
-pub fn parse(path: &str) -> anyhow::Result<ast::Program> {
+pub fn parse(path: &str) -> anyhow::Result<ast::Program<()>> {
     xic::api::parse(Path::new(path), lex(path)?).with_context(|| anyhow!("Parsing file: {}", path))
 }
 

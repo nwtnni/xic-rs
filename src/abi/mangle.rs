@@ -27,7 +27,7 @@ pub fn template(name: &Symbol, generics: &[r#type::Expression]) -> Symbol {
 // used when checking generics in function signatures. The duplication is
 // unfortunate, but the former operates on the typed AST, although it still
 // processes in postorder.
-pub fn template_ast(name: &Symbol, generics: &[ast::Type]) -> Symbol {
+pub fn template_ast(name: &Symbol, generics: &[ast::Type<()>]) -> Symbol {
     let mut mangled = escape(name);
     write!(&mut mangled, "t{}", generics.len()).unwrap();
     for generic in generics {
@@ -133,7 +133,7 @@ fn mangle_type(r#type: &r#type::Expression, mangled: &mut String) {
     }
 }
 
-fn mangle_type_ast(r#type: &ast::Type, mangled: &mut String) {
+fn mangle_type_ast(r#type: &ast::Type<()>, mangled: &mut String) {
     match r#type {
         ast::Type::Int(_) => mangled.push('i'),
         ast::Type::Bool(_) => mangled.push('b'),

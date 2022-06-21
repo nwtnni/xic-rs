@@ -14,12 +14,12 @@ use crate::util::Or;
 
 /// Represents a Xi interface file.
 #[derive(Clone, Debug)]
-pub struct Interface {
+pub struct Interface<T> {
     pub uses: Vec<Use>,
-    pub items: Vec<ItemSignature>,
+    pub items: Vec<ItemSignature<T>>,
 }
 
-impl fmt::Display for Interface {
+impl<T> fmt::Display for Interface<T> {
     fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
         write!(fmt, "{}", self.sexp())
     }
@@ -27,12 +27,12 @@ impl fmt::Display for Interface {
 
 /// Represents a Xi source file.
 #[derive(Clone, Debug)]
-pub struct Program {
+pub struct Program<T> {
     pub uses: Vec<Use>,
-    pub items: Vec<Item>,
+    pub items: Vec<Item<T>>,
 }
 
-impl fmt::Display for Program {
+impl<T> fmt::Display for Program<T> {
     fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
         write!(fmt, "{}", self.sexp())
     }
@@ -51,63 +51,63 @@ impl fmt::Display for Use {
     }
 }
 
-const _: [(); 184] = [(); std::mem::size_of::<ItemSignature>()];
+const _: [(); 184] = [(); std::mem::size_of::<ItemSignature<()>>()];
 
 #[derive(Clone, Debug)]
-pub enum ItemSignature {
-    Class(ClassSignature),
+pub enum ItemSignature<T> {
+    Class(ClassSignature<T>),
     ClassTemplate(ClassTemplate),
-    Function(FunctionSignature),
+    Function(FunctionSignature<T>),
     FunctionTemplate(FunctionTemplate),
 }
 
-impl fmt::Display for ItemSignature {
+impl<T> fmt::Display for ItemSignature<T> {
     fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
         write!(fmt, "{}", self.sexp())
     }
 }
 
-const _: [(); 192] = [(); std::mem::size_of::<Item>()];
+const _: [(); 192] = [(); std::mem::size_of::<Item<()>>()];
 
 #[derive(Clone, Debug)]
-pub enum Item {
-    Global(Global),
-    Class(Class),
+pub enum Item<T> {
+    Global(Global<T>),
+    Class(Class<T>),
     ClassTemplate(ClassTemplate),
-    Function(Function),
+    Function(Function<T>),
     FunctionTemplate(FunctionTemplate),
 }
 
-impl fmt::Display for Item {
+impl<T> fmt::Display for Item<T> {
     fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
         write!(fmt, "{}", self.sexp())
     }
 }
 
-const _: [(); 72] = [(); std::mem::size_of::<Global>()];
+const _: [(); 72] = [(); std::mem::size_of::<Global<()>>()];
 
 #[derive(Clone, Debug)]
-pub enum Global {
-    Declaration(Declaration),
-    Initialization(Initialization),
+pub enum Global<T> {
+    Declaration(Declaration<T>),
+    Initialization(Initialization<T>),
 }
 
-impl fmt::Display for Global {
+impl<T> fmt::Display for Global<T> {
     fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
         write!(fmt, "{}", self.sexp())
     }
 }
 
-const _: [(); 56] = [(); std::mem::size_of::<Initialization>()];
+const _: [(); 56] = [(); std::mem::size_of::<Initialization<()>>()];
 
 #[derive(Clone, Debug)]
-pub struct Initialization {
-    pub declarations: Vec<Option<SingleDeclaration>>,
-    pub expression: Box<Expression>,
+pub struct Initialization<T> {
+    pub declarations: Vec<Option<SingleDeclaration<T>>>,
+    pub expression: Box<Expression<T>>,
     pub span: Span,
 }
 
-impl fmt::Display for Initialization {
+impl<T> fmt::Display for Initialization<T> {
     fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
         write!(fmt, "{}", self.sexp())
     }
@@ -115,15 +115,15 @@ impl fmt::Display for Initialization {
 
 const _: [(); 160] = [(); std::mem::size_of::<ClassTemplate>()];
 
-pub trait ClassLike {
+pub trait ClassLike<T> {
     fn r#final(&self) -> bool;
     fn name(&self) -> &Identifier;
-    fn extends(&self) -> Option<&Variable>;
+    fn extends(&self) -> Option<&Variable<T>>;
 }
 
 macro_rules! impl_class_like {
-    ($type:ty) => {
-        impl ClassLike for $type {
+    ($type:ident) => {
+        impl<T> ClassLike<T> for $type<T> {
             fn r#final(&self) -> bool {
                 self.r#final
             }
@@ -132,7 +132,7 @@ macro_rules! impl_class_like {
                 &self.name
             }
 
-            fn extends(&self) -> Option<&Variable> {
+            fn extends(&self) -> Option<&Variable<T>> {
                 self.extends.as_ref()
             }
         }
@@ -144,8 +144,8 @@ pub struct ClassTemplate {
     pub r#final: bool,
     pub name: Identifier,
     pub generics: Vec<Identifier>,
-    pub extends: Option<Variable>,
-    pub items: Vec<ClassItem>,
+    pub extends: Option<Variable<()>>,
+    pub items: Vec<ClassItem<()>>,
     pub span: Span,
 }
 
@@ -155,8 +155,8 @@ impl ClassTemplate {
         r#final: bool,
         name: Identifier,
         generics: Vec<Identifier>,
-        extends: Option<Variable>,
-        items: Vec<ClassItem>,
+        extends: Option<Variable<()>>,
+        items: Vec<ClassItem<()>>,
         span: Span,
     ) -> Self {
         Self {
@@ -177,23 +177,23 @@ impl fmt::Display for ClassTemplate {
 }
 
 #[derive(Clone, Debug)]
-pub struct ClassSignature {
+pub struct ClassSignature<T> {
     pub r#final: bool,
     pub name: Identifier,
-    pub extends: Option<Variable>,
-    pub methods: Vec<FunctionSignature>,
+    pub extends: Option<Variable<T>>,
+    pub methods: Vec<FunctionSignature<T>>,
     pub span: Span,
 }
 
 impl_class_like!(ClassSignature);
 
-impl ClassSignature {
+impl ClassSignature<()> {
     #[must_use]
     pub fn new(
         r#final: bool,
         name: Identifier,
-        extends: Option<Variable>,
-        methods: Vec<FunctionSignature>,
+        extends: Option<Variable<()>>,
+        methods: Vec<FunctionSignature<()>>,
         span: Span,
     ) -> Self {
         Self {
@@ -206,20 +206,20 @@ impl ClassSignature {
     }
 }
 
-impl fmt::Display for ClassSignature {
+impl<T> fmt::Display for ClassSignature<T> {
     fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
         write!(fmt, "{}", self.sexp())
     }
 }
 
-const _: [(); 160] = [(); std::mem::size_of::<Class>()];
+const _: [(); 160] = [(); std::mem::size_of::<Class<()>>()];
 
 #[derive(Clone, Debug)]
-pub struct Class {
+pub struct Class<T> {
     pub r#final: bool,
     pub name: Identifier,
-    pub extends: Option<Variable>,
-    pub items: Vec<ClassItem>,
+    pub extends: Option<Variable<T>>,
+    pub items: Vec<ClassItem<T>>,
     // Used for tracking class template instantiation chains in diagnostics
     pub(crate) provenance: Vec<Span>,
     /// Whether this class is declared in an interface
@@ -229,13 +229,13 @@ pub struct Class {
 
 impl_class_like!(Class);
 
-impl Class {
+impl Class<()> {
     #[must_use]
     pub fn new(
         r#final: bool,
         name: Identifier,
-        extends: Option<Variable>,
-        items: Vec<ClassItem>,
+        extends: Option<Variable<()>>,
+        items: Vec<ClassItem<()>>,
         provenance: Vec<Span>,
         span: Span,
     ) -> Self {
@@ -251,44 +251,44 @@ impl Class {
     }
 }
 
-impl fmt::Display for Class {
+impl<T> fmt::Display for Class<T> {
     fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
         write!(fmt, "{}", self.sexp())
     }
 }
 
-const _: [(); 192] = [(); std::mem::size_of::<ClassItem>()];
+const _: [(); 192] = [(); std::mem::size_of::<ClassItem<()>>()];
 
 #[derive(Clone, Debug)]
-pub enum ClassItem {
-    Field(Declaration),
-    Method(Function),
+pub enum ClassItem<T> {
+    Field(Declaration<T>),
+    Method(Function<T>),
 }
 
-impl fmt::Display for ClassItem {
+impl<T> fmt::Display for ClassItem<T> {
     fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
         write!(fmt, "{}", self.sexp())
     }
 }
 
-pub trait FunctionLike {
+pub trait FunctionLike<T> {
     fn name(&self) -> &Identifier;
-    fn parameters(&self) -> &[SingleDeclaration];
-    fn returns(&self) -> &[Type];
+    fn parameters(&self) -> &[SingleDeclaration<T>];
+    fn returns(&self) -> &[Type<T>];
 }
 
 macro_rules! impl_function_like {
-    ($type:ty) => {
-        impl FunctionLike for $type {
+    ($type:ident) => {
+        impl<T> FunctionLike<T> for $type<T> {
             fn name(&self) -> &Identifier {
                 &self.name
             }
 
-            fn parameters(&self) -> &[SingleDeclaration] {
+            fn parameters(&self) -> &[SingleDeclaration<T>] {
                 &self.parameters
             }
 
-            fn returns(&self) -> &[Type] {
+            fn returns(&self) -> &[Type<T>] {
                 &self.returns
             }
         }
@@ -301,9 +301,9 @@ const _: [(); 176] = [(); std::mem::size_of::<FunctionTemplate>()];
 pub struct FunctionTemplate {
     pub name: Identifier,
     pub generics: Vec<Identifier>,
-    pub parameters: Vec<SingleDeclaration>,
-    pub returns: Vec<Type>,
-    pub statements: Statement,
+    pub parameters: Vec<SingleDeclaration<()>>,
+    pub returns: Vec<Type<()>>,
+    pub statements: Statement<()>,
     pub span: Span,
 }
 
@@ -313,34 +313,34 @@ impl fmt::Display for FunctionTemplate {
     }
 }
 
-const _: [(); 88] = [(); std::mem::size_of::<FunctionSignature>()];
+const _: [(); 88] = [(); std::mem::size_of::<FunctionSignature<()>>()];
 
 /// Represents a function signature (i.e. without implementation).
 #[derive(Clone, Debug)]
-pub struct FunctionSignature {
+pub struct FunctionSignature<T> {
     pub name: Identifier,
-    pub parameters: Vec<SingleDeclaration>,
-    pub returns: Vec<Type>,
+    pub parameters: Vec<SingleDeclaration<T>>,
+    pub returns: Vec<Type<T>>,
     pub span: Span,
 }
 
 impl_function_like!(FunctionSignature);
 
-impl fmt::Display for FunctionSignature {
+impl<T> fmt::Display for FunctionSignature<T> {
     fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
         write!(fmt, "{}", self.sexp())
     }
 }
 
-const _: [(); 184] = [(); std::mem::size_of::<Function>()];
+const _: [(); 184] = [(); std::mem::size_of::<Function<()>>()];
 
 /// Represents a function definition (i.e. with implementation).
 #[derive(Clone, Debug)]
-pub struct Function {
+pub struct Function<T> {
     pub name: Identifier,
-    pub parameters: Vec<SingleDeclaration>,
-    pub returns: Vec<Type>,
-    pub statements: Statement,
+    pub parameters: Vec<SingleDeclaration<T>>,
+    pub returns: Vec<Type<T>>,
+    pub statements: Statement<T>,
     // Used for tracking function template instantiation chains in diagnostics
     pub(crate) provenance: Vec<Span>,
     /// Whether this function is declared in an interface
@@ -350,24 +350,24 @@ pub struct Function {
 
 impl_function_like!(Function);
 
-impl fmt::Display for Function {
+impl<T> fmt::Display for Function<T> {
     fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
         write!(fmt, "{}", self.sexp())
     }
 }
 
-const _: [(); 72] = [(); std::mem::size_of::<Type>()];
+const _: [(); 72] = [(); std::mem::size_of::<Type<()>>()];
 
 /// Represents a primitive type.
 #[derive(Clone, Debug)]
-pub enum Type {
+pub enum Type<T> {
     Bool(Span),
     Int(Span),
-    Class(Variable),
-    Array(Box<Type>, Option<Box<Expression>>, Span),
+    Class(Variable<T>),
+    Array(Box<Type<T>>, Option<Box<Expression<T>>>, Span),
 }
 
-impl Type {
+impl<T> Type<T> {
     pub fn has_length(&self) -> bool {
         match self {
             Type::Bool(_) | Type::Int(_) => false,
@@ -384,7 +384,7 @@ impl Type {
     }
 }
 
-impl PartialEq for Type {
+impl<T> PartialEq for Type<T> {
     fn eq(&self, other: &Self) -> bool {
         match self {
             Type::Bool(_) => matches!(other, Type::Bool(_)),
@@ -396,9 +396,9 @@ impl PartialEq for Type {
     }
 }
 
-impl Eq for Type {}
+impl<T> Eq for Type<T> {}
 
-impl hash::Hash for Type {
+impl<T> hash::Hash for Type<T> {
     fn hash<H: hash::Hasher>(&self, state: &mut H) {
         core::mem::discriminant(self).hash(state);
 
@@ -411,51 +411,51 @@ impl hash::Hash for Type {
     }
 }
 
-impl fmt::Display for Type {
+impl<T> fmt::Display for Type<T> {
     fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
         write!(fmt, "{}", self.sexp())
     }
 }
 
-const _: [(); 64] = [(); std::mem::size_of::<Statement>()];
+const _: [(); 64] = [(); std::mem::size_of::<Statement<()>>()];
 
 /// Represents an imperative statement.
 #[derive(Clone, Debug)]
-pub enum Statement {
+pub enum Statement<T> {
     /// Assignment
-    Assignment(Box<Expression>, Box<Expression>, Span),
+    Assignment(Box<Expression<T>>, Box<Expression<T>>, Span),
 
     /// Procedure call
-    Call(Call),
+    Call(Call<T>),
 
     /// Initialization
-    Initialization(Initialization),
+    Initialization(Initialization<T>),
 
     /// Variable declaration
-    Declaration(Box<Declaration>, Span),
+    Declaration(Box<Declaration<T>>, Span),
 
     /// Return statement
-    Return(Vec<Expression>, Span),
+    Return(Vec<Expression<T>>, Span),
 
     /// Statement block
-    Sequence(Vec<Statement>, Span),
+    Sequence(Vec<Statement<T>>, Span),
 
     /// If-else block
     If(
-        Box<Expression>,
-        Box<Statement>,
-        Option<Box<Statement>>,
+        Box<Expression<T>>,
+        Box<Statement<T>>,
+        Option<Box<Statement<T>>>,
         Span,
     ),
 
     /// While block
-    While(Do, Box<Expression>, Box<Statement>, Span),
+    While(Do, Box<Expression<T>>, Box<Statement<T>>, Span),
 
     /// Break statement
     Break(Span),
 }
 
-impl Statement {
+impl<T> Statement<T> {
     pub fn span(&self) -> Span {
         match self {
             Statement::Call(call) => call.span,
@@ -471,7 +471,7 @@ impl Statement {
     }
 }
 
-impl fmt::Display for Statement {
+impl<T> fmt::Display for Statement<T> {
     fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
         write!(fmt, "{}", self.sexp())
     }
@@ -483,11 +483,11 @@ pub enum Do {
     No,
 }
 
-const _: [(); 96] = [(); std::mem::size_of::<Expression>()];
+const _: [(); 96] = [(); std::mem::size_of::<Expression<()>>()];
 
 /// Represents an expression (i.e. a term that can be evaluated).
 #[derive(Clone, Debug)]
-pub enum Expression {
+pub enum Expression<T> {
     /// Boolean literal
     Boolean(bool, Span),
 
@@ -501,60 +501,76 @@ pub enum Expression {
     Integer(i64, Span),
 
     /// Null literal
-    Null(Span),
+    Null(T, Span),
 
     /// Class reference
-    This(Span),
+    This(T, Span),
 
     /// Superclass reference
-    Super(Span),
+    Super(T, Span),
 
     /// Variable
-    Variable(Variable),
+    Variable(Variable<T>, T),
 
     /// Array literal
-    Array(Vec<Expression>, Span),
+    Array(Vec<Expression<T>>, T, Span),
 
     /// Binary operation
-    Binary(Cell<Binary>, Box<Expression>, Box<Expression>, Span),
+    ///
+    /// FIXME: remove `Cell<Binary>`
+    Binary(
+        Cell<Binary>,
+        Box<Expression<T>>,
+        Box<Expression<T>>,
+        T,
+        Span,
+    ),
 
     /// Unary operation
-    Unary(Unary, Box<Expression>, Span),
+    Unary(Unary, Box<Expression<T>>, T, Span),
 
     /// Array index
-    Index(Box<Expression>, Box<Expression>, Span),
+    Index(Box<Expression<T>>, Box<Expression<T>>, T, Span),
 
     /// Array length
-    Length(Box<Expression>, Span),
+    Length(Box<Expression<T>>, Span),
 
     /// Function call
-    Call(Call),
+    Call(Call<T>),
 
     /// Dot operator
-    Dot(Cell<Option<Symbol>>, Box<Expression>, Identifier, Span),
+    ///
+    /// FIXME: remove `Cell<Option<Symbol>>`
+    Dot(
+        Cell<Option<Symbol>>,
+        Box<Expression<T>>,
+        Identifier,
+        T,
+        Span,
+    ),
 
     /// Class constructor
-    New(Variable, Span),
+    New(Variable<T>, Span),
 }
 
-impl Expression {
+impl<T> Expression<T> {
     pub fn span(&self) -> Span {
         match self {
             Expression::Boolean(_, span)
             | Expression::Character(_, span)
             | Expression::String(_, span)
             | Expression::Integer(_, span)
-            | Expression::Null(span)
-            | Expression::This(span)
-            | Expression::Super(span)
-            | Expression::Array(_, span)
-            | Expression::Binary(_, _, _, span)
-            | Expression::Unary(_, _, span)
-            | Expression::Index(_, _, span)
+            | Expression::Null(_, span)
+            | Expression::This(_, span)
+            | Expression::Super(_, span)
+            | Expression::Array(_, _, span)
+            | Expression::Binary(_, _, _, _, span)
+            | Expression::Unary(_, _, _, span)
+            | Expression::Index(_, _, _, span)
             | Expression::Length(_, span)
-            | Expression::Dot(_, _, _, span)
+            | Expression::Dot(_, _, _, _, span)
             | Expression::New(_, span) => *span,
-            Expression::Variable(variable) => variable.span,
+            Expression::Variable(variable, _) => variable.span,
             Expression::Call(call) => call.span,
         }
     }
@@ -565,21 +581,25 @@ impl Expression {
             | Expression::Character(_, span)
             | Expression::String(_, span)
             | Expression::Integer(_, span)
-            | Expression::Null(span)
-            | Expression::This(span)
-            | Expression::Super(span)
-            | Expression::Array(_, span)
-            | Expression::Binary(_, _, _, span)
-            | Expression::Unary(_, _, span)
-            | Expression::Index(_, _, span)
+            | Expression::Null(_, span)
+            | Expression::This(_, span)
+            | Expression::Super(_, span)
+            | Expression::Array(_, _, span)
+            | Expression::Binary(_, _, _, _, span)
+            | Expression::Unary(_, _, _, span)
+            | Expression::Index(_, _, _, span)
             | Expression::Length(_, span)
-            | Expression::Dot(_, _, _, span)
+            | Expression::Dot(_, _, _, _, span)
             | Expression::New(_, span) => span,
-            Expression::Variable(variable) => &mut variable.span,
+            Expression::Variable(variable, _) => &mut variable.span,
             Expression::Call(call) => &mut call.span,
         }
     }
+}
 
+impl Expression<()> {
+    /// FIXME: call on typed AST
+    ///
     /// Assumes this expression represents a Boolean, and negates it. In particular,
     /// we assume that variables are of type Boolean--otherwise, non-boolean expressions
     /// are left unchanged.
@@ -587,11 +607,14 @@ impl Expression {
     /// Should only be called after type-checking confirms that `self` is indeed Boolean.
     pub(crate) fn negate_logical(&self) -> Self {
         match self {
-            Expression::Variable(variable) => {
-                Expression::Unary(Unary::Not, Box::new(self.clone()), variable.span)
-            }
+            Expression::Variable(variable, r#type) => Expression::Unary(
+                Unary::Not,
+                Box::new(self.clone()),
+                r#type.clone(),
+                variable.span,
+            ),
             Expression::Boolean(bool, span) => Expression::Boolean(!bool, *span),
-            Expression::Binary(binary, left, right, span) => {
+            Expression::Binary(binary, left, right, r#type, span) => {
                 let binary = match binary.get() {
                     Binary::Mul
                     | Binary::Hul
@@ -609,62 +632,75 @@ impl Expression {
                     Binary::And | Binary::Or => {
                         // Alternatively, could use De Morgan's laws, but that would require
                         // recursing on `left` and `right`.
-                        return Expression::Unary(Unary::Not, Box::new(self.clone()), *span);
+                        return Expression::Unary(
+                            Unary::Not,
+                            Box::new(self.clone()),
+                            r#type.clone(),
+                            *span,
+                        );
                     }
                 };
 
-                Expression::Binary(Cell::new(binary), left.clone(), right.clone(), *span)
+                Expression::Binary(
+                    Cell::new(binary),
+                    left.clone(),
+                    right.clone(),
+                    r#type.clone(),
+                    *span,
+                )
             }
-            Expression::Unary(Unary::Not, expression, _) => (**expression).clone(),
-            Expression::Index(_, _, _) | Expression::Call(_) | Expression::Dot(_, _, _, _) => {
-                Expression::Unary(Unary::Not, Box::new(self.clone()), self.span())
+            Expression::Unary(Unary::Not, expression, _, _) => (**expression).clone(),
+            Expression::Index(_, _, _, _)
+            | Expression::Call(_)
+            | Expression::Dot(_, _, _, _, _) => {
+                Expression::Unary(Unary::Not, Box::new(self.clone()), (), self.span())
             }
-            Expression::Unary(Unary::Neg, _, _)
+            Expression::Unary(Unary::Neg, _, _, _)
             | Expression::Character(_, _)
             | Expression::String(_, _)
             | Expression::Integer(_, _)
-            | Expression::Null(_)
-            | Expression::This(_)
-            | Expression::Super(_)
-            | Expression::Array(_, _)
+            | Expression::Null(_, _)
+            | Expression::This(_, _)
+            | Expression::Super(_, _)
+            | Expression::Array(_, _, _)
             | Expression::Length(_, _)
             | Expression::New(_, _) => self.clone(),
         }
     }
 }
 
-impl fmt::Display for Expression {
+impl<T> fmt::Display for Expression<T> {
     fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
         write!(fmt, "{}", self.sexp())
     }
 }
 
-const _: [(); 56] = [(); std::mem::size_of::<Call>()];
+const _: [(); 56] = [(); std::mem::size_of::<Call<()>>()];
 
 /// Represents a function call.
 #[derive(Clone, Debug)]
-pub struct Call {
-    pub function: Box<Expression>,
-    pub arguments: Vec<Expression>,
+pub struct Call<T> {
+    pub function: Box<Expression<T>>,
+    pub arguments: Vec<Expression<T>>,
     pub span: Span,
 }
 
-impl fmt::Display for Call {
+impl<T> fmt::Display for Call<T> {
     fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
         write!(fmt, "{}", self.sexp())
     }
 }
 
-const _: [(); 64] = [(); std::mem::size_of::<Declaration>()];
+const _: [(); 64] = [(); std::mem::size_of::<Declaration<()>>()];
 
 #[derive(Clone, Debug)]
-pub enum Declaration {
-    Multiple(MultipleDeclaration),
-    Single(SingleDeclaration),
+pub enum Declaration<T> {
+    Multiple(MultipleDeclaration<T>),
+    Single(SingleDeclaration<T>),
 }
 
-impl Declaration {
-    pub fn iter(&self) -> impl Iterator<Item = (&'_ Identifier, &'_ Type)> + '_ {
+impl<T> Declaration<T> {
+    pub fn iter(&self) -> impl Iterator<Item = (&'_ Identifier, &'_ Type<T>)> + '_ {
         match self {
             Declaration::Single(declaration) => {
                 Or::L(iter::once((&declaration.name, &*declaration.r#type)))
@@ -693,23 +729,23 @@ impl Declaration {
     }
 }
 
-impl fmt::Display for Declaration {
+impl<T> fmt::Display for Declaration<T> {
     fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
         write!(fmt, "{}", self.sexp())
     }
 }
 
-const _: [(); 56] = [(); std::mem::size_of::<MultipleDeclaration>()];
+const _: [(); 56] = [(); std::mem::size_of::<MultipleDeclaration<()>>()];
 
 #[derive(Clone, Debug)]
-pub struct MultipleDeclaration {
+pub struct MultipleDeclaration<T> {
     pub names: Vec<Identifier>,
-    pub r#type: Box<Type>,
+    pub r#type: Box<Type<T>>,
     pub span: Span,
 }
 
-impl MultipleDeclaration {
-    pub fn new(names: Vec<Identifier>, r#type: Type, span: Span) -> Self {
+impl<T> MultipleDeclaration<T> {
+    pub fn new(names: Vec<Identifier>, r#type: Type<T>, span: Span) -> Self {
         Self {
             names,
             r#type: Box::new(r#type),
@@ -726,23 +762,23 @@ impl MultipleDeclaration {
     }
 }
 
-impl fmt::Display for MultipleDeclaration {
+impl<T> fmt::Display for MultipleDeclaration<T> {
     fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
         write!(fmt, "{}", self.sexp())
     }
 }
 
-const _: [(); 48] = [(); std::mem::size_of::<SingleDeclaration>()];
+const _: [(); 48] = [(); std::mem::size_of::<SingleDeclaration<()>>()];
 
 #[derive(Clone, Debug)]
-pub struct SingleDeclaration {
+pub struct SingleDeclaration<T> {
     pub name: Identifier,
-    pub r#type: Box<Type>,
+    pub r#type: Box<Type<T>>,
     pub span: Span,
 }
 
-impl SingleDeclaration {
-    pub fn new(name: Identifier, r#type: Type, span: Span) -> Self {
+impl<T> SingleDeclaration<T> {
+    pub fn new(name: Identifier, r#type: Type<T>, span: Span) -> Self {
         Self {
             name,
             r#type: Box::new(r#type),
@@ -759,7 +795,7 @@ impl SingleDeclaration {
     }
 }
 
-impl fmt::Display for SingleDeclaration {
+impl<T> fmt::Display for SingleDeclaration<T> {
     fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
         write!(fmt, "{}", self.sexp())
     }
@@ -805,13 +841,13 @@ impl fmt::Display for Unary {
 }
 
 #[derive(Clone, Debug)]
-pub struct Variable {
+pub struct Variable<T> {
     pub name: Identifier,
-    pub generics: Option<Vec<Type>>,
+    pub generics: Option<Vec<Type<T>>>,
     pub span: Span,
 }
 
-impl Variable {
+impl<T> Variable<T> {
     pub fn has_length(&self) -> bool {
         self.generics
             .as_ref()
@@ -819,22 +855,22 @@ impl Variable {
     }
 }
 
-impl PartialEq for Variable {
+impl<T> PartialEq for Variable<T> {
     fn eq(&self, other: &Self) -> bool {
         self.name == other.name && self.generics == other.generics
     }
 }
 
-impl Eq for Variable {}
+impl<T> Eq for Variable<T> {}
 
-impl hash::Hash for Variable {
+impl<T> hash::Hash for Variable<T> {
     fn hash<H: hash::Hasher>(&self, state: &mut H) {
         self.name.hash(state);
         self.generics.hash(state);
     }
 }
 
-impl fmt::Display for Variable {
+impl<T> fmt::Display for Variable<T> {
     fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
         write!(fmt, "{}", self.sexp())
     }

@@ -21,7 +21,7 @@ impl Checker {
         &mut self,
         directory_library: &Path,
         path: &Path,
-        program: &ast::Program,
+        program: &ast::Program<()>,
     ) -> Result<(), error::Error> {
         for r#use in &program.uses {
             self.load_use(directory_library, r#use)?;
@@ -87,7 +87,7 @@ impl Checker {
     fn load_interface(
         &mut self,
         directory_library: &Path,
-        interface: &ast::Interface,
+        interface: &ast::Interface<()>,
     ) -> Result<(), error::Error> {
         for r#use in &interface.uses {
             self.load_use(directory_library, r#use)?;
@@ -141,7 +141,10 @@ impl Checker {
         Ok(())
     }
 
-    fn load_class_signature(&mut self, class: &ast::ClassSignature) -> Result<(), error::Error> {
+    fn load_class_signature(
+        &mut self,
+        class: &ast::ClassSignature<()>,
+    ) -> Result<(), error::Error> {
         self.load_class_like(class)?;
 
         let expected = self.context.insert_class_signature(class.name.clone());
@@ -179,7 +182,7 @@ impl Checker {
     fn load_function_signature(
         &mut self,
         scope: GlobalScope,
-        function: &ast::FunctionSignature,
+        function: &ast::FunctionSignature<()>,
     ) -> Result<(), error::Error> {
         let (parameters, returns) = self.load_function_like(function);
         let signature = Entry::Signature(parameters, returns);
@@ -196,7 +199,7 @@ impl Checker {
         Ok(())
     }
 
-    pub(super) fn load_class(&mut self, class: &ast::Class) -> Result<(), error::Error> {
+    pub(super) fn load_class(&mut self, class: &ast::Class<()>) -> Result<(), error::Error> {
         self.load_class_like(class)?;
 
         class
@@ -219,7 +222,7 @@ impl Checker {
         Ok(())
     }
 
-    fn load_class_like<C: ast::ClassLike>(&mut self, class: &C) -> Result<(), error::Error> {
+    fn load_class_like<C: ast::ClassLike<()>>(&mut self, class: &C) -> Result<(), error::Error> {
         if class.r#final() {
             match self.context.insert_final(class.name().clone()) {
                 Some(_) => (),
@@ -265,7 +268,7 @@ impl Checker {
     pub(super) fn load_function(
         &mut self,
         scope: GlobalScope,
-        function: &ast::Function,
+        function: &ast::Function<()>,
     ) -> Result<(), error::Error> {
         let (new_parameters, new_returns) = self.load_function_like(function);
 
@@ -299,7 +302,7 @@ impl Checker {
         Ok(())
     }
 
-    fn load_function_like<C: ast::FunctionLike>(
+    fn load_function_like<C: ast::FunctionLike<()>>(
         &self,
         function: &C,
     ) -> (Vec<r#type::Expression>, Vec<r#type::Expression>) {
@@ -322,7 +325,7 @@ impl Checker {
     fn load_class_field(
         &mut self,
         class: &ast::Identifier,
-        declaration: &ast::Declaration,
+        declaration: &ast::Declaration<()>,
     ) -> Result<(), error::Error> {
         for (name, r#type) in declaration.iter() {
             let r#type = self.load_type(r#type);
@@ -338,7 +341,7 @@ impl Checker {
         Ok(())
     }
 
-    fn load_type(&self, r#type: &ast::Type) -> r#type::Expression {
+    fn load_type(&self, r#type: &ast::Type<()>) -> r#type::Expression {
         match r#type {
             ast::Type::Bool(_) => r#type::Expression::Boolean,
             ast::Type::Int(_) => r#type::Expression::Integer,
@@ -361,7 +364,7 @@ impl Checker {
     //
     // Unbound type arguments or templates will be caught by `check_type` or
     // the monomorphization pass.
-    fn load_variable(&self, variable: &ast::Variable) -> Symbol {
+    fn load_variable(&self, variable: &ast::Variable<()>) -> Symbol {
         match &variable.generics {
             None => variable.name.symbol,
             Some(generics) => {

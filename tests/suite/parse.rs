@@ -3,7 +3,7 @@ use std::path::Path;
 
 use xic::data::ast;
 
-struct Snapshot(Result<ast::Program, xic::Error>);
+struct Snapshot(Result<ast::Program<()>, xic::Error>);
 
 impl fmt::Display for Snapshot {
     fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {

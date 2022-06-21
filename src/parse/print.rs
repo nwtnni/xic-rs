@@ -4,13 +4,13 @@ use crate::data::sexp::Sexp;
 use crate::data::token;
 use crate::util::Tap;
 
-impl Serialize for ast::Interface {
+impl<T> Serialize for ast::Interface<T> {
     fn sexp(&self) -> Sexp {
         [self.uses.sexp(), self.items.sexp()].sexp_move()
     }
 }
 
-impl Serialize for ast::Program {
+impl<T> Serialize for ast::Program<T> {
     fn sexp(&self) -> Sexp {
         [self.uses.sexp(), self.items.sexp()].sexp_move()
     }
@@ -22,7 +22,7 @@ impl Serialize for ast::Use {
     }
 }
 
-impl Serialize for ast::ItemSignature {
+impl<T> Serialize for ast::ItemSignature<T> {
     fn sexp(&self) -> Sexp {
         match self {
             ast::ItemSignature::Class(class) => class.sexp(),
@@ -33,7 +33,7 @@ impl Serialize for ast::ItemSignature {
     }
 }
 
-impl Serialize for ast::Item {
+impl<T> Serialize for ast::Item<T> {
     fn sexp(&self) -> Sexp {
         match self {
             ast::Item::Global(global) => global.sexp(),
@@ -45,7 +45,7 @@ impl Serialize for ast::Item {
     }
 }
 
-impl Serialize for ast::Global {
+impl<T> Serialize for ast::Global<T> {
     fn sexp(&self) -> Sexp {
         match self {
             ast::Global::Declaration(declaration) => declaration.sexp(),
@@ -54,7 +54,7 @@ impl Serialize for ast::Global {
     }
 }
 
-impl Serialize for ast::Initialization {
+impl<T> Serialize for ast::Initialization<T> {
     fn sexp(&self) -> Sexp {
         let mut declarations = self
             .declarations
@@ -91,7 +91,7 @@ impl Serialize for ast::ClassTemplate {
     }
 }
 
-impl Serialize for ast::ClassSignature {
+impl<T> Serialize for ast::ClassSignature<T> {
     fn sexp(&self) -> Sexp {
         [
             match self.r#final {
@@ -108,7 +108,7 @@ impl Serialize for ast::ClassSignature {
     }
 }
 
-impl Serialize for ast::Class {
+impl<T> Serialize for ast::Class<T> {
     fn sexp(&self) -> Sexp {
         [
             match self.r#final {
@@ -126,7 +126,7 @@ impl Serialize for ast::Class {
     }
 }
 
-impl Serialize for ast::ClassItem {
+impl<T> Serialize for ast::ClassItem<T> {
     fn sexp(&self) -> Sexp {
         match self {
             ast::ClassItem::Field(field) => field.sexp(),
@@ -148,7 +148,7 @@ impl Serialize for ast::FunctionTemplate {
     }
 }
 
-impl Serialize for ast::FunctionSignature {
+impl<T> Serialize for ast::FunctionSignature<T> {
     fn sexp(&self) -> Sexp {
         [
             self.name.sexp(),
@@ -159,7 +159,7 @@ impl Serialize for ast::FunctionSignature {
     }
 }
 
-impl Serialize for ast::Function {
+impl<T> Serialize for ast::Function<T> {
     fn sexp(&self) -> Sexp {
         [
             self.name.sexp(),
@@ -171,7 +171,7 @@ impl Serialize for ast::Function {
     }
 }
 
-impl Serialize for ast::Type {
+impl<T> Serialize for ast::Type<T> {
     fn sexp(&self) -> Sexp {
         use ast::Type::*;
         match self {
@@ -220,7 +220,7 @@ impl Serialize for ast::Unary {
     }
 }
 
-impl Serialize for ast::Expression {
+impl<T> Serialize for ast::Expression<T> {
     fn sexp(&self) -> Sexp {
         use ast::Expression::*;
         match self {
@@ -235,19 +235,19 @@ impl Serialize for ast::Expression {
                 ["-".sexp(), (-(*integer as i128)).to_string().sexp_move()].sexp_move()
             }
             Integer(integer, _) => integer.to_string().sexp_move(),
-            Null(_) => "null".sexp(),
-            This(_) => "this".sexp(),
-            Super(_) => "super".sexp(),
-            Variable(variable) => variable.sexp(),
-            Array(expressions, _) => expressions.sexp(),
-            Binary(binary, left, right, _) => {
+            Null(_, _) => "null".sexp(),
+            This(_, _) => "this".sexp(),
+            Super(_, _) => "super".sexp(),
+            Variable(variable, _) => variable.sexp(),
+            Array(expressions, _, _) => expressions.sexp(),
+            Binary(binary, left, right, _, _) => {
                 [binary.get().sexp(), left.sexp(), right.sexp()].sexp_move()
             }
-            Unary(unary, expression, _) => [unary.sexp(), expression.sexp()].sexp_move(),
-            Index(array, index, _) => ["[]".sexp(), array.sexp(), index.sexp()].sexp_move(),
+            Unary(unary, expression, _, _) => [unary.sexp(), expression.sexp()].sexp_move(),
+            Index(array, index, _, _) => ["[]".sexp(), array.sexp(), index.sexp()].sexp_move(),
             Length(array, _) => ["length".sexp(), array.sexp()].sexp_move(),
-            Dot(_, expression, symbol, _) => {
-                [".".sexp(), expression.sexp(), symbol.sexp()].sexp_move()
+            Dot(_, receiver, symbol, _, _) => {
+                [".".sexp(), receiver.sexp(), symbol.sexp()].sexp_move()
             }
             New(variable, _) => ["new".sexp(), variable.sexp()].sexp_move(),
             Call(call) => call.sexp(),
@@ -255,7 +255,7 @@ impl Serialize for ast::Expression {
     }
 }
 
-impl Serialize for ast::Declaration {
+impl<T> Serialize for ast::Declaration<T> {
     fn sexp(&self) -> Sexp {
         match self {
             ast::Declaration::Multiple(multiple) => multiple.sexp(),
@@ -264,19 +264,19 @@ impl Serialize for ast::Declaration {
     }
 }
 
-impl Serialize for ast::MultipleDeclaration {
+impl<T> Serialize for ast::MultipleDeclaration<T> {
     fn sexp(&self) -> Sexp {
         [self.names.sexp(), self.r#type.sexp()].sexp_move()
     }
 }
 
-impl Serialize for ast::SingleDeclaration {
+impl<T> Serialize for ast::SingleDeclaration<T> {
     fn sexp(&self) -> Sexp {
         [self.name.sexp(), self.r#type.sexp()].sexp_move()
     }
 }
 
-impl Serialize for ast::Call {
+impl<T> Serialize for ast::Call<T> {
     fn sexp(&self) -> Sexp {
         let mut args = self
             .arguments
@@ -288,7 +288,7 @@ impl Serialize for ast::Call {
     }
 }
 
-impl Serialize for ast::Statement {
+impl<T> Serialize for ast::Statement<T> {
     fn sexp(&self) -> Sexp {
         use ast::Statement::*;
         match self {
@@ -318,7 +318,7 @@ impl Serialize for ast::Statement {
     }
 }
 
-impl Serialize for ast::Variable {
+impl<T> Serialize for ast::Variable<T> {
     fn sexp(&self) -> Sexp {
         match self.generics.as_ref() {
             None => self.name.sexp(),

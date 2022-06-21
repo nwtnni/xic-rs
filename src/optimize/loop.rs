@@ -3,15 +3,16 @@ use std::path::Path;
 use crate::data::ast;
 use crate::util;
 
-pub fn invert_ast(path: &Path, program: &mut ast::Program) {
+// FIXME: operate on typed AST
+pub fn invert_ast(path: &Path, program: &mut ast::Program<()>) {
     log::info!(
         "[{}] Inverting loops in {}...",
-        std::any::type_name::<ast::Program>(),
+        std::any::type_name::<ast::Program<()>>(),
         path.display()
     );
     util::time!(
         "[{}] Done inverting loops in {}",
-        std::any::type_name::<ast::Program>(),
+        std::any::type_name::<ast::Program<()>>(),
         path.display()
     );
 
@@ -22,8 +23,8 @@ pub fn invert_ast(path: &Path, program: &mut ast::Program) {
 
 struct Inverter(usize);
 
-impl ast::VisitorMut for Inverter {
-    fn visit_statement(&mut self, statement: &mut ast::Statement) {
+impl ast::VisitorMut<()> for Inverter {
+    fn visit_statement(&mut self, statement: &mut ast::Statement<()>) {
         if let ast::Statement::While(ast::Do::No, condition, r#while, span) = statement {
             if !effectful(condition) {
                 log::trace!("Inverted loop at {}", span);
@@ -45,31 +46,31 @@ impl ast::VisitorMut for Inverter {
     }
 }
 
-fn effectful(expression: &ast::Expression) -> bool {
+fn effectful(expression: &ast::Expression<()>) -> bool {
     match expression {
         ast::Expression::Boolean(_, _)
         | ast::Expression::Character(_, _)
         | ast::Expression::Integer(_, _)
-        | ast::Expression::Variable(_)
-        | ast::Expression::This(_)
-        | ast::Expression::Super(_)
-        | ast::Expression::Null(_) => false,
+        | ast::Expression::Variable(_, _)
+        | ast::Expression::This(_, _)
+        | ast::Expression::Super(_, _)
+        | ast::Expression::Null(_, _) => false,
 
         // Recomputing these shouldn't be observable, but it _is_ inefficient.
         ast::Expression::String(_, _)
-        | ast::Expression::Array(_, _)
+        | ast::Expression::Array(_, _, _)
         | ast::Expression::New(_, _) => true,
 
         // Note: it's safe to hoist an index even if it may
         // crash, since it's evaluated at least once whether
         // or not we invert the loop. There can be no other
         // effects other than crashing.
-        ast::Expression::Index(array, index, _) => effectful(array) || effectful(index),
+        ast::Expression::Index(array, index, _, _) => effectful(array) || effectful(index),
         ast::Expression::Length(array, _) => effectful(array),
-        ast::Expression::Dot(_, expression, _, _) => effectful(expression),
+        ast::Expression::Dot(_, expression, _, _, _) => effectful(expression),
 
         ast::Expression::Call(_) => true,
-        ast::Expression::Binary(binary, left, right, _) => match binary.get() {
+        ast::Expression::Binary(binary, left, right, _, _) => match binary.get() {
             // Avoid recomputing array concatenation, which is expensive.
             ast::Binary::Cat => true,
 
@@ -90,7 +91,7 @@ fn effectful(expression: &ast::Expression) -> bool {
             | ast::Binary::And
             | ast::Binary::Or => effectful(left) || effectful(right),
         },
-        ast::Expression::Unary(ast::Unary::Neg | ast::Unary::Not, expression, _) => {
+        ast::Expression::Unary(ast::Unary::Neg | ast::Unary::Not, expression, _, _) => {
             effectful(expression)
         }
     }

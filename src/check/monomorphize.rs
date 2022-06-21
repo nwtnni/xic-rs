@@ -8,7 +8,7 @@ use crate::data::span::Span;
 use crate::Map;
 
 impl Checker {
-    pub(super) fn monomorphize_program(&mut self, program: &mut ast::Program) {
+    pub(super) fn monomorphize_program(&mut self, program: &mut ast::Program<()>) {
         let mut monomorphizer = Monomorphizer {
             functions: Map::default(),
             classes: Map::default(),
@@ -46,26 +46,26 @@ impl Checker {
 }
 
 struct Monomorphizer<'a> {
-    functions: Map<ast::Identifier, Map<Vec<ast::Type>, Option<ast::Function>>>,
-    classes: Map<ast::Identifier, Map<Vec<ast::Type>, Option<ast::Class>>>,
-    arguments: Vec<(Span, Map<ast::Identifier, ast::Type>)>,
+    functions: Map<ast::Identifier, Map<Vec<ast::Type<()>>, Option<ast::Function<()>>>>,
+    classes: Map<ast::Identifier, Map<Vec<ast::Type<()>>, Option<ast::Class<()>>>>,
+    arguments: Vec<(Span, Map<ast::Identifier, ast::Type<()>>)>,
     checker: &'a mut Checker,
 }
 
-impl<'a> ast::VisitorMut for Monomorphizer<'a> {
-    fn visit_class(&mut self, class: &mut ast::Class) {
+impl<'a> ast::VisitorMut<()> for Monomorphizer<'a> {
+    fn visit_class(&mut self, class: &mut ast::Class<()>) {
         if let Some(supertype) = class.extends.as_mut() {
             self.monomorphize_class(supertype);
         }
     }
 
-    fn visit_call(&mut self, call: &mut ast::Call) {
-        if let ast::Expression::Variable(variable) = &mut *call.function {
+    fn visit_call(&mut self, call: &mut ast::Call<()>) {
+        if let ast::Expression::Variable(variable, ()) = &mut *call.function {
             self.monomorphize(Self::instantiate_function_template, variable);
         }
     }
 
-    fn visit_type(&mut self, r#type: &mut ast::Type) {
+    fn visit_type(&mut self, r#type: &mut ast::Type<()>) {
         if let ast::Type::Class(variable) = r#type {
             if let Some(substitute) = self
                 .arguments
@@ -96,7 +96,7 @@ impl<'a> ast::VisitorMut for Monomorphizer<'a> {
         }
     }
 
-    fn visit_expression(&mut self, expression: &mut ast::Expression) {
+    fn visit_expression(&mut self, expression: &mut ast::Expression<()>) {
         if let ast::Expression::New(variable, _) = expression {
             self.monomorphize_class(variable);
         }
@@ -104,14 +104,14 @@ impl<'a> ast::VisitorMut for Monomorphizer<'a> {
 }
 
 impl<'a> Monomorphizer<'a> {
-    fn monomorphize_class(&mut self, variable: &mut ast::Variable) {
+    fn monomorphize_class(&mut self, variable: &mut ast::Variable<()>) {
         self.monomorphize(Self::instantiate_class_template, variable);
     }
 
     fn monomorphize(
         &mut self,
-        instantiate: fn(&mut Self, &ast::Identifier, &[ast::Type], &Span),
-        variable: &mut ast::Variable,
+        instantiate: fn(&mut Self, &ast::Identifier, &[ast::Type<()>], &Span),
+        variable: &mut ast::Variable<()>,
     ) {
         let generics = match &mut variable.generics {
             Some(generics) => generics,
@@ -127,7 +127,7 @@ impl<'a> Monomorphizer<'a> {
     fn instantiate_class_template(
         &mut self,
         name: &ast::Identifier,
-        generics: &[ast::Type],
+        generics: &[ast::Type<()>],
         span: &Span,
     ) {
         // Already instantiated, so just rewrite
@@ -188,7 +188,7 @@ impl<'a> Monomorphizer<'a> {
     fn instantiate_function_template(
         &mut self,
         name: &ast::Identifier,
-        generics: &[ast::Type],
+        generics: &[ast::Type<()>],
         span: &Span,
     ) {
         // Already instantiated, so just rewrite

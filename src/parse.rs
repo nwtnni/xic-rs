@@ -18,7 +18,7 @@ use crate::data::ast;
 use crate::data::token;
 use crate::util;
 
-pub fn parse<I>(path: &Path, tokens: I) -> Result<ast::Program, crate::Error>
+pub fn parse<I>(path: &Path, tokens: I) -> Result<ast::Program<()>, crate::Error>
 where
     I: IntoIterator<Item = token::Spanned>,
 {

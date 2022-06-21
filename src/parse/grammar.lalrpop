@@ -11,7 +11,7 @@ use crate::data::span::Span;
 
 grammar;
 
-pub Interface: Interface = {
+pub Interface: Interface<()> = {
     <uses: Use*> <items: ItemSignature*> => Interface {
         uses,
         items,
@@ -22,7 +22,7 @@ Use: Use = {
     <l: @L> "use" <name: Identifier> ";"? <r: @R> => Use { name, span: Span::new(l, r) },
 }
 
-ItemSignature: ItemSignature = {
+ItemSignature: ItemSignature<()> = {
     <class: ClassSignature> => ItemSignature::Class(class),
     <class: ClassTemplate> => ItemSignature::ClassTemplate(class),
     <function: FunctionSignature> => ItemSignature::Function(function),
@@ -52,7 +52,7 @@ ClassTemplate: ClassTemplate = {
     }
 }
 
-ClassSignature: ClassSignature = {
+ClassSignature: ClassSignature<()> = {
     <l: @L>
         <final_: Final>
         "class"
@@ -94,7 +94,7 @@ FunctionTemplate: FunctionTemplate = {
     }
 }
 
-FunctionSignature: FunctionSignature = {
+FunctionSignature: FunctionSignature<()> = {
     <l: @L>
         <name: Identifier>
         "("
@@ -111,14 +111,14 @@ FunctionSignature: FunctionSignature = {
     }
 }
 
-pub Program: Program = {
+pub Program: Program<()> = {
     <uses: Use*> <items: Item*> => Program {
         uses,
         items,
     },
 }
 
-Item: Item = {
+Item: Item<()> = {
     <global: Global> => Item::Global(global),
     <class: Class> => Item::Class(class),
     <class: ClassTemplate> => Item::ClassTemplate(class),
@@ -126,12 +126,12 @@ Item: Item = {
     <function: FunctionTemplate> => Item::FunctionTemplate(function),
 }
 
-Global: Global = {
+Global: Global<()> = {
     <declaration: Declaration> ";"? => Global::Declaration(declaration),
     <initialization: Initialization> => Global::Initialization(initialization),
 }
 
-Initialization: Initialization = {
+Initialization: Initialization<()> = {
     <l: @L>
         <declarations: CommaPlus<Optional<NoLength<SingleDeclaration>>>>
         "="
@@ -146,7 +146,7 @@ Initialization: Initialization = {
     },
 }
 
-Class: Class = {
+Class: Class<()> = {
     <l: @L>
         <final_: Final>
         "class"
@@ -173,12 +173,12 @@ Final: bool = {
     }
 }
 
-ClassItem: ClassItem = {
+ClassItem: ClassItem<()> = {
     <declaration: NoLength<Declaration>> => ClassItem::Field(declaration),
     <method: Function> => ClassItem::Method(method),
 }
 
-Function: Function = {
+Function: Function<()> = {
     <l: @L>
         <name: Identifier>
         "("
@@ -199,19 +199,19 @@ Function: Function = {
     }
 }
 
-ReturnStatement: Statement = {
+ReturnStatement: Statement<()> = {
     <l: @L> "return" <returns: Comma<Expression>> ";"? <r: @R> => {
         Statement::Return(returns, Span::new(l, r))
     }
 }
 
 // Refer to http://www.parsifalsoft.com/ifelse.html
-NoReturnStatement: Statement = {
+NoReturnStatement: Statement<()> = {
     <OpenStatement>,
     <ClosedStatement>,
 }
 
-OpenStatement: Statement = {
+OpenStatement: Statement<()> = {
     // If statement
     <l: @L> "if" <condition: Expression> <if_: NoReturnStatement> <r: @R> => {
         Statement::If(Box::new(condition), Box::new(if_), None, Span::new(l, r))
@@ -223,7 +223,7 @@ OpenStatement: Statement = {
     },
 }
 
-ClosedStatement: Statement = {
+ClosedStatement: Statement<()> = {
     // If-else statement
     <l: @L> "if" <condition: Expression> <if_: ClosedStatement> "else" <else_: ClosedStatement> <r: @R> => {
         Statement::If(Box::new(condition), Box::new(if_), Some(Box::new(else_)), Span::new(l, r))
@@ -260,7 +260,7 @@ ClosedStatement: Statement = {
     <Block> ";"?,
 }
 
-Block: Statement = {
+Block: Statement<()> = {
     <l: @L> "{" <statements: NoReturnStatement*> <_return: ReturnStatement?> "}" <r: @R> => {
         let mut statements = statements;
 
@@ -272,30 +272,30 @@ Block: Statement = {
     },
 }
 
-Call: Call = {
+Call: Call<()> = {
     <l: @L> <function: NoCallLValue> "(" <arguments: Comma<Expression>> ")" <r: @R> => {
         Call { function: Box::new(function), arguments, span: Span::new(l, r) }
     },
 }
 
-LValue: Expression = {
+LValue: Expression<()> = {
     <l: @L> <function: NoCallLValue> "(" <arguments: Comma<Expression>> ")" <r: @R> => {
         Expression::Call(Call { function: Box::new(function), arguments, span: Span::new(l, r) })
     },
     <NoCallLValue>,
 }
 
-NoCallLValue: Expression = {
-    <l: @L> "null" <r: @R> => Expression::Null(Span::new(l, r)),
-    <l: @L> "this" <r: @R> => Expression::This(Span::new(l, r)),
-    <l: @L> "super" <r: @R> => Expression::Super(Span::new(l, r)),
+NoCallLValue: Expression<()> = {
+    <l: @L> "null" <r: @R> => Expression::Null((), Span::new(l, r)),
+    <l: @L> "this" <r: @R> => Expression::This((), Span::new(l, r)),
+    <l: @L> "super" <r: @R> => Expression::Super((), Span::new(l, r)),
     <l: @L> "new" <variable: Variable> <r: @R> => Expression::New(variable, Span::new(l, r)),
-    <variable: Variable> => Expression::Variable(variable),
+    <variable: Variable> => Expression::Variable(variable, ()),
     <l: @L> <array: LValue> "[" <index: Expression> "]" <r: @R> => {
-        Expression::Index(Box::new(array), Box::new(index), Span::new(l, r))
+        Expression::Index(Box::new(array), Box::new(index), (), Span::new(l, r))
     },
     <l: @L> <expression: LValue> "." <field: Identifier> <r: @R> => {
-        Expression::Dot(Cell::new(None), Box::new(expression), field, Span::new(l, r))
+        Expression::Dot(Cell::new(None), Box::new(expression), field, (), Span::new(l, r))
     },
 }
 
@@ -325,12 +325,12 @@ NoLength<T>: T = {
     }
 }
 
-Declaration: Declaration = {
+Declaration: Declaration<()> = {
     <multiple: MultipleDeclaration> => Declaration::Multiple(multiple),
     <single: SingleDeclaration> => Declaration::Single(single),
 }
 
-MultipleDeclaration: MultipleDeclaration = {
+MultipleDeclaration: MultipleDeclaration<()> = {
     <l: @L> <head: Identifier> "," <tail: CommaPlus<Identifier>> ":" <type_: Type> <r: @R> => {
         let mut names = tail;
         names.insert(0, head);
@@ -338,13 +338,13 @@ MultipleDeclaration: MultipleDeclaration = {
     }
 }
 
-SingleDeclaration: SingleDeclaration = {
+SingleDeclaration: SingleDeclaration<()> = {
     <l: @L> <name: Identifier> ":" <type_: Type> <r: @R> => {
         SingleDeclaration::new(name, type_, Span::new(l, r))
     }
 }
 
-Type: Type = {
+Type: Type<()> = {
     <BaseType>,
     <l: @L> <type_: BaseType> <arrays: ArrayType+> =>? {
         let mut type_ = type_;
@@ -361,17 +361,17 @@ Type: Type = {
     },
 }
 
-BaseType: Type = {
+BaseType: Type<()> = {
     <l: @L> "bool" <r: @R> => Type::Bool(Span::new(l, r)),
     <l: @L> "int" <r: @R> => Type::Int(Span::new(l, r)),
     <class: Variable> => Type::Class(class),
 }
 
-ArrayType: (Option<Expression>, Point) = {
+ArrayType: (Option<Expression<()>>, Point) = {
     "[" <length: Expression?> "]" <r: @R> => (length, r),
 }
 
-Variable: Variable = {
+Variable: Variable<()> = {
     <l: @L>
         <name: Identifier>
         <generics: (":" ":" "<" <Comma<NoLength<Type>>> ">")?>
@@ -382,11 +382,11 @@ Variable: Variable = {
     },
 }
 
-Expression: Expression = Or;
+Expression: Expression<()> = Or;
 
-Binary<Op, Next>: Expression = {
+Binary<Op, Next>: Expression<()> = {
     <l: @L> <lhs: Binary<Op, Next>> <binary: Op> <rhs: Next> <r: @R> => {
-        Expression::Binary(Cell::new(binary), Box::new(lhs), Box::new(rhs), Span::new(l, r))
+        Expression::Binary(Cell::new(binary), Box::new(lhs), Box::new(rhs), (), Span::new(l, r))
     },
     <Next>
 }
@@ -395,20 +395,20 @@ OrOp: Binary = {
     "|" => Binary::Or,
 }
 
-Or: Expression = Binary<OrOp, And>;
+Or: Expression<()> = Binary<OrOp, And>;
 
 AndOp: Binary = {
     "&" => Binary::And,
 }
 
-And: Expression = Binary<AndOp, Equal>;
+And: Expression<()> = Binary<AndOp, Equal>;
 
 EqualOp: Binary = {
     "==" => Binary::Eq,
     "!=" => Binary::Ne,
 }
 
-Equal: Expression = Binary<EqualOp, Compare>;
+Equal: Expression<()> = Binary<EqualOp, Compare>;
 
 CompareOp: Binary = {
     "<"  => Binary::Lt,
@@ -417,14 +417,14 @@ CompareOp: Binary = {
     ">"  => Binary::Gt,
 }
 
-Compare: Expression = Binary<CompareOp, Add>;
+Compare: Expression<()> = Binary<CompareOp, Add>;
 
 AddOp: Binary = {
     "+" => Binary::Add,
     "-" => Binary::Sub,
 }
 
-Add: Expression = Binary<AddOp, Mul>;
+Add: Expression<()> = Binary<AddOp, Mul>;
 
 MulOp: Binary = {
     "*"   => Binary::Mul,
@@ -433,14 +433,14 @@ MulOp: Binary = {
     "%"   => Binary::Mod,
 }
 
-Mul: Expression = Binary<MulOp, Prefix>;
+Mul: Expression<()> = Binary<MulOp, Prefix>;
 
 PrefixOp: Unary = {
     "-" => Unary::Neg,
     "!" => Unary::Not,
 }
 
-Prefix: Expression = {
+Prefix: Expression<()> = {
     // Hack to support `i64::MIN`.
     //
     // To avoid an ambiguous parse for -INT, we diverge into non-integer
@@ -455,15 +455,15 @@ Prefix: Expression = {
             .map(|int| Expression::Integer(int, span))
     },
     <l: @L> "-" <expression: NoIntPrefix> <r: @R> => {
-        Expression::Unary(Unary::Neg, Box::new(expression), Span::new(l, r))
+        Expression::Unary(Unary::Neg, Box::new(expression), (), Span::new(l, r))
     },
     <l: @L> "!" <expression: Prefix> <r: @R> => {
-        Expression::Unary(Unary::Not, Box::new(expression), Span::new(l, r))
+        Expression::Unary(Unary::Not, Box::new(expression), (), Span::new(l, r))
     },
     <Value>
 }
 
-NoIntPrefix: Expression = {
+NoIntPrefix: Expression<()> = {
     <l: @L> "-" <int: INT> <r: @R> =>? {
         let span = Span::new(l, r);
         let mut int = int;
@@ -474,15 +474,15 @@ NoIntPrefix: Expression = {
             .map(|int| Expression::Integer(int, span))
     },
     <l: @L> "-" <expression: NoIntPrefix> <r: @R> => {
-        Expression::Unary(Unary::Neg, Box::new(expression), Span::new(l, r))
+        Expression::Unary(Unary::Neg, Box::new(expression), (), Span::new(l, r))
     },
     <l: @L> "!" <expression: Prefix> <r: @R> => {
-        Expression::Unary(Unary::Not, Box::new(expression), Span::new(l, r))
+        Expression::Unary(Unary::Not, Box::new(expression), (), Span::new(l, r))
     },
     <NoIntValue>
 }
 
-Value: Expression = {
+Value: Expression<()> = {
     NoIntValue,
     <l: @L> <int: INT> <r: @R> =>? {
         let span = Span::new(l, r);
@@ -493,12 +493,12 @@ Value: Expression = {
     },
 }
 
-NoIntValue: Expression = {
+NoIntValue: Expression<()> = {
     <LValue>,
     <RValue>,
 }
 
-RValue: Expression = {
+RValue: Expression<()> = {
     <l: @L> "true" <r: @R> => Expression::Boolean(true, Span::new(l, r)),
     <l: @L> "false" <r: @R> => Expression::Boolean(false, Span::new(l, r)),
     <l: @L> <char: CHR> <r: @R> => Expression::Character(char, Span::new(l, r)),
@@ -507,16 +507,16 @@ RValue: Expression = {
     },
     <l: @L> <string: STR> <r: @R> => Expression::String(string, Span::new(l, r)),
     <l: @L> "{" <expressions: Comma<Expression>> ","? "}" <r: @R> => {
-        Expression::Array(expressions, Span::new(l, r))
+        Expression::Array(expressions, (), Span::new(l, r))
     },
     <l: @L> <expression: RValue> "." <field: Identifier> <r: @R> => {
-        Expression::Dot(Cell::new(None), Box::new(expression), field, Span::new(l, r))
+        Expression::Dot(Cell::new(None), Box::new(expression), field, (), Span::new(l, r))
     },
     <l: @L> <function: RValue> "(" <arguments: Comma<Expression>> ")" <r: @R> => {
         Expression::Call(Call { function: Box::new(function), arguments, span: Span::new(l, r) })
     },
     <l: @L> <array: RValue> "[" <index: Expression> "]" <r: @R> => {
-        Expression::Index(Box::new(array), Box::new(index), Span::new(l, r))
+        Expression::Index(Box::new(array), Box::new(index), (), Span::new(l, r))
     },
     <l: @L> "(" <expression: Expression> ")" <r: @R> => {
         let mut expression = expression;

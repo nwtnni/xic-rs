@@ -44,16 +44,16 @@ macro_rules! expected {
 pub fn check(
     directory_library: Option<&Path>,
     path: &Path,
-    program: &mut ast::Program,
+    program: &mut ast::Program<()>,
 ) -> Result<Context, crate::Error> {
     log::info!(
         "[{}] Type checking {}...",
-        std::any::type_name::<ast::Program>(),
+        std::any::type_name::<ast::Program<()>>(),
         path.display(),
     );
     util::time!(
         "[{}] Done type checking {}",
-        std::any::type_name::<ast::Program>(),
+        std::any::type_name::<ast::Program<()>>(),
         path.display(),
     );
 
@@ -78,8 +78,9 @@ pub(super) struct Checker {
     pub(super) used: Set<Symbol>,
 }
 
+// FIXME: produce Program<r#type::Expression>
 impl Checker {
-    fn check_program(&mut self, program: &ast::Program) -> Result<(), Error> {
+    fn check_program(&mut self, program: &ast::Program<()>) -> Result<(), Error> {
         for item in &program.items {
             match item {
                 ast::Item::Global(global) => self.check_global(global)?,
@@ -97,7 +98,7 @@ impl Checker {
         Ok(())
     }
 
-    fn check_global(&mut self, global: &ast::Global) -> Result<(), Error> {
+    fn check_global(&mut self, global: &ast::Global<()>) -> Result<(), Error> {
         match global {
             ast::Global::Initialization(initialization) => {
                 self.check_initialization(GlobalScope::Global, initialization)
@@ -110,7 +111,7 @@ impl Checker {
 
     pub(super) fn check_class_signature(
         &mut self,
-        class: &ast::ClassSignature,
+        class: &ast::ClassSignature<()>,
     ) -> Result<(), Error> {
         self.check_class_like(class)?;
 
@@ -121,7 +122,7 @@ impl Checker {
         Ok(())
     }
 
-    fn check_class(&mut self, class: &ast::Class) -> Result<(), Error> {
+    fn check_class(&mut self, class: &ast::Class<()>) -> Result<(), Error> {
         self.check_class_like(class)?;
 
         // Classes must implement at least the methods declared in its interface
@@ -185,7 +186,7 @@ impl Checker {
         Ok(())
     }
 
-    fn check_class_like<C: ast::ClassLike>(&mut self, class: &C) -> Result<(), Error> {
+    fn check_class_like<C: ast::ClassLike<()>>(&mut self, class: &C) -> Result<(), Error> {
         if let Some(supertype) = class.extends() {
             let symbol = self.check_variable(supertype)?;
             if let Some(span) = self.context.get_final(&symbol) {
@@ -199,7 +200,7 @@ impl Checker {
     fn check_function(
         &mut self,
         scope: GlobalScope,
-        function: &ast::Function,
+        function: &ast::Function<()>,
     ) -> Result<(), Error> {
         self.check_function_like(function)?;
 
@@ -231,7 +232,7 @@ impl Checker {
         Ok(())
     }
 
-    pub(super) fn check_function_like<C: ast::FunctionLike>(
+    pub(super) fn check_function_like<C: ast::FunctionLike<()>>(
         &mut self,
         function: &C,
     ) -> Result<(), Error> {
@@ -246,7 +247,10 @@ impl Checker {
         Ok(())
     }
 
-    fn check_statement(&mut self, statement: &ast::Statement) -> Result<r#type::Statement, Error> {
+    fn check_statement(
+        &mut self,
+        statement: &ast::Statement<()>,
+    ) -> Result<r#type::Statement, Error> {
         match statement {
             ast::Statement::Assignment(left, right, _) => {
                 let left_span = left.span();
@@ -351,7 +355,10 @@ impl Checker {
         }
     }
 
-    fn check_expression(&self, expression: &ast::Expression) -> Result<r#type::Expression, Error> {
+    fn check_expression(
+        &self,
+        expression: &ast::Expression<()>,
+    ) -> Result<r#type::Expression, Error> {
         match expression {
             ast::Expression::Boolean(_, _) => Ok(r#type::Expression::Boolean),
             ast::Expression::Character(_, _) => Ok(r#type::Expression::Integer),
@@ -359,12 +366,12 @@ impl Checker {
                 r#type::Expression::Integer,
             ))),
             ast::Expression::Integer(_, _) => Ok(r#type::Expression::Integer),
-            ast::Expression::Null(_) => Ok(r#type::Expression::Null),
-            ast::Expression::This(span) => match self.context.get_scoped_class() {
+            ast::Expression::Null((), _) => Ok(r#type::Expression::Null),
+            ast::Expression::This((), span) => match self.context.get_scoped_class() {
                 None => bail!(*span, ErrorKind::NotInClass(None)),
                 Some(class) => Ok(r#type::Expression::Class(class)),
             },
-            ast::Expression::Super(span) => self
+            ast::Expression::Super(_, span) => self
                 .context
                 .get_scoped_class()
                 .ok_or(ErrorKind::NotInClass(None))
@@ -376,11 +383,14 @@ impl Checker {
                 .map(r#type::Expression::Class)
                 .map_err(|kind| Error::new(*span, kind))
                 .map_err(Error::from),
-            ast::Expression::Variable(ast::Variable {
-                name,
-                generics,
-                span: _,
-            }) => {
+            ast::Expression::Variable(
+                ast::Variable {
+                    name,
+                    generics,
+                    span: _,
+                },
+                (),
+            ) => {
                 assert!(generics.is_none());
                 match self.context.get(Scope::Local, name) {
                     Some(Entry::Variable(r#type)) => Ok(r#type.clone()),
@@ -389,7 +399,7 @@ impl Checker {
                 }
             }
 
-            ast::Expression::Array(array, _) => {
+            ast::Expression::Array(array, (), _) => {
                 let mut bound = r#type::Expression::Any;
                 let mut bound_span = None;
 
@@ -408,7 +418,7 @@ impl Checker {
                 Ok(r#type::Expression::Array(Box::new(bound)))
             }
 
-            ast::Expression::Binary(binary, left, right, _) => {
+            ast::Expression::Binary(binary, left, right, (), _) => {
                 let left_span = left.span();
                 let right_span = right.span();
 
@@ -469,20 +479,20 @@ impl Checker {
                 }
             }
 
-            ast::Expression::Unary(ast::Unary::Neg, expression, _) => {
+            ast::Expression::Unary(ast::Unary::Neg, expression, (), _) => {
                 match self.check_expression(expression)? {
                     r#type::Expression::Integer => Ok(r#type::Expression::Integer),
                     r#type => expected!(r#type::Expression::Integer, expression.span(), r#type),
                 }
             }
-            ast::Expression::Unary(ast::Unary::Not, expression, _) => {
+            ast::Expression::Unary(ast::Unary::Not, expression, (), _) => {
                 match self.check_expression(expression)? {
                     r#type::Expression::Boolean => Ok(r#type::Expression::Boolean),
                     r#type => expected!(r#type::Expression::Boolean, expression.span(), r#type),
                 }
             }
 
-            ast::Expression::Index(array, index, span) => {
+            ast::Expression::Index(array, index, (), span) => {
                 match (self.check_expression(array)?, self.check_expression(index)?) {
                     (r#type::Expression::Array(r#type), r#type::Expression::Integer)
                         if *r#type == r#type::Expression::Any =>
@@ -511,7 +521,7 @@ impl Checker {
                 ),
             },
 
-            ast::Expression::Dot(receiver_class, receiver, field, _) => {
+            ast::Expression::Dot(receiver_class, receiver, field, (), _) => {
                 let class = match self.check_expression(receiver)? {
                     r#type::Expression::Class(class) => class,
                     _ => bail!(receiver.span(), ErrorKind::NotClass),
@@ -556,7 +566,7 @@ impl Checker {
 
     fn check_call_or_expression(
         &self,
-        expression: &ast::Expression,
+        expression: &ast::Expression<()>,
     ) -> Result<Vec<r#type::Expression>, Error> {
         match expression {
             ast::Expression::Call(call) => self.check_call(call),
@@ -564,17 +574,20 @@ impl Checker {
         }
     }
 
-    fn check_call(&self, call: &ast::Call) -> Result<Vec<r#type::Expression>, Error> {
+    fn check_call(&self, call: &ast::Call<()>) -> Result<Vec<r#type::Expression>, Error> {
         let (scope, function_span, function_name) = match &*call.function {
-            ast::Expression::Variable(ast::Variable {
-                name,
-                generics,
-                span: _,
-            }) => {
+            ast::Expression::Variable(
+                ast::Variable {
+                    name,
+                    generics,
+                    span: _,
+                },
+                (),
+            ) => {
                 assert!(generics.is_none());
                 (Scope::Local, *name.span, name.symbol)
             }
-            ast::Expression::Dot(receiver_class, receiver, name, span) => {
+            ast::Expression::Dot(receiver_class, receiver, name, (), span) => {
                 let class = match self.check_expression(receiver)? {
                     r#type::Expression::Class(class) => class,
                     _ => bail!(receiver.span(), ErrorKind::NotClass),
@@ -617,7 +630,7 @@ impl Checker {
             declarations,
             expression,
             span,
-        }: &ast::Initialization,
+        }: &ast::Initialization<()>,
     ) -> Result<(), Error> {
         let r#types = self.check_call_or_expression(expression)?;
 
@@ -647,7 +660,7 @@ impl Checker {
     fn check_declaration<S: Into<Scope>>(
         &mut self,
         scope: S,
-        declaration: &ast::Declaration,
+        declaration: &ast::Declaration<()>,
     ) -> Result<(), Error> {
         let multiple = match declaration {
             ast::Declaration::Multiple(multiple) => multiple,
@@ -678,7 +691,7 @@ impl Checker {
             name,
             r#type,
             span: _,
-        }: &ast::SingleDeclaration,
+        }: &ast::SingleDeclaration<()>,
     ) -> Result<r#type::Expression, Error> {
         let r#type = self.check_type(r#type)?;
         let scope = scope.into();
@@ -700,7 +713,7 @@ impl Checker {
         Ok(r#type)
     }
 
-    fn check_type(&self, r#type: &ast::Type) -> Result<r#type::Expression, Error> {
+    fn check_type(&self, r#type: &ast::Type<()>) -> Result<r#type::Expression, Error> {
         match r#type {
             ast::Type::Bool(_) => Ok(r#type::Expression::Boolean),
             ast::Type::Int(_) => Ok(r#type::Expression::Integer),
@@ -736,7 +749,7 @@ impl Checker {
     // Here, there are no more generics, so this branch is unreachable.
     // Any unbound classes within the type arguments must be caught
     // during the monomorphization pass.
-    fn check_variable(&self, variable: &ast::Variable) -> Result<Symbol, Error> {
+    fn check_variable(&self, variable: &ast::Variable<()>) -> Result<Symbol, Error> {
         match &variable.generics {
             None => match self.context.get_class(&variable.name) {
                 Some(_) => Ok(variable.name.symbol),
