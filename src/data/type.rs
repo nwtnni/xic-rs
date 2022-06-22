@@ -22,6 +22,7 @@ pub enum Expression {
     Boolean,
     Class(Symbol),
     Array(Box<Expression>),
+    Function(Vec<Expression>, Vec<Expression>),
 }
 
 impl std::fmt::Display for Expression {
@@ -33,6 +34,33 @@ impl std::fmt::Display for Expression {
             Expression::Integer => write!(fmt, "int"),
             Expression::Boolean => write!(fmt, "bool"),
             Expression::Array(typ) => write!(fmt, "{}[]", typ),
+            Expression::Function(parameters, returns) => {
+                write!(fmt, "fn(")?;
+
+                let mut parameters = parameters.iter();
+
+                if let Some(head) = parameters.next() {
+                    write!(fmt, "{}", head)?;
+                }
+
+                for parameter in parameters {
+                    write!(fmt, ", {}", parameter)?;
+                }
+
+                write!(fmt, ")")?;
+
+                let mut returns = returns.iter();
+
+                if let Some(r#return) = returns.next() {
+                    write!(fmt, ": {}", r#return)?;
+                }
+
+                for r#return in returns {
+                    write!(fmt, ", {}", r#return)?;
+                }
+
+                Ok(())
+            }
         }
     }
 }

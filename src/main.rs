@@ -393,24 +393,26 @@ fn run() -> anyhow::Result<()> {
             command.debug(&path, "lexed", &tokens)?;
         }
 
-        let mut program = api::parse(&path, tokens)?;
+        let program = api::parse(&path, tokens)?;
 
         if command.debug_parse {
             command.debug(&path, "parsed", &program)?;
         }
 
-        let context = api::check(command.directory_library.as_deref(), &path, &mut program);
+        let checked = api::check(command.directory_library.as_deref(), &path, program);
 
         if command.debug_check {
             command.debug(
                 &path,
                 "typed",
-                match &context {
+                match &checked {
                     Ok(_) => String::from("Valid Xi Program"),
                     Err(error) => error.to_string(),
                 },
             )?;
         }
+
+        let (mut program, mut context) = checked?;
 
         if command.optimize(Opt::LoopInversion) {
             optimize::invert_loops_ast(&path, &mut program);
@@ -421,7 +423,7 @@ fn run() -> anyhow::Result<()> {
             true => xic::Abi::XiFinal,
         };
 
-        let mut hir = api::emit_hir(&mut context?, &path, abi, &program);
+        let mut hir = api::emit_hir(&mut context, &path, abi, &program);
 
         if command.optimize(Opt::ConstantFold) {
             hir = hir.map(optimize::fold_constants);

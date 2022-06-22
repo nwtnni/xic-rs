@@ -25,12 +25,11 @@ use crate::hir;
 use crate::util;
 use crate::Map;
 
-// FIXME: take `Program<r#type::Expression>` as argument
 pub fn emit_hir(
     context: &mut check::Context,
     path: &std::path::Path,
     abi: Abi,
-    ast: &ast::Program<()>,
+    ast: &ast::Program<r#type::Expression>,
 ) -> ir::Unit<hir::Function> {
     log::info!(
         "[{}] Emitting HIR for {}...",
@@ -168,7 +167,10 @@ struct Emitter<'env> {
 }
 
 impl<'env> Emitter<'env> {
-    fn emit_global(&mut self, global: &ast::Global<()>) -> Option<(Symbol, hir::Function)> {
+    fn emit_global(
+        &mut self,
+        global: &ast::Global<r#type::Expression>,
+    ) -> Option<(Symbol, hir::Function)> {
         self.locals.clear();
         self.out_of_bounds.take();
 
@@ -234,7 +236,10 @@ impl<'env> Emitter<'env> {
         ))
     }
 
-    fn emit_class_initialization(&mut self, class: &ast::Class<()>) -> (Symbol, hir::Function) {
+    fn emit_class_initialization(
+        &mut self,
+        class: &ast::Class<r#type::Expression>,
+    ) -> (Symbol, hir::Function) {
         let size = abi::mangle::class_size(&class.name.symbol);
 
         let enter = Label::fresh("enter");
@@ -365,7 +370,7 @@ impl<'env> Emitter<'env> {
     fn emit_function(
         &mut self,
         scope: GlobalScope,
-        function: &ast::Function<()>,
+        function: &ast::Function<r#type::Expression>,
         linkage: ir::Linkage,
     ) -> (Symbol, hir::Function) {
         self.locals.clear();
@@ -424,7 +429,7 @@ impl<'env> Emitter<'env> {
         )
     }
 
-    fn emit_statement(&mut self, statement: &ast::Statement<()>) -> hir::Statement {
+    fn emit_statement(&mut self, statement: &ast::Statement<r#type::Expression>) -> hir::Statement {
         use ast::Statement::*;
         match statement {
             #[rustfmt::skip]
@@ -535,7 +540,7 @@ impl<'env> Emitter<'env> {
         }
     }
 
-    fn emit_expression(&mut self, expression: &ast::Expression<()>) -> hir::Tree {
+    fn emit_expression(&mut self, expression: &ast::Expression<r#type::Expression>) -> hir::Tree {
         use ast::Expression::*;
         match expression {
             Boolean(false, _) => hir!((CONST 0)).into(),
@@ -548,10 +553,10 @@ impl<'env> Emitter<'env> {
                     .map(|byte| byte as i64)
                     .map(|integer| ast::Expression::Integer(integer, Span::default()))
                     .collect(),
-                (),
+                r#type::Expression::Array(Box::new(r#type::Expression::Integer)),
                 Span::default(),
             )),
-            Null(_, _) => hir!((CONST 0)).into(),
+            Null(_) => hir!((CONST 0)).into(),
             This(_, _) | Super(_, _) => hir!((TEMP Temporary::Argument(0))).into(),
             Variable(variable, _) => {
                 assert!(variable.generics.is_none());
@@ -565,9 +570,14 @@ impl<'env> Emitter<'env> {
                         .into();
                 }
 
+                let class = self
+                    .context
+                    .get_scoped_class()
+                    .map(r#type::Expression::Class)
+                    .unwrap();
+
                 self.emit_class_field(
-                    &self.context.get_scoped_class().unwrap(),
-                    &ast::Expression::This((), Span::default()),
+                    &ast::Expression::This(class, Span::default()),
                     &variable.name.symbol,
                 )
                 .into()
@@ -603,24 +613,21 @@ impl<'env> Emitter<'env> {
                         (ADD (TEMP array) (CONST abi::WORD))))
                 .into()
             }
-            Binary(binary, left, right, _, _) if binary.get() == ast::Binary::Cat => {
-                let left = self.emit_expression(left);
-                let right = self.emit_expression(right);
-                hir!((CALL (NAME abi::XI_CONCAT) 1 (left.into()) (right.into()))).into()
-            }
             Binary(binary, left, right, _, _) => {
                 let left = self.emit_expression(left);
                 let right = self.emit_expression(right);
 
-                match binary.get() {
-                    ast::Binary::Cat => unreachable!(),
+                match binary {
+                    ast::Binary::Cat => {
+                        hir!((CALL (NAME abi::XI_CONCAT) 1 (left.into()) (right.into()))).into()
+                    }
                     ast::Binary::Mul
                     | ast::Binary::Hul
                     | ast::Binary::Mod
                     | ast::Binary::Div
                     | ast::Binary::Add
                     | ast::Binary::Sub => {
-                        let binary = ir::Binary::from(binary.get());
+                        let binary = ir::Binary::from(*binary);
                         hir!((binary(left.into())(right.into()))).into()
                     }
 
@@ -630,7 +637,7 @@ impl<'env> Emitter<'env> {
                     | ast::Binary::Gt
                     | ast::Binary::Ne
                     | ast::Binary::Eq => {
-                        let condition = ir::Condition::from(binary.get());
+                        let condition = ir::Condition::from(*binary);
                         hir::Tree::Condition(Box::new(move |r#true, r#false| {
                             hir!(
                                 (CJUMP (condition (left.into()) (right.into())) r#true r#false)
@@ -718,9 +725,7 @@ impl<'env> Emitter<'env> {
                 let address = self.emit_expression(array).into();
                 hir!((MEM (SUB address (CONST abi::WORD)))).into()
             }
-            Dot(class, receiver, field, _, _) => self
-                .emit_class_field(&class.get().unwrap(), receiver, &field.symbol)
-                .into(),
+            Dot(receiver, field, _, _) => self.emit_class_field(receiver, &field.symbol).into(),
             New(variable, _) => {
                 assert!(variable.generics.is_none());
 
@@ -746,35 +751,37 @@ impl<'env> Emitter<'env> {
         }
     }
 
-    fn emit_call(&mut self, call: &ast::Call<()>) -> hir::Expression {
+    fn emit_call(&mut self, call: &ast::Call<r#type::Expression>) -> hir::Expression {
         match &*call.function {
             ast::Expression::Variable(variable, _) => {
                 assert!(variable.generics.is_none());
 
                 self.emit_function_call(variable, &call.arguments)
                     .unwrap_or_else(|| {
+                        let class = self
+                            .context
+                            .get_scoped_class()
+                            .map(r#type::Expression::Class)
+                            .unwrap();
+
                         self.emit_class_method_call(
-                            &self.context.get_scoped_class().unwrap(),
-                            &ast::Expression::This((), Span::default()),
+                            &ast::Expression::This(class, Span::default()),
                             &variable.name,
                             &call.arguments,
                         )
                     })
             }
-            ast::Expression::Dot(class, receiver, method, _, _) => self.emit_class_method_call(
-                &class.get().unwrap(),
-                receiver,
-                method,
-                &call.arguments,
-            ),
+            ast::Expression::Dot(receiver, method, _, _) => {
+                self.emit_class_method_call(receiver, method, &call.arguments)
+            }
             _ => unreachable!(),
         }
     }
 
     fn emit_function_call(
         &mut self,
-        function: &ast::Variable<()>,
-        arguments: &[ast::Expression<()>],
+        function: &ast::Variable<r#type::Expression>,
+        arguments: &[ast::Expression<r#type::Expression>],
     ) -> Option<hir::Expression> {
         let (parameters, returns) = self.get_signature(GlobalScope::Global, &function.name)?;
 
@@ -794,11 +801,15 @@ impl<'env> Emitter<'env> {
 
     fn emit_class_method_call(
         &mut self,
-        class: &Symbol,
-        receiver: &ast::Expression<()>,
+        receiver: &ast::Expression<r#type::Expression>,
         method: &ast::Identifier,
-        arguments: &[ast::Expression<()>],
+        arguments: &[ast::Expression<r#type::Expression>],
     ) -> hir::Expression {
+        let class = match receiver.r#type() {
+            r#type::Expression::Class(class) => class,
+            _ => unreachable!(),
+        };
+
         let instance = Temporary::fresh("instance");
 
         let mut arguments = arguments
@@ -806,22 +817,22 @@ impl<'env> Emitter<'env> {
             .map(|argument| self.emit_expression(argument).into())
             .collect::<Vec<_>>();
         let returns = self
-            .get_signature(GlobalScope::Class(*class), method)
+            .get_signature(GlobalScope::Class(class), method)
             .map(|(_, returns)| returns.len())
             .unwrap();
 
         arguments.insert(0, hir!((TEMP instance)));
 
-        let method = match self.layouts[class].method_index(&method.symbol) {
+        let method = match self.layouts[&class].method_index(&method.symbol) {
             // Special case: if `method_index` returns `None`, then this method
             // does not have a virtual table entry (see `crate::abi::class`
             // for details), and we should call the method as a static function.
             None => {
                 let (parameters, returns) = self
-                    .get_signature(GlobalScope::Class(*class), method)
+                    .get_signature(GlobalScope::Class(class), method)
                     .expect("[TYPE ERROR]: unbound method");
 
-                hir!((NAME abi::mangle::method(class, &method.symbol, parameters, returns)))
+                hir!((NAME abi::mangle::method(&class, &method.symbol, parameters, returns)))
             }
             // Special case: if the receiver is `super`, then we know its virtual
             // table statically, since we want to force the superclass
@@ -829,7 +840,7 @@ impl<'env> Emitter<'env> {
             Some(index) if matches!(receiver, ast::Expression::Super(_, _)) => {
                 hir!(
                     (MEM (ADD
-                        (NAME abi::mangle::class_virtual_table(class))
+                        (NAME abi::mangle::class_virtual_table(&class))
                         (CONST index as i64 * abi::WORD))
                 ))
             }
@@ -847,18 +858,22 @@ impl<'env> Emitter<'env> {
 
     fn emit_class_field(
         &mut self,
-        class: &Symbol,
-        receiver: &ast::Expression<()>,
+        receiver: &ast::Expression<r#type::Expression>,
         field: &Symbol,
     ) -> hir::Expression {
+        let class = match receiver.r#type() {
+            r#type::Expression::Class(class) => class,
+            _ => unreachable!(),
+        };
+
         #[rustfmt::skip]
-        let base = self.layouts[class]
+        let base = self.layouts[&class]
             .interface()
             .map(|superclass| hir!((MEM (NAME abi::mangle::class_size(&superclass)))))
             .unwrap_or_else(|| hir!((CONST 0)));
 
-        let index = self.layouts[class]
-            .field_index(class, field)
+        let index = self.layouts[&class]
+            .field_index(&class, field)
             .expect("[TYPE ERROR]: unbound field in class");
 
         hir!((MEM (ADD (self.emit_expression(receiver).into()) (ADD base (CONST index as i64 * abi::WORD)))))
@@ -871,7 +886,7 @@ impl<'env> Emitter<'env> {
             declarations,
             expression,
             ..
-        }: &ast::Initialization<()>,
+        }: &ast::Initialization<r#type::Expression>,
     ) -> hir::Statement {
         #[rustfmt::skip]
         if let [Some(declaration)] = declarations.as_slice() {
@@ -904,7 +919,7 @@ impl<'env> Emitter<'env> {
     fn emit_declaration<S: Into<Scope>>(
         &mut self,
         scope: S,
-        declaration: &ast::Declaration<()>,
+        declaration: &ast::Declaration<r#type::Expression>,
     ) -> Option<hir::Statement> {
         let scope = scope.into();
         let statements = declaration
@@ -926,7 +941,7 @@ impl<'env> Emitter<'env> {
         &mut self,
         scope: S,
         name: &ast::Identifier,
-        r#type: &ast::Type<()>,
+        r#type: &ast::Type<r#type::Expression>,
     ) -> hir::Expression {
         let fresh = match scope.into() {
             Scope::Global(GlobalScope::Class(_)) => unreachable!(),
@@ -965,8 +980,8 @@ impl<'env> Emitter<'env> {
 
     fn emit_array_declaration(
         &mut self,
-        r#type: &ast::Type<()>,
-        len: &ast::Expression<()>,
+        r#type: &ast::Type<r#type::Expression>,
+        len: &ast::Expression<r#type::Expression>,
         lengths: &mut Vec<hir::Statement>,
     ) -> hir::Expression {
         let length = Temporary::fresh("length");
@@ -1013,7 +1028,10 @@ impl<'env> Emitter<'env> {
         )
     }
 
-    fn emit_static_array(&mut self, expressions: &[ast::Expression<()>]) -> Option<Label> {
+    fn emit_static_array(
+        &mut self,
+        expressions: &[ast::Expression<r#type::Expression>],
+    ) -> Option<Label> {
         let array = iter::once(expressions.len() as i64)
             .map(Option::Some)
             .chain(expressions.iter().map(|expression| match expression {

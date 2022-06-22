@@ -1,10 +1,10 @@
 use std::path::Path;
 
 use crate::data::ast;
+use crate::data::r#type;
 use crate::util;
 
-// FIXME: operate on typed AST
-pub fn invert_ast(path: &Path, program: &mut ast::Program<()>) {
+pub fn invert_ast(path: &Path, program: &mut ast::Program<r#type::Expression>) {
     log::info!(
         "[{}] Inverting loops in {}...",
         std::any::type_name::<ast::Program<()>>(),
@@ -23,8 +23,8 @@ pub fn invert_ast(path: &Path, program: &mut ast::Program<()>) {
 
 struct Inverter(usize);
 
-impl ast::VisitorMut<()> for Inverter {
-    fn visit_statement(&mut self, statement: &mut ast::Statement<()>) {
+impl ast::VisitorMut<r#type::Expression> for Inverter {
+    fn visit_statement(&mut self, statement: &mut ast::Statement<r#type::Expression>) {
         if let ast::Statement::While(ast::Do::No, condition, r#while, span) = statement {
             if !effectful(condition) {
                 log::trace!("Inverted loop at {}", span);
@@ -46,7 +46,7 @@ impl ast::VisitorMut<()> for Inverter {
     }
 }
 
-fn effectful(expression: &ast::Expression<()>) -> bool {
+fn effectful(expression: &ast::Expression<r#type::Expression>) -> bool {
     match expression {
         ast::Expression::Boolean(_, _)
         | ast::Expression::Character(_, _)
@@ -54,7 +54,7 @@ fn effectful(expression: &ast::Expression<()>) -> bool {
         | ast::Expression::Variable(_, _)
         | ast::Expression::This(_, _)
         | ast::Expression::Super(_, _)
-        | ast::Expression::Null(_, _) => false,
+        | ast::Expression::Null(_) => false,
 
         // Recomputing these shouldn't be observable, but it _is_ inefficient.
         ast::Expression::String(_, _)
@@ -67,10 +67,10 @@ fn effectful(expression: &ast::Expression<()>) -> bool {
         // effects other than crashing.
         ast::Expression::Index(array, index, _, _) => effectful(array) || effectful(index),
         ast::Expression::Length(array, _) => effectful(array),
-        ast::Expression::Dot(_, expression, _, _, _) => effectful(expression),
+        ast::Expression::Dot(expression, _, _, _) => effectful(expression),
 
         ast::Expression::Call(_) => true,
-        ast::Expression::Binary(binary, left, right, _, _) => match binary.get() {
+        ast::Expression::Binary(binary, left, right, _, _) => match binary {
             // Avoid recomputing array concatenation, which is expensive.
             ast::Binary::Cat => true,
 

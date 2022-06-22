@@ -286,7 +286,7 @@ LValue: Expression<()> = {
 }
 
 NoCallLValue: Expression<()> = {
-    <l: @L> "null" <r: @R> => Expression::Null((), Span::new(l, r)),
+    <l: @L> "null" <r: @R> => Expression::Null(Span::new(l, r)),
     <l: @L> "this" <r: @R> => Expression::This((), Span::new(l, r)),
     <l: @L> "super" <r: @R> => Expression::Super((), Span::new(l, r)),
     <l: @L> "new" <variable: Variable> <r: @R> => Expression::New(variable, Span::new(l, r)),
@@ -295,7 +295,7 @@ NoCallLValue: Expression<()> = {
         Expression::Index(Box::new(array), Box::new(index), (), Span::new(l, r))
     },
     <l: @L> <expression: LValue> "." <field: Identifier> <r: @R> => {
-        Expression::Dot(Cell::new(None), Box::new(expression), field, (), Span::new(l, r))
+        Expression::Dot(Box::new(expression), field, (), Span::new(l, r))
     },
 }
 
@@ -386,7 +386,7 @@ Expression: Expression<()> = Or;
 
 Binary<Op, Next>: Expression<()> = {
     <l: @L> <lhs: Binary<Op, Next>> <binary: Op> <rhs: Next> <r: @R> => {
-        Expression::Binary(Cell::new(binary), Box::new(lhs), Box::new(rhs), (), Span::new(l, r))
+        Expression::Binary(binary, Box::new(lhs), Box::new(rhs), (), Span::new(l, r))
     },
     <Next>
 }
@@ -510,7 +510,7 @@ RValue: Expression<()> = {
         Expression::Array(expressions, (), Span::new(l, r))
     },
     <l: @L> <expression: RValue> "." <field: Identifier> <r: @R> => {
-        Expression::Dot(Cell::new(None), Box::new(expression), field, (), Span::new(l, r))
+        Expression::Dot(Box::new(expression), field, (), Span::new(l, r))
     },
     <l: @L> <function: RValue> "(" <arguments: Comma<Expression>> ")" <r: @R> => {
         Expression::Call(Call { function: Box::new(function), arguments, span: Span::new(l, r) })

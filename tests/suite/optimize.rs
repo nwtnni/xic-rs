@@ -8,8 +8,8 @@ use xic::optimize;
 pub fn invert_loops_ast(path: &str) -> anyhow::Result<()> {
     let expected_stdout = super::execute_expected(path)?;
 
-    let mut program = super::parse(path)?;
-    let mut context = xic::api::check(None, Path::new(path), &mut program).unwrap();
+    let program = super::parse(path)?;
+    let (mut program, mut context) = xic::api::check(None, Path::new(path), program).unwrap();
     optimize::invert_loops_ast(Path::new(path), &mut program);
     let optimized = xic::api::emit_hir(&mut context, Path::new(path), xic::Abi::Xi, &program);
     let optimized_stdout = super::interpret_hir(&optimized)?;
@@ -22,8 +22,8 @@ pub fn invert_loops_ast(path: &str) -> anyhow::Result<()> {
 pub fn abi_final_class(path: &str) -> anyhow::Result<()> {
     let expected_stdout = super::execute_expected(path)?;
 
-    let mut program = super::parse(path)?;
-    let mut context = xic::api::check(None, Path::new(path), &mut program).unwrap();
+    let program = super::parse(path)?;
+    let (program, mut context) = xic::api::check(None, Path::new(path), program).unwrap();
     let optimized = xic::api::emit_hir(&mut context, Path::new(path), xic::Abi::XiFinal, &program);
     let optimized_stdout = super::interpret_hir(&optimized)?;
 

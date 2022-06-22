@@ -235,20 +235,18 @@ impl<T> Serialize for ast::Expression<T> {
                 ["-".sexp(), (-(*integer as i128)).to_string().sexp_move()].sexp_move()
             }
             Integer(integer, _) => integer.to_string().sexp_move(),
-            Null(_, _) => "null".sexp(),
+            Null(_) => "null".sexp(),
             This(_, _) => "this".sexp(),
             Super(_, _) => "super".sexp(),
             Variable(variable, _) => variable.sexp(),
             Array(expressions, _, _) => expressions.sexp(),
             Binary(binary, left, right, _, _) => {
-                [binary.get().sexp(), left.sexp(), right.sexp()].sexp_move()
+                [binary.sexp(), left.sexp(), right.sexp()].sexp_move()
             }
             Unary(unary, expression, _, _) => [unary.sexp(), expression.sexp()].sexp_move(),
             Index(array, index, _, _) => ["[]".sexp(), array.sexp(), index.sexp()].sexp_move(),
             Length(array, _) => ["length".sexp(), array.sexp()].sexp_move(),
-            Dot(_, receiver, symbol, _, _) => {
-                [".".sexp(), receiver.sexp(), symbol.sexp()].sexp_move()
-            }
+            Dot(receiver, symbol, _, _) => [".".sexp(), receiver.sexp(), symbol.sexp()].sexp_move(),
             New(variable, _) => ["new".sexp(), variable.sexp()].sexp_move(),
             Call(call) => call.sexp(),
         }

@@ -326,7 +326,7 @@ impl<T> ast::Expression<T> {
             | ast::Expression::Character(_, _)
             | ast::Expression::String(_, _)
             | ast::Expression::Integer(_, _)
-            | ast::Expression::Null(_, _)
+            | ast::Expression::Null(_)
             | ast::Expression::This(_, _)
             | ast::Expression::Super(_, _) => (),
             ast::Expression::Variable(variable, _) => variable.accept_mut(visitor),
@@ -346,7 +346,7 @@ impl<T> ast::Expression<T> {
                 array.accept_mut(visitor);
             }
             ast::Expression::Call(call) => call.accept_mut(visitor),
-            ast::Expression::Dot(_, receiver, identifier, _, _) => {
+            ast::Expression::Dot(receiver, identifier, _, _) => {
                 receiver.accept_mut(visitor);
                 identifier.accept_mut(visitor);
             }

@@ -51,8 +51,8 @@ pub fn parse(path: &str) -> anyhow::Result<ast::Program<()>> {
 }
 
 pub fn emit_hir(path: &str) -> anyhow::Result<hir::Unit> {
-    let mut program = parse(path)?;
-    let mut context = xic::api::check(None, Path::new(path), &mut program)
+    let program = parse(path)?;
+    let (program, mut context) = xic::api::check(None, Path::new(path), program)
         .with_context(|| anyhow!("Type-checking file: {}", path))?;
     Ok(xic::api::emit_hir(
         &mut context,

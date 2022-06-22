@@ -7,6 +7,7 @@ use std::fmt;
 use std::hash;
 use std::iter;
 
+use crate::data::r#type;
 use crate::data::sexp::Serialize as _;
 use crate::data::span::Span;
 use crate::data::symbol::Symbol;
@@ -501,7 +502,7 @@ pub enum Expression<T> {
     Integer(i64, Span),
 
     /// Null literal
-    Null(T, Span),
+    Null(Span),
 
     /// Class reference
     This(T, Span),
@@ -516,15 +517,7 @@ pub enum Expression<T> {
     Array(Vec<Expression<T>>, T, Span),
 
     /// Binary operation
-    ///
-    /// FIXME: remove `Cell<Binary>`
-    Binary(
-        Cell<Binary>,
-        Box<Expression<T>>,
-        Box<Expression<T>>,
-        T,
-        Span,
-    ),
+    Binary(Binary, Box<Expression<T>>, Box<Expression<T>>, T, Span),
 
     /// Unary operation
     Unary(Unary, Box<Expression<T>>, T, Span),
@@ -541,13 +534,7 @@ pub enum Expression<T> {
     /// Dot operator
     ///
     /// FIXME: remove `Cell<Option<Symbol>>`
-    Dot(
-        Cell<Option<Symbol>>,
-        Box<Expression<T>>,
-        Identifier,
-        T,
-        Span,
-    ),
+    Dot(Box<Expression<T>>, Identifier, T, Span),
 
     /// Class constructor
     New(Variable<T>, Span),
@@ -560,7 +547,7 @@ impl<T> Expression<T> {
             | Expression::Character(_, span)
             | Expression::String(_, span)
             | Expression::Integer(_, span)
-            | Expression::Null(_, span)
+            | Expression::Null(span)
             | Expression::This(_, span)
             | Expression::Super(_, span)
             | Expression::Array(_, _, span)
@@ -568,7 +555,7 @@ impl<T> Expression<T> {
             | Expression::Unary(_, _, _, span)
             | Expression::Index(_, _, _, span)
             | Expression::Length(_, span)
-            | Expression::Dot(_, _, _, _, span)
+            | Expression::Dot(_, _, _, span)
             | Expression::New(_, span) => *span,
             Expression::Variable(variable, _) => variable.span,
             Expression::Call(call) => call.span,
@@ -581,7 +568,7 @@ impl<T> Expression<T> {
             | Expression::Character(_, span)
             | Expression::String(_, span)
             | Expression::Integer(_, span)
-            | Expression::Null(_, span)
+            | Expression::Null(span)
             | Expression::This(_, span)
             | Expression::Super(_, span)
             | Expression::Array(_, _, span)
@@ -589,7 +576,7 @@ impl<T> Expression<T> {
             | Expression::Unary(_, _, _, span)
             | Expression::Index(_, _, _, span)
             | Expression::Length(_, span)
-            | Expression::Dot(_, _, _, _, span)
+            | Expression::Dot(_, _, _, span)
             | Expression::New(_, span) => span,
             Expression::Variable(variable, _) => &mut variable.span,
             Expression::Call(call) => &mut call.span,
@@ -597,9 +584,7 @@ impl<T> Expression<T> {
     }
 }
 
-impl Expression<()> {
-    /// FIXME: call on typed AST
-    ///
+impl Expression<r#type::Expression> {
     /// Assumes this expression represents a Boolean, and negates it. In particular,
     /// we assume that variables are of type Boolean--otherwise, non-boolean expressions
     /// are left unchanged.
@@ -615,7 +600,7 @@ impl Expression<()> {
             ),
             Expression::Boolean(bool, span) => Expression::Boolean(!bool, *span),
             Expression::Binary(binary, left, right, r#type, span) => {
-                let binary = match binary.get() {
+                let binary = match binary {
                     Binary::Mul
                     | Binary::Hul
                     | Binary::Div
@@ -641,25 +626,22 @@ impl Expression<()> {
                     }
                 };
 
-                Expression::Binary(
-                    Cell::new(binary),
-                    left.clone(),
-                    right.clone(),
-                    r#type.clone(),
-                    *span,
-                )
+                Expression::Binary(binary, left.clone(), right.clone(), r#type.clone(), *span)
             }
             Expression::Unary(Unary::Not, expression, _, _) => (**expression).clone(),
-            Expression::Index(_, _, _, _)
-            | Expression::Call(_)
-            | Expression::Dot(_, _, _, _, _) => {
-                Expression::Unary(Unary::Not, Box::new(self.clone()), (), self.span())
+            Expression::Index(_, _, _, _) | Expression::Call(_) | Expression::Dot(_, _, _, _) => {
+                Expression::Unary(
+                    Unary::Not,
+                    Box::new(self.clone()),
+                    r#type::Expression::Boolean,
+                    self.span(),
+                )
             }
             Expression::Unary(Unary::Neg, _, _, _)
             | Expression::Character(_, _)
             | Expression::String(_, _)
             | Expression::Integer(_, _)
-            | Expression::Null(_, _)
+            | Expression::Null(_)
             | Expression::This(_, _)
             | Expression::Super(_, _)
             | Expression::Array(_, _, _)
