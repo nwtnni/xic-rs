@@ -1,7 +1,7 @@
 ---
 source: tests/suite/check.rs
 assertion_line: 34
-expression: Snapshot(context)
+expression: Snapshot(checked)
 ---
 Error: Semantic error
    ╭─[tests/check/bad_final_8.xi:3:29]
@@ -12,7 +12,7 @@ Error: Semantic error
    · 
  3 │ template class B<T> extends A::<T> {}
    ·                             ───┬──  
-   ·                                ╰──── Class At1i is declared final and cannot be extended
+   ·                                ╰──── Class t1A1i is declared final and cannot be extended
    · 
  6 │     b: B::<int> = new B::<int>
    ·        ────┬───  

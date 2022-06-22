@@ -1,7 +1,7 @@
 ---
 source: tests/suite/check.rs
 assertion_line: 34
-expression: Snapshot(context)
+expression: Snapshot(checked)
 ---
 Error: Semantic error
    ╭─[tests/check/bad_final_6.xi:3:17]
@@ -12,6 +12,6 @@ Error: Semantic error
    · 
  3 │ class B extends A::<> {}
    ·                 ──┬──  
-   ·                   ╰──── Class At0 is declared final and cannot be extended
+   ·                   ╰──── Class t1A0 is declared final and cannot be extended
 ───╯
 

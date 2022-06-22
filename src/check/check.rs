@@ -1028,7 +1028,7 @@ impl Checker {
 
                 Ok(ast::Variable {
                     name: ast::Identifier {
-                        symbol: abi::mangle::template_ast(&variable.name.symbol, &generics),
+                        symbol: abi::mangle::template(&variable.name.symbol, &generics),
                         span: variable.name.span,
                     },
                     generics: None,

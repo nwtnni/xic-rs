@@ -367,14 +367,7 @@ impl Checker {
     fn load_variable(&self, variable: &ast::Variable<()>) -> Symbol {
         match &variable.generics {
             None => variable.name.symbol,
-            Some(generics) => {
-                let generics = generics
-                    .iter()
-                    .map(|generic| self.load_type(generic))
-                    .collect::<Vec<_>>();
-
-                abi::mangle::template(&variable.name.symbol, &generics)
-            }
+            Some(generics) => abi::mangle::template(&variable.name.symbol, &generics),
         }
     }
 }
