@@ -1,0 +1,17 @@
+---
+source: tests/suite/check.rs
+assertion_line: 34
+expression: Snapshot(checked)
+---
+Error: Semantic error
+   ╭─[tests/check/bad_generic_8.xi:4:8]
+   │
+ 1 │ template class A<T> {}
+   ·                ┬  
+   ·                ╰── Template definition here
+   · 
+ 4 │     a: A::<bool, int> = new A::<bool, int>
+   ·        ───────┬──────  
+   ·               ╰──────── Template instantiated with incorrect number of type arguments: expected 1, but found 2
+───╯
+

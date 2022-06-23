@@ -1,0 +1,21 @@
+---
+source: tests/suite/check.rs
+assertion_line: 34
+expression: Snapshot(checked)
+---
+Error: Semantic error
+    ╭─[tests/check/bad_generic_11.xi:2:5]
+    │
+  2 │     return 1
+    ·     ────┬───  
+    ·         ╰───── Return mismatch
+    · 
+  7 │         return foo::<T>()
+    ·                ────┬───  
+    ·                    ╰───── Template instantiated here
+    · 
+ 13 │     b: A::<bool> = new A::<bool>
+    ·        ────┬────  
+    ·            ╰────── Template instantiated here
+────╯
+

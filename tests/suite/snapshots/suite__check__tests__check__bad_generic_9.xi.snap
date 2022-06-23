@@ -1,0 +1,13 @@
+---
+source: tests/suite/check.rs
+assertion_line: 34
+expression: Snapshot(checked)
+---
+Error: Semantic error
+   ╭─[tests/check/bad_generic_9.xi:4:11]
+   │
+ 4 │     foo::<A>()
+   ·           ┬  
+   ·           ╰── Unbound class A
+───╯
+

@@ -65,7 +65,7 @@ pub fn check(
     let directory_library = directory_library.unwrap_or_else(|| path.parent().unwrap());
 
     checker.load_program(directory_library, path, &program)?;
-    checker.monomorphize_program(&mut program);
+    checker.monomorphize_program(&mut program)?;
     let program = checker.check_program(program)?;
 
     Ok((program, checker.context))
@@ -951,7 +951,10 @@ impl Checker {
         Ok(ast::SingleDeclaration { name, r#type, span })
     }
 
-    fn check_type(&self, r#type: ast::Type<()>) -> Result<ast::Type<r#type::Expression>, Error> {
+    pub(super) fn check_type(
+        &self,
+        r#type: ast::Type<()>,
+    ) -> Result<ast::Type<r#type::Expression>, Error> {
         match r#type {
             ast::Type::Bool(span) => Ok(ast::Type::Bool(span)),
             ast::Type::Int(span) => Ok(ast::Type::Int(span)),
@@ -971,8 +974,7 @@ impl Checker {
         }
     }
 
-    // There are two cases where this function is called:
-    // FIXME: three cases (call during monomorphization pass)
+    // There are three cases where this function is called:
     //
     // 1) Checking interfaces during the second half of the loading pass.
     //
@@ -981,7 +983,14 @@ impl Checker {
     // that the template instantiation exists, because its implementation
     // may be in a separate compilation unit.
     //
-    // 2) Checking signatures after monomorphization.
+    // 2) Checking template instantiation sites during monomorphization
+    //
+    // Here, we want to catch unbound templates and type parameters.
+    // But for compatibility with (1), we won't check that the template
+    // instantiation exists--we'll assume the monomorphization pass
+    // correctly generates it.
+    //
+    // 3) Checking signatures after monomorphization.
     //
     // Here, there are no more generics, so this branch is unreachable.
     // Any unbound classes within the type arguments must be caught

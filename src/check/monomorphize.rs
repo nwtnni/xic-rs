@@ -2,18 +2,24 @@ use std::cell::Cell;
 
 use crate::abi;
 use crate::check::check::Checker;
+use crate::check::Error;
+use crate::check::ErrorKind;
 use crate::check::GlobalScope;
 use crate::data::ast;
 use crate::data::span::Span;
 use crate::Map;
 
 impl Checker {
-    pub(super) fn monomorphize_program(&mut self, program: &mut ast::Program<()>) {
+    pub(super) fn monomorphize_program(
+        &mut self,
+        program: &mut ast::Program<()>,
+    ) -> Result<(), Error> {
         let mut monomorphizer = Monomorphizer {
             functions: Map::default(),
             classes: Map::default(),
             arguments: Vec::new(),
             checker: self,
+            error: None,
         };
 
         program.accept_mut(&mut monomorphizer);
@@ -42,6 +48,11 @@ impl Checker {
                 .flatten()
                 .map(ast::Item::Function),
         );
+
+        match monomorphizer.error {
+            None => Ok(()),
+            Some(error) => Err(error),
+        }
     }
 }
 
@@ -50,22 +61,35 @@ struct Monomorphizer<'a> {
     classes: Map<ast::Identifier, Map<Vec<ast::Type<()>>, Option<ast::Class<()>>>>,
     arguments: Vec<(Span, Map<ast::Identifier, ast::Type<()>>)>,
     checker: &'a mut Checker,
+    error: Option<Error>,
 }
 
 impl<'a> ast::VisitorMut<()> for Monomorphizer<'a> {
     fn visit_class(&mut self, class: &mut ast::Class<()>) {
+        if self.error.is_some() {
+            return;
+        }
+
         if let Some(supertype) = class.extends.as_mut() {
             self.monomorphize_class(supertype);
         }
     }
 
     fn visit_call(&mut self, call: &mut ast::Call<()>) {
+        if self.error.is_some() {
+            return;
+        }
+
         if let ast::Expression::Variable(variable, ()) = &mut *call.function {
             self.monomorphize(Self::instantiate_function_template, variable);
         }
     }
 
     fn visit_type(&mut self, r#type: &mut ast::Type<()>) {
+        if self.error.is_some() {
+            return;
+        }
+
         if let ast::Type::Class(variable) = r#type {
             if let Some(substitute) = self
                 .arguments
@@ -73,21 +97,7 @@ impl<'a> ast::VisitorMut<()> for Monomorphizer<'a> {
                 .and_then(|(_, arguments)| arguments.get(&variable.name))
                 .cloned()
             {
-                match (&variable.generics, substitute) {
-                    (None, substitute) => *r#type = substitute,
-                    // Forward type arguments to any functor arguments
-                    (
-                        Some(_),
-                        ast::Type::Class(ast::Variable {
-                            name,
-                            generics: None,
-                            span: _,
-                        }),
-                    ) => {
-                        variable.name = name;
-                    }
-                    (Some(_), _) => todo!("Generic arguments to non-functor"),
-                }
+                *r#type = substitute;
             }
         }
 
@@ -97,6 +107,10 @@ impl<'a> ast::VisitorMut<()> for Monomorphizer<'a> {
     }
 
     fn visit_expression(&mut self, expression: &mut ast::Expression<()>) {
+        if self.error.is_some() {
+            return;
+        }
+
         if let ast::Expression::New(variable, _) = expression {
             self.monomorphize_class(variable);
         }
@@ -118,6 +132,13 @@ impl<'a> Monomorphizer<'a> {
             None => return,
         };
 
+        for generic in &*generics {
+            if let Err(error) = self.checker.check_type(generic.clone()) {
+                self.error = Some(error);
+                return;
+            }
+        }
+
         instantiate(self, &variable.name, generics, &variable.span);
 
         variable.name.symbol = abi::mangle::template(&variable.name.symbol, generics);
@@ -137,19 +158,33 @@ impl<'a> Monomorphizer<'a> {
             return;
         }
 
-        let template = self
-            .checker
-            .context
-            .get_class_template(name)
-            .cloned()
-            .unwrap();
+        let template = match self.checker.context.get_class_template(name) {
+            Some(template) if template.generics.len() == generics.len() => template.clone(),
+            Some(template) => {
+                self.error = Some(Error::new(
+                    *span,
+                    ErrorKind::TemplateArgumentMismatch {
+                        span: *template.name.span,
+                        expected: template.generics.len(),
+                        found: generics.len(),
+                    },
+                ));
+                return;
+            }
+            None => {
+                self.error = Some(Error::new(
+                    *name.span,
+                    ErrorKind::UnboundClassTemplate(name.symbol),
+                ));
+                return;
+            }
+        };
 
         self.classes
             .entry(template.name.clone())
             .or_default()
             .insert(generics.to_vec(), None);
 
-        // TODO: check that (1) type parameters are unique and (2) type argument counts match
         self.arguments.push((
             *span,
             template
@@ -198,19 +233,33 @@ impl<'a> Monomorphizer<'a> {
             return;
         }
 
-        let template = self
-            .checker
-            .context
-            .get_function_template(name)
-            .cloned()
-            .unwrap();
+        let template = match self.checker.context.get_function_template(name) {
+            Some(template) if template.generics.len() == generics.len() => template.clone(),
+            Some(template) => {
+                self.error = Some(Error::new(
+                    *span,
+                    ErrorKind::TemplateArgumentMismatch {
+                        span: *template.name.span,
+                        expected: template.generics.len(),
+                        found: generics.len(),
+                    },
+                ));
+                return;
+            }
+            None => {
+                self.error = Some(Error::new(
+                    *name.span,
+                    ErrorKind::UnboundFunTemplate(name.symbol),
+                ));
+                return;
+            }
+        };
 
         self.functions
             .entry(template.name.clone())
             .or_default()
             .insert(generics.to_vec(), None);
 
-        // TODO: check that (1) type parameters are unique and (2) type argument counts match
         self.arguments.push((
             *span,
             template

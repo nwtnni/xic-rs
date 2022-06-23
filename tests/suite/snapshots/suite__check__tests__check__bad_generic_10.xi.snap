@@ -1,0 +1,17 @@
+---
+source: tests/suite/check.rs
+assertion_line: 34
+expression: Snapshot(checked)
+---
+Error: Semantic error
+   ╭─[tests/check/bad_generic_10.xi:4:5]
+   │
+ 1 │ template foo<T>() {}
+   ·          ─┬─  
+   ·           ╰─── Template definition here
+   · 
+ 4 │     foo::<bool, int>()
+   ·     ────────┬───────  
+   ·             ╰───────── Template instantiated with incorrect number of type arguments: expected 1, but found 2
+───╯
+

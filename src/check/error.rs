@@ -38,6 +38,7 @@ pub enum ErrorKind {
     NotFound(Symbol),
     UnboundVariable(Symbol),
     UnboundFun(Symbol),
+    UnboundFunTemplate(Symbol),
     UnboundClass(Symbol),
     UnboundClassTemplate(Symbol),
     NotVariable(Symbol),
@@ -86,6 +87,9 @@ impl ErrorKind {
             }
             ErrorKind::UnboundFun(f) => {
                 Cow::Owned(format!("Unbound function {}", symbol::resolve(*f)))
+            }
+            ErrorKind::UnboundFunTemplate(f) => {
+                Cow::Owned(format!("Unbound function template {}", symbol::resolve(*f)))
             }
             ErrorKind::UnboundClass(c) => {
                 Cow::Owned(format!("Unbound class {}", symbol::resolve(*c)))

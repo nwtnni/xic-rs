@@ -1,7 +1,7 @@
 ---
 source: tests/suite/check.rs
-assertion_line: 35
-expression: Snapshot(context)
+assertion_line: 34
+expression: Snapshot(checked)
 ---
 Error: Semantic error
     ╭─[tests/check/bad_generic_6.xi:4:16]
@@ -10,14 +10,8 @@ Error: Semantic error
     ·                ──┬──  
     ·                  ╰──── Expected int but found bool
     · 
- 12 │     b: A::<B, bool> = new A::<B, bool>
-    ·        ──────┬─────  
-    ·              ╰─────── Template instantiated here
-    │
-    ├─[tests/check/bad_generic_6.ixi:2:8]
-    │
-  2 │     a: T::<B>
-    ·        ───┬──  
-    ·           ╰──── Template instantiated here
+ 12 │     b: B::<bool> = new B::<bool>
+    ·        ────┬────  
+    ·            ╰────── Template instantiated here
 ────╯
 

@@ -1,3 +1,0 @@
-template class A<T, B> {
-    a: T::<B>
-}
