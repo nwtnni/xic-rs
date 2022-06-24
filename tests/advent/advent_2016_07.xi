@@ -2,6 +2,7 @@ use conv
 use io
 use string
 use vector
+use vector_set
 
 INPUT: String = new_string_from_array("rhamaeovmbheijj[hkwbkqzlcscwjkyjulk]ajsxfuemamuqcjccbc\n\
     gdlrknrmexvaypu[crqappbbcaplkkzb]vhvkjyadjsryysvj[nbvypeadikilcwg]jwxlimrgakadpxu[dgoanojvdvwfabtt]yqsalmulblolkgsheo\n\
@@ -2008,16 +2009,23 @@ main(args: int[][]) {
     input: Vector::<String> = INPUT.split('\n')
 
     tls: int = 0
+    ssl: int = 0
     i: int = 0
 
     while i < input.size() {
         if supports_tls(input.get(i)) {
             tls = tls + 1
         }
+
+        if supports_ssl(input.get(i)) {
+            ssl = ssl + 1
+        }
+
         i = i + 1
     }
 
     println(unparseInt(tls))
+    println(unparseInt(ssl))
 }
 
 supports_tls(ip: String): bool {
@@ -2049,3 +2057,65 @@ supports_tls(ip: String): bool {
     return outside & !inside
 }
 
+supports_ssl(ip: String): bool {
+
+    in_hypernet: bool = false
+
+    abas: VectorSet::<Aba> = new_vector_set::<Aba>()
+    babs: Vector::<Aba> = new_vector::<Aba>()
+
+    i: int = 0
+    while i + 2 < ip.size() {
+        if ip.get(i) == '[' {
+            in_hypernet = true
+        } else if ip.get(i) == ']' {
+            in_hypernet = false
+        } else {
+            a: int = ip.get(i)
+            b: int = ip.get(i + 1)
+            c: int = ip.get(i + 2)
+
+            if b != '['
+            & b != ']'
+            & c != '['
+            & c != ']'
+            & a == c
+            & a != b
+            {
+                if in_hypernet {
+                    babs.push(new Aba.init(b, a))
+                } else {
+                    _ = abas.insert(new Aba.init(a, b))
+                }
+            }
+        }
+
+        i = i + 1
+    }
+
+    j: int = 0
+    while j < babs.size() {
+        if abas.contains(babs.get(j)) {
+            return true
+        }
+
+        j = j + 1
+    }
+
+    return false
+}
+
+final class Aba {
+    a: int
+    b: int
+
+    init(a: int, b: int): Aba {
+        this.a = a
+        this.b = b
+        return this
+    }
+
+    equals(other: Aba): bool {
+        return this.a == other.a & this.b == other.b
+    }
+}
