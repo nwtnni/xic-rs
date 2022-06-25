@@ -26,16 +26,17 @@ where
 
     let mut global = Global::new(&unit.data, &unit.bss, stdin, stdout);
 
-    let mut init = Local::new(&unit, &symbol::intern_static(abi::XI_INIT), &[]);
+    let mut init_classes = Local::new(&unit, &symbol::intern_static(abi::XI_INIT_CLASSES), &[]);
+    assert!(init_classes.interpret_lir(&unit, &mut global)?.is_empty());
 
-    assert!(init.interpret_lir(&unit, &mut global)?.is_empty());
+    let mut init_globals = Local::new(&unit, &symbol::intern_static(abi::XI_INIT_GLOBALS), &[]);
+    assert!(init_globals.interpret_lir(&unit, &mut global)?.is_empty());
 
     let mut main = Local::new(
         &unit,
         &symbol::intern_static(abi::XI_MAIN),
         &[Value::Integer(0)],
     );
-
     assert!(main.interpret_lir(&unit, &mut global)?.is_empty());
 
     Ok(())

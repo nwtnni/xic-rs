@@ -24,7 +24,6 @@ use crate::emit::library;
 use crate::hir;
 use crate::util;
 use crate::Map;
-use crate::Set;
 
 pub fn emit_hir(
     context: &mut check::Context,
@@ -57,7 +56,6 @@ pub fn emit_hir(
     let mut emitter = Emitter {
         layouts,
         context,
-        initialize: Set::default(),
         locals: Map::default(),
         data: Map::default(),
         bss: Map::default(),
@@ -66,6 +64,8 @@ pub fn emit_hir(
     };
 
     let mut functions = Map::default();
+    let mut globals = Vec::new();
+    let mut classes = Vec::new();
 
     // Note: class initialization functions must be emitted before
     // global initialization functions, which can rely on the former.
@@ -76,6 +76,7 @@ pub fn emit_hir(
         };
 
         let (name, function) = emitter.emit_class_initialization(class);
+        classes.push(name);
         functions.insert(name, function);
     }
 
@@ -83,6 +84,7 @@ pub fn emit_hir(
         match item {
             ast::Item::Global(global) => {
                 if let Some((name, function)) = emitter.emit_global(global) {
+                    globals.push(name);
                     functions.insert(name, function);
                 }
             }
@@ -129,23 +131,27 @@ pub fn emit_hir(
         }
     }
 
-    functions.insert(
-        symbol::intern_static(abi::XI_INIT),
-        hir::Function {
-            name: symbol::intern_static(abi::XI_INIT),
-            statement: hir::Statement::Sequence(
-                emitter
-                    .initialize
-                    .into_iter()
-                    .map(|name| hir!((EXP (CALL (NAME name) 0))))
-                    .chain(iter::once(hir!((RETURN))))
-                    .collect(),
-            ),
-            arguments: 0,
-            returns: 0,
-            linkage: ir::Linkage::Local,
-        },
-    );
+    for (name, names) in [
+        (abi::XI_INIT_CLASSES, classes),
+        (abi::XI_INIT_GLOBALS, globals),
+    ] {
+        functions.insert(
+            symbol::intern_static(name),
+            hir::Function {
+                name: symbol::intern_static(name),
+                statement: hir::Statement::Sequence(
+                    names
+                        .into_iter()
+                        .map(|name| hir!((EXP (CALL (NAME name) 0))))
+                        .chain(iter::once(hir!((RETURN))))
+                        .collect(),
+                ),
+                arguments: 0,
+                returns: 0,
+                linkage: ir::Linkage::Local,
+            },
+        );
+    }
 
     let memdup = library::emit_memdup();
     functions.insert(memdup.name, memdup);
@@ -164,7 +170,6 @@ pub fn emit_hir(
 struct Emitter<'env> {
     context: &'env mut check::Context,
     layouts: Map<Symbol, abi::class::Layout>,
-    initialize: Set<Symbol>,
     locals: Map<Symbol, Temporary>,
     data: Map<Label, Vec<Immediate>>,
     bss: Map<Symbol, (ir::Linkage, usize)>,
@@ -230,8 +235,6 @@ impl<'env> Emitter<'env> {
             }
         };
 
-        self.initialize.insert(name);
-
         Some((
             name,
             hir::Function {
@@ -277,8 +280,6 @@ impl<'env> Emitter<'env> {
         statements.push(hir!((RETURN)));
 
         let name = abi::mangle::class_initialization(&class.name.symbol);
-
-        self.initialize.insert(name);
 
         (
             name,
@@ -958,14 +959,6 @@ impl<'env> Emitter<'env> {
             Scope::Global(GlobalScope::Global) => {
                 let r#type = self.get_variable(GlobalScope::Global, name).unwrap();
                 let name = abi::mangle::global(&name.symbol, r#type);
-
-                // Initialize external classes that are used in globals,
-                // since initialization order across files is undefined.
-                if let r#type::Expression::Class(class) = r#type {
-                    let initialize = abi::mangle::class_initialization(class);
-                    self.initialize.insert(initialize);
-                }
-
                 self.bss.insert(name, (ir::Linkage::Local, 1));
                 hir!((MEM (NAME name)))
             }

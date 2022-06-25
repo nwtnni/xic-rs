@@ -43,13 +43,13 @@ impl<T: fmt::Display> fmt::Display for Intel<&asm::Unit<T>> {
             writeln!(fmt, "{}\n", Directive::Space(*size * abi::WORD as usize),)?;
         }
 
-        writeln!(fmt, "{}", Directive::Ctors)?;
-        writeln!(fmt, "{}", Directive::Align(abi::WORD as usize))?;
-        writeln!(
-            fmt,
-            "{}\n",
-            Directive::Quad(vec![Immediate::from(abi::XI_INIT)]),
-        )?;
+        // https://maskray.me/blog/2021-11-07-init-ctors-init-array
+        // https://stackoverflow.com/questions/420350/c-ctor-question-linux
+        for (name, priority) in [(abi::XI_INIT_CLASSES, 65534), (abi::XI_INIT_GLOBALS, 65533)] {
+            writeln!(fmt, "{}", Directive::Ctors(priority))?;
+            writeln!(fmt, "{}", Directive::Align(abi::WORD as usize))?;
+            writeln!(fmt, "{}\n", Directive::Quad(vec![Immediate::from(name)]))?;
+        }
 
         writeln!(fmt, "{}\n", Directive::Text)?;
 
@@ -214,7 +214,7 @@ impl fmt::Display for Directive {
             Directive::Space(bytes) => write!(fmt, ".space {}", bytes),
             Directive::Data => write!(fmt, ".section .data"),
             Directive::Bss => write!(fmt, ".section .bss"),
-            Directive::Ctors => write!(fmt, ".section .ctors"),
+            Directive::Ctors(priority) => write!(fmt, ".section .ctors.{}", priority),
             Directive::Text => write!(fmt, ".section .text"),
         }
     }

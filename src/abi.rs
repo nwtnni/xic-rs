@@ -41,7 +41,8 @@ use crate::data::operand::Unary;
 
 pub const WORD: i64 = 8;
 
-pub const XI_INIT: &str = "_Iinit";
+pub const XI_INIT_GLOBALS: &str = "_Iinit_globals";
+pub const XI_INIT_CLASSES: &str = "_Iinit_classes";
 pub const XI_MAIN: &str = "_Imain_paai";
 pub const XI_ALLOC: &str = "_xi_alloc";
 pub const XI_OUT_OF_BOUNDS: &str = "_xi_out_of_bounds";

@@ -23,7 +23,8 @@ pub fn eliminate_functions<T: lir::Target>(lir: &mut ir::Unit<Cfg<lir::Function<
     // A function is reachable if it is reachable from `init` or a globally visible function.
     // We enforce that `main` is always globally visible.
     let reachable = call_graph
-        .postorder(&symbol::intern_static(abi::XI_INIT))
+        .postorder(&symbol::intern_static(abi::XI_INIT_CLASSES))
+        .chain(call_graph.postorder(&symbol::intern_static(abi::XI_INIT_GLOBALS)))
         .chain(
             lir.functions
                 .values()

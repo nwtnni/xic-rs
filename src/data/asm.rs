@@ -96,7 +96,7 @@ pub enum Directive {
     Space(usize),
     Data,
     Bss,
-    Ctors,
+    Ctors(u16),
     Text,
 }
 
