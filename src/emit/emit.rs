@@ -24,6 +24,7 @@ use crate::emit::library;
 use crate::hir;
 use crate::util;
 use crate::Map;
+use crate::Set;
 
 pub fn emit_hir(
     context: &mut check::Context,
@@ -56,6 +57,7 @@ pub fn emit_hir(
     let mut emitter = Emitter {
         layouts,
         context,
+        initialize: Set::default(),
         locals: Map::default(),
         data: Map::default(),
         bss: Map::default(),
@@ -64,7 +66,6 @@ pub fn emit_hir(
     };
 
     let mut functions = Map::default();
-    let mut initialize = Vec::new();
 
     // Note: class initialization functions must be emitted before
     // global initialization functions, which can rely on the former.
@@ -76,7 +77,6 @@ pub fn emit_hir(
 
         let (name, function) = emitter.emit_class_initialization(class);
         functions.insert(name, function);
-        initialize.push(hir!((EXP (CALL (NAME name) 0))));
     }
 
     for item in &ast.items {
@@ -84,7 +84,6 @@ pub fn emit_hir(
             ast::Item::Global(global) => {
                 if let Some((name, function)) = emitter.emit_global(global) {
                     functions.insert(name, function);
-                    initialize.push(hir!((EXP (CALL (NAME name) 0))));
                 }
             }
             ast::Item::Class(class) => {
@@ -130,12 +129,18 @@ pub fn emit_hir(
         }
     }
 
-    initialize.push(hir!((RETURN)));
     functions.insert(
         symbol::intern_static(abi::XI_INIT),
         hir::Function {
             name: symbol::intern_static(abi::XI_INIT),
-            statement: hir::Statement::Sequence(initialize),
+            statement: hir::Statement::Sequence(
+                emitter
+                    .initialize
+                    .into_iter()
+                    .map(|name| hir!((EXP (CALL (NAME name) 0))))
+                    .chain(iter::once(hir!((RETURN))))
+                    .collect(),
+            ),
             arguments: 0,
             returns: 0,
             linkage: ir::Linkage::Local,
@@ -159,6 +164,7 @@ pub fn emit_hir(
 struct Emitter<'env> {
     context: &'env mut check::Context,
     layouts: Map<Symbol, abi::class::Layout>,
+    initialize: Set<Symbol>,
     locals: Map<Symbol, Temporary>,
     data: Map<Label, Vec<Immediate>>,
     bss: Map<Symbol, (ir::Linkage, usize)>,
@@ -224,6 +230,8 @@ impl<'env> Emitter<'env> {
             }
         };
 
+        self.initialize.insert(name);
+
         Some((
             name,
             hir::Function {
@@ -269,6 +277,8 @@ impl<'env> Emitter<'env> {
         statements.push(hir!((RETURN)));
 
         let name = abi::mangle::class_initialization(&class.name.symbol);
+
+        self.initialize.insert(name);
 
         (
             name,
@@ -948,6 +958,14 @@ impl<'env> Emitter<'env> {
             Scope::Global(GlobalScope::Global) => {
                 let r#type = self.get_variable(GlobalScope::Global, name).unwrap();
                 let name = abi::mangle::global(&name.symbol, r#type);
+
+                // Initialize external classes that are used in globals,
+                // since initialization order across files is undefined.
+                if let r#type::Expression::Class(class) = r#type {
+                    let initialize = abi::mangle::class_initialization(class);
+                    self.initialize.insert(initialize);
+                }
+
                 self.bss.insert(name, (ir::Linkage::Local, 1));
                 hir!((MEM (NAME name)))
             }
