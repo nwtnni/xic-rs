@@ -1102,7 +1102,7 @@ INPUT: int[] = "\
 NORTH_POLE: String = new_string_from_array("northpole")
 
 main(args: int[][]) {
-    input: Vector::<String> = new_string_from_array(INPUT).split('\n')
+    input: Vector::<String> = new_string_from_array(INPUT).split_character('\n')
     sum: int = 0
     north_pole: int = 0
 

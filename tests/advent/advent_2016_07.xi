@@ -2006,7 +2006,7 @@ INPUT: String = new_string_from_array("rhamaeovmbheijj[hkwbkqzlcscwjkyjulk]ajsxf
     tivudfusgnewzshs[mausfjbgxmyibin]yponuityptavbhekrlg[qeyafuevtlqemtfa]owtdxadrwwbxbrkl[obfcyxbifipwhduubu]mjocivgvrcbrllso")
 
 main(args: int[][]) {
-    input: Vector::<String> = INPUT.split('\n')
+    input: Vector::<String> = INPUT.split_character('\n')
 
     tls: int = 0
     ssl: int = 0

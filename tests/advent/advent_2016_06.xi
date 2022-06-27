@@ -605,7 +605,7 @@ INPUT: String = new_string_from_array("\
     dnyytrcx")
 
 main(args: int[][]) {
-    messages: Vector::<String> = INPUT.split('\n')
+    messages: Vector::<String> = INPUT.split_character('\n')
 
     maximum: String = new_string()
     minimum: String = new_string()

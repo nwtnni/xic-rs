@@ -179,7 +179,7 @@ OFF: int[] = "."
 EMPTY: int[] = ""
 
 main(args: int[][]) {
-    input: Vector::<String> = INPUT.split('\n')
+    input: Vector::<String> = INPUT.split_character('\n')
 
     i: int = 0
 
@@ -251,7 +251,7 @@ parse(command: String): Command {
     if command.starts_with(RECT) {
         splits: Vector::<String> = command
             .slice(RECT.size() + 1, command.size())
-            .split('x')
+            .split_character('x')
 
         width: int, success: bool = parseInt(splits.get(0).get_array())
         assert(success)
@@ -261,11 +261,11 @@ parse(command: String): Command {
 
         return new Rect.init(width, height)
     } else if command.starts_with(ROTATE) {
-        splits: Vector::<String> = command.split('=')
+        splits: Vector::<String> = command.split_character('=')
 
         axis: int = splits.get(0).get(splits.get(0).size() - 1)
 
-        splits': Vector::<String> = splits.get(1).split_string(BY)
+        splits': Vector::<String> = splits.get(1).split(BY)
         a: int, success: bool = parseInt(splits'.get(0).get_array())
         assert(success)
 

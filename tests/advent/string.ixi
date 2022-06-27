@@ -15,9 +15,9 @@ final class String {
 
     contains(substring: String): bool
 
-    split(character: int): Vector::<String>
+    split_character(character: int): Vector::<String>
 
-    split_string(substring: String): Vector::<String>
+    split(substring: String): Vector::<String>
 
     slice(low: int, high: int): String
 

@@ -63,7 +63,7 @@ final class String {
         return false
     }
 
-    split(character: int): Vector::<String> {
+    split_character(character: int): Vector::<String> {
         splits: Vector::<String> = new_vector::<String>()
 
         i: int = 0
@@ -92,7 +92,7 @@ final class String {
         return splits
     }
 
-    split_string(substring: String): Vector::<String> {
+    split(substring: String): Vector::<String> {
         splits: Vector::<String> = new_vector::<String>()
 
         i: int = 0
