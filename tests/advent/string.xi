@@ -23,6 +23,22 @@ final class String {
         return buffer.pop()
     }
 
+    starts_with(substring: String): bool {
+        if buffer.size() < substring.size() {
+            return false
+        }
+
+        i: int = 0
+        while i < substring.size() {
+            if buffer.get(i) != substring.get(i) {
+                return false
+            }
+            i = i + 1
+        }
+
+        return true
+    }
+
     contains(substring: String): bool {
         i: int = 0
 
@@ -55,10 +71,10 @@ final class String {
 
         while j < buffer.size() {
             if buffer.get(j) == character {
-                if i > 0 {
-                    splits.push(slice(i + 1, j))
-                } else {
+                if i == 0 {
                     splits.push(slice(i, j))
+                } else {
+                    splits.push(slice(i + 1, j))
                 }
 
                 i = j
@@ -71,6 +87,51 @@ final class String {
             splits.push(slice(i, buffer.size()))
         } else {
             splits.push(slice(i + 1, buffer.size()))
+        }
+
+        return splits
+    }
+
+    split_string(substring: String): Vector::<String> {
+        splits: Vector::<String> = new_vector::<String>()
+
+        i: int = 0
+        j: int = 0
+
+        while j + substring.size() < buffer.size() {
+            if buffer.get(j) == substring.get(0) {
+                cut: bool = true
+
+                k: int = 0
+                while k < substring.size() {
+                    if buffer.get(j + k) != substring.get(k) {
+                        cut = false
+                        break
+                    }
+                    k = k + 1
+                }
+
+                if cut {
+                    if i == 0 {
+                        splits.push(slice(i, j))
+                    } else {
+                        splits.push(slice(i + 1, j))
+                    }
+
+                    j = j + substring.size()
+                    i = j
+                } else {
+                    j = j + 1
+                }
+            } else {
+                j = j + 1
+            }
+        }
+
+        if i == 0 {
+            splits.push(slice(i + 1, buffer.size()))
+        } else {
+            splits.push(slice(i, buffer.size()))
         }
 
         return splits

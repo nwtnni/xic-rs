@@ -11,9 +11,13 @@ final class String {
 
     pop(): int
 
+    starts_with(substring: String): bool
+
     contains(substring: String): bool
 
     split(character: int): Vector::<String>
+
+    split_string(substring: String): Vector::<String>
 
     slice(low: int, high: int): String
 
