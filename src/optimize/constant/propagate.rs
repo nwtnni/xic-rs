@@ -47,7 +47,7 @@ pub fn propagate_assembly(cfg: &mut Cfg<asm::Function<Temporary>>) {
                             destination,
                             source,
                         } => output.get(source).and_then(|immediate| {
-                            if immediate.is_64_bit() && *binary != Mov {
+                            if immediate.is_64_bit() {
                                 return None;
                             }
 
