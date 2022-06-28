@@ -25,3 +25,13 @@ template abs(a: int): int {
         return a
     }
 }
+
+template pow(a: int, b: int): int {
+    i: int = 0
+    c: int = 1
+    while i < b {
+        c = c * a
+        i = i + 1
+    }
+    return c
+}

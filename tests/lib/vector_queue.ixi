@@ -1,0 +1,39 @@
+use vector
+
+template class VectorQueue<T> {
+    head: Vector::<T>
+    tail: Vector::<T>
+
+    push(value: T) {
+        tail.push(value)
+    }
+
+    pop(): T {
+        refill()
+        return head.pop()
+    }
+
+    peek(): T {
+        refill()
+        return head.last()
+    }
+
+    refill() {
+        if head.size() == 0 {
+            while tail.size() > 0 {
+                head.push(tail.pop())
+            }
+        }
+    }
+
+    size(): int {
+        return head.size() + tail.size()
+    }
+}
+
+template new_vector_queue<T>(): VectorQueue::<T> {
+    queue: VectorQueue::<T> = new VectorQueue::<T>
+    queue.head = new_vector::<T>()
+    queue.tail = new_vector::<T>()
+    return queue
+}

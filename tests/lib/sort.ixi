@@ -6,15 +6,25 @@ use vector
 //   compare(other: T): int
 // }
 template bubbleSort<T>(input: Vector::<T>) {
+    bubble_sort_slice::<T>(input.array, 0, input.size')
+}
+
+template bubble_sort_array<T>(slice: T[]) {
+    bubble_sort_slice::<T>(slice, 0, length(slice))
+}
+
+template bubble_sort_slice<T>(slice: T[], low: int, high: int) {
     swapped: bool = true
 
     while swapped {
         swapped = false
 
-        i: int = 0
-        while i + 1 < input.size() {
-            if input.get(i).compare(input.get(i + 1)) > 0 {
-                input.swap(i, i + 1)
+        i: int = low
+        while i + 1 < high {
+            if slice[i].compare(slice[i + 1]) > 0 {
+                swap: T = slice[i]
+                slice[i] = slice[i + 1]
+                slice[i + 1] = swap
                 swapped = true
             }
 

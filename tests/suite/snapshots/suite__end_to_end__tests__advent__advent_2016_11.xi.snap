@@ -1,0 +1,9 @@
+---
+source: tests/suite/end_to_end.rs
+assertion_line: 26
+expression: stdout
+---
+11
+31
+55
+
