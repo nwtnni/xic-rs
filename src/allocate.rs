@@ -1,9 +1,13 @@
 mod linear;
 mod trivial;
 
-use std::array;
+use std::iter;
+use std::slice;
 
 use crate::abi;
+use crate::analyze::analyze;
+use crate::analyze::LiveRanges;
+use crate::analyze::LiveVariables;
 use crate::asm;
 use crate::cfg::Cfg;
 use crate::data::asm;
@@ -13,6 +17,7 @@ use crate::data::operand::Memory;
 use crate::data::operand::Register;
 use crate::data::operand::Scale;
 use crate::data::operand::Temporary;
+use crate::optimize;
 use crate::util;
 use crate::util::Or;
 use crate::Map;
@@ -28,12 +33,20 @@ pub fn allocate_trivial(function: &asm::Function<Temporary>) -> asm::Function<Re
         std::any::type_name::<asm::Function<Temporary>>(),
         function.name,
     );
+
     let allocated = Map::default();
     let spilled = trivial::allocate(function);
-    allocate(function, allocated, spilled)
+
+    allocate(
+        function,
+        allocated,
+        spilled,
+        &[Register::R11, Register::R10, Register::R9, Register::R8],
+    )
+    .expect("[INTERNAL ERROR]: trivial register allocator ran out of shuttle registers")
 }
 
-pub fn allocate_linear(function: Cfg<asm::Function<Temporary>>) -> asm::Function<Register> {
+pub fn allocate_linear(mut function: Cfg<asm::Function<Temporary>>) -> asm::Function<Register> {
     log::info!(
         "[{}] Allocating {} using linear algorithm...",
         std::any::type_name::<Cfg<asm::Function<Temporary>>>(),
@@ -44,57 +57,73 @@ pub fn allocate_linear(function: Cfg<asm::Function<Temporary>>) -> asm::Function
         std::any::type_name::<Cfg<asm::Function<Temporary>>>(),
         function.name(),
     );
-    let (function, allocated, spilled) = linear::allocate(function);
-    allocate(&function, allocated, spilled)
+
+    let mut registers = abi::CALLEE_SAVED
+        .iter()
+        .chain(abi::CALLER_SAVED)
+        .copied()
+        .collect::<Vec<_>>();
+
+    let mut shuttles = Vec::new();
+
+    let live_variables = analyze::<LiveVariables<_>, _>(&function);
+    optimize::eliminate_dead_code_assembly(&live_variables, &mut function);
+    let live_ranges = LiveRanges::new(&live_variables, function);
+
+    // Try to allocate `function` with successively more shuttle registers until we succeed.
+    loop {
+        let (allocated, spilled) = linear::allocate(&live_ranges, registers.clone());
+        match allocate(&live_ranges.function, allocated, spilled, &shuttles) {
+            Some(function) => {
+                log::debug!(
+                    "Allocated {} using {} spill registers",
+                    function.name,
+                    shuttles.len()
+                );
+                return function;
+            }
+            None => {
+                let register = registers.pop().expect(
+                    "[INTERNAL ERROR]: linear register allocator ran out of shuttle registers",
+                );
+                shuttles.push(register);
+            }
+        }
+    }
 }
 
-struct Allocator {
+struct Allocator<'a> {
     callee_arguments: Option<usize>,
     callee_returns: Option<usize>,
     allocated: Map<Temporary, Register>,
     spilled: Map<Temporary, usize>,
     statements: Vec<asm::Statement<Register>>,
-    shuttle: array::IntoIter<Register, 2>,
-}
 
-// Registers reserved for shuttling spilled temmporaries.
-//
-// In the worst case, we need at most two registers. For example,
-// consider the following abstract assembly statement:
-//
-// ```text
-// mov [t0 + t1 * 8 + label], t2
-// ```
-//
-// Let's say we spill all of the temporaries to the stack.
-// Then we end up with this:
-//
-// ```text
-// mov [[rsp + 0] + [rsp + 8] * scale + offset], [rsp + 16]
-// ```
-//
-// It turns out we can actually use a single register to compute
-// `[rsp + 0] + [rsp + 8] * scale + offset`, but we need a second
-// register to shuttle `[rsp + 16]`, since there's no memory-to-memory
-// statement encoding.
-const SHUTTLE: [Register; 2] = [Register::R10, Register::R11];
+    // All registers reserved for shuttling
+    shuttle_reserved: &'a [Register],
+
+    // Shuttle registers yet unused in current statement
+    shuttle_unused: iter::Copied<slice::Iter<'a, Register>>,
+}
 
 fn allocate(
     function: &asm::Function<Temporary>,
     allocated: Map<Temporary, Register>,
     spilled: Map<Temporary, usize>,
-) -> asm::Function<Register> {
+    shuttle: &[Register],
+) -> Option<asm::Function<Register>> {
     let mut allocator = Allocator {
         callee_arguments: function.callee_arguments(),
         callee_returns: function.callee_returns(),
         allocated,
         spilled,
         statements: Vec::new(),
-        shuttle: SHUTTLE.into_iter(),
+        shuttle_reserved: shuttle,
+        shuttle_unused: shuttle.iter().copied(),
     };
 
     for statement in &function.statements {
-        allocator.allocate_statement(statement);
+        allocator.allocate_statement(statement)?;
     }
 
     let stack_size = abi::stack_size(
@@ -126,7 +155,7 @@ fn allocate(
         .statements
         .insert(len - 1, asm!((add rsp, stack_size)));
 
-    asm::Function {
+    Some(asm::Function {
         name: function.name,
         arguments: function.arguments,
         returns: function.returns,
@@ -134,12 +163,12 @@ fn allocate(
         linkage: function.linkage,
         enter: function.enter,
         exit: function.exit,
-    }
+    })
 }
 
-impl Allocator {
-    fn allocate_statement(&mut self, statement: &asm::Statement<Temporary>) {
-        self.shuttle = SHUTTLE.into_iter();
+impl<'a> Allocator<'a> {
+    fn allocate_statement(&mut self, statement: &asm::Statement<Temporary>) -> Option<()> {
+        self.shuttle_unused = self.shuttle_reserved.iter().copied();
 
         let statement = match statement {
             // Since the linear scan allocator is based on live variable analysis,
@@ -154,7 +183,7 @@ impl Allocator {
                 && !self.allocated.contains_key(destination)
                 && !self.spilled.contains_key(destination) =>
             {
-                return;
+                return Some(());
             }
 
             // Special case: this is the only statement that can take a 64-bit immediate operand.
@@ -168,7 +197,7 @@ impl Allocator {
             ) if source.is_64_bit() => match self.allocate(&destination) {
                 Or::L(register) => asm!((mov register, source)),
                 Or::R(memory) => {
-                    let shuttle = self.shuttle.next().unwrap();
+                    let shuttle = self.shuttle_unused.next()?;
                     self.statements.push(asm!((mov shuttle, source)));
                     asm!((mov memory, shuttle))
                 }
@@ -177,7 +206,7 @@ impl Allocator {
             // Special case: `imul` can only take a register destination, so we need
             // to shuttle any memory destinations.
             asm::Statement::Binary(asm::Binary::Mul, operands) => {
-                match self.allocate_binary(operands) {
+                match self.allocate_binary(operands)? {
                     operands @ (operand::Binary::RI { .. }
                     | operand::Binary::RM { .. }
                     | operand::Binary::RR { .. }) => {
@@ -187,7 +216,7 @@ impl Allocator {
                         destination,
                         source,
                     } => {
-                        let shuttle = self.shuttle.next().unwrap();
+                        let shuttle = self.shuttle_unused.next()?;
                         self.statements.push(asm!((mov shuttle, destination)));
                         self.statements.push(asm!((imul shuttle, source)));
                         asm!((mov destination, shuttle))
@@ -196,12 +225,7 @@ impl Allocator {
                         destination,
                         source,
                     } => {
-                        // FIXME: this actually requires three shuttle registers at worst.
-                        //
-                        // We can work around this with the `xchg` instruction, relying on
-                        // the commutativity of multiplication, but we need to implement
-                        // it first.
-                        let shuttle = self.shuttle.next().unwrap();
+                        let shuttle = self.shuttle_unused.next()?;
                         self.statements.push(asm!((mov shuttle, destination)));
                         self.statements.push(asm!((imul shuttle, source)));
                         asm!((mov destination, shuttle))
@@ -210,10 +234,10 @@ impl Allocator {
             }
 
             asm::Statement::Binary(binary, operands) => {
-                asm::Statement::Binary(*binary, self.allocate_binary(operands))
+                asm::Statement::Binary(*binary, self.allocate_binary(operands)?)
             }
             asm::Statement::Unary(unary, operand) => {
-                asm::Statement::Unary(*unary, self.allocate_unary(operand))
+                asm::Statement::Unary(*unary, self.allocate_unary(operand)?)
             }
             asm::Statement::Nullary(nullary) => asm::Statement::Nullary(*nullary),
             asm::Statement::Label(label) => asm::Statement::Label(*label),
@@ -234,31 +258,38 @@ impl Allocator {
             asm::Statement::Nullary(asm::Nullary::Nop) => (),
             statement => self.statements.push(statement),
         }
+
+        Some(())
     }
 
     fn allocate_binary(
         &mut self,
         binary: &operand::Binary<Temporary>,
-    ) -> operand::Binary<Register> {
+    ) -> Option<operand::Binary<Register>> {
         let (destination, source) = match binary {
             operand::Binary::RI {
                 destination,
                 source,
             } => {
                 return match self.allocate(destination) {
-                    Or::L(register) => operand::Binary::from((register, *source)),
-                    Or::R(memory) => operand::Binary::from((memory, *source)),
+                    Or::L(register) => Some(operand::Binary::from((register, *source))),
+                    Or::R(memory) => Some(operand::Binary::from((memory, *source))),
                 }
             }
             operand::Binary::MI {
                 destination,
                 source,
-            } => return operand::Binary::from((self.allocate_memory(destination), *source)),
+            } => {
+                return Some(operand::Binary::from((
+                    self.allocate_memory(destination)?,
+                    *source,
+                )))
+            }
             operand::Binary::MR {
                 destination,
                 source,
             } => (
-                Or::R(self.allocate_memory(destination)),
+                Or::R(self.allocate_memory(destination)?),
                 self.allocate(source),
             ),
             operand::Binary::RM {
@@ -266,7 +297,7 @@ impl Allocator {
                 source,
             } => (
                 self.allocate(destination),
-                Or::R(self.allocate_memory(source)),
+                Or::R(self.allocate_memory(source)?),
             ),
             operand::Binary::RR {
                 destination,
@@ -274,64 +305,71 @@ impl Allocator {
             } => (self.allocate(destination), self.allocate(source)),
         };
 
-        match (destination, source) {
+        let binary = match (destination, source) {
             (Or::L(destination), Or::L(source)) => operand::Binary::from((destination, source)),
             (Or::L(register), Or::R(memory)) => operand::Binary::from((register, memory)),
             (Or::R(memory), Or::L(register)) => operand::Binary::from((memory, register)),
             (Or::R(destination), Or::R(source)) => {
-                let source = self.shuttle(asm::Binary::Mov, None, source);
+                let source = self.shuttle(asm::Binary::Mov, None, source)?;
                 operand::Binary::from((destination, source))
             }
-        }
+        };
+
+        Some(binary)
     }
 
-    fn allocate_unary(&mut self, unary: &operand::Unary<Temporary>) -> operand::Unary<Register> {
-        match unary {
+    fn allocate_unary(
+        &mut self,
+        unary: &operand::Unary<Temporary>,
+    ) -> Option<operand::Unary<Register>> {
+        let unary = match unary {
             operand::Unary::I(immediate) => operand::Unary::I(*immediate),
             operand::Unary::R(temporary) => match self.allocate(temporary) {
                 Or::L(register) => operand::Unary::R(register),
                 Or::R(memory) => operand::Unary::M(memory),
             },
-            operand::Unary::M(memory) => operand::Unary::M(self.allocate_memory(memory)),
-        }
+            operand::Unary::M(memory) => operand::Unary::M(self.allocate_memory(memory)?),
+        };
+
+        Some(unary)
     }
 
     fn allocate_memory(
         &mut self,
         memory: &operand::Memory<Temporary>,
-    ) -> operand::Memory<Register> {
+    ) -> Option<operand::Memory<Register>> {
         let (base, index, scale, offset) = match memory {
-            Memory::O { offset } => return Memory::O { offset: *offset },
+            Memory::O { offset } => return Some(Memory::O { offset: *offset }),
             Memory::B { base } => {
-                return Memory::B {
+                return Some(Memory::B {
                     base: match self.allocate(base) {
                         Or::L(register) => register,
-                        Or::R(memory) => self.shuttle(asm::Binary::Mov, None, memory),
+                        Or::R(memory) => self.shuttle(asm::Binary::Mov, None, memory)?,
                     },
-                }
+                })
             }
             Memory::BO { base, offset } => {
-                return Memory::BO {
+                return Some(Memory::BO {
                     base: match self.allocate(base) {
                         Or::L(register) => register,
-                        Or::R(memory) => self.shuttle(asm::Binary::Mov, None, memory),
+                        Or::R(memory) => self.shuttle(asm::Binary::Mov, None, memory)?,
                     },
                     offset: *offset,
-                };
+                });
             }
             Memory::ISO {
                 index,
                 scale,
                 offset,
             } => {
-                return Memory::ISO {
+                return Some(Memory::ISO {
                     index: match self.allocate(index) {
                         Or::L(register) => register,
-                        Or::R(memory) => self.shuttle(asm::Binary::Mov, None, memory),
+                        Or::R(memory) => self.shuttle(asm::Binary::Mov, None, memory)?,
                     },
                     scale: *scale,
                     offset: *offset,
-                }
+                })
             }
             Memory::BI { base, index } => (base, index, None, None),
             Memory::BIO {
@@ -349,31 +387,31 @@ impl Allocator {
         };
 
         let (base, index) = match (self.allocate(base), self.allocate(index), scale, offset) {
-            (Or::L(base), Or::L(index), None, None) => return Memory::BI { base, index },
+            (Or::L(base), Or::L(index), None, None) => return Some(Memory::BI { base, index }),
             (Or::L(base), Or::L(index), Some(scale), None) => {
-                return Memory::BIS { base, index, scale }
+                return Some(Memory::BIS { base, index, scale })
             }
             (Or::L(base), Or::L(index), None, Some(offset)) => {
-                return Memory::BIO {
+                return Some(Memory::BIO {
                     base,
                     index,
                     offset,
-                }
+                })
             }
             (Or::L(base), Or::L(index), Some(scale), Some(offset)) => {
-                return Memory::BISO {
+                return Some(Memory::BISO {
                     base,
                     index,
                     scale,
                     offset,
-                }
+                })
             }
             (base, index, _, _) => (base, index),
         };
 
         // Write destructively into the same shuttle register. Index first because
         // we might need to multiply it, and because addition is commutative.
-        let shuttle = self.shuttle(asm::Binary::Mov, None, index);
+        let shuttle = self.shuttle(asm::Binary::Mov, None, index)?;
 
         let shift = match scale {
             None | Some(Scale::_1) => None,
@@ -383,16 +421,16 @@ impl Allocator {
         };
 
         if let Some(shift) = shift {
-            self.shuttle(asm::Binary::Shl, Some(shuttle), shift);
+            self.shuttle(asm::Binary::Shl, Some(shuttle), shift)?;
         }
 
         if let Some(offset) = offset {
-            self.shuttle(asm::Binary::Add, Some(shuttle), offset);
+            self.shuttle(asm::Binary::Add, Some(shuttle), offset)?;
         }
 
-        operand::Memory::B {
-            base: self.shuttle(asm::Binary::Add, Some(shuttle), base),
-        }
+        Some(operand::Memory::B {
+            base: self.shuttle(asm::Binary::Add, Some(shuttle), base)?,
+        })
     }
 
     fn shuttle<S: Into<operand::Unary<Register>>>(
@@ -400,16 +438,22 @@ impl Allocator {
         binary: asm::Binary,
         destination: Option<Register>,
         source: S,
-    ) -> Register {
-        let destination = destination.unwrap_or_else(|| self.shuttle.next().unwrap());
+    ) -> Option<Register> {
+        let destination = match destination {
+            Some(destination) => destination,
+            None => self.shuttle_unused.next()?,
+        };
+
         let operands = match source.into() {
             operand::Unary::R(register) => operand::Binary::from((destination, register)),
             operand::Unary::M(memory) => operand::Binary::from((destination, memory)),
             operand::Unary::I(immediate) => operand::Binary::from((destination, immediate)),
         };
+
         self.statements
             .push(asm::Statement::Binary(binary, operands));
-        destination
+
+        Some(destination)
     }
 
     fn allocate(&self, temporary: &Temporary) -> Or<Register, Memory<Register>> {

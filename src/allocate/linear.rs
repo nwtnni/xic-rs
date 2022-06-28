@@ -1,32 +1,21 @@
 use std::cmp;
 
-use crate::abi;
-use crate::allocate::SHUTTLE;
 use crate::analyze;
-use crate::analyze::analyze;
 use crate::analyze::LiveRanges;
-use crate::analyze::LiveVariables;
 use crate::analyze::Range;
-use crate::cfg::Cfg;
-use crate::data::asm;
 use crate::data::operand::Register;
 use crate::data::operand::Temporary;
-use crate::optimize;
 use crate::Map;
 
+/// Requires that dead code elimination has been run on `ranges.function` using
+/// the same live variable analysis.
 pub fn allocate(
-    mut function: Cfg<asm::Function<Temporary>>,
-) -> (
-    asm::Function<Temporary>,
-    Map<Temporary, Register>,
-    Map<Temporary, usize>,
-) {
-    let live_variables = analyze::<LiveVariables<_>, _>(&function);
-    optimize::eliminate_dead_code_assembly(&live_variables, &mut function);
-    let ranges = analyze::LiveRanges::new(&live_variables, function);
-    let mut linear = Linear::new();
-    linear.allocate(&ranges);
-    (ranges.function, linear.allocated, linear.spilled)
+    ranges: &analyze::LiveRanges,
+    registers: Vec<Register>,
+) -> (Map<Temporary, Register>, Map<Temporary, usize>) {
+    let mut linear = Linear::new(registers);
+    linear.allocate(ranges);
+    (linear.allocated, linear.spilled)
 }
 
 /// This register allocator is based on the research paper
@@ -70,17 +59,12 @@ struct Linear {
 }
 
 impl Linear {
-    fn new() -> Self {
+    fn new(registers: Vec<Register>) -> Self {
         Linear {
             active: Vec::new(),
             allocated: Map::default(),
             spilled: Map::default(),
-            registers: abi::CALLEE_SAVED
-                .iter()
-                .chain(abi::CALLER_SAVED)
-                .filter(|register| !SHUTTLE.contains(register))
-                .copied()
-                .collect(),
+            registers,
         }
     }
 
