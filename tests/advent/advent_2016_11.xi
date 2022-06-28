@@ -223,40 +223,24 @@ final class State {
     valid(): bool {
         i: int = 0
         while i < FLOORS {
-
             floor: int[] = floors[i]
+            microchip: bool = false
+            generator: bool = false
+
             j: int = 0
 
             while j < length(floor) {
-
                 element: int = floor[j]
 
-                // Generator: check for unshielded microchips
-                if element % 2 == 1 {
-                    k: int = j + 1
+                has_generator: bool = element % 2 == 1
+                has_microchip: bool = element == 2
 
-                    while k < length(floor) {
-                        if floors[i][k] == 2 {
-                            return false
-                        }
-
-                        k = k + 1
-                    }
+                if microchip & has_generator | generator & has_microchip {
+                    return false
                 }
 
-                // Unshielded microchip: check for generators
-                if element == 2 {
-                    k: int = j + 1
-
-                    while k < length(floor) {
-                        if floors[i][k] % 2 == 1 {
-                            return false
-                        }
-
-                        k = k + 1
-                    }
-                }
-
+                generator = generator | has_generator
+                microchip = microchip | has_microchip
                 j = j + 1
             }
 
