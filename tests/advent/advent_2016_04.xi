@@ -1158,7 +1158,7 @@ realRoom(room: String): Room {
         j = j + 1
     }
 
-    bubbleSort::<Letter>(sorted)
+    bubble_sort::<Letter>(sorted)
 
     k: int = 0
     while k < 5 {

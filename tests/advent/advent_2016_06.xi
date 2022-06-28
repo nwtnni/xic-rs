@@ -640,7 +640,7 @@ main(args: int[][]) {
             k = k + 1
         }
 
-        bubbleSort::<WeightedInteger>(weights)
+        bubble_sort::<WeightedInteger>(weights)
 
         maximum.push(weights.first().value)
         minimum.push(weights.last().value)

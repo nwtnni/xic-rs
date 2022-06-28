@@ -5,7 +5,7 @@ use vector
 // class T {
 //   compare(other: T): int
 // }
-template bubbleSort<T>(input: Vector::<T>) {
+template bubble_sort<T>(input: Vector::<T>) {
     bubble_sort_slice::<T>(input.array, 0, input.size')
 }
 
