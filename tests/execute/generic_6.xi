@@ -1,8 +1,8 @@
 use io
 use conv
 
-template class A<Functor, T> {
-    field: Functor::<T>
+template class A<T> {
+    field: T
 }
 
 template class B<T> {
@@ -28,19 +28,19 @@ unparseBool(boolean: bool): int[] {
 }
 
 main(args: int[][]) {
-    b_int: A::<B, int> = new A::<B, int>
+    b_int: A::<B::<int>> = new A::<B::<int>>
     b_int.field = new B::<int>
     b_int.field.field = 1
 
-    b_bool: A::<B, bool> = new A::<B, bool>
+    b_bool: A::<B::<bool>> = new A::<B::<bool>>
     b_bool.field = new B::<bool>
     b_bool.field.field = true
 
-    c_int: A::<C, int> = new A::<C, int>
+    c_int: A::<C::<int>> = new A::<C::<int>>
     c_int.field = new C::<int>
     c_int.field.field = 2
 
-    c_bool: A::<C, bool> = new A::<C, bool>
+    c_bool: A::<C::<bool>> = new A::<C::<bool>>
     c_bool.field = new C::<bool>
     c_bool.field.field = false
 
