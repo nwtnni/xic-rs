@@ -86,9 +86,9 @@ pub fn clean_cfg<T: Function>(cfg: &mut Cfg<T>) {
                             };
                         }
                     }
-                }
 
-                dirty = true;
+                    dirty = true;
+                }
             }
 
             // Combine block with successor

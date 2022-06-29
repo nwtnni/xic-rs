@@ -147,13 +147,15 @@ fn allocate(
         Some(asm::Statement::Nullary(asm::Nullary::Ret(returns))) if *returns == function.returns,
     ));
 
-    allocator.statements.insert(1, asm!((sub rsp, stack_size)));
+    if stack_size > 0 {
+        allocator.statements.insert(1, asm!((sub rsp, stack_size)));
 
-    let len = allocator.statements.len();
+        let len = allocator.statements.len();
 
-    allocator
-        .statements
-        .insert(len - 1, asm!((add rsp, stack_size)));
+        allocator
+            .statements
+            .insert(len - 1, asm!((add rsp, stack_size)));
+    }
 
     Some(asm::Function {
         name: function.name,
