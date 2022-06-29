@@ -22,7 +22,16 @@ enum Mutate {
     No,
 }
 
-pub fn tile(function: &lir::Function<lir::Fallthrough>) -> asm::Function<Temporary> {
+#[derive(Copy, Clone, Debug, PartialEq, Eq)]
+pub enum FramePointer {
+    Keep,
+    Omit,
+}
+
+pub fn tile(
+    _frame_pointer: FramePointer,
+    function: &lir::Function<lir::Fallthrough>,
+) -> asm::Function<Temporary> {
     log::info!(
         "[{}] Tiling {}...",
         std::any::type_name::<lir::Function<lir::Fallthrough>>(),

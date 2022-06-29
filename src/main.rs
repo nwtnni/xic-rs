@@ -504,7 +504,8 @@ fn run() -> anyhow::Result<()> {
             api::interpret_lir(&lir, io::BufReader::new(io::stdin()), io::stdout())?;
         }
 
-        let abstract_assembly = lir.map_ref(api::tile);
+        let abstract_assembly =
+            lir.map_ref(|function| api::tile(xic::FramePointer::Keep, function));
 
         if command.debug_assembly {
             command.debug(&path, "tiled", &abstract_assembly)?;

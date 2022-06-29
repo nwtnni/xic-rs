@@ -78,7 +78,7 @@ pub fn reorder(path: &str) -> anyhow::Result<lir::Unit<lir::Fallthrough>> {
 pub fn tile(path: &str) -> anyhow::Result<asm::Unit<Temporary>> {
     Ok(reorder(path)
         .with_context(|| anyhow!("Tiling assembly for file {}", path))?
-        .map_ref(xic::api::tile))
+        .map_ref(|function| xic::api::tile(xic::FramePointer::Keep, function)))
 }
 
 pub fn interpret_hir(hir: &hir::Unit) -> anyhow::Result<String> {
