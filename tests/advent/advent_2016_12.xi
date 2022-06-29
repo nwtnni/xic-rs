@@ -36,20 +36,29 @@ DEC: String = new_string_from_array("dec")
 
 main(args: int[][]) {
     instructions: Vector::<Instruction> = parse(INPUT.split_character('\n'))
-
     registers: int[4]
+
     registers[0] = 0
     registers[1] = 0
     registers[2] = 0
     registers[3] = 0
+    println(unparseInt(run(instructions, registers)))
 
+    registers[0] = 0
+    registers[1] = 0
+    registers[2] = 1
+    registers[3] = 0
+    println(unparseInt(run(instructions, registers)))
+}
+
+run(instructions: Vector::<Instruction>, registers: int[]): int {
     ip: int = 0
 
     while ip >= 0 & ip < instructions.size() {
         ip = instructions.get(ip).evaluate(ip, registers)
     }
 
-    println(unparseInt(registers[0]))
+    return registers[0]
 }
 
 parse(input: Vector::<String>): Vector::<Instruction> {
