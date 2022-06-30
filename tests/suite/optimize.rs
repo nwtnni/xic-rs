@@ -32,6 +32,21 @@ pub fn abi_final_class(path: &str) -> anyhow::Result<()> {
 }
 
 #[test_generator::test_resources("tests/execute/*.xi")]
+pub fn abi_omit_frame_pointer(path: &str) -> anyhow::Result<()> {
+    let expected_stdout = super::execute_expected(path)?;
+
+    let optimized = super::emit_lir(path)?
+        .map(xic::api::construct_cfg)
+        .map(xic::api::destruct_cfg)
+        .map_ref(|function| xic::api::tile(xic::FramePointer::Omit, function))
+        .map_ref(xic::api::allocate_trivial);
+    let optimized_stdout = super::execute(&optimized)?;
+
+    pretty_assertions::assert_eq!(expected_stdout, optimized_stdout);
+    Ok(())
+}
+
+#[test_generator::test_resources("tests/execute/*.xi")]
 pub fn fold_constants_hir(path: &str) -> anyhow::Result<()> {
     let expected_stdout = super::execute_expected(path)?;
 

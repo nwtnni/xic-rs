@@ -311,6 +311,7 @@ enum Opt {
     Inline,
     ConditionalConstantPropagation,
     PartialRedundancyElimination,
+    FramePointer,
     ConstantPropagation,
     CopyPropagation,
     DeadCodeElimination,
@@ -320,7 +321,7 @@ enum Opt {
 // Need something like https://doc.rust-lang.org/std/mem/fn.variant_count.html
 // to make sure array matches up with enum definition. Procedural macro options
 // seem too heavyweight for something like this.
-const OPTIMIZATIONS: [&str; 11] = [
+const OPTIMIZATIONS: [&str; 12] = [
     Opt::LoopInversion.to_static_str(),
     Opt::ConstantFold.to_static_str(),
     Opt::FinalClass.to_static_str(),
@@ -328,6 +329,7 @@ const OPTIMIZATIONS: [&str; 11] = [
     Opt::Inline.to_static_str(),
     Opt::ConditionalConstantPropagation.to_static_str(),
     Opt::PartialRedundancyElimination.to_static_str(),
+    Opt::FramePointer.to_static_str(),
     Opt::ConstantPropagation.to_static_str(),
     Opt::CopyPropagation.to_static_str(),
     Opt::DeadCodeElimination.to_static_str(),
@@ -344,6 +346,7 @@ impl Opt {
             Opt::Inline => "inl",
             Opt::ConditionalConstantPropagation => "ccp",
             Opt::PartialRedundancyElimination => "pre",
+            Opt::FramePointer => "fp",
             Opt::ConstantPropagation => "cp",
             Opt::CopyPropagation => "copy",
             Opt::DeadCodeElimination => "dce",
@@ -363,6 +366,7 @@ impl str::FromStr for Opt {
             "inl" => Ok(Opt::Inline),
             "ccp" => Ok(Opt::ConditionalConstantPropagation),
             "pre" => Ok(Opt::PartialRedundancyElimination),
+            "fp" => Ok(Opt::FramePointer),
             "cp" => Ok(Opt::ConstantPropagation),
             "copy" => Ok(Opt::CopyPropagation),
             "dce" => Ok(Opt::DeadCodeElimination),
@@ -504,8 +508,12 @@ fn run() -> anyhow::Result<()> {
             api::interpret_lir(&lir, io::BufReader::new(io::stdin()), io::stdout())?;
         }
 
-        let abstract_assembly =
-            lir.map_ref(|function| api::tile(xic::FramePointer::Keep, function));
+        let frame_pointer = match command.optimize(Opt::FramePointer) {
+            true => xic::FramePointer::Omit,
+            false => xic::FramePointer::Keep,
+        };
+
+        let abstract_assembly = lir.map_ref(|function| api::tile(frame_pointer, function));
 
         if command.debug_assembly {
             command.debug(&path, "tiled", &abstract_assembly)?;
