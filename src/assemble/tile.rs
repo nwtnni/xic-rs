@@ -22,14 +22,8 @@ enum Mutate {
     No,
 }
 
-#[derive(Copy, Clone, Debug, PartialEq, Eq)]
-pub enum FramePointer {
-    Keep,
-    Omit,
-}
-
 pub fn tile(
-    frame_pointer: FramePointer,
+    frame_pointer: abi::FramePointer,
     function: &lir::Function<lir::Fallthrough>,
 ) -> asm::Function<Temporary> {
     log::info!(
@@ -62,7 +56,7 @@ pub fn tile(
     // Preserve invariant that `enter` label is the first statement
     tiler.tile_statement(function.statements.first().unwrap());
 
-    if frame_pointer == FramePointer::Keep {
+    if frame_pointer == abi::FramePointer::Keep {
         tiler.push(asm!((push rbp)));
         tiler.push(asm!((mov rbp, rsp)));
     }
@@ -72,7 +66,7 @@ pub fn tile(
         .copied()
         .filter(|register| *register != Register::rsp())
         // If omitting frame pointer, then treat it as a regular callee-saved register
-        .filter(|register| *register != Register::Rbp || frame_pointer == FramePointer::Omit)
+        .filter(|register| *register != Register::Rbp || frame_pointer == abi::FramePointer::Omit)
         .map(|register| {
             let temporary = Temporary::fresh("save");
             let register = Temporary::Register(register);
@@ -93,7 +87,7 @@ pub fn tile(
         tiler.push(asm!((mov register, temporary)));
     }
 
-    if frame_pointer == FramePointer::Keep {
+    if frame_pointer == abi::FramePointer::Keep {
         tiler.push(asm!((pop rbp)));
     }
 

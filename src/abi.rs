@@ -33,7 +33,6 @@
 pub mod class;
 pub mod mangle;
 
-use crate::assemble::FramePointer;
 use crate::data::operand::Immediate;
 use crate::data::operand::Memory;
 use crate::data::operand::Register;
@@ -98,6 +97,16 @@ pub enum Abi {
 
     /// Omit virtual table or virtual table entries for final classes.
     XiFinal,
+}
+
+#[derive(Copy, Clone, Debug, PartialEq, Eq)]
+pub enum FramePointer {
+    /// Output a function prologue and epilogue to preserve the frame pointer for debugging.
+    Keep,
+
+    /// Skip the function prologue and epilogue and allow the frame pointer to be
+    /// used as a general-purpose register.
+    Omit,
 }
 
 /// Total stack size. Guaranteed to align to 16 bytes if there is a function call.

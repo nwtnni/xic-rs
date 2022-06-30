@@ -18,7 +18,7 @@ type Map<K, V> = indexmap::IndexMap<K, V, std::hash::BuildHasherDefault<rustc_ha
 type Set<T> = indexmap::IndexSet<T, std::hash::BuildHasherDefault<rustc_hash::FxHasher>>;
 
 pub use abi::Abi;
-pub use assemble::FramePointer;
+pub use abi::FramePointer;
 pub use error::Error;
 
 pub mod api {

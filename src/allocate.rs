@@ -9,7 +9,6 @@ use crate::analyze::analyze;
 use crate::analyze::LiveRanges;
 use crate::analyze::LiveVariables;
 use crate::asm;
-use crate::assemble::FramePointer;
 use crate::cfg::Cfg;
 use crate::data::asm;
 use crate::data::operand;
@@ -41,8 +40,8 @@ pub fn allocate_trivial(function: &asm::Function<Temporary>) -> asm::Function<Re
         Some(asm::Statement::Unary(
             asm::Unary::Push,
             operand::Unary::R(Temporary::Register(Register::Rbp)),
-        )) => FramePointer::Keep,
-        _ => FramePointer::Omit,
+        )) => abi::FramePointer::Keep,
+        _ => abi::FramePointer::Omit,
     };
 
     allocate(
@@ -71,8 +70,8 @@ pub fn allocate_linear(mut function: Cfg<asm::Function<Temporary>>) -> asm::Func
         Some(asm::Statement::Unary(
             asm::Unary::Push,
             operand::Unary::R(Temporary::Register(Register::Rbp)),
-        )) => FramePointer::Keep,
-        _ => FramePointer::Omit,
+        )) => abi::FramePointer::Keep,
+        _ => abi::FramePointer::Omit,
     };
 
     let mut registers = abi::CALLEE_SAVED
@@ -80,7 +79,7 @@ pub fn allocate_linear(mut function: Cfg<asm::Function<Temporary>>) -> asm::Func
         .chain(abi::CALLER_SAVED)
         .copied()
         // If omitting frame pointer, then we can use it during register allocation
-        .filter(|register| *register != Register::Rbp || frame_pointer == FramePointer::Omit)
+        .filter(|register| *register != Register::Rbp || frame_pointer == abi::FramePointer::Omit)
         .collect::<Vec<_>>();
 
     let mut shuttles = Vec::new();
@@ -132,7 +131,7 @@ struct Allocator<'a> {
 }
 
 fn allocate(
-    frame_pointer: FramePointer,
+    frame_pointer: abi::FramePointer,
     shuttle: &[Register],
     allocated: Map<Temporary, Register>,
     spilled: Map<Temporary, usize>,
@@ -183,8 +182,8 @@ fn allocate(
                 // push rbp
                 // mov rbp, rsp
                 // ```
-                FramePointer::Keep => 3,
-                FramePointer::Omit => 1,
+                abi::FramePointer::Keep => 3,
+                abi::FramePointer::Omit => 1,
             },
             asm!((sub rsp, stack_size)),
         );
@@ -198,8 +197,8 @@ fn allocate(
                 // ```text
                 // pop rbp
                 // ```
-                FramePointer::Keep => len - 2,
-                FramePointer::Omit => len - 1,
+                abi::FramePointer::Keep => len - 2,
+                abi::FramePointer::Omit => len - 1,
             },
             asm!((add rsp, stack_size)),
         );
@@ -531,7 +530,7 @@ impl<'a> Allocator<'a> {
 // This needs to be rewritten in terms of `rsp` after the stack size is
 // computed, since we don't keep around `rbp` within the function.
 fn rewrite_rbp(
-    frame_pointer: FramePointer,
+    frame_pointer: abi::FramePointer,
     stack_size: i64,
     statement: &mut asm::Statement<Register>,
 ) {
@@ -573,8 +572,8 @@ fn rewrite_rbp(
             Immediate::Integer(offset) => {
                 *offset += stack_size
                     + match frame_pointer {
-                        FramePointer::Keep => abi::WORD,
-                        FramePointer::Omit => 0,
+                        abi::FramePointer::Keep => abi::WORD,
+                        abi::FramePointer::Omit => 0,
                     };
             }
         }
