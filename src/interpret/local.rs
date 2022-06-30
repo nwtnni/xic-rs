@@ -17,15 +17,18 @@ pub struct Local<'a, T: 'a> {
 
 impl<'a, T: 'a> Local<'a, T> {
     pub fn new(unit: &'a ir::Unit<Postorder<T>>, name: &Symbol, arguments: &[Value]) -> Self {
+        let postorder = unit.functions.get(name).unwrap();
+        let temporaries = postorder
+            .arguments()
+            .iter()
+            .copied()
+            .zip(arguments.iter().copied())
+            .collect();
+
         Local {
-            postorder: unit.functions.get(name).unwrap(),
+            postorder,
             index: 0,
-            temporaries: arguments
-                .iter()
-                .copied()
-                .enumerate()
-                .map(|(index, argument)| (Temporary::Argument(index), argument))
-                .collect(),
+            temporaries,
             stack: Vec::new(),
         }
     }

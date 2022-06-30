@@ -26,7 +26,7 @@ impl<T: Target> fmt::Display for Unit<T> {
 pub struct Function<T: Target> {
     pub name: Symbol,
     pub statements: Vec<Statement<T>>,
-    pub arguments: usize,
+    pub arguments: Vec<Temporary>,
     pub returns: usize,
     pub linkage: ir::Linkage,
     pub enter: T::Access,
@@ -99,7 +99,7 @@ pub enum Statement<T> {
         r#true: Label,
         r#false: T,
     },
-    Call(Expression, Vec<Expression>, usize),
+    Call(Expression, Vec<Expression>, Vec<Temporary>),
     Label(Label),
     Move {
         destination: Expression,

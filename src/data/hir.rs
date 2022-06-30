@@ -22,7 +22,7 @@ impl fmt::Display for Unit {
 pub struct Function {
     pub name: Symbol,
     pub statement: Statement,
-    pub arguments: usize,
+    pub arguments: Vec<Temporary>,
     pub returns: usize,
     pub linkage: ir::Linkage,
 }
@@ -67,7 +67,7 @@ pub enum Expression {
     Temporary(Temporary),
     Memory(Box<Expression>),
     Binary(ir::Binary, Box<Expression>, Box<Expression>),
-    Call(Box<Expression>, Vec<Expression>, usize),
+    Call(Box<Expression>, Vec<Expression>, Vec<Temporary>),
     Sequence(Box<Statement>, Box<Expression>),
 }
 

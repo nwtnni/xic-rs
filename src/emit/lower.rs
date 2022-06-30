@@ -40,7 +40,7 @@ pub fn emit_lir(function: &hir::Function) -> lir::Function<Label> {
     lir::Function {
         name: function.name,
         statements: lowered,
-        arguments: function.arguments,
+        arguments: function.arguments.clone(),
         returns: function.returns,
         linkage: function.linkage,
         enter: (),
@@ -85,12 +85,15 @@ impl Lowerer {
                 let arguments = self.lower_list(arguments);
 
                 self.lowered
-                    .push(lir::Statement::Call(function, arguments, *returns));
+                    .push(lir::Statement::Call(function, arguments, returns.clone()));
 
                 // Note: this return must not be used if `returns` is 0. This property
                 // must be guaranteed when we emit HIR by wrapping any 0-return calls
                 // in an `EXP` statement, to discard this temporary.
-                lir::Expression::Temporary(Temporary::Return(0))
+                lir::Expression::Temporary(match returns.first() {
+                    None => Temporary::Fixed(symbol::intern_static("__INTERNAL_ERROR__")),
+                    Some(r#return) => *r#return,
+                })
             }
         }
     }

@@ -4,6 +4,7 @@ macro_rules! lir_function {
             let enter = xic::data::operand::Label::Fixed(xic::data::symbol::intern_static("enter"));
             let exit = xic::data::operand::Label::Fixed(xic::data::symbol::intern_static("exit"));
 
+            #[allow(non_snake_case)]
             let mut statements = lir_function!($($tt)*);
 
             statements.insert(0, xic::lir!((LABEL enter)));
@@ -12,7 +13,7 @@ macro_rules! lir_function {
             xic::data::lir::Function::<xic::data::lir::Fallthrough> {
                 name: xic::data::symbol::intern_static(stringify!($function)),
                 statements,
-                arguments: $arguments,
+                arguments: xic::data::operand::Temporary::fresh_arguments($arguments),
                 returns: $returns,
                 linkage: xic::data::ir::Linkage::Global,
                 enter,
@@ -55,6 +56,7 @@ macro_rules! asm_function {
             let enter = xic::data::operand::Label::Fixed(xic::data::symbol::intern_static("enter"));
             let exit = xic::data::operand::Label::Fixed(xic::data::symbol::intern_static("exit"));
 
+            #[allow(non_snake_case)]
             let mut statements = asm_function!($($tt)*);
 
             statements.insert(0, xic::asm!((enter:)));

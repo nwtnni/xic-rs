@@ -75,7 +75,7 @@ pub fn tile(
         })
         .collect::<Vec<_>>();
 
-    tiler.tile_arguments(function.arguments);
+    tiler.tile_arguments(&function.arguments);
 
     function
         .statements
@@ -96,7 +96,7 @@ pub fn tile(
     asm::Function {
         name: function.name,
         statements: tiler.statements,
-        arguments: function.arguments,
+        arguments: function.arguments.len(),
         returns: function.returns,
         linkage: function.linkage,
         enter: function.enter,
@@ -105,7 +105,7 @@ pub fn tile(
 }
 
 impl Tiler {
-    fn tile_arguments(&mut self, arguments: usize) {
+    fn tile_arguments(&mut self, arguments: &[Temporary]) {
         let offset = match self.caller_returns {
             None => 0,
             Some(temporary) => {
@@ -114,10 +114,10 @@ impl Tiler {
             }
         };
 
-        for index in 0..arguments {
+        for (index, argument) in arguments.iter().copied().enumerate() {
             self.tile_binary(
                 asm::Binary::Mov,
-                Temporary::Argument(index),
+                argument,
                 // Note: we add this offset here and not above to keep the extra argument
                 // abstracted away from the IR level.
                 abi::read_argument(index + offset),
@@ -181,7 +181,7 @@ impl Tiler {
                 source => self.tile_binary(asm::Binary::Mov, destination, source),
             },
             lir::Statement::Call(function, arguments, returns) => {
-                let offset = if *returns > 2 {
+                let offset = if returns.len() > 2 {
                     self.tile_binary(
                         asm::Binary::Lea,
                         abi::write_argument(0),
@@ -202,15 +202,14 @@ impl Tiler {
 
                 let function = self.tile_expression(function);
                 let arguments = arguments.len() + offset;
-                let returns = *returns;
 
                 #[rustfmt::skip]
-                self.push(asm!((call<arguments, returns> function)));
+                self.push(asm!((call<arguments, (returns.len())> function)));
 
-                for index in 0..returns {
+                for (index, r#return) in returns.iter().copied().enumerate() {
                     self.tile_binary(
                         asm::Binary::Mov,
-                        Temporary::Return(index),
+                        r#return,
                         abi::read_return(self.callee_arguments, index),
                     );
                 }

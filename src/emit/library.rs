@@ -14,27 +14,29 @@ pub(super) fn emit_memdup() -> hir::Function {
     let r#while = Label::fresh("while");
     let done = Label::fresh("done");
 
+    let arguments = Temporary::fresh_arguments(1);
+
     hir::Function {
         name: symbol::intern_static(abi::XI_MEMDUP),
-        arguments: 1,
-        returns: 1,
         linkage: ir::Linkage::LinkOnceOdr,
         statement: hir!(
             (SEQ
                 (MOVE
                     (TEMP bound)
-                    (ADD (MUL (MEM (TEMP Temporary::Argument(0))) (CONST abi::WORD)) (CONST abi::WORD)))
-                (MOVE (TEMP address) (CALL (NAME abi::XI_ALLOC) 1 (TEMP bound)))
+                    (ADD (MUL (MEM (TEMP arguments[0])) (CONST abi::WORD)) (CONST abi::WORD)))
+                (MOVE (TEMP address) (CALL (NAME abi::XI_ALLOC) (Temporary::fresh_returns(1)) (TEMP bound)))
                 (MOVE (TEMP offset) (CONST 0))
                 (LABEL r#while)
                 (MOVE
                     (MEM (ADD (TEMP address) (TEMP offset)))
-                    (MEM (ADD (TEMP (Temporary::Argument(0))) (TEMP offset))))
+                    (MEM (ADD (TEMP arguments[0]) (TEMP offset))))
                 (MOVE (TEMP offset) (ADD (TEMP offset) (CONST abi::WORD)))
                 (CJUMP (GE (TEMP offset) (TEMP bound)) done r#while)
                 (LABEL done)
                 (RETURN (TEMP address)))
         ),
+        arguments,
+        returns: 1,
     }
 }
 
@@ -56,25 +58,27 @@ pub(super) fn emit_concat() -> hir::Function {
     let bound_right = Temporary::fresh("bound");
 
     let address = Temporary::fresh("address");
+    let arguments = Temporary::fresh_arguments(2);
 
     hir::Function {
         name: symbol::intern_static(abi::XI_CONCAT),
-        arguments: 2,
-        returns: 1,
         linkage: ir::Linkage::LinkOnceOdr,
         statement: hir!(
             (SEQ
-                (MOVE (TEMP array_left) (TEMP Temporary::Argument(0)))
+                (MOVE (TEMP array_left) (TEMP arguments[0]))
                 (MOVE (TEMP length_left) (MEM (SUB (TEMP array_left) (CONST abi::WORD))))
 
-                (MOVE (TEMP array_right) (TEMP Temporary::Argument(1)))
+                (MOVE (TEMP array_right) (TEMP arguments[1]))
                 (MOVE (TEMP length_right) (MEM (SUB (TEMP array_right) (CONST abi::WORD))))
 
                 // Allocate destination with correct length (+1 for length metadata)
                 (MOVE (TEMP length) (ADD (TEMP length_left) (TEMP length_right)))
                 (MOVE
                     (TEMP array)
-                    (CALL (NAME abi::XI_ALLOC) 1 (ADD (MUL (TEMP length) (CONST abi::WORD)) (CONST abi::WORD))))
+                    (CALL
+                        (NAME abi::XI_ALLOC)
+                        (Temporary::fresh_returns(1))
+                        (ADD (MUL (TEMP length) (CONST abi::WORD)) (CONST abi::WORD))))
                 (MOVE (MEM (TEMP array)) (TEMP length))
                 (MOVE (TEMP address) (ADD (TEMP array) (CONST abi::WORD)))
 
@@ -101,6 +105,8 @@ pub(super) fn emit_concat() -> hir::Function {
                 (LABEL done_right)
 
                 (RETURN (ADD (TEMP array) (CONST abi::WORD))))
-        )
+        ),
+        arguments,
+        returns: 1,
     }
 }

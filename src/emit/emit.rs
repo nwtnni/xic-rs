@@ -142,11 +142,11 @@ pub fn emit_hir(
                 statement: hir::Statement::Sequence(
                     names
                         .into_iter()
-                        .map(|name| hir!((EXP (CALL (NAME name) 0))))
+                        .map(|name| hir!((EXP (CALL (NAME name) (Vec::new())))))
                         .chain(iter::once(hir!((RETURN))))
                         .collect(),
                 ),
-                arguments: 0,
+                arguments: Vec::new(),
                 returns: 0,
                 linkage: ir::Linkage::Local,
             },
@@ -240,7 +240,7 @@ impl<'env> Emitter<'env> {
             hir::Function {
                 name,
                 statement,
-                arguments: 0,
+                arguments: Vec::new(),
                 returns: 0,
                 linkage: ir::Linkage::Local,
             },
@@ -264,7 +264,7 @@ impl<'env> Emitter<'env> {
         // Recursively initialize superclass
         if let Some(superclass) = self.context.get_superclass(&class.name.symbol) {
             let initialize = abi::mangle::class_initialization(&superclass);
-            statements.push(hir!((EXP (CALL (NAME initialize) 0))));
+            statements.push(hir!((EXP (CALL (NAME initialize) (Vec::new())))));
         }
 
         let linkage = match (class.provenance.is_empty(), class.declared.get()) {
@@ -286,7 +286,7 @@ impl<'env> Emitter<'env> {
             hir::Function {
                 name,
                 statement: hir::Statement::Sequence(statements),
-                arguments: 0,
+                arguments: Vec::new(),
                 returns: 0,
                 linkage,
             },
@@ -406,18 +406,24 @@ impl<'env> Emitter<'env> {
             GlobalScope::Class(_) => 1,
         };
 
+        let arguments = Temporary::fresh_arguments(function.parameters.len() + argument_offset);
+
         for (index, parameter) in function.parameters.iter().enumerate() {
             #[rustfmt::skip]
             statements.push(hir!(
                 (MOVE
                     (self.emit_single_declaration(Scope::Local, &parameter.name, &parameter.r#type))
-                    (TEMP (Temporary::Argument(index + argument_offset))))
+                    (TEMP (arguments[index + argument_offset])))
             ));
         }
 
         let scope = match scope {
             GlobalScope::Global => LocalScope::Function { returns },
-            GlobalScope::Class(class) => LocalScope::Method { class, returns },
+            GlobalScope::Class(class) => LocalScope::Method {
+                class,
+                this: Some(arguments[0]),
+                returns,
+            },
         };
 
         self.context.push(scope);
@@ -429,7 +435,7 @@ impl<'env> Emitter<'env> {
             hir::Function {
                 name,
                 statement: hir::Statement::Sequence(statements),
-                arguments: function.parameters.len() + argument_offset,
+                arguments,
                 returns: function.returns.len(),
                 linkage: if name == symbol::intern_static(abi::XI_MAIN) {
                     ir::Linkage::Global
@@ -568,7 +574,13 @@ impl<'env> Emitter<'env> {
                 Span::default(),
             )),
             Null(_) => hir!((CONST 0)).into(),
-            This(_, _) | Super(_, _) => hir!((TEMP Temporary::Argument(0))).into(),
+            This(_, _) | Super(_, _) => {
+                let this = self
+                    .context
+                    .get_scoped_this()
+                    .expect("[TYPE ERROR]: unbound `this` or `super`");
+                hir!((TEMP this)).into()
+            }
             Variable(variable, _) => {
                 assert!(variable.generics.is_none());
 
@@ -595,7 +607,7 @@ impl<'env> Emitter<'env> {
             }
             Array(expressions, _, _) => {
                 if let Some(label) = self.emit_static_array(expressions) {
-                    return hir!((ADD (CALL (NAME abi::XI_MEMDUP) 1 (NAME label)) (CONST abi::WORD))).into();
+                    return hir!((ADD (CALL (NAME abi::XI_MEMDUP) (Temporary::fresh_returns(1)) (NAME label)) (CONST abi::WORD))).into();
                 }
 
                 let array = hir!((TEMP Temporary::fresh("array")));
@@ -604,7 +616,7 @@ impl<'env> Emitter<'env> {
                     hir!(
                         (MOVE
                             (TEMP array.clone())
-                            (CALL (NAME abi::XI_ALLOC) 1 (CONST (expressions.len() + 1) as i64 * abi::WORD)))
+                            (CALL (NAME abi::XI_ALLOC) (Temporary::fresh_returns(1)) (CONST (expressions.len() + 1) as i64 * abi::WORD)))
                     ),
                     hir!((MOVE (MEM (array.clone())) (CONST expressions.len() as i64))),
                 ];
@@ -630,7 +642,7 @@ impl<'env> Emitter<'env> {
 
                 match binary {
                     ast::Binary::Cat => {
-                        hir!((CALL (NAME abi::XI_CONCAT) 1 (left.into()) (right.into()))).into()
+                        hir!((CALL (NAME abi::XI_CONCAT) (Temporary::fresh_returns(1)) (left.into()) (right.into()))).into()
                     }
                     ast::Binary::Mul
                     | ast::Binary::Hul
@@ -711,7 +723,7 @@ impl<'env> Emitter<'env> {
                         statements.extend([
                             hir!((CJUMP (AE (TEMP index) (MEM (SUB (TEMP base) (CONST abi::WORD)))) out r#in)),
                             hir!((LABEL out)),
-                            hir!((EXP (CALL (NAME abi::XI_OUT_OF_BOUNDS) 0))),
+                            hir!((EXP (CALL (NAME abi::XI_OUT_OF_BOUNDS) (Vec::new())))),
                             // In order to (1) minimize special logic for `XI_OUT_OF_BOUNDS` and (2) still
                             // treat it correctly in dataflow analyses as an exit site, we put this dummy
                             // return statement here.
@@ -743,14 +755,14 @@ impl<'env> Emitter<'env> {
                 let class_size = abi::mangle::class_size(&variable.name.symbol);
 
                 match self.layouts[&variable.name.symbol].virtual_table_len() {
-                    None => hir!((CALL (NAME abi::XI_ALLOC) 1 (MEM (NAME class_size)))).into(),
+                    None => hir!((CALL (NAME abi::XI_ALLOC) (Temporary::fresh_returns(1)) (MEM (NAME class_size)))).into(),
                     Some(_) => {
                         let new = Temporary::fresh("new");
                         let virtual_table = abi::mangle::class_virtual_table(&variable.name.symbol);
                         hir!(
                             (ESEQ
                                 (SEQ
-                                    (MOVE (TEMP new) (CALL (NAME abi::XI_ALLOC) 1 (MEM (NAME class_size))))
+                                    (MOVE (TEMP new) (CALL (NAME abi::XI_ALLOC) (Temporary::fresh_returns(1)) (MEM (NAME class_size))))
                                     (MOVE (MEM (TEMP new)) (NAME virtual_table)))
                                 (TEMP new))
                         )
@@ -797,7 +809,7 @@ impl<'env> Emitter<'env> {
         let (parameters, returns) = self.get_signature(GlobalScope::Global, &function.name)?;
 
         let function = abi::mangle::function(&function.name.symbol, parameters, returns);
-        let returns = returns.len();
+        let returns = Temporary::fresh_returns(returns.len());
         let arguments = arguments
             .iter()
             .map(|argument| self.emit_expression(argument).into())
@@ -830,6 +842,7 @@ impl<'env> Emitter<'env> {
         let returns = self
             .get_signature(GlobalScope::Class(class), method)
             .map(|(_, returns)| returns.len())
+            .map(Temporary::fresh_returns)
             .unwrap();
 
         arguments.insert(0, hir!((TEMP instance)));
@@ -908,22 +921,31 @@ impl<'env> Emitter<'env> {
             );
         };
 
-        #[rustfmt::skip]
-        let mut statements = vec![hir!(
-            (EXP (self.emit_expression(expression).into()))
-        )];
+        let expression = self.emit_expression(expression).into();
 
-        for (index, declaration) in declarations.iter().enumerate() {
-            if let Some(declaration) = declaration {
-                #[rustfmt::skip]
-                statements.push(hir!(
-                    (MOVE
-                        (self.emit_single_declaration(scope, &declaration.name, &declaration.r#type))
-                        (TEMP (Temporary::Return(index))))
-                ));
-            }
-        }
+        // We only emit and recognize the following two kinds of calls,
+        // and only calls can return multiple values.
+        let returns = match &expression {
+            // Function call
+            hir::Expression::Call(_, _, returns) => returns,
+            // Method call
+            hir::Expression::Sequence(_, expression) => match &**expression {
+                hir::Expression::Call(_, _, returns) => returns,
+                _ => unreachable!(),
+            },
+            _ => unreachable!(),
+        };
 
+        let mut statements = declarations
+            .iter()
+            .zip(returns)
+            .filter_map(|(declaration, r#return)| declaration.as_ref().zip(Some(r#return)))
+            .map(|(declaration, r#return)| {
+                hir!((MOVE (self.emit_single_declaration(scope, &declaration.name, &declaration.r#type)) (TEMP *r#return)))
+            })
+            .collect::<Vec<_>>();
+
+        statements.insert(0, hir!((EXP expression)));
         hir::Statement::Sequence(statements)
     }
 
@@ -1001,7 +1023,7 @@ impl<'env> Emitter<'env> {
         lengths.push(hir!((MOVE (TEMP length) (self.emit_expression(len).into()))));
 
         let mut statements = vec![
-            hir!((MOVE (TEMP array) (CALL (NAME abi::XI_ALLOC) 1 (MUL (ADD (TEMP length) (CONST 1)) (CONST abi::WORD))))),
+            hir!((MOVE (TEMP array) (CALL (NAME abi::XI_ALLOC) (Temporary::fresh_returns(1)) (MUL (ADD (TEMP length) (CONST 1)) (CONST abi::WORD))))),
             hir!((MOVE (MEM (TEMP array)) (TEMP length))),
         ];
 

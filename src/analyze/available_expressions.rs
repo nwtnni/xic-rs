@@ -72,11 +72,8 @@ impl<T: lir::Target> Analysis<lir::Function<T>> for AvailableExpressions<T> {
             | lir::Statement::Label(_)
             | lir::Statement::Return(_) => (),
             lir::Statement::Call(_, _, returns) => {
-                for r#return in 0..*returns {
-                    Self::remove(
-                        output,
-                        &lir::Expression::Temporary(Temporary::Return(r#return)),
-                    );
+                for r#return in returns {
+                    Self::remove(output, &lir::Expression::Temporary(*r#return));
                 }
 
                 // Conservatively assume all memory is overwritten by call

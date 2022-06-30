@@ -4,6 +4,7 @@ use std::ops;
 use crate::data::ast;
 use crate::data::ast::Identifier;
 use crate::data::operand::Label;
+use crate::data::operand::Temporary;
 use crate::data::r#type;
 use crate::data::span::Span;
 use crate::data::symbol::Symbol;
@@ -69,6 +70,7 @@ pub enum GlobalScope {
 pub enum LocalScope {
     Method {
         class: Symbol,
+        this: Option<Temporary>,
         returns: Vec<r#type::Expression>,
     },
     Function {
@@ -306,7 +308,29 @@ impl Context {
 
     pub fn get_scoped_class(&self) -> Option<Symbol> {
         match self.locals.first()? {
-            (LocalScope::Method { class, returns: _ }, _) => Some(*class),
+            (
+                LocalScope::Method {
+                    class,
+                    this: _,
+                    returns: _,
+                },
+                _,
+            ) => Some(*class),
+            (LocalScope::Function { returns: _ }, _) => None,
+            _ => unreachable!(),
+        }
+    }
+
+    pub fn get_scoped_this(&self) -> Option<Temporary> {
+        match self.locals.first()? {
+            (
+                LocalScope::Method {
+                    class: _,
+                    this,
+                    returns: _,
+                },
+                _,
+            ) => *this,
             (LocalScope::Function { returns: _ }, _) => None,
             _ => unreachable!(),
         }
@@ -314,9 +338,15 @@ impl Context {
 
     pub fn get_scoped_returns(&self) -> Option<&[r#type::Expression]> {
         match self.locals.first()? {
-            (LocalScope::Method { class: _, returns } | LocalScope::Function { returns }, _) => {
-                Some(returns.as_slice())
-            }
+            (
+                LocalScope::Method {
+                    class: _,
+                    this: _,
+                    returns,
+                }
+                | LocalScope::Function { returns },
+                _,
+            ) => Some(returns.as_slice()),
             _ => unreachable!(),
         }
     }

@@ -222,8 +222,8 @@ impl<T: lir::Target> Function for lir::Function<T> {
                 transfer_expression(right, output);
             }
             lir::Statement::Call(function, arguments, returns) => {
-                for r#return in 0..*returns {
-                    output.remove(&Temporary::Return(r#return));
+                for r#return in returns {
+                    output.remove(r#return);
                 }
 
                 transfer_expression(function, output);

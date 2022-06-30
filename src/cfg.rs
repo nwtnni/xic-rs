@@ -24,6 +24,7 @@ use crate::data::asm;
 use crate::data::ir;
 use crate::data::lir;
 use crate::data::operand::Label;
+use crate::data::operand::Temporary;
 use crate::data::symbol::Symbol;
 use crate::Map;
 
@@ -242,7 +243,7 @@ pub enum TerminatorMut<'a> {
 
 impl<T: lir::Target> Function for lir::Function<T> {
     type Statement = lir::Statement<T>;
-    type Metadata = (usize, usize, ir::Linkage);
+    type Metadata = (Vec<Temporary>, usize, ir::Linkage);
     type Fallthrough = lir::Function<lir::Fallthrough>;
 
     fn new(
@@ -298,7 +299,7 @@ impl<T: lir::Target> Function for lir::Function<T> {
     }
 
     fn metadata(&self) -> Self::Metadata {
-        (self.arguments, self.returns, self.linkage)
+        (self.arguments.clone(), self.returns, self.linkage)
     }
 
     fn statements(&mut self) -> Vec<Self::Statement> {

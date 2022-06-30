@@ -1,6 +1,5 @@
 use crate::analyze::Analysis;
 use crate::data::lir;
-use crate::data::operand::Temporary;
 use crate::Set;
 
 pub struct AnticipatedExpressions;
@@ -32,11 +31,8 @@ impl<T: lir::Target> Analysis<lir::Function<T>> for AnticipatedExpressions {
                 Self::insert(output, right);
             }
             lir::Statement::Call(function, arguments, returns) => {
-                for r#return in 0..*returns {
-                    Self::remove(
-                        output,
-                        &lir::Expression::Temporary(Temporary::Return(r#return)),
-                    );
+                for r#return in returns {
+                    Self::remove(output, &lir::Expression::Temporary(*r#return));
                 }
 
                 Self::insert(output, function);

@@ -85,8 +85,8 @@ impl<T: lir::Target> Analysis<lir::Function<T>> for ConditionalConstantPropagati
             // but we desugar returns into move + jump statements when we tile assembly.
             | lir::Statement::Return(_) => {}
             lir::Statement::Call(_, _, returns) => {
-                for r#return in 0..*returns {
-                    output.constants.insert(Temporary::Return(r#return), Constant::Overdefined);
+                for r#return in returns {
+                    output.constants.insert(*r#return, Constant::Overdefined);
                 }
             }
             lir::Statement::CJump {

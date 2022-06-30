@@ -38,29 +38,34 @@
 use crate::data::hir;
 use crate::data::lir;
 use crate::data::operand::Label;
+use crate::data::operand::Temporary;
 use crate::Map;
 
 pub struct Postorder<T> {
+    arguments: Vec<Temporary>,
     statements: Vec<T>,
     labels: Map<Label, usize>,
 }
 
 impl<T> Postorder<T> {
+    pub fn new(arguments: Vec<Temporary>) -> Self {
+        Self {
+            arguments,
+            statements: Vec::new(),
+            labels: Map::default(),
+        }
+    }
+
+    pub fn arguments(&self) -> &[Temporary] {
+        &self.arguments
+    }
+
     pub fn get_statement(&self, index: usize) -> Option<&T> {
         self.statements.get(index)
     }
 
     pub fn get_label(&self, label: &Label) -> Option<&usize> {
         self.labels.get(label)
-    }
-}
-
-impl<T> Default for Postorder<T> {
-    fn default() -> Self {
-        Self {
-            statements: Vec::new(),
-            labels: Map::default(),
-        }
     }
 }
 
@@ -72,7 +77,7 @@ pub enum Hir<'a> {
 
 impl<'a> Postorder<Hir<'a>> {
     pub fn traverse_hir(function: &'a hir::Function) -> Postorder<Hir<'a>> {
-        let mut flat = Postorder::default();
+        let mut flat = Postorder::new(function.arguments.clone());
         flat.traverse_hir_statement(&function.statement);
         flat
     }
@@ -154,7 +159,7 @@ pub enum Lir<'a, T> {
 
 impl<'a, T: lir::Target> Postorder<Lir<'a, T>> {
     pub fn traverse_lir(function: &'a lir::Function<T>) -> Postorder<Lir<'a, T>> {
-        let mut flat = Postorder::default();
+        let mut flat = Postorder::new(function.arguments.clone());
         function
             .statements
             .iter()

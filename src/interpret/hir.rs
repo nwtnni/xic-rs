@@ -7,7 +7,6 @@ use crate::abi;
 use crate::data::hir;
 use crate::data::ir;
 use crate::data::operand::Immediate;
-use crate::data::operand::Temporary;
 use crate::data::symbol;
 use crate::interpret::postorder;
 use crate::interpret::Global;
@@ -87,25 +86,25 @@ impl<'a> Local<'a, postorder::Hir<'a>> {
                 self.push(Operand::Memory(address));
             }
             hir::Expression::Binary(binary, _, _) => self.interpret_binary(global, binary),
-            hir::Expression::Call(_, arguments, _) => {
+            hir::Expression::Call(_, arguments, returns) => {
                 let arguments = self.pop_list(global, arguments.len());
                 let name = self.pop_name(global);
 
                 log::info!("Calling function {} with arguments {:?}", name, arguments);
 
-                let returns = global
+                let values = global
                     .interpret_library(name, &arguments)
                     .unwrap_or_else(|| {
                         Local::new(unit, &name, &arguments).interpret_hir(unit, global)
                     })
                     .with_context(|| anyhow!("Calling function {}", name))?;
 
-                if let Some(r#return) = returns.first() {
-                    self.push(r#return.into_operand());
+                if let Some(value) = values.first() {
+                    self.push(value.into_operand());
                 }
 
-                for (index, r#return) in returns.into_iter().enumerate() {
-                    self.insert(Temporary::Return(index), r#return);
+                for (r#return, value) in returns.iter().copied().zip(values) {
+                    self.insert(r#return, value);
                 }
             }
         }

@@ -34,8 +34,8 @@ impl<T: lir::Target> Analysis<lir::Function<T>> for CopyPropagation {
             | lir::Statement::Label(_)
             | lir::Statement::Return(_) => (),
             lir::Statement::Call(_, _, returns) => {
-                for r#return in 0..*returns {
-                    remove(output, &Temporary::Return(r#return));
+                for r#return in returns {
+                    remove(output, r#return);
                 }
             }
             lir::Statement::Move {

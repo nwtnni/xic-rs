@@ -250,6 +250,7 @@ impl Checker {
         let scope = match scope {
             GlobalScope::Class(class) => LocalScope::Method {
                 class,
+                this: None,
                 returns: returns.iter().map(|r#return| r#return.r#type()).collect(),
             },
             GlobalScope::Global => LocalScope::Function {

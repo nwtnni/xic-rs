@@ -91,8 +91,6 @@ pub enum Temporary {
     // Used for deterministic test output.
     Fixed(Symbol),
     Fresh(Symbol, usize),
-    Argument(usize),
-    Return(usize),
 }
 
 impl Temporary {
@@ -100,6 +98,14 @@ impl Temporary {
         let index = TEMPS.fetch_add(1, Ordering::SeqCst);
         let symbol = symbol::intern_static(label);
         Temporary::Fresh(symbol, index)
+    }
+
+    pub fn fresh_arguments(arguments: usize) -> Vec<Self> {
+        (0..arguments).map(|_| Self::fresh("arg")).collect()
+    }
+
+    pub fn fresh_returns(returns: usize) -> Vec<Self> {
+        (0..returns).map(|_| Self::fresh("ret")).collect()
     }
 }
 
@@ -109,8 +115,6 @@ impl fmt::Display for Temporary {
             Temporary::Register(register) => write!(fmt, "{}", register),
             Temporary::Fresh(temporary, index) => write!(fmt, "_{}{}", temporary, index),
             Temporary::Fixed(temporary) => write!(fmt, "_{}", temporary),
-            Temporary::Argument(index) => write!(fmt, "_ARG{}", index),
-            Temporary::Return(index) => write!(fmt, "_RET{}", index),
         }
     }
 }

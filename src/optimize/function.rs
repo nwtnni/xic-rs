@@ -55,8 +55,8 @@ pub fn inline_lir<T: lir::Target>(
             .flat_map(|statement| match statement {
                 lir::Statement::Call(
                     lir::Expression::Immediate(Immediate::Label(Label::Fixed(label))),
-                    caller_arguments,
-                    caller_returns,
+                    arguments,
+                    returns,
                 ) if lir.functions.contains_key(&label)
                     // Non-recursive
                     && !call_graph.is_recursive(&label)
@@ -68,28 +68,11 @@ pub fn inline_lir<T: lir::Target>(
                         || lir.functions[&label].statements.len() < THRESHOLD
 
                         // Constant arguments
-                        || caller_arguments.iter().all(|expression| {
+                        || arguments.iter().all(|expression| {
                             matches!(expression, lir::Expression::Immediate(_))
                     })
                     ) =>
                 {
-                    let Rewritten {
-                        callee_arguments,
-                        callee_returns,
-                        statements,
-                    } = rewrite(&lir.functions[&label]);
-
-                    let arguments = callee_arguments
-                        .into_iter()
-                        .zip(caller_arguments)
-                        .map(|(destination, source)| lir!((MOVE (TEMP destination) (TEMP source))));
-
-                    let returns = (0..caller_returns)
-                        .map(Temporary::Return)
-                        .into_iter()
-                        .zip(callee_returns)
-                        .map(|(destination, source)| lir!((MOVE (TEMP destination) (TEMP source))));
-
                     // Note: code duplication here is unfortunate, but if we move the
                     // conditions out of the match guard, we won't fall through and
                     // we'll have to reassemble the call if we decide not to inline.
@@ -110,7 +93,8 @@ pub fn inline_lir<T: lir::Target>(
                     );
                     inlined += 1;
 
-                    Or::L(arguments.chain(statements).chain(returns))
+                    let statements = rewrite(&lir.functions[&label], arguments, returns);
+                    Or::L(statements.into_iter())
                 }
                 statement => Or::R(iter::once(statement)),
             })
@@ -124,36 +108,30 @@ pub fn inline_lir<T: lir::Target>(
     lir
 }
 
-fn rewrite(function: &lir::Function<lir::Fallthrough>) -> Rewritten {
+fn rewrite(
+    function: &lir::Function<lir::Fallthrough>,
+    arguments: Vec<lir::Expression>,
+    returns: Vec<Temporary>,
+) -> Vec<lir::Statement<lir::Fallthrough>> {
     let mut rewriter = Rewriter {
-        arguments: (0..function.arguments)
-            .map(|_| Temporary::fresh("INLINE_ARG"))
-            .collect::<Vec<_>>(),
-        returns: (0..function.returns)
-            .map(|_| Temporary::fresh("INLINE_RET"))
-            .collect::<Vec<_>>(),
+        returns,
         rename_temporary: RefCell::default(),
         rename_label: RefCell::default(),
         rewritten: Vec::new(),
     };
 
-    rewriter.rewrite_function(function);
-
-    Rewritten {
-        callee_arguments: rewriter.arguments,
-        callee_returns: rewriter.returns,
-        statements: rewriter.rewritten,
+    for (temporary, argument) in function.arguments.iter().copied().zip(arguments) {
+        let temporary = rewriter.rewrite_temporary(&temporary);
+        rewriter
+            .rewritten
+            .push(lir!((MOVE (TEMP temporary) argument)));
     }
-}
 
-struct Rewritten {
-    callee_arguments: Vec<Temporary>,
-    callee_returns: Vec<Temporary>,
-    statements: Vec<lir::Statement<lir::Fallthrough>>,
+    rewriter.rewrite_function(function);
+    rewriter.rewritten
 }
 
 struct Rewriter {
-    arguments: Vec<Temporary>,
     returns: Vec<Temporary>,
     rename_temporary: RefCell<Map<Temporary, Temporary>>,
     rename_label: RefCell<Map<Label, Label>>,
@@ -205,7 +183,11 @@ impl Rewriter {
                     .iter()
                     .map(|argument| self.rewrite_expression(argument))
                     .collect();
-                lir::Statement::Call(function, arguments, *returns)
+                let returns = returns
+                    .iter()
+                    .map(|r#return| self.rewrite_temporary(r#return))
+                    .collect();
+                lir::Statement::Call(function, arguments, returns)
             }
             lir::Statement::Label(label) => lir::Statement::Label(self.rewrite_label(label)),
             lir::Statement::Move {
@@ -242,12 +224,6 @@ impl Rewriter {
     fn rewrite_temporary(&self, temporary: &Temporary) -> Temporary {
         match temporary {
             Temporary::Register(register) => Temporary::Register(*register),
-
-            // Note: the argument and return cases are not symmetric because
-            // arguments are passed from the caller and need to be rewritten,
-            // while returns are received from callees and should be preserved.
-            Temporary::Argument(index) => self.arguments[*index],
-            Temporary::Return(index) => Temporary::Return(*index),
 
             // Note: fixed temporaries should only be generated in test cases, in which
             // case we _should_ provision a fresh name.
