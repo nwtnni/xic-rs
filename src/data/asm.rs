@@ -234,6 +234,8 @@ macro_rules! asm {
     (@unary ihul) => { $crate::data::asm::Unary::Hul };
     (@unary idiv) => { $crate::data::asm::Unary::Div };
     (@unary imod) => { $crate::data::asm::Unary::Mod };
+    (@unary push) => { $crate::data::asm::Unary::Push };
+    (@unary pop) => { $crate::data::asm::Unary::Pop };
 
     (@binary add) => { $crate::data::asm::Binary::Add };
     (@binary sub) => { $crate::data::asm::Binary::Sub };

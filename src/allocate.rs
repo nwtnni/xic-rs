@@ -9,6 +9,7 @@ use crate::analyze::analyze;
 use crate::analyze::LiveRanges;
 use crate::analyze::LiveVariables;
 use crate::asm;
+use crate::assemble::FramePointer;
 use crate::cfg::Cfg;
 use crate::data::asm;
 use crate::data::operand;
@@ -36,12 +37,20 @@ pub fn allocate_trivial(function: &asm::Function<Temporary>) -> asm::Function<Re
 
     let allocated = Map::default();
     let spilled = trivial::allocate(function);
+    let frame_pointer = match function.statements.get(1) {
+        Some(asm::Statement::Unary(
+            asm::Unary::Push,
+            operand::Unary::R(Temporary::Register(Register::Rbp)),
+        )) => FramePointer::Keep,
+        _ => FramePointer::Omit,
+    };
 
     allocate(
-        function,
+        frame_pointer,
+        &[Register::R11, Register::R10, Register::R9, Register::R8],
         allocated,
         spilled,
-        &[Register::R11, Register::R10, Register::R9, Register::R8],
+        function,
     )
     .expect("[INTERNAL ERROR]: trivial register allocator ran out of shuttle registers")
 }
@@ -58,10 +67,20 @@ pub fn allocate_linear(mut function: Cfg<asm::Function<Temporary>>) -> asm::Func
         function.name(),
     );
 
+    let frame_pointer = match function[function.enter()].first() {
+        Some(asm::Statement::Unary(
+            asm::Unary::Push,
+            operand::Unary::R(Temporary::Register(Register::Rbp)),
+        )) => FramePointer::Keep,
+        _ => FramePointer::Omit,
+    };
+
     let mut registers = abi::CALLEE_SAVED
         .iter()
         .chain(abi::CALLER_SAVED)
         .copied()
+        // If omitting frame pointer, then we can use it during register allocation
+        .filter(|register| *register != Register::Rbp || frame_pointer == FramePointer::Omit)
         .collect::<Vec<_>>();
 
     let mut shuttles = Vec::new();
@@ -70,10 +89,16 @@ pub fn allocate_linear(mut function: Cfg<asm::Function<Temporary>>) -> asm::Func
     optimize::eliminate_dead_code_assembly(&live_variables, &mut function);
     let live_ranges = LiveRanges::new(&live_variables, function);
 
-    // Try to allocate `function` with successively more shuttle registers until we succeed.
+    // Try to allocate `function` with successively more shuttle registers until we succeed
     loop {
         let (allocated, spilled) = linear::allocate(&live_ranges, registers.clone());
-        match allocate(&live_ranges.function, allocated, spilled, &shuttles) {
+        match allocate(
+            frame_pointer,
+            &shuttles,
+            allocated,
+            spilled,
+            &live_ranges.function,
+        ) {
             Some(function) => {
                 log::debug!(
                     "Allocated {} using {} spill registers",
@@ -107,10 +132,11 @@ struct Allocator<'a> {
 }
 
 fn allocate(
-    function: &asm::Function<Temporary>,
+    frame_pointer: FramePointer,
+    shuttle: &[Register],
     allocated: Map<Temporary, Register>,
     spilled: Map<Temporary, usize>,
-    shuttle: &[Register],
+    function: &asm::Function<Temporary>,
 ) -> Option<asm::Function<Register>> {
     let mut allocator = Allocator {
         callee_arguments: function.callee_arguments(),
@@ -127,6 +153,7 @@ fn allocate(
     }
 
     let stack_size = abi::stack_size(
+        frame_pointer,
         allocator.callee_arguments,
         allocator.callee_returns,
         allocator.spilled.len(),
@@ -135,7 +162,7 @@ fn allocate(
     allocator
         .statements
         .iter_mut()
-        .for_each(|statement| rewrite_rbp(stack_size, statement));
+        .for_each(|statement| rewrite_rbp(frame_pointer, stack_size, statement));
 
     assert!(matches!(
         allocator.statements.first(),
@@ -148,13 +175,34 @@ fn allocate(
     ));
 
     if stack_size > 0 {
-        allocator.statements.insert(1, asm!((sub rsp, stack_size)));
+        allocator.statements.insert(
+            match frame_pointer {
+                // Place after prologue:
+                //
+                // ```text
+                // push rbp
+                // mov rbp, rsp
+                // ```
+                FramePointer::Keep => 3,
+                FramePointer::Omit => 1,
+            },
+            asm!((sub rsp, stack_size)),
+        );
 
         let len = allocator.statements.len();
 
-        allocator
-            .statements
-            .insert(len - 1, asm!((add rsp, stack_size)));
+        allocator.statements.insert(
+            match frame_pointer {
+                // Place before epilogue:
+                //
+                // ```text
+                // pop rbp
+                // ```
+                FramePointer::Keep => len - 2,
+                FramePointer::Omit => len - 1,
+            },
+            asm!((add rsp, stack_size)),
+        );
     }
 
     Some(asm::Function {
@@ -482,7 +530,11 @@ impl<'a> Allocator<'a> {
 //
 // This needs to be rewritten in terms of `rsp` after the stack size is
 // computed, since we don't keep around `rbp` within the function.
-fn rewrite_rbp(stack_size: i64, statement: &mut asm::Statement<Register>) {
+fn rewrite_rbp(
+    frame_pointer: FramePointer,
+    stack_size: i64,
+    statement: &mut asm::Statement<Register>,
+) {
     let memory = match statement {
         asm::Statement::Binary(_, operand::Binary::RI { .. })
         | asm::Statement::Binary(_, operand::Binary::RR { .. })
@@ -518,7 +570,13 @@ fn rewrite_rbp(stack_size: i64, statement: &mut asm::Statement<Register>) {
         *base = Register::Rsp(true);
         match offset {
             Immediate::Label(_) => unreachable!(),
-            Immediate::Integer(offset) => *offset += stack_size,
+            Immediate::Integer(offset) => {
+                *offset += stack_size
+                    + match frame_pointer {
+                        FramePointer::Keep => abi::WORD,
+                        FramePointer::Omit => 0,
+                    };
+            }
         }
     }
 }

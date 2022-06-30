@@ -33,6 +33,7 @@
 pub mod class;
 pub mod mangle;
 
+use crate::assemble::FramePointer;
 use crate::data::operand::Immediate;
 use crate::data::operand::Memory;
 use crate::data::operand::Register;
@@ -99,8 +100,9 @@ pub enum Abi {
     XiFinal,
 }
 
-/// Total stack size. Guaranteed to align to 16 bytes.
+/// Total stack size. Guaranteed to align to 16 bytes if there is a function call.
 pub fn stack_size(
+    frame_pointer: FramePointer,
     callee_arguments: Option<usize>,
     callee_returns: Option<usize>,
     spilled: usize,
@@ -109,10 +111,17 @@ pub fn stack_size(
         + callee_returns.unwrap_or(0).saturating_sub(2)
         + spilled;
 
-    // The stack must be aligned to 16 bytes (if there is a `call` statement),
-    // but it starts off unaligned because the caller's `call` statement
-    // pushes `rip` onto the stack, so we need an extra word of padding here.
-    (unaligned | (callee_arguments.is_some() || callee_returns.is_some()) as usize) * WORD as usize
+    // The stack must be aligned to 16 bytes if we need to `call` a sub-function.
+    //
+    // It starts off unaligned because the caller's `call` statement pushes `rip`
+    // onto the stack, but if we keep the frame pointer, then it is once again aligned.
+    let aligned = match frame_pointer {
+        _ if callee_arguments.is_none() && callee_returns.is_none() => unaligned,
+        FramePointer::Keep => ((unaligned + 1) & !1),
+        FramePointer::Omit => (unaligned | 1),
+    };
+
+    aligned * WORD as usize
 }
 
 /// Offset of spilled temporary `index` from the stack pointer.
