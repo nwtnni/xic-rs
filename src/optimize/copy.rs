@@ -171,7 +171,7 @@ pub fn propagate_assembly(cfg: &mut Cfg<asm::Function<Temporary>>) {
                 }
 
                 Statement::Binary(Cmp | Mov | Lea | Add | Sub | Shl | Mul | And | Or | Xor, _)
-                | Statement::Unary(Neg | Hul | Div | Mod | Call { .. }, _)
+                | Statement::Unary(Neg | Hul | Div | Mod | Call { .. } | Push | Pop, _)
                 | Statement::Nullary(Nop | Cqo | Ret(_))
                 | Statement::Label(_)
                 | Statement::Jmp(_)

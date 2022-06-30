@@ -157,7 +157,11 @@ pub fn eliminate_assembly(
                 }
                 // Preserve statements that may have side effects
                 asm::Statement::Unary(
-                    asm::Unary::Div | asm::Unary::Mod | asm::Unary::Call { .. },
+                    asm::Unary::Div
+                    | asm::Unary::Mod
+                    | asm::Unary::Call { .. }
+                    | asm::Unary::Push
+                    | asm::Unary::Pop,
                     _,
                 ) => None,
                 asm::Statement::Unary(asm::Unary::Neg, operand) => match operand {

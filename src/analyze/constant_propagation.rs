@@ -133,6 +133,12 @@ impl Analysis<asm::Function<Temporary>> for ConstantPropagation {
                     output.remove(&Temporary::Register(*register));
                 }
             }
+            asm::Statement::Unary(Push | Pop, operand) => {
+                assert_eq!(
+                    *operand,
+                    operand::Unary::R(Temporary::Register(Register::Rbp))
+                );
+            }
 
             asm::Statement::Nullary(Cqo) => {
                 output.insert(Temporary::Register(Register::Rdx), Immediate::Integer(0));
@@ -204,7 +210,9 @@ fn fold_unary(
     };
 
     let (rax, rdx) = match unary {
-        asm::Unary::Neg | asm::Unary::Call { .. } => return None,
+        asm::Unary::Neg | asm::Unary::Call { .. } | asm::Unary::Push | asm::Unary::Pop => {
+            return None
+        }
         asm::Unary::Hul => (
             destination.wrapping_mul(source),
             (((destination as i128) * (source as i128)) >> 64) as i64,

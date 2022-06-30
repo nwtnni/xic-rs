@@ -131,6 +131,12 @@ impl Analysis<asm::Function<Temporary>> for CopyPropagation {
                     remove(output, &Temporary::Register(*register))
                 }
             }
+            asm::Statement::Unary(Push | Pop, operand) => {
+                assert_eq!(
+                    *operand,
+                    operand::Unary::R(Temporary::Register(Register::Rbp))
+                );
+            }
             asm::Statement::Nullary(Nop | Ret(_))
             | asm::Statement::Label(_)
             | asm::Statement::Jmp(_)

@@ -175,6 +175,12 @@ impl Function for asm::Function<Temporary> {
 
                 operand.map(|temporary| output.insert(*temporary));
             }
+            asm::Statement::Unary(asm::Unary::Push | asm::Unary::Pop, operand) => {
+                assert_eq!(
+                    *operand,
+                    operand::Unary::R(Temporary::Register(Register::Rbp))
+                );
+            }
         }
     }
 }

@@ -249,6 +249,8 @@ impl fmt::Display for asm::Unary {
             } => "call",
             asm::Unary::Hul => "imul",
             asm::Unary::Div | asm::Unary::Mod => "idiv",
+            asm::Unary::Push => "push",
+            asm::Unary::Pop => "pop",
         };
 
         write!(fmt, "{}", unary)
