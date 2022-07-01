@@ -146,32 +146,50 @@ pub fn propagate_assembly(cfg: &mut Cfg<asm::Function<Temporary>>) {
                     *destination = traverse(*destination);
                     *source = traverse(*source);
                 }
-                asm::Statement::Binary(Cmp, operand::Binary::RM { destination, .. }) => {
+                asm::Statement::Binary(
+                    Cmp,
+                    operand::Binary::RM {
+                        destination,
+                        source,
+                    },
+                ) => {
                     *destination = traverse(*destination);
+                    *source = source.map(|temporary| traverse(*temporary));
                 }
                 asm::Statement::Binary(Cmp, operand::Binary::RI { destination, .. }) => {
                     *destination = traverse(*destination);
                 }
 
                 Statement::Binary(
-                    Mov | Lea | Add | Sub | Shl | Mul | And | Or | Xor,
-                    operand::Binary::RR { source, .. },
+                    Cmp | Mov | Lea | Add | Sub | Shl | Mul | And | Or | Xor,
+                    operands,
                 ) => {
-                    *source = traverse(*source);
-                }
-                Statement::Binary(
-                    Cmp | Mov | Lea | Add | Sub | Shl | And | Or | Xor,
-                    operand::Binary::MR { source, .. },
-                ) => {
-                    *source = traverse(*source);
-                }
+                    let memory = match operands {
+                        operand::Binary::RI { .. } => None,
+                        operand::Binary::MI { destination, .. } => Some(destination),
+                        operand::Binary::MR {
+                            destination,
+                            source,
+                        } => {
+                            *source = traverse(*source);
+                            Some(destination)
+                        }
+                        operand::Binary::RM { source, .. } => Some(source),
+                        operand::Binary::RR { source, .. } => {
+                            *source = traverse(*source);
+                            None
+                        }
+                    };
 
+                    if let Some(memory) = memory {
+                        *memory = memory.map(|temporary| traverse(*temporary))
+                    }
+                }
                 Statement::Unary(Hul | Div | Mod | Call { .. }, operand::Unary::R(source)) => {
                     *source = traverse(*source);
                 }
 
-                Statement::Binary(Cmp | Mov | Lea | Add | Sub | Shl | Mul | And | Or | Xor, _)
-                | Statement::Unary(Neg | Hul | Div | Mod | Call { .. } | Push | Pop, _)
+                Statement::Unary(Neg | Hul | Div | Mod | Call { .. } | Push | Pop, _)
                 | Statement::Nullary(Nop | Cqo | Ret(_))
                 | Statement::Label(_)
                 | Statement::Jmp(_)
