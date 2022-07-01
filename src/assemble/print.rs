@@ -18,15 +18,16 @@ impl<T: fmt::Display> fmt::Display for Intel<&asm::Unit<T>> {
         writeln!(fmt, "{}\n", Directive::Intel)?;
 
         writeln!(fmt, "{}\n", Directive::Data)?;
+        writeln!(fmt, "{}", Directive::Align(abi::WORD as usize))?;
 
         for (label, data) in &self.0.data {
             writeln!(fmt, "{}", Directive::Linkage(ir::Linkage::Local, *label))?;
-            writeln!(fmt, "{}", Directive::Align(abi::WORD as usize))?;
             writeln!(fmt, "{}", Intel(&Statement::<T>::Label(*label)))?;
             writeln!(fmt, "{}\n", Directive::Quad(data.clone()))?;
         }
 
         writeln!(fmt, "{}\n", Directive::Bss)?;
+        writeln!(fmt, "{}", Directive::Align(abi::WORD as usize))?;
 
         for (symbol, (linkage, size)) in &self.0.bss {
             writeln!(
@@ -34,7 +35,6 @@ impl<T: fmt::Display> fmt::Display for Intel<&asm::Unit<T>> {
                 "{}",
                 Directive::Linkage(*linkage, Label::Fixed(*symbol))
             )?;
-            writeln!(fmt, "{}", Directive::Align(abi::WORD as usize))?;
             writeln!(
                 fmt,
                 "{}",
