@@ -69,7 +69,12 @@ impl<T: fmt::Display> fmt::Display for Intel<&asm::Unit<T>> {
 impl<T: fmt::Display> fmt::Display for Intel<&asm::Function<T>> {
     fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
         writeln!(fmt, "{}:", self.0.name)?;
-        for statement in &self.0.statements {
+
+        assert!(
+            matches!(self.0.statements.first(), Some(Statement::Label(label)) if *label == self.0.enter)
+        );
+
+        for statement in self.0.statements.iter().skip(1) {
             if !matches!(statement, Statement::Label(_)) {
                 write!(fmt, "  ")?;
             }
