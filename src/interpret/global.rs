@@ -68,7 +68,7 @@ impl<'io> Global<'io> {
             abi::XI_PRINT => {
                 debug_assert_eq!(arguments.len(), 1);
 
-                // Note: this is a false positive, as `self.ready_array(...)` borrows
+                // Note: this is a false positive, as `self.read_array(...)` borrows
                 // all of `self` immutably, and then we try to write to `&mut self.stdout`.
                 //
                 // This actually wouldn't be a problem if the code were inlined, since
