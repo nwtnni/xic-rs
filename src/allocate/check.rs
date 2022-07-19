@@ -1,3 +1,5 @@
+use anyhow::anyhow;
+
 use crate::analyze::Analysis;
 use crate::data::asm;
 use crate::data::operand::Register;
@@ -21,6 +23,17 @@ enum Value {
     Conflict,
     Temporary(Temporary),
     Unknown,
+}
+
+impl Value {
+    fn merge(&self, value: &Self) -> Self {
+        match (self, value) {
+            (Value::Conflict, _) | (_, Value::Conflict) => Value::Conflict,
+            (Value::Unknown, _) | (_, Value::Unknown) => Value::Unknown,
+            (Value::Temporary(left), Value::Temporary(right)) if left == right => *self,
+            (Value::Temporary(_), Value::Temporary(_)) => Value::Conflict,
+        }
+    }
 }
 
 impl<const LINEAR: bool> Analysis<asm::Function<Temporary>> for ValidAllocation<LINEAR> {
@@ -100,5 +113,28 @@ impl<const LINEAR: bool> Analysis<asm::Function<Temporary>> for ValidAllocation<
                 }
             });
         }
+    }
+}
+
+impl<const LINEAR: bool> ValidAllocation<LINEAR> {
+    fn get(&self, temporary: &Temporary) -> Location {
+        self.allocated
+            .get(temporary)
+            .copied()
+            .map(Location::Register)
+            .or_else(|| self.spilled.get(temporary).copied().map(Location::Stack))
+            .ok_or_else(|| anyhow!("[INTERNAL ERROR]: unallocated temporary: {}", temporary))
+            .unwrap()
+    }
+
+    fn read(&self, output: &Map<Location, Value>, temporary: &Temporary) -> Value {
+        let location = self.get(temporary);
+        output.get(&location).copied().unwrap_or(Value::Unknown)
+    }
+
+    fn write(&mut self, output: &mut Map<Location, Value>, temporary: Temporary) {
+        let location = self.get(&temporary);
+        let value = output.entry(location).or_insert(Value::Unknown);
+        *value = value.merge(&Value::Temporary(temporary));
     }
 }
