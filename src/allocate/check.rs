@@ -5,7 +5,6 @@ use crate::data::asm;
 use crate::data::operand;
 use crate::data::operand::Register;
 use crate::data::operand::Temporary;
-use crate::util::Or;
 use crate::Map;
 
 // https://cfallin.org/blog/2021/03/15/cranelift-isel-3/
@@ -62,9 +61,9 @@ impl<const LINEAR: bool> Analysis<asm::Function<Temporary>> for ValidAllocation<
                     | asm::Binary::And
                     | asm::Binary::Or
                     | asm::Binary::Xor
-                    | asm::Binary::Shl => BinaryAccess::R_RW,
-                    asm::Binary::Cmp => BinaryAccess::R_R,
-                    asm::Binary::Mov | asm::Binary::Lea => BinaryAccess::R_W,
+                    | asm::Binary::Shl => Access::RW,
+                    asm::Binary::Cmp => Access::R,
+                    asm::Binary::Mov | asm::Binary::Lea => Access::W,
                 };
 
                 self.transfer_binary(output, access, operands)
@@ -121,44 +120,48 @@ impl<const LINEAR: bool> Analysis<asm::Function<Temporary>> for ValidAllocation<
     }
 }
 
-#[allow(non_camel_case_types)]
-enum BinaryAccess {
-    /// Read source, read and write destination
-    R_RW,
-    /// Read source, read destination
-    R_R,
-    /// Read source, write destination
-    R_W,
+enum Access {
+    /// Read source
+    R,
+    /// Read and write source
+    RW,
+    /// Write source
+    W,
 }
 
 impl<const LINEAR: bool> ValidAllocation<LINEAR> {
     fn transfer_binary(
         &self,
         output: &mut Map<Location, Value>,
-        access: BinaryAccess,
+        access: Access,
         operands: &operand::Binary<Temporary>,
     ) {
-        operands
-            .source()
-            .map(|temporary| self.read(output, temporary));
+        self.transfer_unary(output, Access::R, &operands.source());
+        self.transfer_unary(output, access, &operands.destination().into());
+    }
 
-        // Read destination
+    fn transfer_unary(
+        &self,
+        output: &mut Map<Location, Value>,
+        access: Access,
+        operand: &operand::Unary<Temporary>,
+    ) {
+        // Read source
         match access {
-            BinaryAccess::R_W => (),
-            BinaryAccess::R_RW | BinaryAccess::R_R => match operands.destination() {
-                Or::L(allocated) => self.read(output, &allocated),
-                Or::R(address) => {
-                    address.map(|temporary| self.read(output, temporary));
-                }
-            },
+            Access::W => (),
+            Access::R | Access::RW => {
+                operand.map(|temporary| self.read(output, temporary));
+            }
         }
 
-        // Write destination
+        // Write source
         match access {
-            BinaryAccess::R_R => (),
-            BinaryAccess::R_RW | BinaryAccess::R_W => match operands.destination() {
-                Or::L(allocated) => self.write(output, allocated),
-                Or::R(_) => (),
+            Access::R => (),
+            Access::RW | Access::W => match operand {
+                operand::Unary::I(_) | operand::Unary::M(_) => (),
+                operand::Unary::R(temporary) => {
+                    self.write(output, *temporary);
+                }
             },
         }
     }
