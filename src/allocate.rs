@@ -1,4 +1,3 @@
-mod check;
 mod linear;
 mod trivial;
 

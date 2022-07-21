@@ -7,19 +7,19 @@ use crate::data::operand::Temporary;
 use crate::Map;
 
 // https://cfallin.org/blog/2021/03/15/cranelift-isel-3/
-struct ValidAllocation<const LINEAR: bool> {
+pub struct ValidAllocation<const LINEAR: bool> {
     pub allocated: Map<Temporary, Register>,
     pub spilled: Map<Temporary, usize>,
 }
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq, Hash)]
-enum Location {
+pub enum Location {
     Stack(usize),
     Register(Register),
 }
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq, Hash)]
-enum Value {
+pub enum Value {
     Conflict,
     Temporary(Temporary),
     Unknown,

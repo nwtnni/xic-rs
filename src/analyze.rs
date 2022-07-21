@@ -11,6 +11,7 @@ mod live_ranges;
 mod live_variables;
 mod postponable_expressions;
 mod used_expressions;
+mod valid_allocation;
 
 pub use anticipated_expressions::AnticipatedExpressions;
 pub use available_expressions::AvailableExpressions;
