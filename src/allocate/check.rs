@@ -1,5 +1,4 @@
-use anyhow::anyhow;
-
+use crate::abi;
 use crate::analyze::Analysis;
 use crate::data::asm;
 use crate::data::operand;
@@ -69,10 +68,39 @@ impl<const LINEAR: bool> Analysis<asm::Function<Temporary>> for ValidAllocation<
                 self.transfer_binary(output, access, operands)
             }
             asm::Statement::Unary(unary, operand) => match unary {
-                asm::Unary::Push => todo!(),
-                asm::Unary::Pop => todo!(),
-                asm::Unary::Neg => todo!(),
-                asm::Unary::Call { arguments, returns } => todo!(),
+                asm::Unary::Push => {
+                    self.transfer_unary(output, Access::W, operand);
+                }
+                asm::Unary::Pop => {
+                    self.transfer_unary(output, Access::R, operand);
+                }
+                asm::Unary::Neg => {
+                    self.transfer_unary(output, Access::RW, operand);
+                }
+                asm::Unary::Call { arguments, returns } => {
+                    self.transfer_unary(output, Access::R, operand);
+
+                    for argument in abi::ARGUMENT.iter().take(*arguments).copied() {
+                        self.transfer_unary(
+                            output,
+                            Access::R,
+                            &operand::Unary::R(Temporary::Register(argument)),
+                        );
+                    }
+
+                    // Clobber caller-saved registers
+                    for register in abi::CALLER_SAVED.iter().copied() {
+                        output.insert(Location::Register(register), Value::Conflict);
+                    }
+
+                    for r#return in abi::RETURN.iter().take(*returns).copied() {
+                        self.transfer_unary(
+                            output,
+                            Access::W,
+                            &operand::Unary::R(Temporary::Register(r#return)),
+                        );
+                    }
+                }
                 asm::Unary::Hul => todo!(),
                 asm::Unary::Div => todo!(),
                 asm::Unary::Mod => todo!(),
@@ -186,7 +214,10 @@ impl<const LINEAR: bool> ValidAllocation<LINEAR> {
             .copied()
             .map(Location::Register)
             .or_else(|| self.spilled.get(temporary).copied().map(Location::Stack))
-            .ok_or_else(|| anyhow!("[INTERNAL ERROR]: unallocated temporary: {}", temporary))
-            .unwrap()
+            .or(match temporary {
+                Temporary::Register(register) => Some(Location::Register(*register)),
+                Temporary::Fixed(_) | Temporary::Fresh(_, _) => None,
+            })
+            .unwrap_or_else(|| panic!("[INTERNAL ERROR]: unallocated temporary: {}", temporary))
     }
 }
