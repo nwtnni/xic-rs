@@ -101,9 +101,34 @@ impl<const LINEAR: bool> Analysis<asm::Function<Temporary>> for ValidAllocation<
                         );
                     }
                 }
-                asm::Unary::Hul => todo!(),
-                asm::Unary::Div => todo!(),
-                asm::Unary::Mod => todo!(),
+                asm::Unary::Hul | asm::Unary::Mod | asm::Unary::Div => {
+                    self.transfer_unary(
+                        output,
+                        Access::Read,
+                        &operand::Unary::R(Temporary::Register(Register::Rax)),
+                    );
+
+                    self.transfer_unary(
+                        output,
+                        Access::Read,
+                        &operand::Unary::R(Temporary::Register(Register::Rdx)),
+                    );
+
+                    let (written, clobbered) = match unary {
+                        asm::Unary::Div => (Register::Rax, Register::Rdx),
+                        asm::Unary::Hul | asm::Unary::Mod => (Register::Rdx, Register::Rax),
+                        _ => unreachable!(),
+                    };
+
+                    // Clobber `rax`
+                    output.insert(Location::Register(clobbered), Value::Conflict);
+
+                    self.transfer_unary(
+                        output,
+                        Access::Write,
+                        &operand::Unary::R(Temporary::Register(written)),
+                    );
+                }
             },
             asm::Statement::Nullary(nullary) => match nullary {
                 asm::Nullary::Nop => todo!(),
