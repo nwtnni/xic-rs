@@ -60,30 +60,30 @@ impl<const LINEAR: bool> Analysis<asm::Function<Temporary>> for ValidAllocation<
                     | asm::Binary::And
                     | asm::Binary::Or
                     | asm::Binary::Xor
-                    | asm::Binary::Shl => Access::RW,
-                    asm::Binary::Cmp => Access::R,
-                    asm::Binary::Mov | asm::Binary::Lea => Access::W,
+                    | asm::Binary::Shl => Access::ReadWrite,
+                    asm::Binary::Cmp => Access::Read,
+                    asm::Binary::Mov | asm::Binary::Lea => Access::Write,
                 };
 
                 self.transfer_binary(output, access, operands)
             }
             asm::Statement::Unary(unary, operand) => match unary {
                 asm::Unary::Push => {
-                    self.transfer_unary(output, Access::W, operand);
+                    self.transfer_unary(output, Access::Write, operand);
                 }
                 asm::Unary::Pop => {
-                    self.transfer_unary(output, Access::R, operand);
+                    self.transfer_unary(output, Access::Read, operand);
                 }
                 asm::Unary::Neg => {
-                    self.transfer_unary(output, Access::RW, operand);
+                    self.transfer_unary(output, Access::ReadWrite, operand);
                 }
                 asm::Unary::Call { arguments, returns } => {
-                    self.transfer_unary(output, Access::R, operand);
+                    self.transfer_unary(output, Access::Read, operand);
 
                     for argument in abi::ARGUMENT.iter().take(*arguments).copied() {
                         self.transfer_unary(
                             output,
-                            Access::R,
+                            Access::Read,
                             &operand::Unary::R(Temporary::Register(argument)),
                         );
                     }
@@ -96,7 +96,7 @@ impl<const LINEAR: bool> Analysis<asm::Function<Temporary>> for ValidAllocation<
                     for r#return in abi::RETURN.iter().take(*returns).copied() {
                         self.transfer_unary(
                             output,
-                            Access::W,
+                            Access::Write,
                             &operand::Unary::R(Temporary::Register(r#return)),
                         );
                     }
@@ -149,22 +149,21 @@ impl<const LINEAR: bool> Analysis<asm::Function<Temporary>> for ValidAllocation<
 }
 
 enum Access {
-    /// Read source
-    R,
-    /// Read and write source
-    RW,
-    /// Write source
-    W,
+    Read,
+    ReadWrite,
+    Write,
 }
 
 impl<const LINEAR: bool> ValidAllocation<LINEAR> {
+    /// Note: for binary operators, the source is always `Access::Read`, but the
+    /// destination may differ.
     fn transfer_binary(
         &self,
         output: &mut Map<Location, Value>,
         access: Access,
         operands: &operand::Binary<Temporary>,
     ) {
-        self.transfer_unary(output, Access::R, &operands.source());
+        self.transfer_unary(output, Access::Read, &operands.source());
         self.transfer_unary(output, access, &operands.destination().into());
     }
 
@@ -176,16 +175,16 @@ impl<const LINEAR: bool> ValidAllocation<LINEAR> {
     ) {
         // Read source
         match access {
-            Access::W => (),
-            Access::R | Access::RW => {
+            Access::Write => (),
+            Access::Read | Access::ReadWrite => {
                 operand.map(|temporary| self.read(output, temporary));
             }
         }
 
         // Write source
         match access {
-            Access::R => (),
-            Access::RW | Access::W => match operand {
+            Access::Read => (),
+            Access::ReadWrite | Access::Write => match operand {
                 operand::Unary::I(_) | operand::Unary::M(_) => (),
                 operand::Unary::R(temporary) => {
                     self.write(output, *temporary);
