@@ -131,9 +131,29 @@ impl<const LINEAR: bool> Analysis<asm::Function<Temporary>> for ValidAllocation<
                 }
             },
             asm::Statement::Nullary(nullary) => match nullary {
-                asm::Nullary::Nop => todo!(),
-                asm::Nullary::Cqo => todo!(),
-                asm::Nullary::Ret(_) => todo!(),
+                asm::Nullary::Nop => (),
+                asm::Nullary::Cqo => {
+                    self.transfer_unary(
+                        output,
+                        Access::Read,
+                        &operand::Unary::R(Temporary::Register(Register::Rax)),
+                    );
+
+                    self.transfer_unary(
+                        output,
+                        Access::Write,
+                        &operand::Unary::R(Temporary::Register(Register::Rdx)),
+                    );
+                }
+                asm::Nullary::Ret(returns) => {
+                    for r#return in abi::RETURN.iter().take(*returns).copied() {
+                        self.transfer_unary(
+                            output,
+                            Access::Read,
+                            &operand::Unary::R(Temporary::Register(r#return)),
+                        );
+                    }
+                }
             },
         }
     }
