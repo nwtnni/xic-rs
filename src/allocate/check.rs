@@ -25,17 +25,6 @@ enum Value {
     Unknown,
 }
 
-impl Value {
-    fn merge(&self, value: &Self) -> Self {
-        match (self, value) {
-            (Value::Conflict, _) | (_, Value::Conflict) => Value::Conflict,
-            (Value::Unknown, _) | (_, Value::Unknown) => Value::Unknown,
-            (Value::Temporary(left), Value::Temporary(right)) if left == right => *self,
-            (Value::Temporary(_), Value::Temporary(_)) => Value::Conflict,
-        }
-    }
-}
-
 impl<const LINEAR: bool> Analysis<asm::Function<Temporary>> for ValidAllocation<LINEAR> {
     const BACKWARD: bool = false;
 
