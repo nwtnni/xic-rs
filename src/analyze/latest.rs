@@ -14,23 +14,9 @@ pub struct Latest<T> {
     marker: PhantomData<T>,
 }
 
-impl<T> Latest<T> {
-    pub(super) fn into_inner(self) -> Map<Label, Vec<Set<lir::Expression>>> {
-        self.inner
-    }
-}
-
-impl<T: lir::Target> Analysis<lir::Function<T>> for Latest<T> {
-    const BACKWARD: bool = false;
-
-    type Data = Set<lir::Expression>;
-
-    fn new() -> Self {
-        unreachable!()
-    }
-
-    fn new_with_metadata(cfg: &Cfg<lir::Function<T>>) -> Self {
-        let mut solution = analyze::<PostponableExpressions<T>, lir::Function<T>>(cfg);
+impl<T: lir::Target> Latest<T> {
+    pub fn new(cfg: &Cfg<lir::Function<T>>) -> Self {
+        let mut solution = analyze(PostponableExpressions::new(cfg), cfg);
         let mut postponable = Map::default();
 
         // Need random access to `postponable` (or at least access to
@@ -108,6 +94,16 @@ impl<T: lir::Target> Analysis<lir::Function<T>> for Latest<T> {
             marker: PhantomData,
         }
     }
+
+    pub(super) fn into_inner(self) -> Map<Label, Vec<Set<lir::Expression>>> {
+        self.inner
+    }
+}
+
+impl<T: lir::Target> Analysis<lir::Function<T>> for Latest<T> {
+    const BACKWARD: bool = false;
+
+    type Data = Set<lir::Expression>;
 
     fn default(&self) -> Self::Data {
         unreachable!()

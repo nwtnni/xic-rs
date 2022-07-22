@@ -13,6 +13,14 @@ pub struct ConditionalConstantPropagation {
     enter: Label,
 }
 
+impl ConditionalConstantPropagation {
+    pub fn new<T: lir::Target>(cfg: &Cfg<lir::Function<T>>) -> Self {
+        ConditionalConstantPropagation {
+            enter: *cfg.enter(),
+        }
+    }
+}
+
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Data {
     pub(crate) reachable: Reachable,
@@ -35,16 +43,6 @@ impl<T: lir::Target> Analysis<lir::Function<T>> for ConditionalConstantPropagati
     const BACKWARD: bool = false;
 
     type Data = Data;
-
-    fn new() -> Self {
-        unreachable!()
-    }
-
-    fn new_with_metadata(cfg: &Cfg<lir::Function<T>>) -> Self {
-        ConditionalConstantPropagation {
-            enter: *cfg.enter(),
-        }
-    }
 
     fn default(&self) -> Self::Data {
         unreachable!()

@@ -1,4 +1,4 @@
-use xic::analyze::analyze;
+use xic::analyze::analyze_default;
 use xic::analyze::display;
 use xic::analyze::CopyPropagation;
 use xic::data::asm::Function;
@@ -17,7 +17,7 @@ macro_rules! copy_propagation {
 
 fn copy_propagation(function: Function<Temporary>) -> anyhow::Result<String> {
     let cfg = xic::api::construct_cfg(function);
-    let copy_propagation = analyze::<CopyPropagation, _>(&cfg);
+    let copy_propagation = analyze_default::<CopyPropagation, _>(&cfg);
     super::super::graph(display(&copy_propagation, &cfg))
 }
 

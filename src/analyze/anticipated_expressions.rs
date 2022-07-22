@@ -2,16 +2,13 @@ use crate::analyze::Analysis;
 use crate::data::lir;
 use crate::Set;
 
+#[derive(Default)]
 pub struct AnticipatedExpressions;
 
 impl<T: lir::Target> Analysis<lir::Function<T>> for AnticipatedExpressions {
     const BACKWARD: bool = true;
 
     type Data = Set<lir::Expression>;
-
-    fn new() -> Self {
-        Self
-    }
 
     fn default(&self) -> Self::Data {
         Set::default()

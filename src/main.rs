@@ -547,7 +547,7 @@ fn run() -> anyhow::Result<()> {
                     .contains(&DebugOpt::Opt(Opt::DeadCodeElimination)))
         {
             cfg = cfg.map_mut(|function| {
-                let live_variables = analyze::analyze(function);
+                let live_variables = analyze::analyze_default(function);
                 optimize::eliminate_dead_code_assembly(&live_variables, function);
             });
 

@@ -47,12 +47,6 @@ pub trait Analysis<T: Function>: Sized {
 
     type Data: Clone + Eq;
 
-    fn new() -> Self;
-
-    fn new_with_metadata(_cfg: &Cfg<T>) -> Self {
-        Self::new()
-    }
-
     fn default(&self) -> Self::Data;
 
     fn default_with_metadata(&self, _label: &Label) -> Self::Data {
@@ -91,7 +85,15 @@ pub struct Solution<A: Analysis<T>, T: Function> {
     pub outputs: Map<Label, A::Data>,
 }
 
-pub fn analyze<A: Analysis<T>, T: Function>(cfg: &Cfg<T>) -> Solution<A, T> {
+pub fn analyze_default<A, T>(cfg: &Cfg<T>) -> Solution<A, T>
+where
+    A: Analysis<T> + Default,
+    T: Function,
+{
+    analyze(Default::default(), cfg)
+}
+
+pub fn analyze<A: Analysis<T>, T: Function>(analysis: A, cfg: &Cfg<T>) -> Solution<A, T> {
     log::info!(
         "[{}] Running {} analysis on {}...",
         std::any::type_name::<Cfg<T>>(),
@@ -104,8 +106,6 @@ pub fn analyze<A: Analysis<T>, T: Function>(cfg: &Cfg<T>) -> Solution<A, T> {
         std::any::type_name::<A>(),
         cfg.name(),
     );
-
-    let analysis = A::new_with_metadata(cfg);
 
     let strongly_connected_components = cfg.strongly_connected_components(A::BACKWARD);
     let (predecessors, successors) = match A::BACKWARD {

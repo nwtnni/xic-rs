@@ -1,6 +1,6 @@
 use std::path::Path;
 
-use xic::analyze::analyze;
+use xic::analyze::analyze_default;
 use xic::analyze::LiveVariables;
 use xic::optimize;
 
@@ -75,7 +75,7 @@ pub fn eliminate_dead_code_assembly(path: &str) -> anyhow::Result<()> {
     let optimized = super::tile(path)?
         .map(xic::api::construct_cfg)
         .map_mut(|cfg| {
-            let live_variables = analyze::<LiveVariables<_>, _>(cfg);
+            let live_variables = analyze_default::<LiveVariables<_>, _>(cfg);
             optimize::eliminate_dead_code_assembly(&live_variables, cfg);
         })
         .map(xic::api::destruct_cfg)

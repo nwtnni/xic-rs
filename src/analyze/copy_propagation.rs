@@ -8,16 +8,13 @@ use crate::data::operand::Temporary;
 use crate::util;
 use crate::Map;
 
+#[derive(Default)]
 pub struct CopyPropagation;
 
 impl<T: lir::Target> Analysis<lir::Function<T>> for CopyPropagation {
     const BACKWARD: bool = false;
 
     type Data = Map<Temporary, Temporary>;
-
-    fn new() -> Self {
-        Self
-    }
 
     fn default(&self) -> Self::Data {
         Map::default()
@@ -68,10 +65,6 @@ impl Analysis<asm::Function<Temporary>> for CopyPropagation {
     const BACKWARD: bool = false;
 
     type Data = Map<Temporary, Temporary>;
-
-    fn new() -> Self {
-        Self
-    }
 
     fn default(&self) -> Self::Data {
         Map::default()

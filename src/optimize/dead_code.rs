@@ -1,5 +1,5 @@
 use crate::abi;
-use crate::analyze::analyze;
+use crate::analyze::analyze_default;
 use crate::analyze::Analysis as _;
 use crate::analyze::CallGraph;
 use crate::analyze::LiveVariables;
@@ -67,7 +67,7 @@ pub fn eliminate_lir<T: lir::Target>(cfg: &mut Cfg<lir::Function<T>>) {
         cfg.name()
     );
 
-    let mut live_variables = analyze::<LiveVariables<_>, _>(cfg);
+    let mut live_variables = analyze_default::<LiveVariables<_>, _>(cfg);
     let mut eliminated = 0;
     let mut buffer = Vec::new();
 

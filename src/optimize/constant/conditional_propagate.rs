@@ -22,7 +22,7 @@ pub fn conditional_propagate_lir<T: lir::Target>(cfg: &mut Cfg<lir::Function<T>>
         cfg.name(),
     );
 
-    let mut solution = analyze::<ConditionalConstantPropagation, _>(cfg);
+    let mut solution = analyze(ConditionalConstantPropagation::new(cfg), cfg);
     let mut propagated = 0;
     let mut rewritten = 0;
 

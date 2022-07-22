@@ -75,7 +75,7 @@ struct Transformer<T> {
 
 impl<T: lir::Target> Transformer<T> {
     fn new(cfg: &Cfg<lir::Function<T>>) -> Self {
-        let mut solution = analyze::<UsedExpressions<_>, _>(cfg);
+        let mut solution = analyze(UsedExpressions::new(cfg), cfg);
 
         let mut used = Map::default();
 

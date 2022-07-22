@@ -1,4 +1,5 @@
 use xic::analyze::analyze;
+use xic::analyze::analyze_default;
 use xic::analyze::display;
 use xic::analyze::AnticipatedExpressions;
 use xic::analyze::AvailableExpressions;
@@ -31,22 +32,22 @@ fn partial_redundancy_elimination(
 ) -> anyhow::Result<(String, String, String, String, String, String)> {
     let cfg = xic::api::construct_cfg(function);
 
-    let solution = analyze::<AnticipatedExpressions, _>(&cfg);
+    let solution = analyze_default::<AnticipatedExpressions, _>(&cfg);
     let anticipated = super::super::graph(display(&solution, &cfg))?;
 
-    let solution = analyze::<AvailableExpressions<_>, _>(&cfg);
+    let solution = analyze(AvailableExpressions::new(&cfg), &cfg);
     let available = super::super::graph(display(&solution, &cfg))?;
 
-    let solution = analyze::<Earliest<_>, _>(&cfg);
+    let solution = analyze(Earliest::new(&cfg), &cfg);
     let earliest = super::super::graph(display(&solution, &cfg))?;
 
-    let solution = analyze::<PostponableExpressions<_>, _>(&cfg);
+    let solution = analyze(PostponableExpressions::new(&cfg), &cfg);
     let postponable = super::super::graph(display(&solution, &cfg))?;
 
-    let solution = analyze::<Latest<_>, _>(&cfg);
+    let solution = analyze(Latest::new(&cfg), &cfg);
     let latest = super::super::graph(display(&solution, &cfg))?;
 
-    let solution = analyze::<UsedExpressions<_>, _>(&cfg);
+    let solution = analyze(UsedExpressions::new(&cfg), &cfg);
     let used = super::super::graph(display(&solution, &cfg))?;
 
     Ok((anticipated, available, earliest, postponable, latest, used))

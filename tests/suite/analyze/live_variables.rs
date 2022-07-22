@@ -1,4 +1,4 @@
-use xic::analyze::analyze;
+use xic::analyze::analyze_default;
 use xic::analyze::display;
 use xic::analyze::LiveRanges;
 use xic::analyze::LiveVariables;
@@ -21,7 +21,7 @@ macro_rules! live_variables {
 
 fn live(function: Function<Temporary>) -> anyhow::Result<(String, String)> {
     let cfg = xic::api::construct_cfg(function);
-    let live_variables = analyze::<LiveVariables<_>, _>(&cfg);
+    let live_variables = analyze_default::<LiveVariables<_>, _>(&cfg);
     let annotated_cfg = super::super::graph(display(&live_variables, &cfg))?;
     let annotated_assembly = LiveRanges::new(&live_variables, cfg).to_string();
     Ok((annotated_cfg, annotated_assembly))

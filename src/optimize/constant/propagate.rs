@@ -1,6 +1,6 @@
 use std::borrow::Cow;
 
-use crate::analyze::analyze;
+use crate::analyze::analyze_default;
 use crate::analyze::Analysis as _;
 use crate::analyze::ConstantPropagation;
 use crate::cfg::Cfg;
@@ -22,7 +22,7 @@ pub fn propagate_assembly(cfg: &mut Cfg<asm::Function<Temporary>>) {
         cfg.name(),
     );
 
-    let mut solution = analyze::<ConstantPropagation, _>(cfg);
+    let mut solution = analyze_default::<ConstantPropagation, _>(cfg);
     let mut propagated = 0;
 
     for (label, statements) in cfg.blocks_mut() {

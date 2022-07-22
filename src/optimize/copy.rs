@@ -1,6 +1,6 @@
 use std::fmt;
 
-use crate::analyze::analyze;
+use crate::analyze::analyze_default;
 use crate::analyze::Analysis;
 use crate::analyze::CopyPropagation;
 use crate::cfg::Cfg;
@@ -24,7 +24,7 @@ pub fn propagate_lir<T: lir::Target>(cfg: &mut Cfg<lir::Function<T>>) {
         cfg.name()
     );
 
-    let mut solution = analyze::<CopyPropagation, _>(cfg);
+    let mut solution = analyze_default::<CopyPropagation, _>(cfg);
     let mut propagated = 0;
 
     for (label, statements) in cfg.blocks_mut() {
@@ -112,7 +112,7 @@ pub fn propagate_assembly(cfg: &mut Cfg<asm::Function<Temporary>>) {
         cfg.name()
     );
 
-    let mut solution = analyze::<CopyPropagation, _>(cfg);
+    let mut solution = analyze_default::<CopyPropagation, _>(cfg);
     let mut propagated = 0;
 
     for (label, statements) in cfg.blocks_mut() {

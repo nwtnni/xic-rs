@@ -31,6 +31,12 @@ use crate::Set;
 /// Note: we could also switch to (compressed) bitmaps if profiling indicates a bottleneck.
 pub struct LiveVariables<T>(PhantomData<T>);
 
+impl<T> Default for LiveVariables<T> {
+    fn default() -> Self {
+        LiveVariables(PhantomData)
+    }
+}
+
 impl<T: Function> Analysis<T> for LiveVariables<T>
 where
     T::Statement: fmt::Display,
@@ -38,10 +44,6 @@ where
     const BACKWARD: bool = true;
 
     type Data = Set<Temporary>;
-
-    fn new() -> Self {
-        LiveVariables(PhantomData)
-    }
 
     fn default(&self) -> Self::Data {
         Set::default()

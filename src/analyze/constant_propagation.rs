@@ -8,16 +8,13 @@ use crate::data::operand::Temporary;
 use crate::util;
 use crate::Map;
 
+#[derive(Default)]
 pub struct ConstantPropagation;
 
 impl Analysis<asm::Function<Temporary>> for ConstantPropagation {
     const BACKWARD: bool = false;
 
     type Data = Map<Temporary, Immediate>;
-
-    fn new() -> Self {
-        ConstantPropagation
-    }
 
     fn default(&self) -> Self::Data {
         Map::default()

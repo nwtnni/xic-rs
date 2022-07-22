@@ -30,10 +30,6 @@ impl<const LINEAR: bool> Analysis<asm::Function<Temporary>> for ValidAllocation<
 
     type Data = Map<Location, Value>;
 
-    fn new() -> Self {
-        todo!()
-    }
-
     fn default(&self) -> Self::Data {
         Map::default()
     }

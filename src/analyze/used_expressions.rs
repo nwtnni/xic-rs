@@ -14,21 +14,19 @@ pub struct UsedExpressions<T: lir::Target> {
     marker: PhantomData<T>,
 }
 
+impl<T: lir::Target> UsedExpressions<T> {
+    pub fn new(cfg: &Cfg<lir::Function<T>>) -> Self {
+        Self {
+            latest: Latest::new(cfg).into_inner(),
+            marker: PhantomData,
+        }
+    }
+}
+
 impl<T: lir::Target> Analysis<lir::Function<T>> for UsedExpressions<T> {
     const BACKWARD: bool = true;
 
     type Data = Set<lir::Expression>;
-
-    fn new() -> Self {
-        todo!()
-    }
-
-    fn new_with_metadata(cfg: &Cfg<lir::Function<T>>) -> Self {
-        Self {
-            latest: Latest::new_with_metadata(cfg).into_inner(),
-            marker: PhantomData,
-        }
-    }
 
     fn default(&self) -> Self::Data {
         Set::default()

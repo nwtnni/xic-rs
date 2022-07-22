@@ -14,23 +14,9 @@ pub struct Earliest<T> {
     marker: PhantomData<T>,
 }
 
-impl<T> Earliest<T> {
-    pub(super) fn into_inner(self) -> Map<Label, Vec<Set<lir::Expression>>> {
-        self.inner
-    }
-}
-
-impl<T: lir::Target> Analysis<lir::Function<T>> for Earliest<T> {
-    const BACKWARD: bool = false;
-
-    type Data = Set<lir::Expression>;
-
-    fn new() -> Self {
-        unreachable!()
-    }
-
-    fn new_with_metadata(cfg: &Cfg<lir::Function<T>>) -> Self {
-        let mut solution = analyze::<AvailableExpressions<T>, lir::Function<T>>(cfg);
+impl<T: lir::Target> Earliest<T> {
+    pub fn new(cfg: &Cfg<lir::Function<T>>) -> Self {
+        let mut solution = analyze(AvailableExpressions::new(cfg), cfg);
 
         for (label, statements) in cfg.blocks() {
             let mut output = solution.inputs.remove(label).unwrap();
@@ -52,6 +38,16 @@ impl<T: lir::Target> Analysis<lir::Function<T>> for Earliest<T> {
             marker: PhantomData,
         }
     }
+
+    pub(super) fn into_inner(self) -> Map<Label, Vec<Set<lir::Expression>>> {
+        self.inner
+    }
+}
+
+impl<T: lir::Target> Analysis<lir::Function<T>> for Earliest<T> {
+    const BACKWARD: bool = false;
+
+    type Data = Set<lir::Expression>;
 
     fn default(&self) -> Self::Data {
         unreachable!()

@@ -5,7 +5,7 @@ use std::iter;
 use std::slice;
 
 use crate::abi;
-use crate::analyze::analyze;
+use crate::analyze::analyze_default;
 use crate::analyze::LiveRanges;
 use crate::analyze::LiveVariables;
 use crate::asm;
@@ -84,7 +84,7 @@ pub fn allocate_linear(mut function: Cfg<asm::Function<Temporary>>) -> asm::Func
 
     let mut shuttles = Vec::new();
 
-    let live_variables = analyze::<LiveVariables<_>, _>(&function);
+    let live_variables = analyze_default::<LiveVariables<_>, _>(&function);
     optimize::eliminate_dead_code_assembly(&live_variables, &mut function);
     let live_ranges = LiveRanges::new(&live_variables, function);
 

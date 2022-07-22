@@ -14,21 +14,19 @@ pub struct PostponableExpressions<T: lir::Target> {
     marker: PhantomData<T>,
 }
 
+impl<T: lir::Target> PostponableExpressions<T> {
+    pub fn new(cfg: &Cfg<lir::Function<T>>) -> Self {
+        Self {
+            earliest: Earliest::new(cfg).into_inner(),
+            marker: PhantomData,
+        }
+    }
+}
+
 impl<T: lir::Target> Analysis<lir::Function<T>> for PostponableExpressions<T> {
     const BACKWARD: bool = false;
 
     type Data = Set<lir::Expression>;
-
-    fn new() -> Self {
-        unreachable!()
-    }
-
-    fn new_with_metadata(cfg: &Cfg<lir::Function<T>>) -> Self {
-        Self {
-            earliest: Earliest::new_with_metadata(cfg).into_inner(),
-            marker: PhantomData,
-        }
-    }
 
     fn default(&self) -> Self::Data {
         Set::default()

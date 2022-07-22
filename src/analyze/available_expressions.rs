@@ -1,8 +1,9 @@
 use std::marker::PhantomData;
 
-use crate::analyze::analyze;
+use crate::analyze::analyze_default;
 use crate::analyze::Analysis;
 use crate::analyze::AnticipatedExpressions;
+use crate::cfg::Cfg;
 use crate::data::lir;
 use crate::data::operand::Label;
 use crate::data::operand::Temporary;
@@ -15,17 +16,9 @@ pub struct AvailableExpressions<T: lir::Target> {
     marker: PhantomData<T>,
 }
 
-impl<T: lir::Target> Analysis<lir::Function<T>> for AvailableExpressions<T> {
-    const BACKWARD: bool = false;
-
-    type Data = Set<lir::Expression>;
-
-    fn new() -> Self {
-        unreachable!()
-    }
-
-    fn new_with_metadata(cfg: &crate::cfg::Cfg<lir::Function<T>>) -> Self {
-        let mut solution = analyze::<AnticipatedExpressions, _>(cfg);
+impl<T: lir::Target> AvailableExpressions<T> {
+    pub fn new(cfg: &Cfg<lir::Function<T>>) -> Self {
+        let mut solution = analyze_default::<AnticipatedExpressions, _>(cfg);
         let mut anticipated = Map::default();
 
         for (label, statements) in cfg.blocks() {
@@ -48,6 +41,12 @@ impl<T: lir::Target> Analysis<lir::Function<T>> for AvailableExpressions<T> {
             marker: PhantomData,
         }
     }
+}
+
+impl<T: lir::Target> Analysis<lir::Function<T>> for AvailableExpressions<T> {
+    const BACKWARD: bool = false;
+
+    type Data = Set<lir::Expression>;
 
     fn default(&self) -> Self::Data {
         Set::default()
