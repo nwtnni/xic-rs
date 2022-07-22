@@ -7,9 +7,9 @@ use crate::data::operand::Temporary;
 use crate::Map;
 
 // https://cfallin.org/blog/2021/03/15/cranelift-isel-3/
-pub struct ValidAllocation<const LINEAR: bool> {
-    pub allocated: Map<Temporary, Register>,
-    pub spilled: Map<Temporary, usize>,
+pub struct ValidAllocation<'a> {
+    pub allocated: &'a Map<Temporary, Register>,
+    pub spilled: &'a Map<Temporary, usize>,
 }
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq, Hash)]
@@ -25,7 +25,7 @@ pub enum Value {
     Unknown,
 }
 
-impl<const LINEAR: bool> Analysis<asm::Function<Temporary>> for ValidAllocation<LINEAR> {
+impl<'a> Analysis<asm::Function<Temporary>> for ValidAllocation<'a> {
     const BACKWARD: bool = false;
 
     type Data = Map<Location, Value>;
@@ -143,10 +143,10 @@ impl<const LINEAR: bool> Analysis<asm::Function<Temporary>> for ValidAllocation<
         }
     }
 
-    fn merge<'a, I>(&self, mut outputs: I, input: &mut Self::Data)
+    fn merge<'b, I>(&self, mut outputs: I, input: &mut Self::Data)
     where
-        I: Iterator<Item = Option<&'a Self::Data>>,
-        Self::Data: 'a,
+        I: Iterator<Item = Option<&'b Self::Data>>,
+        Self::Data: 'b,
     {
         input.clear();
         input.extend(outputs.next().into_iter().flatten().cloned().flatten());
@@ -184,7 +184,7 @@ enum Access {
     Write,
 }
 
-impl<const LINEAR: bool> ValidAllocation<LINEAR> {
+impl<'a> ValidAllocation<'a> {
     /// Note: for binary operators, the source is always `Access::Read`, but the
     /// destination may differ.
     fn transfer_binary(
