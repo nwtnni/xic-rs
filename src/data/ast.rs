@@ -52,7 +52,7 @@ impl fmt::Display for Use {
     }
 }
 
-const _: [(); 184] = [(); std::mem::size_of::<ItemSignature<()>>()];
+const _: [(); 176] = [(); std::mem::size_of::<ItemSignature<()>>()];
 
 #[derive(Clone, Debug)]
 pub enum ItemSignature<T> {
@@ -68,7 +68,7 @@ impl<T> fmt::Display for ItemSignature<T> {
     }
 }
 
-const _: [(); 192] = [(); std::mem::size_of::<Item<()>>()];
+const _: [(); 184] = [(); std::mem::size_of::<Item<()>>()];
 
 #[derive(Clone, Debug)]
 pub enum Item<T> {
@@ -85,7 +85,7 @@ impl<T> fmt::Display for Item<T> {
     }
 }
 
-const _: [(); 72] = [(); std::mem::size_of::<Global<()>>()];
+const _: [(); 64] = [(); std::mem::size_of::<Global<()>>()];
 
 #[derive(Clone, Debug)]
 pub enum Global<T> {
@@ -258,7 +258,7 @@ impl<T> fmt::Display for Class<T> {
     }
 }
 
-const _: [(); 192] = [(); std::mem::size_of::<ClassItem<()>>()];
+const _: [(); 184] = [(); std::mem::size_of::<ClassItem<()>>()];
 
 #[derive(Clone, Debug)]
 pub enum ClassItem<T> {

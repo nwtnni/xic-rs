@@ -126,8 +126,8 @@ pub fn stack_size(
     // onto the stack, but if we keep the frame pointer, then it is once again aligned.
     let aligned = match frame_pointer {
         _ if callee_arguments.is_none() && callee_returns.is_none() => unaligned,
-        FramePointer::Keep => ((unaligned + 1) & !1),
-        FramePointer::Omit => (unaligned | 1),
+        FramePointer::Keep => (unaligned + 1) & !1,
+        FramePointer::Omit => unaligned | 1,
     };
 
     aligned * WORD as usize
