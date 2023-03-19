@@ -126,6 +126,7 @@ pub fn execute<T: Display>(object: T) -> anyhow::Result<String> {
         .arg(concat!(env!("CARGO_MANIFEST_DIR"), "/runtime"))
         .arg("-lxi")
         .arg("-lpthread")
+        .arg("-no-pie")
         .arg("-o")
         .arg(&path);
 
@@ -162,6 +163,7 @@ where
         .arg("-lxi")
         .arg("-Wl,--end-group")
         .arg("-lpthread")
+        .arg("-no-pie")
         .arg("-o")
         .arg(&path);
 
